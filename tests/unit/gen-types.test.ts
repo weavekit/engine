@@ -1,0 +1,143 @@
+import { describe, it, expect } from '../helpers/test.js';import { generateObjectTypes } from '../../src/core/object/gen-types.js';
+import type { ObjectDefinition } from '../../src/core/index.js';
+
+const SUPPLIER: ObjectDefinition = {
+  name: 'supplier',
+  fields: [{ name: 'id', type: 'string', primary: true }],
+};
+
+const TAG: ObjectDefinition = {
+  name: 'tag',
+  fields: [{ name: 'id', type: 'integer', primary: true }],
+};
+
+const LEAD: ObjectDefinition = {
+  name: 'lead',
+  fields: [
+    { name: 'id', type: 'string', primary: true },
+    { name: 'title', type: 'string', required: true },
+    { name: 'note', type: 'text' },
+    { name: 'count', type: 'integer' },
+    { name: 'amount', type: 'currency' },
+    { name: 'active', type: 'boolean' },
+    { name: 'created_at', type: 'datetime' },
+    { name: 'due_date', type: 'date' },
+    { name: 'meta', type: 'json' },
+    { name: 'status', type: 'enum', options: ['open', "won't", 'archived'] },
+    { name: 'tags', type: 'enum', options: ['a', 'b'], multiple: true },
+    { name: 'supplier_id', type: 'relation', target: 'supplier' },
+    { name: 'tag_ids', type: 'multiRelation', target: 'tag' },
+    { name: 'code', type: 'seq_no', format: '{seq}' },
+  ],
+};
+
+const ORDER: ObjectDefinition = {
+  name: 'order',
+  fields: [
+    { name: 'id', type: 'string', primary: true },
+    { name: 'lines', type: 'details', target: 'order_line' },
+  ],
+};
+
+const CRM_LEAD: ObjectDefinition = {
+  name: 'crm_lead',
+  fields: [{ name: 'id', type: 'string', primary: true }],
+};
+
+const PERSON: ObjectDefinition = {
+  name: 'person',
+  fields: [{ name: 'id', type: 'string', primary: true }],
+};
+
+const DEPARTMENT: ObjectDefinition = {
+  name: 'department',
+  fields: [{ name: 'id', type: 'string', primary: true }],
+};
+
+const PROFILE: ObjectDefinition = {
+  name: 'profile',
+  fields: [
+    { name: 'id', type: 'string', primary: true },
+    { name: 'first', type: 'firstName' },
+    { name: 'last', type: 'lastName' },
+    { name: 'email', type: 'email' },
+    { name: 'phone', type: 'phone' },
+    { name: 'avatar', type: 'image' },
+    { name: 'owner_id', type: 'person', target: 'person' },
+    { name: 'dept_id', type: 'department', target: 'department' },
+  ],
+};
+
+describe('generateObjectTypes — object-level TS type compilation', () => {
+  it('scalar/text/number/boolean/datetime/date/json mapping', () => {
+    const src = generateObjectTypes([LEAD]);
+    expect(src).toContain('export interface Lead {');
+    expect(src).toContain('  id: string;');
+    expect(src).toContain('  title: string;');
+    expect(src).toContain('  note?: string;');
+    expect(src).toContain('  count?: number;');
+    expect(src).toContain('  amount?: number;');
+    expect(src).toContain('  active?: boolean;');
+    expect(src).toContain('  created_at?: string;');
+    expect(src).toContain('  due_date?: string;');
+    expect(src).toContain('  meta?: Record<string, unknown>;');
+  });
+
+  it('enum: literal union (quote escaping); multiple → array', () => {
+    const src = generateObjectTypes([LEAD]);
+    expect(src).toContain(`  status?: 'open' | 'won\\'t' | 'archived';`);
+    expect(src).toContain(`  tags?: ('a' | 'b')[];`);
+  });
+
+  it('required mandatory, rest optional; seq_no → string', () => {
+    const src = generateObjectTypes([LEAD]);
+    expect(src).toContain('  title: string;');
+    expect(src).toContain('  note?: string;');
+    expect(src).toContain('  code?: string;');
+  });
+
+  it('relation/multiRelation → target primary-key scalar type (cross-object resolution)', () => {
+    const src = generateObjectTypes([SUPPLIER, TAG, LEAD]);
+    expect(src).toContain('  supplier_id?: string;');
+    expect(src).toContain('  tag_ids?: number[];');
+  });
+
+  it('relation target missing → fallback string', () => {
+    const src = generateObjectTypes([LEAD]);
+    expect(src).toContain('  supplier_id?: string;');
+    expect(src).toContain('  tag_ids?: string[];');
+  });
+
+  it('details fields ignored (child table is a separate object)', () => {
+    const src = generateObjectTypes([ORDER]);
+    expect(src).toContain('export interface Order {');
+    expect(src).not.toContain('lines');
+  });
+
+  it('string subtypes → string; person → target primary-key type', () => {
+    const src = generateObjectTypes([PERSON, DEPARTMENT, PROFILE]);
+    expect(src).toContain('export interface Profile {');
+    expect(src).toContain('  first?: string;');
+    expect(src).toContain('  last?: string;');
+    expect(src).toContain('  email?: string;');
+    expect(src).toContain('  phone?: string;');
+    expect(src).toContain('  avatar?: string;');
+    expect(src).toContain('  owner_id?: string;');
+    expect(src).toContain('  dept_id?: string;');
+  });
+
+  it('object name snake_case → PascalCase', () => {
+    const src = generateObjectTypes([CRM_LEAD]);
+    expect(src).toContain('export interface CrmLead {');
+  });
+
+  it('empty array → header only', () => {
+    const src = generateObjectTypes([]);
+    expect(src).toContain('Generated by @weave-kit/engine');
+    expect(src).not.toContain('export interface');
+  });
+
+  it('output starts with file header comment', () => {
+    expect(generateObjectTypes([LEAD]).split('\n')[0]).toBe('// Generated by @weave-kit/engine — do not edit.');
+  });
+});

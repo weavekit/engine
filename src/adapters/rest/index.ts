@@ -1,0 +1,16 @@
+export { registerObjectRoutes } from './plugin.js';
+export type { RestDeps, RestOptions } from './plugin.js';
+export { setErrorHandlers } from './errorHandler.js';
+export { registerMetadataRoutes } from './metadata.js';
+export { registerPermissionsRoutes } from './permissions.js';
+export { registerAuditRoutes } from './audit.js';
+export { registerApprovalsRoutes } from './approvals.js';
+export { registerScriptRoutes } from './scripts.js';
+export { registerPagesRoutes } from './pages.js';
+export { registerSchemaRoutes } from './schemas.js';
+export { registerGuardrailsRoutes } from './guardrails.js';
+export { registerIdentitiesRoutes } from './identities.js';
+export { registerProxyRoutes } from './proxy.js';
+export type { ProxyRouteDeps } from './proxy.js';
+export { registerIngressRoutes } from './ingress.js';
+export type { IngressDeps } from './ingress.js';

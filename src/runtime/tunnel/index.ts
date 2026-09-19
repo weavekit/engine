@@ -1,0 +1,10 @@
+export { TunnelSession, encodeFrame, toB64, fromB64 } from './framing.js';
+export type { TunnelFrame } from './framing.js';
+export { TunnelRegistry } from './registry.js';
+export type { TunnelResponse } from './registry.js';
+export { createTunnelForwarder } from './forwarder.js';
+export type { TunnelForwarderOptions } from './forwarder.js';
+export { connectTunnel } from './connector.js';
+export type { ConnectorOptions, ConnectorHandle } from './connector.js';
+export { createTunnelServer } from './server.js';
+export type { TunnelServerDeps, TunnelServerHandle } from './server.js';

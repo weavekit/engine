@@ -1,0 +1,176 @@
+import type { Locale } from '../i18n/index.js';
+import { resolvePermission, type ResolvedPermission } from '../rbac/index.js';
+import { SchemaError } from '../types/errors.js';
+import { FIELD_TYPES, type FieldDefinition, type ReadScope } from '../types/index.js';
+import type { ObjectRegistry } from './registry.js';
+
+/**
+ * Metadata description — the engine's neutral "schema + permissions" view,
+ * shared by the MCP introspection tools and the REST metadata/permissions
+ * endpoints (M11). Protocol-agnostic: describes type semantics only (enum
+ * options, relation targets, multiple), never UI/widget hints — the Headless
+ * line stays intact; frontends derive controls from field types.
+ */
+
+/** one field as seen by a frontend — type semantics only */
+export interface MetadataField {
+  name: string;
+  type: string;
+  label: string;
+  description?: string;
+  required?: boolean;
+  options?: string[];
+  multiple?: boolean;
+  target?: string;
+  /** for `person` fields: the department FK field name on the person target object */
+  department?: string;
+  /** true when this field is the object's primary key (the CRUD id field for frontends) */
+  primary?: boolean;
+  /** true for engine-managed read-only fields (system / formula); `seq_no` is derivable from its type */
+  readOnly?: boolean;
+}
+
+/** a relation field (weak/strong/multi) as a named edge */
+export interface MetadataRelation {
+  field: string;
+  type: string;
+  target?: string;
+}
+
+/** effective permissions for one identity on one object */
+export interface MetadataPermissions {
+  read?: ReadScope;
+  create: boolean;
+  /** null = every field updatable; [] = none; otherwise the field whitelist */
+  update: string[] | null;
+  delete: boolean;
+  /** fields hidden from read output for this identity */
+  excludedFields: string[];
+  /** null = all writable fields allowed on create; [] = none; otherwise the whitelist */
+  createFields: string[] | null;
+}
+
+/** full object descriptor: schema + the identity's effective permissions */
+export interface ObjectDescriptor {
+  name: string;
+  label: string;
+  description?: string;
+  titleTemplate?: string;
+  fields: MetadataField[];
+  relations: MetadataRelation[];
+  permissions: MetadataPermissions;
+}
+
+/** minimal list entry (object name/label/description) */
+export interface ObjectListEntry {
+  name: string;
+  label: string;
+  description?: string;
+}
+
+function fieldDescription(field: FieldDefinition): MetadataField {
+  const out: MetadataField = {
+    name: field.name,
+    type: field.type,
+    label: field.label ?? field.name,
+    description: field.description,
+  };
+  const readonly = field.system === true || (field as { formula?: string }).formula !== undefined;
+  if (readonly) out.readOnly = true;
+  if ('required' in field && field.required === true) out.required = true;
+  if (field.primary === true) out.primary = true;
+  if (field.type === FIELD_TYPES.ENUM) {
+    out.options = field.options;
+    out.multiple = field.multiple === true;
+  }
+  if (field.type === FIELD_TYPES.IMAGE) {
+    out.multiple = field.multiple === true;
+  }
+  if (
+    field.type === FIELD_TYPES.RELATION ||
+    field.type === FIELD_TYPES.PERSON ||
+    field.type === FIELD_TYPES.DEPARTMENT ||
+    field.type === FIELD_TYPES.MULTI_RELATION ||
+    field.type === FIELD_TYPES.DETAILS
+  ) {
+    out.target = field.target;
+  }
+  if (field.type === FIELD_TYPES.PERSON && field.department !== undefined) {
+    out.department = field.department;
+  }
+  return out;
+}
+
+function permissionsOf(perm: ResolvedPermission): MetadataPermissions {
+  return {
+    read: perm.read,
+    create: perm.create,
+    update: perm.update,
+    delete: perm.delete,
+    excludedFields: perm.exclude,
+    createFields: perm.createFields,
+  };
+}
+
+/** objects the identity can read — the frontend menu/list minimum (mirrors MCP list_objects) */
+export function listObjectDescriptors(registry: ObjectRegistry, roles: readonly string[]): ObjectListEntry[] {
+  return registry
+    .list()
+    .filter((def) => resolvePermission(def, roles)?.read !== undefined)
+    .map((def) => ({ name: def.name, label: def.label ?? def.name, description: def.description }));
+}
+
+/**
+ * Full descriptor for one object (schema + effective permissions, excluded
+ * fields stripped). Throws `data.objectUnknown` (unknown object) or
+ * `rbac.denied.read` (identity may not read it).
+ */
+export function describeObject(
+  registry: ObjectRegistry,
+  name: string,
+  roles: readonly string[],
+  locale: Locale,
+): ObjectDescriptor {
+  const def = registry.get(name);
+  if (def === undefined) throw new SchemaError('data.objectUnknown', { object: name }, locale);
+  const perm = resolvePermission(def, roles);
+  if (perm === undefined || perm.read === undefined) {
+    throw new SchemaError('rbac.denied.read', { object: name, role: roles.join(',') }, locale);
+  }
+  const excluded = new Set(perm.exclude);
+  const fields = def.fields.filter((f) => !excluded.has(f.name)).map(fieldDescription);
+  const relations = def.fields
+    .filter(
+      (f) =>
+        f.type === FIELD_TYPES.RELATION ||
+        f.type === FIELD_TYPES.PERSON ||
+        f.type === FIELD_TYPES.DEPARTMENT ||
+        f.type === FIELD_TYPES.MULTI_RELATION ||
+        f.type === FIELD_TYPES.DETAILS,
+    )
+    .map((f) => ({ field: f.name, type: f.type, target: f.target }));
+  return {
+    name: def.name,
+    label: def.label ?? def.name,
+    description: def.description,
+    titleTemplate: def.titleTemplate,
+    fields,
+    relations,
+    permissions: permissionsOf(perm),
+  };
+}
+
+/** per-object effective permissions for the identity (any resolved permission — read, create, update or delete) */
+export function listObjectPermissions(
+  registry: ObjectRegistry,
+  roles: readonly string[],
+): Array<{ name: string; label: string; permissions: MetadataPermissions }> {
+  const out: Array<{ name: string; label: string; permissions: MetadataPermissions }> = [];
+  for (const def of registry.list()) {
+    const perm = resolvePermission(def, roles);
+    if (perm !== undefined) {
+      out.push({ name: def.name, label: def.label ?? def.name, permissions: permissionsOf(perm) });
+    }
+  }
+  return out;
+}
