@@ -85,14 +85,16 @@ weave mcp:config          # ready-to-paste config for Claude Code / Cursor / VS 
 
 ## Documentation
 
-Docs index: **[docs/](https://github.com/weavekit/engine/blob/main/docs/README.md)**
+Full documentation: **[docs.weavekit.io/engine](https://docs.weavekit.io/engine)**
 
-- [Getting started](https://github.com/weavekit/engine/blob/main/docs/guides/getting-started.md) — scaffold, migrate, run, consume
-- [Schema guide](https://github.com/weavekit/engine/blob/main/docs/guides/schema.md) · [RBAC](https://github.com/weavekit/engine/blob/main/docs/guides/rbac.md) · [Formulas](https://github.com/weavekit/engine/blob/main/docs/guides/formulas.md) · [Audit](https://github.com/weavekit/engine/blob/main/docs/guides/audit.md)
-- [CLI reference](https://github.com/weavekit/engine/blob/main/docs/guides/cli.md) · [MCP](https://github.com/weavekit/engine/blob/main/docs/guides/mcp.md) · [Script hooks](https://github.com/weavekit/engine/blob/main/docs/guides/script-hooks.md)
-- [Custom tools & guardrails](https://github.com/weavekit/engine/blob/main/docs/guides/custom-tools-and-guardrails.md) · [Quotas](https://github.com/weavekit/engine/blob/main/docs/guides/quotas.md) · [Inbound events](https://github.com/weavekit/engine/blob/main/docs/guides/ingress.md)
-- [Public API & dependency budget](https://github.com/weavekit/engine/blob/main/docs/reference/public-api.md)
-- [Practices & operations](https://github.com/weavekit/engine/blob/main/docs/practices/existing-crm-to-mcp.md) — real integration and deployment walkthroughs
+- [Getting started](https://docs.weavekit.io/engine/guides/getting-started) — scaffold, migrate, run, consume
+- [Schema guide](https://docs.weavekit.io/engine/guides/schema) · [RBAC](https://docs.weavekit.io/engine/guides/rbac) · [Formulas](https://docs.weavekit.io/engine/guides/formulas) · [Audit](https://docs.weavekit.io/engine/guides/audit)
+- [CLI reference](https://docs.weavekit.io/engine/guides/cli) · [MCP](https://docs.weavekit.io/engine/guides/mcp) · [Script hooks](https://docs.weavekit.io/engine/guides/script-hooks)
+- [Custom tools & guardrails](https://docs.weavekit.io/engine/guides/custom-tools-and-guardrails) · [Quotas](https://docs.weavekit.io/engine/guides/quotas) · [Inbound events](https://docs.weavekit.io/engine/guides/ingress)
+- [Public API & dependency budget](https://docs.weavekit.io/engine/reference/public-api)
+- [Practices & operations](https://docs.weavekit.io/engine/practices/existing-crm-to-mcp) — real integration and deployment walkthroughs
+
+The Markdown sources live in [`docs/`](https://github.com/weavekit/engine/tree/main/docs).
 
 ## Programmatic use
 
