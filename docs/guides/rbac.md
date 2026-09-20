@@ -1,6 +1,8 @@
 # RBAC — roles, permissions, and row scopes
 
-The engine enforces permissions in the data-access layer. The REST API and (later) GraphQL/MCP layers sit on top and inherit the same rules.
+You write permissions once, and every surface obeys them. Enforcement lives in the data-access layer,
+so REST, MCP, and the protocol adapters you enable all get the same rules for free — there is no
+per-interface permission code to maintain.
 
 ## Permission model (default-denied when a map is present)
 
@@ -19,27 +21,27 @@ Per role:
 
 - `read`: `all` | `own` | `team`
 - `create`: boolean
-- `update`: `true` (all fields) or an array of field names the role may update (empty = none); omitted/false = none
+- `update`: `true` (all fields) or an array of field names the role may update (empty = none); omitted or false = none
 - `delete`: boolean
-- `fields.exclude`: columns stripped from every response (the data never leaves the database)
+- `fields.exclude`: columns stripped from every response — the data never leaves the database
 
 **Semantics (model B):**
 
 - **No `permissions` map** → open mode: full CRUD for any authenticated subject.
-- **Map present** → roles not listed are denied; a listed role is denied for operations it doesn't explicitly grant.
-- **Multiple roles** merge: `read` takes the most permissive scope, `update`/`exclude` are unioned.
+- **Map present** → roles not listed are denied. A listed role is denied for any operation it doesn't explicitly grant.
+- **Multiple roles merge** → `read` takes the most permissive scope; `update` and `exclude` are unioned.
 
 ## Row scopes
 
-`own` and `team` reads filter rows by an ownership/team marker column:
+`own` and `team` reads filter rows by an ownership / team marker column:
 
 ```json
 { "name": "owner_id", "type": "string", "ownership": true },
 { "name": "team_id", "type": "string", "team": true }
 ```
 
-- `read: own` requires an `ownership` field — rows are filtered to `ownership_field = subject.id`.
-- `read: team` requires a `team` field — rows are filtered to `team_field = subject.teamId`. A subject without `teamId` gets a 403.
+- `read: own` requires an `ownership` field. Rows are filtered to `ownership_field = subject.id`.
+- `read: team` requires a `team` field. Rows are filtered to `team_field = subject.teamId`; a subject without `teamId` gets a 403.
 - `all` applies no row filter.
 
 The engine **never auto-adds** these columns and never recognizes them by name — you declare them.
@@ -71,7 +73,8 @@ A subject is `{ id, roles, teamId? }`.
 | `read: team` without `teamId` | 403 | `rbac.teamId.missing` |
 | Row outside scope (update/delete) | 404 | `data.recordNotFound` — **does not leak existence** |
 
-Update and delete inherit the read row scope, so acting on a row you cannot read behaves exactly like the row not existing.
+Update and delete inherit the read row scope. Acting on a row you cannot read behaves exactly like the
+row not existing.
 
 ## Example
 

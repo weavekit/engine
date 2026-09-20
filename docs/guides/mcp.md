@@ -1,8 +1,18 @@
 # MCP
 
-The engine exposes an MCP (Model Context Protocol) **streamable HTTP** endpoint at `/mcp` (JSON-RPC 2.0). AI agents (Claude, Cursor, or any MCP host) discover and operate your objects as tools: `tools/list` returns a **per-identity, permission-filtered tool surface**, and `tools/call` re-enforces RBAC against the proxied user at call time (the double layer). Every attempt is rate-limited, alertable, and audited.
+MCP (Model Context Protocol) is how AI agents operate your data. The engine exposes a **streamable
+HTTP** endpoint at `/mcp` (JSON-RPC 2.0): Claude, Cursor, or any MCP host connects once, then
+discovers your objects as tools.
 
-MCP is an **adapter** — like REST, it is shared by every project type and enabled by default (`adapters.mcp` undeclared = on).
+Two things make that safe:
+
+- `tools/list` returns a **per-identity, permission-filtered** tool surface.
+- `tools/call` re-enforces RBAC against the proxied user at call time.
+
+That double layer is the point. Every attempt is also rate-limited, alertable, and audited.
+
+MCP is an **adapter** — shared by every project type and enabled by default (`adapters.mcp`
+undeclared = on).
 
 ## Enable / configure
 
@@ -27,22 +37,23 @@ export default {
 };
 ```
 
-- `endpoint` — optional path to mount on (default `/mcp`); change it if `/mcp` collides with another route in your deployment. Client URLs must match.
-- `identities` — the static **on-behalf-of directory** (`ref → RbacSubject`). A session's proxied user must resolve here; missing/unknown refs are rejected at session establishment.
-- `guardrails.alerts` — any `infrastructure/alerts` factory config (webhook/slack channels reuse `url`/`webhookUrl`, etc.).
+- `endpoint` — path to mount on (default `/mcp`). Change it if `/mcp` collides with another route in your deployment; client URLs must match.
+- `identities` — the static **on-behalf-of directory** (`ref → RbacSubject`). A session's proxied user must resolve here; a missing or unknown ref is rejected at session establishment.
+- `guardrails.alerts` — any `infrastructure/alerts` factory config (webhook/slack channels reuse `url`/`webhookUrl`, and so on).
 - `enabled: false` turns the endpoint off entirely.
 
 ## How an agent connects
 
-1. `POST /mcp` with `Authorization: Bearer <apiKey>` and a `X-Weavekit-On-Behalf-Of: <ref>` header, carrying the `initialize` request → a session is created and bound to the resolved identity (the `Mcp-Session-Id` header is returned for reuse).
-2. `tools/list` → the tool surface **compiled for that identity** (RBAC decides which objects and operations appear).
-3. `tools/call` → runs through the RBAC-decorated data-access layer against the session identity, with call-level `onBehalfOf` argument as an optional temporary override.
+1. `POST /mcp` with `Authorization: Bearer <apiKey>` and `X-Weavekit-On-Behalf-Of: <ref>`, carrying the `initialize` request. The engine creates a session bound to the resolved identity and returns an `Mcp-Session-Id` header for reuse.
+2. `tools/list` returns the tool surface **compiled for that identity**. RBAC decides which objects and operations appear.
+3. `tools/call` runs through the RBAC-decorated data-access layer against the session identity. A call-level `onBehalfOf` argument is an optional temporary override.
 
-Auth failures return 401 **before** entering the transport; missing/unknown `on-behalf-of` fails the session with a clear error.
+Auth failures return 401 **before** the transport is entered. A missing or unknown on-behalf-of ref
+fails the session with a clear error.
 
 ## Tool surface
 
-Per object with `read` permission, the engine compiles:
+For every object with `read` permission, the engine compiles:
 
 | Tool | Purpose | Key args |
 | --- | --- | --- |
@@ -52,7 +63,8 @@ Per object with `read` permission, the engine compiles:
 | `update_<object>` | update (RBAC `update` whitelist only) | primary-key field, `changes` |
 | `delete_<object>` | delete (row scope applied) | the object's primary-key field name |
 
-The primary-key argument is named after the schema's `primary: true` field — never hardcoded `id`. So `get_repair_order` takes `{ doc_no }` when the object's primary field is `doc_no`.
+The primary-key argument is named after the schema's `primary: true` field — never a hardcoded `id`.
+So `get_repair_order` takes `{ doc_no }` when the object's primary field is `doc_no`.
 
 Always present:
 
@@ -61,17 +73,20 @@ Always present:
 | `list_objects` | objects the identity can read (`[{ name, label }]`) |
 | `describe_object` | schema + the identity's effective permissions |
 
-Tool shaping follows RBAC exactly: an object with no listed role yields **zero** tools; `update: []` yields no `update_`; `fields.exclude` fields are stripped from parameter schemas and from results. Argument schemas are plain JSON Schema (field types map 1:1 to `string`/`number`/`integer`/`boolean`/`object`/`enum`, relations to their target primary-key type).
+Tool shaping follows RBAC exactly: an object with no listed role yields **zero** tools; `update: []`
+yields no `update_`; `fields.exclude` fields are stripped from parameter schemas and from results.
+Argument schemas are plain JSON Schema (field types map 1:1 to
+`string`/`number`/`integer`/`boolean`/`object`/`enum`, relations to their target primary-key type).
 
 ## Guardrails
 
 - **Rate limiting** — per-agent-key sliding window (default 100/60s). Over-limit calls return an `isError` result and fire a `warn` alert.
 - **Alerts** — injected `AlertSink` (default console; webhook/slack via config).
-- **Audit** — every tool attempt writes `mcp.tool.<name>` to the unified `weavekit_audit` table (action prefix `ACTION_PREFIXES.MCP_TOOL`), including RBAC denials and failures. `actorId` = agent key, `meta` carries `{ onBehalfOf, subjectId, roles, agentLabel, tool }`. Audit is best-effort — a failing sink never blocks the tool call.
+- **Audit** — every tool attempt writes `mcp.tool.<name>` to the unified `weavekit_audit` table (action prefix `ACTION_PREFIXES.MCP_TOOL`), including RBAC denials and failures. `actorId` is the agent key; `meta` carries `{ onBehalfOf, subjectId, roles, agentLabel, tool }`. Audit is best-effort — a failing sink never blocks the tool call.
 
 ## Wiring
 
-`createEngine` wires the endpoint automatically:
+`createEngine` wires the endpoint for you:
 
 ```ts
 const engine = await createEngine({
@@ -84,18 +99,28 @@ await engine.app.listen({ port: 3000 });
 // MCP endpoint: http://localhost:3000/mcp
 ```
 
-Sinks are injected at assembly: audit (buffered subsystem sink, or no-op when audit is disabled), alerts (`createAlerts`), identity (`mcp.identities`: a static directory or a customer-provided `IdentityResolver`). The MCP adapter itself depends only on core contracts — adapters never import subsystems/infrastructure.
+You inject the sinks at assembly: audit (a buffered subsystem sink, or a no-op when audit is
+disabled), alerts (`createAlerts`), and identity (`mcp.identities` — a static directory or your own
+`IdentityResolver`). The MCP adapter itself depends only on core contracts; adapters never import
+subsystems or infrastructure.
 
-For a real end-to-end walkthrough — a customer with an existing CRM (`customers` / `orders` tables) getting agents in via the static identity directory — see the [customer integration practice](../practices/existing-crm-to-mcp.md).
+For a full end-to-end walkthrough — a customer with an existing CRM (`customers` / `orders` tables)
+bringing agents in through the static identity directory — see the
+[customer integration practice](../practices/existing-crm-to-mcp.md).
 
-The engine is a **bridge to your database, not a DDL runner**: `createEngine` loads the schema and never touches your tables. Build/alter tables explicitly with `weave migrate` (or set `migrate.auto: true` for greenfield/business projects). For an existing table, `weave migrate` only validates that every declared field is a real column — it never ALTERs a table you own unless the object opts in with `"alter": true` (top-level in `schema.json`), which emits additive-only DDL (ADD COLUMN / ADD CONSTRAINT / ADD FK / CREATE INDEX).
+The engine is a **bridge to your database, not a DDL runner**. `createEngine` loads the schema and
+never touches your tables. Build or alter tables explicitly with `weave migrate`, and see
+[How migration handles existing tables](schema.md#how-migration-handles-existing-tables) for what it
+does and doesn't change. (Greenfield and business projects can set `migrate.auto: true` instead.)
 
 ## Plugging in your own user store
 
-Both `auth.source` and `mcp.identities` accept either a **static map** (the defaults shown above) or a **resolver function** — so you can drive authentication and on-behalf-of identity from the customer's own users, roles and teams instead of hardcoded config.
+Both `auth.source` and `mcp.identities` accept either a **static map** (the defaults above) or a
+**resolver function**. That lets you drive authentication and on-behalf-of identity from your own
+users, roles, and teams instead of hardcoded config.
 
-- `auth.source` — `Record<string, RbacSubject> | AuthResolver`, where `AuthResolver = (header) => subject | null | Promise<...>`. The resolver receives the full `Authorization` header (including the `Bearer ` prefix) and may verify a JWT / look up the user asynchronously. Return `null` for unauthenticated (401).
-- `mcp.identities` — `Record<string, RbacSubject> | IdentityResolver`, where `IdentityResolver = (ref) => subject | null | Promise<...>`. The resolver may query the customer's user table for the ref and return the subject with its roles/team. Return `null` for an unknown ref (session rejected with 400).
+- `auth.source` — `Record<string, RbacSubject> | AuthResolver`, where `AuthResolver = (header) => subject | null | Promise<...>`. The resolver receives the full `Authorization` header (including the `Bearer ` prefix) and may verify a JWT or look up the user asynchronously. Return `null` for unauthenticated (401).
+- `mcp.identities` — `Record<string, RbacSubject> | IdentityResolver`, where `IdentityResolver = (ref) => subject | null | Promise<...>`. The resolver may query your user table and return the subject with its roles and team. Return `null` for an unknown ref (the session is rejected with 400).
 
 ```ts
 // weavekit.config.ts — auth + identities driven by the customer's user table
@@ -121,9 +146,12 @@ export default {
 } satisfies EngineConfig;
 ```
 
-A resolver wins over the static map when both are provided for the same field. Either way the tool surface is compiled per identity and RBAC is re-enforced at call time — the double layer never changes.
+A resolver wins over the static map when both are provided for the same field. Either way, the tool
+surface is compiled per identity and RBAC is re-enforced at call time — the double layer never
+changes.
 
-For the full runnable case (customer `crm_users` table + JWT auth source + MCP end to end) see the [user-table identity practice](../practices/bring-your-own-user-store.md).
+For the full runnable case (a customer `crm_users` table, JWT auth source, and MCP end to end), see
+the [user-table identity practice](../practices/bring-your-own-user-store.md).
 
 ## Architecture (src/adapters/mcp)
 
@@ -137,7 +165,9 @@ For the full runnable case (customer `crm_users` table + JWT auth source + MCP e
 | `http.ts` | fastify `/mcp` routes; per-session SDK transport + server wiring |
 | `index.ts` | `registerMcp` assembly (`EngineMcpConfig`) |
 
-The SDK transport is stateful per session: each session owns one `StreamableHTTPServerTransport` + one SDK `Server` (the SDK server may connect to only one transport). `tools/list`/`tools/call` are served via `setRequestHandler` so the surface stays dynamic per identity.
+The SDK transport is stateful per session: each session owns one `StreamableHTTPServerTransport` and
+one SDK `Server` (the SDK server may connect to only one transport). `tools/list` and `tools/call` are
+served via `setRequestHandler`, so the surface stays dynamic per identity.
 
 ## Next
 

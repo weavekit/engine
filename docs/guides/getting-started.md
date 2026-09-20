@@ -1,6 +1,7 @@
 # Getting started
 
-End to end: define a data model in `schema.json`, migrate it to PostgreSQL, run the engine with hot reload, generate object-level TypeScript types, and consume it from `@weave-kit/client`.
+This page takes you end to end: define a data model in `schema.json`, migrate it to PostgreSQL, run
+the engine with hot reload, generate TypeScript types, and consume the API from `@weave-kit/client`.
 
 ## Prerequisites
 
@@ -14,14 +15,14 @@ create-weavekit-app my-app --type=agent
 cd my-app
 ```
 
-Or `create-weavekit-app my-app --yes` to skip all prompts. This generates:
+Or run `create-weavekit-app my-app --yes` to skip all prompts. The command generates:
 
 ```
-weavekit.config.ts         # engine wiring (schemaDir, auth, adapters)
+weavekit.config.ts             # engine wiring (schemaDir, auth, adapters)
 objects/leads/schema.json      # leads example object with RBAC (admin/sales/sales_manager roles)
-main.ts                    # server entry (createEngine + listen)
-package.json               # scripts delegate to `weave`
-.env.example               # DATABASE_URL placeholder
+main.ts                        # server entry (createEngine + listen)
+package.json                   # scripts delegate to `weave`
+.env.example                   # DATABASE_URL placeholder
 .gitignore
 ```
 
@@ -31,7 +32,8 @@ package.json               # scripts delegate to `weave`
 cp .env.example .env       # set DATABASE_URL=postgres://user:pass@host:5432/db
 ```
 
-The engine reads `DATABASE_URL` from the project environment. `weavekit.config.ts` does **not** need to repeat it.
+The engine reads `DATABASE_URL` from the project environment. `weavekit.config.ts` does **not** need
+to repeat it.
 
 ## 3. Migrate metadata to PostgreSQL
 
@@ -40,7 +42,13 @@ weave migrate               # state-diff DDL: schema.json → PG tables
 weave migrate --dry-run     # preview the DDL without executing
 ```
 
-Migration is **state-diff** and idempotent: it compares the expected schema against `information_schema` and emits only the needed `CREATE/ALTER`. Existing tables are **read-only by default** (a declared field missing its column aborts with `object.field.columnMissing`); an object opts into additive auto-DDL with `"alter": true` in its `schema.json` — ADD COLUMN / ADD CONSTRAINT / ADD FK / CREATE INDEX, never altering column types or dropping columns. Every sync writes an audit trail and updates the PG metadata cache; the `objects/` tree is auto-committed to Git.
+Migration is **state-diff** and idempotent: it compares the expected schema against
+`information_schema` and emits only the `CREATE` / `ALTER` statements it needs. Every sync writes an
+audit trail, updates the PG metadata cache, and auto-commits the `objects/` tree to Git.
+
+Existing tables are treated carefully — see
+[How migration handles existing tables](schema.md#how-migration-handles-existing-tables) for the
+read-only default and the additive-only `"alter": true` opt-in.
 
 ## 4. Run with hot reload
 
@@ -48,7 +56,11 @@ Migration is **state-diff** and idempotent: it compares the expected schema agai
 weave dev                   # http://localhost:3000
 ```
 
-`weave dev` syncs Git → PG on every reload (per-object `alter`), starts the REST API, and **watches `objects/`** — editing a `schema.json` reloads the schema, regenerates types, and rebuilds the app automatically. Objects with `"alter": true` get additive DDL applied on reload; a change that would touch a read-only existing table (no `alter`) rejects the reload, keeps the running engine serving the previous schema, and pushes a `schema.drift` event to connected frontends.
+`weave dev` syncs Git → PG on every reload, starts the REST API, and **watches `objects/`**. Editing a
+`schema.json` reloads the schema, regenerates types, and rebuilds the app. Objects with
+`"alter": true` get additive DDL applied on reload; a change that would touch a read-only existing
+table rejects the reload, keeps the running engine on the previous schema, and emits a `schema.drift`
+event to connected frontends.
 
 Try it:
 
@@ -63,7 +75,8 @@ curl -X POST -H "Authorization: Bearer sk-admin" -H "Content-Type: application/j
 # `sk-admin` maps to the `admin` role (full permissions), so the create succeeds.
 ```
 
-Point an AI agent at the same process — MCP is already on at `http://localhost:3000/mcp`. Print ready-to-paste config for Claude Code / Cursor / VS Code / Claude Desktop:
+Point an AI agent at the same process — MCP is already on at `http://localhost:3000/mcp`. Print
+ready-to-paste config for Claude Code / Cursor / VS Code / Claude Desktop:
 
 ```sh
 weave mcp:config
@@ -77,7 +90,8 @@ See [connect an agent](../practices/connect-agent.md) for the 5-minute walkthrou
 weave types                 # → generated/types.ts
 ```
 
-Every object becomes a TS interface — field types, enum unions, and relation primary-key types are derived from the schema.
+Every object becomes a TS interface — field types, enum unions, and relation primary-key types are
+derived from the schema.
 
 ## 6. Consume from the client SDK
 

@@ -1,8 +1,7 @@
 # Quotas & usage budgets
 
-A **quota** is a durable, fixed-period hard budget — "the DingTalk integration may
-make 10 000 calls per month" — enforced across engine instances. It is a
-different capability from rate limiting:
+A **quota** is a durable, fixed-period hard budget — "the DingTalk integration may make 10 000 calls
+per month" — enforced across engine instances. It answers a different question from rate limiting:
 
 | | Rate limit (`adapters.*.rateLimit`) | Quota (`config.quotas`) |
 | --- | --- | --- |
@@ -21,14 +20,13 @@ export default {
 } satisfies EngineConfig;
 ```
 
-When `quotas` is absent the store is not created (zero overhead). With it,
-`engine.quotas` is a `CounterStore`.
+When `quotas` is absent the store isn't created (zero overhead). With it, `engine.quotas` is a
+`CounterStore`.
 
 ## Consume against a budget
 
-The engine provides the mechanism; **your application supplies the semantics**
-(which key, which limit, which period). Check the budget around the work itself —
-typically an outbound integration call:
+The engine provides the mechanism; **your application supplies the semantics** — which key, which
+limit, which period. Check the budget around the work itself, typically an outbound integration call:
 
 ```ts
 import { assertQuota, COUNTER_PERIODS } from '@weave-kit/engine';
@@ -43,8 +41,8 @@ await assertQuota(
 // …only reached when within budget
 ```
 
-`assertQuota` throws `quota.exceeded` (HTTP 429) when the budget is spent.
-Prefer a non-throwing check when you want to choose a fallback:
+`assertQuota` throws `quota.exceeded` (HTTP 429) when the budget is spent. Use the non-throwing check
+when you want to choose a fallback:
 
 ```ts
 import { consumeQuota } from '@weave-kit/engine';
@@ -57,10 +55,7 @@ if (!decision.allowed) {
 
 ## Guarantees
 
-- **Atomic & cross-instance**: a single `INSERT … ON CONFLICT DO UPDATE … WHERE`
-  statement, so two engine replicas cannot overspend the same budget.
-- **Denied consumes do not count**: a rejected call leaves the counter untouched.
-- **UTC periods**: `day` = midnight → midnight; `month` = 1st → next 1st.
-- **Pluggable backend**: the PG store is the default; another backend can be
-  injected behind the same `CounterStore` contract (mirrors the approvals
-  backend) without changing call sites or adding an engine dependency.
+- **Atomic and cross-instance** — a single `INSERT … ON CONFLICT DO UPDATE … WHERE` statement, so two engine replicas cannot overspend the same budget.
+- **Denied consumes don't count** — a rejected call leaves the counter untouched.
+- **UTC periods** — `day` runs midnight → midnight; `month` runs the 1st → next 1st.
+- **Pluggable backend** — the PG store is the default, and another backend can be injected behind the same `CounterStore` contract (mirroring the approvals backend) without changing call sites or adding an engine dependency.

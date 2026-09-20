@@ -1,8 +1,8 @@
 # Public API & dependency budget
 
-This page defines what `@weave-kit/engine` promises to keep stable — and what it
-does not. It is the contract downstream packages (client, UI adapters) and external
-integrators code against.
+Not every import is a promise. This page tells you which parts of `@weave-kit/engine` are safe to
+build on, which are still moving, and how the two are kept apart. It is the contract that downstream
+packages (client, UI adapters) and external integrators code against.
 
 ## Entry points — three tiers
 
@@ -14,32 +14,28 @@ integrators code against.
 | `@weave-kit/engine/experimental` | **experimental** | under active development; **may change in a minor release** |
 | any other path | **internal** | not importable — blocked by the `exports` map (even `dist/…` deep paths) |
 
-`values` and `layout` are separated subpaths because they must stay free of the
-Node server runtime (`pg`/`fastify`/`isolated-vm`) so frontends can bundle them.
+`values` and `layout` are separate subpaths for one reason: they must stay free of the Node server
+runtime (`pg` / `fastify` / `isolated-vm`) so frontends can bundle them.
 
-The stable entry covers: engine assembly (`createEngine`,
-`buildEngineFromRegistry`), core contracts (`core/*`), data access, git
-metadata sync, custom tools, the generic proxy, protocol adapters
-(auth/rest/mcp/events), audit/script contract types, and the scaffolder
+The stable entry covers engine assembly (`createEngine`, `buildEngineFromRegistry`), the core
+contracts (`core/*`), data access, git metadata sync, custom tools, the generic proxy, the protocol
+adapters (auth/rest/mcp/events), the audit/script contract types, and the scaffolder
 (`scaffoldProject`, `PROJECT_TYPES`).
 
-The experimental entry covers implementations and moving parts that are not yet
-worth freezing: `infrastructure/*` provider implementations, the metadata cache,
-the tunnel transport, and the ops (health/ready) routes.
+The experimental entry covers the moving parts that aren't worth freezing yet: the
+`infrastructure/*` provider implementations, the metadata cache, the tunnel transport, and the ops
+(health/ready) routes.
 
-> The tier boundary is enforced by `tests/unit/public-api.test.ts` (stable must
-> expose the contract names and must **not** leak internals; experimental must
-> expose them). When you move a module between tiers, update that test and this
-> page in the same change.
+> The tier boundary is enforced by `tests/unit/public-api.test.ts`: the stable entry must expose the
+> contract names and must **not** leak internals, while the experimental entry must expose them. When
+> you move a module between tiers, update that test and this page in the same change.
 
 ## Extension points
 
-The reason a stable surface exists is so people can extend the engine without
-hacking internal paths:
+The stable surface exists so you can extend the engine without patching internal paths:
 
 - **Auth / identity** — `auth.source` and `mcp.identities` accept resolvers.
-- **Providers** — implement the `core/provider/*` contracts (alerts, identity,
-  event) and inject them; implementations live outside `core`.
+- **Providers** — implement the `core/provider/*` contracts (alerts, identity, event) and inject them; implementations live outside `core`.
 - **Subsystems** — enabled through `weavekit.config.ts` and dynamically loaded.
 - **Custom tools & guardrail policies** — `core/tools` + `runtime/tools`.
 - **Generic proxy** — `proxy.resolver` carries the application semantics.
@@ -47,17 +43,11 @@ hacking internal paths:
 
 ## Dependency budget
 
-A headless engine wins on installing anywhere and starting fast, so the
-dependency surface is a product feature, not an accident:
+A headless engine should install anywhere and start fast, so the dependency surface is a product
+feature, not an accident:
 
 - `core/` — **zero dependencies** (types, pure functions, `as const` values).
-- `runtime/` — Node built-ins (`node:*`) only; no third-party runtime imports
-  beyond the platform required by the layer.
-- A new **runtime** dependency needs a written justification; prefer a Node
-  built-in (e.g. the proxy uses the global `fetch` + `AbortSignal.timeout`
-  instead of an HTTP client).
-- **Native / optional** dependencies (e.g. `isolated-vm`) belong in
-  `optionalDependencies` and must degrade with an actionable error when absent —
-  users without that feature must not pay for it.
-- `./values` and `./layout` must never gain a runtime import (guarded by
-  `tests/unit/values-browser-safe.test.ts`).
+- `runtime/` — Node built-ins (`node:*`) only; no third-party runtime imports beyond the platform required by the layer.
+- A new **runtime** dependency needs a written justification. Prefer a Node built-in, the way the proxy uses the global `fetch` and `AbortSignal.timeout` instead of an HTTP client.
+- **Native / optional** dependencies (such as `isolated-vm`) belong in `optionalDependencies` and must degrade with an actionable error when absent — users who don't use a feature shouldn't pay for it.
+- `./values` and `./layout` must never gain a runtime import (guarded by `tests/unit/values-browser-safe.test.ts`).

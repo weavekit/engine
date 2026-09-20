@@ -1,6 +1,9 @@
 # Reverse proxy + TLS
 
-The engine speaks plain HTTP on an internal port. In front of it you put a TLS-terminating proxy so public agents reach `https://agent.example.com/mcp`. The proxy's one job is to **forward every request verbatim** — the engine needs three things preserved end to end:
+The engine speaks plain HTTP on an internal port. In front of it you put a TLS-terminating proxy so
+public agents can reach `https://agent.example.com/mcp`.
+
+The proxy has one job: **forward every request verbatim**. Three things must survive end to end:
 
 | What must survive the proxy | Why |
 | --- | --- |
@@ -8,28 +11,33 @@ The engine speaks plain HTTP on an internal port. In front of it you put a TLS-t
 | `X-Weavekit-On-Behalf-Of: <ref>` | binds the session to a proxied user (400 if missing) |
 | `Mcp-Session-Id` (response header + subsequent requests) | streamable-HTTP sessions are stateful |
 
-The `Mcp-Session-Id` header is returned by the engine on the `initialize` response and echoed back by clients on later requests. Both directions must pass through untouched.
+The engine returns `Mcp-Session-Id` on the `initialize` response, and clients echo it back on later
+requests. Both directions must pass through untouched.
 
 ## Background
 
-In production, agents connect from outside your network, and "outside" means HTTPS — a plain `http://` endpoint is blocked or flagged by clients, browsers and corporate policy. TLS is usually handled by a reverse proxy rather than by the engine itself: one certificate fronting the whole deployment, one place to add access rules.
+In production, agents connect from outside your network, and "outside" means HTTPS — clients,
+browsers, and corporate policy block or flag a plain `http://` endpoint. TLS is usually handled by a
+reverse proxy rather than by the engine itself: one certificate fronting the whole deployment, one
+place to add access rules.
 
 ## Benefits
 
 - **TLS without touching the engine** — terminate HTTPS in the proxy; the engine keeps serving plain HTTP behind the network edge.
 - **Automatic certificate management** — Caddy obtains and renews certificates for you; no certbot chores.
-- **A single security chokepoint** — the proxy is where you enforce "only `/mcp` (and optionally `/api`) is reachable", logging, and future gatekeeping.
-- **The place to add stickiness later** — when you scale to multiple engine replicas, the proxy/LB is where session stickiness by `Mcp-Session-Id` is configured.
+- **A single security chokepoint** — the proxy is where you enforce "only `/mcp` (and optionally `/api`) is reachable", plus logging and future gatekeeping.
+- **The place to add stickiness later** — when you scale to multiple engine replicas, the proxy or load balancer is where you configure session stickiness by `Mcp-Session-Id`.
 
 ## When to use this
 
 Use a reverse proxy when:
 
 - Agents reach the engine over the **public internet** (Claude Desktop, Cursor, external gateways).
-- You already run a reverse proxy / load balancer and want the engine behind it like any other service.
+- You already run a reverse proxy or load balancer and want the engine behind it like any other service.
 - You want one consistent HTTPS boundary across multiple services.
 
-For purely internal deployments (agents on the same private network, engine not exposed outward), the engine can run on plain HTTP with no proxy — this practice is optional.
+For purely internal deployments (agents on the same private network, engine not exposed outward), the
+engine can run on plain HTTP with no proxy. This practice is optional.
 
 ## Caddy (simplest — automatic HTTPS)
 
@@ -39,7 +47,9 @@ agent.example.com {
 }
 ```
 
-That is the whole file. Caddy obtains and renews the certificate, terminates TLS, and forwards the connection — headers and streaming (SSE) pass through by default. Start with `caddy run`; it watches the file and reloads on change.
+That is the whole file. Caddy obtains and renews the certificate, terminates TLS, and forwards the
+connection; headers and streaming (SSE) pass through by default. Start it with `caddy run`; Caddy
+watches the file and reloads on change.
 
 ## Nginx
 
@@ -74,16 +84,19 @@ server {
 }
 ```
 
-The critical lines are `proxy_buffering off` (SSE must stream, never be buffered) and the long timeouts (an agent session can idle for a while). If you enable `proxy_buffering`, tools that respond via `text/event-stream` stall.
+The critical lines are `proxy_buffering off` (SSE must stream, never be buffered) and the long
+timeouts (an agent session can idle for a while). If you enable `proxy_buffering`, tools that respond
+via `text/event-stream` stall.
 
 ## Only proxy what you need
 
-Expose only `/mcp` (and `/api` if your agents use the REST SDK). There is no admin surface, so you typically need nothing else — keep the default policy to deny and open routes explicitly.
+Expose only `/mcp` (and `/api` if your agents use the REST SDK). There is no admin surface, so you
+typically need nothing else — keep the default policy to deny and open routes explicitly.
 
 ## Streaming caveat
 
-- If you see tools hang in the agent UI, the first suspect is proxy buffering — verify `proxy_buffering off` (Nginx) or that your Caddy setup did not add response buffering.
-- Load balancers must use **sticky connections** by `Mcp-Session-Id` (or at least by client) once you run more than one engine replica — sessions are in-memory per process. A single-replica deployment needs no stickiness.
+- If tools hang in the agent UI, the first suspect is proxy buffering. Verify `proxy_buffering off` (Nginx), or that your Caddy setup didn't add response buffering.
+- Once you run more than one engine replica, load balancers must use **sticky connections** by `Mcp-Session-Id` (or at least by client) — sessions are in-memory per process. A single-replica deployment needs no stickiness.
 
 ## Next
 

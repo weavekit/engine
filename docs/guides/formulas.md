@@ -1,6 +1,7 @@
 # Formulas
 
-A `formula` computes a read-only field value on write (the result is stored). Formulas are supported on six scalar types: `string`, `text`, `number`, `currency`, `integer`, `boolean`.
+A `formula` computes a read-only field value on write, and the result is stored. Formulas work on six
+scalar types: `string`, `text`, `number`, `currency`, `integer`, and `boolean`.
 
 ```json
 { "name": "total",  "type": "currency", "formula": "quantity * unit_price" },
@@ -25,7 +26,7 @@ A `formula` computes a read-only field value on write (the result is stored). Fo
 { "name": "lines_total", "type": "currency", "formula": "SUM(lines.amount)" }
 ```
 
-`COUNT` and `SUM` over a `details` child. `AVG` skips null values.
+`COUNT` and `SUM` work over a `details` child. `AVG` skips null values.
 
 ## Cross-object references
 
@@ -47,6 +48,6 @@ One level deep, referencing a scalar on a `relation` target:
 ## Rules
 
 - A formula field is read-only: no `required`, `unique`, `default`, `primary`, or constraints.
-- References must resolve to scalar fields (no relations/detail aggregates of aggregates beyond one level).
+- References must resolve to scalar fields (no relations, and no aggregates of aggregates beyond one level).
 - Cycles — including cross-object — are rejected at schema build time.
 - When a dependency changes, the field is recomputed and persisted on the next write.

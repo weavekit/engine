@@ -1,8 +1,8 @@
-# Documentation
+# Overview
 
-Topic-focused documentation for `@weave-kit/engine`. New here? Start with
-[Getting started](guides/getting-started.md), then [MCP](guides/mcp.md) to connect an agent.
-Project overview and quick start live in the [repository README](../README.md).
+Topic-focused documentation for `@weave-kit/engine`. New to the engine? Read
+[Getting started](guides/getting-started.md) first, then [MCP](guides/mcp.md) to put an agent on your
+data. The project pitch and quick start live in the [repository README](../README.md).
 
 ## Guides
 

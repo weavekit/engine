@@ -1,18 +1,31 @@
 # Custom tools, guardrails & audit replay
 
-The engine's **open contract** lets you extend how your data is operated without touching engine code. Three mechanism-level features, off by default (nothing imported, zero runtime overhead until you opt in):
+The engine's **open contract** lets you extend how your data is operated without touching engine
+code. Three mechanism-level features are available, and all three are off by default: until you opt
+in, nothing is imported and there is zero runtime overhead.
 
-1. **Custom tools** — register your own business tools beside the generated CRUD/introspection tools.
+1. **Custom tools** — register your own business tools beside the generated CRUD and introspection tools.
 2. **Guardrail policies** — a decision pipeline in front of every tool call (`allow` / `deny` / `requireApproval` / `mask`).
-3. **Audit diff replay** — row `before`/`after` snapshots on writes for forensics and compliance.
+3. **Audit diff replay** — row `before`/`after` snapshots on writes, for forensics and compliance.
 
-**Where it fits.** The headline scenario is an **AI agent operating your business data over MCP** — with tools you define, governed by policies you set, and every write backed by diff-able audit evidence. It is not MCP-exclusive: the same tools run when your own application calls them through the engine host API (`engine.tools.executor`), policies gate any path that goes through the tool executor, and audit replay lives at the data-access boundary so every write — via REST, script hooks, MCP tools, or host code — is covered.
+**Where it fits.** The headline scenario is an **AI agent operating your business data over MCP**:
+tools you define, governed by policies you set, with every write backed by diff-able audit evidence.
+It is not MCP-exclusive. The same tools run when your own application calls them through the engine
+host API (`engine.tools.executor`); policies gate any path that goes through the tool executor; and
+audit replay lives at the data-access boundary, so every write — via REST, script hooks, MCP tools,
+or host code — is covered.
 
-The engine ships **mechanisms only** — no business tools or policy rules are built in. Business semantics belong to your project.
+The engine ships **mechanisms only**. No business tools or policy rules are built in; business
+semantics belong to your project.
 
 ## 1. Custom tools
 
-Custom tools are TypeScript (or JS) modules that export a `ToolDefinition` as their default export. Each module becomes one tool on the engine's **per-identity tool surface** — merged with the generated CRUD/introspection tools and filtered by the identity's roles. Agents reach that surface through the MCP adapter; your own host code can invoke the same tool directly through `engine.tools.executor` (same policies, same audit).
+Custom tools are TypeScript (or JS) modules that export a `ToolDefinition` as their default export.
+Each module becomes one tool on the engine's **per-identity tool surface**, merged with the generated
+CRUD and introspection tools and filtered by the identity's roles.
+
+Agents reach that surface through the MCP adapter. Your own host code can invoke the same tool
+directly through `engine.tools.executor`, with the same policies and the same audit.
 
 ### Configure
 
@@ -55,11 +68,13 @@ export default {
 } satisfies ToolDefinition;
 ```
 
-`roles` is an **allow-list only** — the engine has no role registry, so unknown roles are simply invisible to the identities that don't list them. `roles` missing = visible to everyone.
+`roles` is an **allow-list only**. The engine has no role registry, so an unknown role is simply
+invisible to identities that don't list it. Omitting `roles` makes the tool visible to everyone.
 
 ### The controlled `ctx`
 
-A handler receives everything it may need and nothing it shouldn't — **no raw pool / SQL / network access**:
+A handler gets everything it may need and nothing it shouldn't — **no raw pool, SQL, or network
+access**:
 
 | Field | What it is |
 | --- | --- |
@@ -85,18 +100,22 @@ handler: async (ctx) => {
 
 ### Naming rules
 
-Tool names must match `^[a-z][a-z0-9_]*$` and must **not** collide with the generated surface: `search_ / get_ / create_ / update_ / delete_` prefixes, the `list_objects` / `describe_object` introspection tools, or the `mcp.` audit namespace. Violations fail startup with a clear error.
+Tool names must match `^[a-z][a-z0-9_]*$` and must **not** collide with the generated surface: the
+`search_ / get_ / create_ / update_ / delete_` prefixes, the `list_objects` / `describe_object`
+introspection tools, or the `mcp.` audit namespace. A violation fails startup with a clear error.
 
 ### Loading & production build
 
-The loader dynamic-imports `.js / .mjs / .cjs` (and `.ts` while `tsx` is registered, i.e. under `weave dev`). For production:
+The loader dynamic-imports `.js / .mjs / .cjs` (and `.ts` while `tsx` is registered, i.e. under
+`weave dev`). For production:
 
 - `weave build` compiles `tools/*.ts` → `dist/tools/*.js` automatically when the directory exists.
 - Point `tools.toolsDir` at `dist/tools` in production config.
 
 ## 2. Guardrail policies
 
-Policies run **before every custom-tool call** and decide whether it may proceed. Configure them inline or as a directory:
+Policies run **before every custom-tool call** and decide whether it may proceed. Configure them
+inline or as a directory:
 
 ```ts
 // weavekit.config.ts
@@ -124,7 +143,8 @@ export default {
 | `{ allow: false, requireApproval: true, approvalKey }` | suspend for human approval |
 | `{ allow: true, mask: { field: '***' } }` | proceed, but replace the named **top-level fields** of the returned JSON text (non-JSON output passes through) |
 
-A policy receives `{ actor, subject, action, args, dataAccess }` — the same controlled surface, so amount-threshold rules can read the current row:
+A policy receives `{ actor, subject, action, args, dataAccess }` — the same controlled surface, so an
+amount-threshold rule can read the current row:
 
 ```ts
 const highValue = {
@@ -142,15 +162,19 @@ const highValue = {
 ### Fail-closed, not fail-open
 
 - A policy that **throws** denies the call (`mcp.policy.denied`) — fail-closed.
-- A call that **no policy matches** is allowed — fail-closed applies to errors, not to absence. Without policies the pipeline is a no-op fast path.
+- A call that **no policy matches** is allowed. Fail-closed applies to errors, not to absence. Without policies, the pipeline is a no-op fast path.
 
 ### Approval flow (single-level gate)
 
 1. A `requireApproval` decision suspends the call: the client gets `isError` with `mcp.approval.pending` and the `approvalKey`.
-2. A host/manager approves through the queue: `await engine.tools.executor.approvals.approve(key, 'manager')`.
-3. The **client retries the same call** — the gate now sees the approved key and lets it through.
+2. A host or manager approves through the queue: `await engine.tools.executor.approvals.approve(key, 'manager')`.
+3. The **client retries the same call**. The gate sees the approved key and lets it through.
 
-The approval key is deterministic (hash of actor + action + args), so repeated calls don't duplicate pending entries. Rejection turns the retry into a deny. The queue is persisted behind a pluggable `ApprovalsBackend` (PG default; no Redis backend is implemented), and approval methods are `async`. This is a **single-level gate by design**: one call, one decision — guardrails never becomes a workflow engine.
+The approval key is deterministic (a hash of actor + action + args), so repeated calls don't duplicate
+pending entries. Rejection turns the retry into a deny. The queue is persisted behind a pluggable
+`ApprovalsBackend` (PG by default; no Redis backend is implemented), and the approval methods are
+`async`. This is a **single-level gate by design**: one call, one decision — guardrails never becomes
+a workflow engine.
 
 ### Order of evaluation
 
@@ -158,7 +182,11 @@ The approval key is deterministic (hash of actor + action + args), so repeated c
 
 ## 3. Audit diff replay
 
-Audit events already record who did what (`weavekit_audit` — tool-call evidence like `mcp.tool.<name>` plus data-access write events). Snapshots are recorded at the **data-access write path**, so every write interface — REST, script hooks, MCP tools, and host calls — gets the same evidence. `replay` additionally snapshots the **actual row before/after** so you can reconstruct exactly what changed:
+Audit events already record who did what (`weavekit_audit` — tool-call evidence like
+`mcp.tool.<name>`, plus data-access write events). Snapshots are recorded at the **data-access write
+path**, so every write interface — REST, script hooks, MCP tools, and host calls — gets the same
+evidence. With `replay` on, the engine additionally snapshots the **actual row before and after**, so
+you can reconstruct exactly what changed:
 
 ```ts
 // weavekit.config.ts
@@ -175,9 +203,11 @@ export default {
 - `update` events carry `before` (old row) and `after` (merged row).
 - `delete` events carry `before`.
 - `create` needs no snapshot — `changes` is already the full inserted row.
-- Snapshots reuse the row the transaction already read — **zero extra queries**.
+- Snapshots reuse the row the transaction already read, so there are **zero extra queries**.
 
-The `weavekit_audit` table always has the `before` / `after` JSONB columns (idempotent), so toggling `replay` needs **no migration** — it only decides whether the columns are filled. Off by default to avoid storage growth; retention is a product-layer concern.
+The `weavekit_audit` table always has the `before` / `after` JSONB columns (idempotent), so toggling
+`replay` needs **no migration** — it only decides whether the columns are filled. It is off by default
+to avoid storage growth; retention is a product-layer concern.
 
 ## Wiring end to end
 
@@ -201,7 +231,8 @@ await engine.app.listen({ port: 3000 });
 // approvals: await engine.tools.executor.approvals.approve(key, 'manager')
 ```
 
-The same surface works without MCP — invoke a tool from your own host code; policies and audit apply identically:
+The same surface works without MCP. Invoke a tool from your own host code and policies and audit apply
+identically:
 
 ```ts
 import { loadToolsDir } from '@weave-kit/engine';
@@ -215,12 +246,13 @@ const result = await engine.tools.executor.execute(tool.definition, { ticket_id:
 });
 ```
 
-`action` is supplied by the caller — `mcp.tool.<name>` is just the prefix the MCP binding composes; a host caller may use any prefix.
+`action` is supplied by the caller. `mcp.tool.<name>` is just the prefix the MCP binding composes; a
+host caller may use any prefix.
 
 ## Notes
 
-- **Double audit is by design** — a custom tool call writes both `mcp.tool.<name>` (adapter layer) and `create/update/delete` (data-access layer). The first is the call-level evidence, the second the write-level evidence.
-- Audit events (including `before`/`after`) live in PostgreSQL — **not git**. Git versions your `schema.json` metadata; business-data evidence stays in the audit table.
+- **Double audit is by design** — a custom tool call writes both `mcp.tool.<name>` (adapter layer) and `create/update/delete` (data-access layer). The first is call-level evidence, the second write-level evidence.
+- Audit events (including `before`/`after`) live in PostgreSQL, **not git**. Git versions your `schema.json` metadata; business-data evidence stays in the audit table.
 
 ## Next
 

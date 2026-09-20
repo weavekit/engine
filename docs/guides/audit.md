@@ -1,8 +1,11 @@
 # Audit
 
-The audit subsystem records immutable events for every data mutation (and read denials) on a single, uniform boundary — the data-access layer. REST, MCP, and any future interface inherit it automatically with zero per-interface code.
+The audit subsystem records immutable events for every data mutation (and every read denial) at one
+uniform boundary: the data-access layer. REST, MCP, and any interface you add later inherit it
+automatically, with zero per-interface code.
 
-Audit is an **optional subsystem**: disabled by default, and when disabled it is not loaded at all (no import, no table, no queries).
+Audit is an **optional subsystem**. It is disabled by default, and when it is off it isn't loaded at
+all — no import, no table, no queries.
 
 ## Enable
 
@@ -22,7 +25,8 @@ export default {
 
 ## What gets audited automatically
 
-The engine records events at the **data-access boundary** — so every `create` / `update` / `delete` via REST, MCP tools, or future GraphQL produces an event, **including failures**:
+Because events are recorded at the **data-access boundary**, every `create` / `update` / `delete`
+through REST, MCP tools, or a host call produces an event — **including failures**:
 
 | Event | When |
 | --- | --- |
@@ -57,11 +61,11 @@ The enum-like fields are backed by `as const` constants exported from the engine
 
 - `AUDIT_ACTOR_TYPES` — `AGENT / USER / SYSTEM / ANONYMOUS`
 - `DATA_ACTIONS` — `CREATE / UPDATE / DELETE / READ`
-- `ACTION_PREFIXES` — `MCP_TOOL ('mcp.tool')`, `REST ('rest')` — interface-layer actions compose as `<prefix>.<detail>`
+- `ACTION_PREFIXES` — `MCP_TOOL ('mcp.tool')`, `REST ('rest')`; interface-layer actions compose as `<prefix>.<detail>`
 
 ## Querying
 
-`engine.audit` is exposed when the subsystem is enabled:
+`engine.audit` is available when the subsystem is enabled:
 
 ```ts
 const engine = await createEngine({ /* ... */, subsystems: { audit: { enabled: true } } });
@@ -80,12 +84,14 @@ const { rows, total } = await engine.audit.query({
 
 ## Buffering semantics (fire-and-forget)
 
-`record()` queues the event in memory and returns immediately — **audit never blocks the business critical path**, which matters under concurrent multi-user load. Events are flushed as a single multi-row `INSERT` when the batch fills (`batchSize`) or the flush window elapses (`flushMs`).
+`record()` queues the event in memory and returns immediately, so **audit never blocks the business
+critical path** — which matters under concurrent, multi-user load. Events flush as a single
+multi-row `INSERT` when the batch fills (`batchSize`) or the flush window elapses (`flushMs`).
 
 - `engine.close()` flushes the remaining buffer before the pool shuts down.
 - A process crash loses only the most recent, not-yet-flushed events (audit is best-effort).
 - Batch-write failures call `onError` (default `console.error`) and never throw into the caller.
-- The stored `timestamp` is the business moment, so delayed flushing does not distort the audit trail.
+- The stored `timestamp` is the business moment, so delayed flushing does not distort the trail.
 
 ## Table
 
@@ -106,11 +112,11 @@ weavekit_audit (
 -- indexes: (ts DESC), (actor_id), (object, object_id)
 ```
 
-Append-only by contract: the engine exposes no update/delete path for audit rows.
+The table is append-only by contract: the engine exposes no update or delete path for audit rows.
 
 ## Programmatic use
 
-The subsystem is wired into `createEngine` automatically when enabled. For direct control:
+`createEngine` wires the subsystem in automatically when enabled. For direct control:
 
 ```ts
 import { createAudit, createBufferedAuditSink } from '@weave-kit/engine';
