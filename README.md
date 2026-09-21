@@ -7,7 +7,8 @@ REST API with row- and field-level RBAC, an immutable audit log, and an MCP tool
 agents call with typed tools — never raw SQL. Self-hosted: your data stays in your database.
 
 ```
-objects/leads/schema.json   →   PostgreSQL tables + indexes + RLS
+objects/leads/schema.json   →   Git commit (source of truth)
+                                PostgreSQL tables + indexes + RLS
                                 REST API (CRUD + RBAC)
                                 MCP tools (per-identity surface + guardrails)
                                 Immutable audit log
@@ -19,6 +20,8 @@ objects/leads/schema.json   →   PostgreSQL tables + indexes + RLS
 - **Safe by construction** — every agent action is authorized by row- and field-level RBAC and
   native PostgreSQL RLS, and recorded in an immutable audit log. Guardrails (and optional
   approvals) sit in front.
+- **Your model is a Git repository** — schema, hooks and policies are files you review, diff and
+  revert; the engine commits every change for you, and PostgreSQL is a derived cache.
 - **One agent, many users** — each MCP call carries the acting user's identity (on-behalf-of), and
   the engine compiles a per-identity tool surface: a salesperson's agent sees only their own leads,
   a finance agent cannot read sales notes. Prompt injection cannot bypass RBAC/RLS.
@@ -41,8 +44,11 @@ write.
 
 ## Features
 
-- **Schema as the source of truth** — `objects/<name>/schema.json`, versioned in Git; state-diff
-  migrations to PostgreSQL.
+- **Git-versioned metadata** — schema, hooks and policies are plain files in your repository; every
+  change is a scoped, atomic Git commit, so review, history and rollback come for free. PostgreSQL
+  stays a derived cache.
+- **Schema as the source of truth** — `objects/<name>/schema.json` drives the tables, REST API and MCP
+  surface; state-diff migrations to PostgreSQL.
 - **Governed REST API** — object CRUD with row-level (`all`/`own`/`team`) and field-level RBAC and a
   uniform error contract.
 - **MCP tool surface** — a streamable HTTP endpoint at `/mcp` with a per-identity tool surface and
@@ -88,6 +94,7 @@ weave mcp:config          # ready-to-paste config for Claude Code / Cursor / VS 
 Full documentation: **[docs.weavekit.io/engine](https://docs.weavekit.io/engine)**
 
 - [Getting started](https://docs.weavekit.io/engine/guides/getting-started) — scaffold, migrate, run, consume
+- [Git-versioned metadata](https://docs.weavekit.io/engine/guides/git-versioned-metadata) — your data model as reviewable Git commits
 - [Schema guide](https://docs.weavekit.io/engine/guides/schema) · [RBAC](https://docs.weavekit.io/engine/guides/rbac) · [Formulas](https://docs.weavekit.io/engine/guides/formulas) · [Audit](https://docs.weavekit.io/engine/guides/audit)
 - [CLI reference](https://docs.weavekit.io/engine/guides/cli) · [MCP](https://docs.weavekit.io/engine/guides/mcp) · [Script hooks](https://docs.weavekit.io/engine/guides/script-hooks)
 - [Custom tools & guardrails](https://docs.weavekit.io/engine/guides/custom-tools-and-guardrails) · [Quotas](https://docs.weavekit.io/engine/guides/quotas) · [Inbound events](https://docs.weavekit.io/engine/guides/ingress)
@@ -122,19 +129,19 @@ await engine.app.listen({ port: 3000 });
 
 | Command | Description |
 | --- | --- |
-| `weave introspect` | Reverse-model an existing Postgres DB into `objects/*/schema.json` |
-| `weave schema:map [object] [--drift]` | Report the schema field ↔ PostgreSQL column mapping |
 | `weave migrate [--dry-run]` | State-diff migration + metadata cache + auto-commit |
 | `weave dev [--port]` | Run with hot reload |
 | `weave build` | Bundle the server entry (esbuild) |
 | `weave test` | Proxy the project test suite |
 | `weave types [--outdir]` | Compile `schema.json` into object-level TS types |
+| `weave introspect` | Reverse-model an existing Postgres DB into `objects/*/schema.json` |
+| `weave schema:map [object] [--drift]` | Report the schema field ↔ PostgreSQL column mapping |
+| `weave schema:upgrade [--dry-run]` | Upgrade `objects/*/schema.json` to the current format version |
+| `weave openapi [--out] [--generic] [--server]` | Emit an OpenAPI 3.1 document for the REST API |
+| `weave mcp:config [--host]` | Print MCP client config for this project's `/mcp` endpoint |
 | `weave object:create <name>` | Scaffold `objects/<name>/schema.json` + `server.js` hooks |
 | `weave field:add <object>` | Add a validated field to a schema |
 | `weave module:add` / `module:remove <name>` | Enable/disable an optional subsystem (audit/script) |
-| `weave mcp:config [--host]` | Print MCP client config for this project's `/mcp` endpoint |
-| `weave pages:migrate` | Migrate legacy flat custom pages to directories |
-| `weave connect` | Reverse-tunnel a local engine to a remote endpoint |
 
 ## Object-level types
 
