@@ -12,6 +12,7 @@ import { mcpConfig } from './commands/mcp-config.js';
 import { migrate } from './commands/migrate.js';
 import { moduleToggle } from './commands/module.js';
 import { objectCreate } from './commands/object-create.js';
+import { openapi } from './commands/openapi.js';
 import { migratePages } from './commands/pages-migrate.js';
 import { schemaMap } from './commands/schema-map.js';
 import { schemaUpgrade } from './commands/schema-upgrade.js';
@@ -144,6 +145,18 @@ program
   .option('--dry-run', 'report what would change without writing files')
   .action(async (opts: { dryRun?: boolean }) => {
     await runAction(() => schemaUpgrade(process.cwd(), { dryRun: opts.dryRun, printer: printer() }));
+  });
+
+program
+  .command(WEAVE_COMMANDS.OPENAPI)
+  .description("emit an OpenAPI 3.1 document for this project's REST API (no database needed)")
+  .option('--out <file>', 'output file; "-" prints to stdout', 'openapi.json')
+  .option('--generic', 'omit per-object component schemas (generic reference)')
+  .option('--server <url>', 'server URL written into the document')
+  .action(async (opts: { out?: string; generic?: boolean; server?: string }) => {
+    await runAction(() =>
+      openapi(process.cwd(), { out: opts.out, generic: opts.generic, server: opts.server, printer: printer() }),
+    );
   });
 
 program

@@ -14,6 +14,7 @@ accepts `--json` for machine-readable output.
 | `weave mcp:config` | Print ready-to-paste config connecting an MCP host |
 | `weave schema:map [object]` | Report the schema field ↔ PostgreSQL column mapping |
 | `weave schema:upgrade [--dry-run]` | Upgrade `objects/*/schema.json` to the current format version |
+| `weave openapi [--out <file>] [--generic] [--server <url>]` | Emit an OpenAPI 3.1 document for the REST API |
 | `weave object:create <name>` | Scaffold an object (schema.json + server.js hooks) |
 | `weave field:add <object>` | Add a field to an object's schema.json |
 | `weave module:add <name>` | Enable a subsystem (audit/script) in weavekit.config.ts |
@@ -126,6 +127,21 @@ Brings every `objects/<name>/schema.json` up to the current on-disk format versi
 [schema guide](schema.md#format-version)). Unversioned legacy files are stamped with the current
 `schemaVersion`; a file declaring a newer version aborts. `--dry-run` reports what would change
 without writing; a real run rewrites the files and auto-commits the metadata tree.
+
+## `weave openapi [--out <file>] [--generic] [--server <url>]`
+
+Writes an **OpenAPI 3.1** document describing this project's REST API — no database needed. Object
+routes are documented generically (`{name}` is an object from your `schema.json`), and each object
+also gets `<name>`, `<name>Create` and `<name>Update` component schemas for client generation. Only
+the route groups enabled by your config are included (audit, approvals, guardrails, proxy, ingress,
+events).
+
+- `--out <file>` — output path (default `openapi.json`); `--out -` prints to stdout.
+- `--generic` — omit the per-object component schemas (used for a generic reference).
+- `--server <url>` — the `servers[].url` (default `http://localhost:3000`).
+
+Feed the file to Swagger UI, or generate a typed client with any OpenAPI code generator. The stable
+API equivalent is `buildOpenApiDocument()` (see [public API](../reference/public-api.md)).
 
 ## `weave object:create <name>`
 

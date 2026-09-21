@@ -111,3 +111,14 @@ export interface SchemaUpgradeOptions {
   dryRun?: boolean;
   printer: CliPrinter;
 }
+
+/** `weave openapi` options */
+export interface OpenApiOptions {
+  /** output file; `-` prints to stdout (default: `openapi.json` in the project root) */
+  out?: string;
+  /** omit per-object component schemas (generic reference) */
+  generic?: boolean;
+  /** server URL written into the document (default: http://localhost:3000) */
+  server?: string;
+  printer: CliPrinter;
+}

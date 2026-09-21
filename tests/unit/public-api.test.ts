@@ -32,6 +32,7 @@ const STABLE_NAMES = [
   'buildAuthenticator',
   'registerObjectRoutes',
   'registerEventsRoutes',
+  'buildOpenApiDocument',
   'loadSchemaDir',
   'syncSchema',
   'scaffoldProject',

@@ -25,6 +25,12 @@ export * from './adapters/auth/index.js';
 export * from './adapters/rest/index.js';
 export * from './adapters/mcp/index.js';
 export * from './adapters/events/index.js';
+export { buildOpenApiDocument, capabilitiesFromConfig } from './adapters/openapi/index.js';
+export type {
+  BuildOpenApiInput,
+  OpenApiCapabilities,
+  OpenApiDocument,
+} from './adapters/openapi/index.js';
 export type { AuditEngine, AuditFilter, AuditQuery, AuditQueryResult } from './subsystems/audit/index.js';
 export type {
   LoadedScript,

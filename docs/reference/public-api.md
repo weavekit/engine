@@ -23,8 +23,8 @@ runtime (`pg` / `fastify` / `isolated-vm`) so frontends can bundle them.
 
 The stable entry covers engine assembly (`createEngine`, `buildEngineFromRegistry`), the core
 contracts (`core/*`), data access, git metadata sync, custom tools, the generic proxy, the protocol
-adapters (auth/rest/mcp/events), the audit/script contract types, and the scaffolder
-(`scaffoldProject`, `PROJECT_TYPES`).
+adapters (auth/rest/mcp/events), the OpenAPI document generator (`buildOpenApiDocument`), the
+audit/script contract types, and the scaffolder (`scaffoldProject`, `PROJECT_TYPES`).
 
 The experimental entry covers the moving parts that aren't worth freezing yet: the
 `infrastructure/*` provider implementations, the metadata cache, the tunnel transport, and the ops

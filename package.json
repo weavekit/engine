@@ -63,6 +63,7 @@
     "typecheck": "tsc --noEmit",
     "prelint": "node scripts/check-memory-sizes.mjs",
     "lint": "eslint .",
+    "openapi:docs": "node --import tsx scripts/generate-openapi.mjs",
     "test": "tsc -p tsconfig.build.json && node --env-file-if-exists=.env --import tsx --test \"tests/unit/**/*.test.ts\" && node --env-file-if-exists=.env --import tsx --test --test-concurrency=1 \"tests/e2e/*.test.ts\""
   },
   "bin": {

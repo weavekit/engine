@@ -21,6 +21,7 @@ export const WEAVE_COMMANDS = {
   MCP_CONFIG: 'mcp:config',
   SCHEMA_MAP: 'schema:map',
   SCHEMA_UPGRADE: 'schema:upgrade',
+  OPENAPI: 'openapi',
 } as const;
 export type WeaveCommand = typeof WEAVE_COMMANDS[keyof typeof WEAVE_COMMANDS];
 
