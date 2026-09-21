@@ -32,7 +32,7 @@ src/
 │                   api/rbac/audit/script/provider/tools/proxy/limiter
 ├─ subsystems/      Optional, lazily loaded (disabled = not imported = zero overhead): audit/script
 ├─ infrastructure/  Pluggable providers (identity/alerts/event); depends only on core contracts
-├─ adapters/        Protocol bindings: rest/auth/ops/mcp (+ events, ingress)
+├─ adapters/        Protocol bindings: rest/auth/ops/mcp/openapi (+ events, ingress)
 ├─ runtime/         Mechanism: data-access/git/metadata/tools/proxy/tunnel
 ├─ cli/             The `weave` command
 ├─ index.ts         createEngine(config) assembly; values.ts / layout-format.ts / experimental.ts
@@ -82,6 +82,7 @@ forbidden.
 | Audit subsystem (immutable event log) | ✅ |
 | Script subsystem (worker + isolated-vm sandbox) | ✅ |
 | MCP adapter (streamable HTTP, per-identity tool surface) | ✅ |
+| OpenAPI 3.1 generator (`buildOpenApiDocument`, `weave openapi`) | ✅ |
 | Custom tools, guardrail policies, audit replay | ✅ |
 | Live channel (SSE + replay) | ✅ |
 | Engine generic Proxy | ✅ |
