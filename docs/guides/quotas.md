@@ -1,3 +1,7 @@
+---
+description: "Set durable, cross-instance usage budgets — such as a monthly call cap per tenant — and check them before outbound work."
+---
+
 # Quotas & usage budgets
 
 A **quota** is a durable, fixed-period hard budget — "the DingTalk integration may make 10 000 calls

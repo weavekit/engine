@@ -1,3 +1,7 @@
+---
+description: "Resolve agent and on-behalf-of identities from your own user table, so roles and teams stay current without a hardcoded list."
+---
+
 # Plugging in the customer's own user store
 
 Instead of a static `auth.source` map and a static `mcp.identities` directory, both are **resolver functions** that load the customer's own users, roles and teams from their database. This is what you reach for when the user set is dynamic or already lives in the CRM's `crm_users` table.

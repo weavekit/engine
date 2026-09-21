@@ -1,3 +1,7 @@
+---
+description: "Guides, operations, practices and reference for `@weave-kit/engine` — and where to start if you're new."
+---
+
 # Overview
 
 Topic-focused documentation for `@weave-kit/engine`. New to the engine? Read

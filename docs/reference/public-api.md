@@ -1,3 +1,7 @@
+---
+description: "Which parts of `@weave-kit/engine` are safe to build on, which are still moving, and how the package enforces the boundary."
+---
+
 # Public API & dependency budget
 
 Not every import is a promise. This page tells you which parts of `@weave-kit/engine` are safe to

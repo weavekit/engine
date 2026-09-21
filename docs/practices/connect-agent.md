@@ -1,3 +1,7 @@
+---
+description: "Connect Claude Code, Cursor, VS Code or Claude Desktop to a local engine in about five minutes."
+---
+
 # Connect an agent (5 minutes, local)
 
 So you ran `weave dev` and it printed a **MCP URL**. This page takes you from that URL to a working agent in a local client — Claude Code, Cursor, VS Code, Claude Desktop, or any MCP host — using the engine on `http://localhost:3000`.

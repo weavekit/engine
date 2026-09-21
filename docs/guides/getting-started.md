@@ -1,3 +1,7 @@
+---
+description: "Take a project from empty to running: scaffold it, migrate the schema to PostgreSQL, run with hot reload, generate types, and call the API."
+---
+
 # Getting started
 
 This page takes you end to end: define a data model in `schema.json`, migrate it to PostgreSQL, run
