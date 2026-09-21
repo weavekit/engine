@@ -48,7 +48,8 @@ weave migrate --dry-run     # preview the DDL without executing
 
 Migration is **state-diff** and idempotent: it compares the expected schema against
 `information_schema` and emits only the `CREATE` / `ALTER` statements it needs. Every sync writes an
-audit trail, updates the PG metadata cache, and auto-commits the `objects/` tree to Git.
+audit trail, updates the PG metadata cache, and auto-commits the `objects/` tree to Git — see
+[Git-versioned metadata](git-versioned-metadata.md).
 
 Existing tables are treated carefully — see
 [How migration handles existing tables](schema.md#how-migration-handles-existing-tables) for the

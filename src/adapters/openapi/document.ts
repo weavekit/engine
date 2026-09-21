@@ -1,4 +1,5 @@
 import { version } from '../../version.js';
+import { SCRIPT_SOURCE_KINDS } from '../../core/index.js';
 import {
   OPENAPI_TAGS,
   OPENAPI_TAG_DESCRIPTIONS,
@@ -74,12 +75,10 @@ const P = {
   sort: { name: 'sort', in: 'query', schema: { type: 'string' }, description: 'Comma-separated `field:direction` pairs.', example: 'created_at:desc' },
   fields: { name: 'fields', in: 'query', schema: { type: 'string' }, description: 'Comma-separated field projection.', example: 'id,title' },
   objectQuery: { name: 'object', in: 'query', schema: { type: 'string' }, description: 'Return one object descriptor instead of all.' },
-  kind: { name: 'kind', in: 'path', required: true, schema: { type: 'string', enum: ['server', 'show.client', 'list.client'] }, description: 'Script kind.' },
+  kind: { name: 'kind', in: 'path', required: true, schema: { type: 'string', enum: [SCRIPT_SOURCE_KINDS.SERVER] }, description: 'Script kind.' },
   approvalKey: { name: 'key', in: 'path', required: true, schema: { type: 'string' }, description: 'Deterministic approval key.' },
   policyName: { name: 'name', in: 'path', required: true, schema: { type: 'string' } },
   source: { name: 'source', in: 'path', required: true, schema: { type: 'string' }, description: 'Provider/source identifier.' },
-  pageId: { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
-  pagePath: { name: 'path', in: 'path', required: true, schema: { type: 'string' }, description: 'Nested path (may contain slashes).' },
   instance: { name: 'instance', in: 'path', required: true, schema: { type: 'string' }, description: 'Proxy instance mount path.' },
   proxyPath: { name: 'path', in: 'path', required: true, schema: { type: 'string' }, description: 'Forwarded path on the upstream.' },
   status: { name: 'status', in: 'query', schema: { type: 'string' } },
@@ -164,7 +163,7 @@ route('put', (c) => `${c.prefix}/objects/{name}/schema`, op(OPENAPI_TAGS.SCHEMA,
 
 // ---- Scripts (projectDir) ----
 route('get', (c) => `${c.prefix}/objects/{name}/scripts/{kind}`, op(OPENAPI_TAGS.SCRIPTS, 'getScriptSource', 'Read a script source', {
-  description: 'Client kinds are readable by any authenticated identity; `server` requires an `adminRoles` role.',
+  description: '`server` requires a role listed in `adapters.rest.adminRoles`.',
   parameters: [P.name, P.kind],
   responses: { 200: ok('Script source.', { type: 'object', properties: { source: { type: 'string' }, version: { type: 'string' } } }), ...errors('400', '403', '404') },
 }), (c) => c.projectDir);
@@ -176,7 +175,7 @@ route('put', (c) => `${c.prefix}/objects/{name}/scripts/{kind}`, op(OPENAPI_TAGS
 }), (c) => c.projectDir);
 
 // ---- Metadata / permissions / identities ----
-route('get', (c) => `${c.prefix}/metadata`, op(OPENAPI_TAGS.METADATA, 'getMetadata', 'Object descriptors for frontend adapters', {
+route('get', (c) => `${c.prefix}/metadata`, op(OPENAPI_TAGS.METADATA, 'getMetadata', 'Object descriptors for API clients', {
   description: 'Without `object`, returns `{ objects: [...] }` for every readable object; pass `object=<name>` for one. Responses carry an `ETag`.',
   parameters: [P.objectQuery],
   responses: { 200: ok('Descriptor(s).', GENERIC_OBJECT), 304: { description: 'Not modified.' }, ...errors('403', '404') },
@@ -228,40 +227,6 @@ route('get', (c) => `${c.prefix}/guardrails/policies/{name}/history`, op(OPENAPI
   parameters: [P.policyName],
   responses: { 200: ok('Revisions.', { type: 'array', items: GENERIC_OBJECT }), ...errors('403', '404') },
 }), (c) => c.guardrails);
-
-// ---- Pages (projectDir) ----
-route('get', (c) => `${c.prefix}/pages`, op(OPENAPI_TAGS.PAGES, 'listPages', 'List custom pages', {
-  responses: { 200: ok('Pages.', GENERIC_OBJECT), ...errors('403', '404') },
-}), (c) => c.projectDir);
-route('post', (c) => `${c.prefix}/pages`, op(OPENAPI_TAGS.PAGES, 'createPage', 'Create a custom page (admin)', {
-  responses: { 200: ok('Created.', GENERIC_OBJECT), ...errors('400', '403', '404', '409') },
-}), (c) => c.projectDir);
-route('get', (c) => `${c.prefix}/pages/{path}`, op(OPENAPI_TAGS.PAGES, 'getPage', 'Read a page layout / script', {
-  parameters: [P.pagePath],
-  responses: { 200: ok('Page source.', GENERIC_OBJECT), ...errors('403', '404') },
-}), (c) => c.projectDir);
-route('put', (c) => `${c.prefix}/pages/{path}`, op(OPENAPI_TAGS.PAGES, 'putPage', 'Write a page layout / script (admin)', {
-  parameters: [P.pagePath],
-  responses: { 200: ok('Written.', GENERIC_OBJECT), ...errors('400', '403', '404', '409') },
-}), (c) => c.projectDir);
-route('delete', (c) => `${c.prefix}/pages/{path}`, op(OPENAPI_TAGS.PAGES, 'deletePageResource', 'Delete a page resource (admin)', {
-  parameters: [P.pagePath],
-  responses: { 200: ok('Deleted.', GENERIC_OBJECT), ...errors('403', '404') },
-}), (c) => c.projectDir);
-route('patch', (c) => `${c.prefix}/pages/{id}`, op(OPENAPI_TAGS.PAGES, 'renamePage', 'Rename a page (admin)', {
-  parameters: [P.pageId],
-  responses: { 200: ok('Renamed.', GENERIC_OBJECT), ...errors('400', '403', '404', '409') },
-}), (c) => c.projectDir);
-route('delete', (c) => `${c.prefix}/pages/{id}`, op(OPENAPI_TAGS.PAGES, 'deletePage', 'Delete a page (admin)', {
-  parameters: [P.pageId],
-  responses: { 200: ok('Deleted.', GENERIC_OBJECT), ...errors('403', '404', '409') },
-}), (c) => c.projectDir);
-route('put', (c) => `${c.prefix}/pages/{id}/design`, op(OPENAPI_TAGS.PAGES, 'putPageDesign', 'Replace a page layout (admin)', {
-  description: 'Stores the page\'s layout metadata (the engine holds layout as data only — it renders nothing).',
-  parameters: [P.pageId],
-  requestBody: { required: true, ...json(GENERIC_OBJECT) },
-  responses: { 200: ok('Stored.', GENERIC_OBJECT), ...errors('400', '403', '404') },
-}), (c) => c.projectDir);
 
 // ---- Proxy (resolver configured) ----
 route('get', (c) => `${c.prefix}/proxy`, op(OPENAPI_TAGS.PROXY, 'listProxyInstances', 'List proxy instances', {

@@ -12,9 +12,6 @@ all: no import, no workers, zero overhead.
 > it is missing at startup while the subsystem is enabled, the engine fails fast with
 > `script.sandbox.unavailable` (install with `npm install isolated-vm`) instead of a raw module error.
 
-> Client-side `client.js` is a **frontend** concern — it runs in the browser under same-origin. The
-> engine does not load or execute it; the loader simply ignores `.client.js` files.
-
 ## Enable
 
 ```ts
@@ -175,41 +172,28 @@ const dataAccess = createDataAccess({ script: dispatcher }); // hooks now fire o
 await dispatcher.close();           // terminates all workers
 ```
 
-## Client scripts (`*.client.js`)
+## Editing `server.js` over the API
 
-Frontend logic is delivered, not executed. All object script source uses one endpoint:
-
-```
-GET {prefix}/objects/:name/scripts/:kind
-```
-
-`kind` is `show.client` or `list.client` for browser hooks. The response is `{ source, version }` and
-requires Bearer authentication. `@weave-kit/client` fetches through
-`client.scripts.getSource(name, kind)`; `@weave-kit/ui` owns browser execution and binds hooks to one
-resource instance. The engine returns 404 for an unknown object or a missing file, and never
-interprets client scripts. That preserves the Headless boundary: no UI rendering or browser behavior
-runs server-side.
-
-### Admin source editing
-
-Desk editors use the same source API:
+Admin tooling can read and write the hook source through the REST API:
 
 ```
-GET {prefix}/objects/:name/scripts/:kind
-PUT {prefix}/objects/:name/scripts/:kind
+GET {prefix}/objects/:name/scripts/server
+PUT {prefix}/objects/:name/scripts/server
 ```
 
-`kind` is `server`, `show.client`, or `list.client`. GET returns `{ source, version }`. PUT accepts
-`{ source, expectVersion? }` and returns `{ ok, committed, version, warnings? }`. Client kinds are
-readable by any authenticated identity so runtime hooks can load. Reading `server` and every PUT
-require a role listed in `adapters.rest.adminRoles`; when that list is absent, those admin operations
-fail closed.
+GET returns `{ source, version }`; PUT accepts `{ source, expectVersion? }` and returns
+`{ ok, committed, version }`.
 
-PUT parses JavaScript without executing it and requires server hooks to use the documented
-parameterless `this` signature. A changed source is atomically written to `objects/<name>/<kind>.js`
-and committed as the only path in a Git commit; unrelated staged work stays staged. A Git failure
-restores the prior file. Missing files may be created, and an empty source is valid. `expectVersion`
-is accepted for forward compatibility; the write remains last-write-wins.
+- **Access** — both operations require a role listed in `adapters.rest.adminRoles`; when that list is
+  absent they fail closed.
+- **Validation** — PUT parses the JavaScript without executing it and requires the documented
+  parameterless `this` signature; an invalid source is rejected with `400`.
+- **Write** — the source is written atomically to `objects/<name>/server.js` and committed as the only
+  path in a Git commit; unrelated staged work stays staged, and a Git failure restores the prior file.
+  Missing files may be created, and an empty source is valid. `expectVersion` is accepted for forward
+  compatibility; the write remains last-write-wins.
+
+The commit behavior is covered in [Git-versioned metadata](git-versioned-metadata.md).
 
 ## Next
 

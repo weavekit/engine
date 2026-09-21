@@ -47,6 +47,14 @@ describe('buildOpenApiDocument', () => {
     expect(methodsAt(doc, '/health')).toEqual(['get']);
     expect(methodsAt(doc, '/mcp')).toEqual(['post']);
 
+    // the shelved pages/UI surface is not advertised
+    expect('/api/pages' in doc.paths).toBe(false);
+    expect('/api/pages/{path}' in doc.paths).toBe(false);
+
+    // only the live `server` script kind is documented
+    const kind = (doc.components.parameters as { kind: { schema: { enum: string[] } } }).kind;
+    expect(kind.schema.enum).toEqual(['server']);
+
     // generic mode: no per-object components
     expect('lead' in doc.components.schemas).toBe(false);
     expect('Error' in doc.components.schemas).toBe(true);
@@ -77,10 +85,10 @@ describe('buildOpenApiDocument', () => {
     const record = doc.components.schemas['lead'] as { properties: Record<string, Record<string, unknown>>; required: string[] };
     expect('secret' in record.properties).toBe(false);
     expect(record.required).toContain('id');
-    expect(record.properties.created_at.readOnly).toBe(true);
-    expect(record.properties.amount.type).toBe('number');
-    expect(record.properties.amount.minimum).toBe(0);
-    expect(record.properties.status.enum).toEqual(['open', 'won']);
+    expect(record.properties.created_at!.readOnly).toBe(true);
+    expect(record.properties.amount!.type).toBe('number');
+    expect(record.properties.amount!.minimum).toBe(0);
+    expect(record.properties.status!.enum).toEqual(['open', 'won']);
     expect(record.properties.supplier_id).toEqual({ type: 'string' });
 
     const update = doc.components.schemas['leadUpdate'] as { properties: Record<string, unknown> };

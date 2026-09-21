@@ -42,7 +42,7 @@ The generated project contains `weavekit.config.ts`, `main.ts` (the app entry),
 ## `weave migrate [--dry-run]`
 
 One-way Git → PostgreSQL sync: load `schema.json` files → validate → state-diff migration → write the
-metadata cache → auto-commit the `objects/` tree.
+metadata cache → auto-commit the `objects/` tree ([Git-versioned metadata](git-versioned-metadata.md)).
 
 - `--dry-run` — generate DDL and report without executing.
 - Existing tables are validated **read-only** by default. A declared field with no matching column

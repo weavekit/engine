@@ -6,7 +6,7 @@ description: "Which parts of `@weave-kit/engine` are safe to build on, which are
 
 Not every import is a promise. This page tells you which parts of `@weave-kit/engine` are safe to
 build on, which are still moving, and how the two are kept apart. It is the contract that downstream
-packages (client, UI adapters) and external integrators code against.
+packages (the client SDK) and external integrators code against.
 
 ## Entry points — three tiers
 
@@ -14,17 +14,17 @@ packages (client, UI adapters) and external integrators code against.
 | --- | --- | --- |
 | `@weave-kit/engine` | **stable** | app / integration contract; breaking changes only in a major release |
 | `@weave-kit/engine/values` | **stable** (browser-safe) | pure `as const` constants (field types, filter ops, …); zero imports |
-| `@weave-kit/engine/layout` | **stable** (browser-safe) | page layout format: types + pure functions; runtime import-free |
 | `@weave-kit/engine/experimental` | **experimental** | under active development; **may change in a minor release** |
 | any other path | **internal** | not importable — blocked by the `exports` map (even `dist/…` deep paths) |
 
-`values` and `layout` are separate subpaths for one reason: they must stay free of the Node server
-runtime (`pg` / `fastify` / `isolated-vm`) so frontends can bundle them.
+`values` is a separate subpath for one reason: it must stay free of the Node server runtime
+(`pg` / `fastify` / `isolated-vm`) so it can be bundled anywhere, including the browser.
 
 The stable entry covers engine assembly (`createEngine`, `buildEngineFromRegistry`), the core
-contracts (`core/*`), data access, git metadata sync, custom tools, the generic proxy, the protocol
-adapters (auth/rest/mcp/events), the OpenAPI document generator (`buildOpenApiDocument`), the
-audit/script contract types, and the scaffolder (`scaffoldProject`, `PROJECT_TYPES`).
+contracts (`core/*`), data access, [Git metadata sync](../guides/git-versioned-metadata.md), custom
+tools, the generic proxy, the protocol adapters (auth/rest/mcp/events), the OpenAPI document
+generator (`buildOpenApiDocument`), the audit/script contract types, and the scaffolder
+(`scaffoldProject`, `PROJECT_TYPES`).
 
 The experimental entry covers the moving parts that aren't worth freezing yet: the
 `infrastructure/*` provider implementations, the metadata cache, the tunnel transport, and the ops
@@ -54,4 +54,4 @@ feature, not an accident:
 - `runtime/` — Node built-ins (`node:*`) only; no third-party runtime imports beyond the platform required by the layer.
 - A new **runtime** dependency needs a written justification. Prefer a Node built-in, the way the proxy uses the global `fetch` and `AbortSignal.timeout` instead of an HTTP client.
 - **Native / optional** dependencies (such as `isolated-vm`) belong in `optionalDependencies` and must degrade with an actionable error when absent — users who don't use a feature shouldn't pay for it.
-- `./values` and `./layout` must never gain a runtime import (guarded by `tests/unit/values-browser-safe.test.ts`).
+- `./values` must never gain a runtime import (guarded by `tests/unit/values-browser-safe.test.ts`).

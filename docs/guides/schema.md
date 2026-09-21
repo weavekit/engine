@@ -155,9 +155,10 @@ it are rejected as an unknown field. To drop a column, run your own SQL
 (`ALTER TABLE ... DROP COLUMN`). Re-adding a field with the same name but a different type does not
 change the column type either — the diff only checks that a column with that name exists.
 
-`weave dev` applies the same rules on hot-reload and commits schema changes to Git. A change that
-would touch a read-only existing table rejects the reload, keeps the running engine on the previous
-schema, and emits a `schema.drift` event.
+`weave dev` applies the same rules on hot-reload and commits schema changes to Git (see
+[Git-versioned metadata](git-versioned-metadata.md)). A change that would touch a read-only existing
+table rejects the reload, keeps the running engine on the previous schema, and emits a `schema.drift`
+event.
 
 To see exactly how a schema maps to its live database — each field's expected column, type,
 constraints, and any drift — run `weave schema:map` ([CLI reference](cli.md)).

@@ -6,11 +6,14 @@ description: "Guides, operations, practices and reference for `@weave-kit/engine
 
 Topic-focused documentation for `@weave-kit/engine`. New to the engine? Read
 [Getting started](guides/getting-started.md) first, then [MCP](guides/mcp.md) to put an agent on your
-data. The project pitch and quick start live in the [repository README](../README.md).
+data. Your data model is versioned in Git — see
+[Git-versioned metadata](guides/git-versioned-metadata.md). The project pitch and quick start live in
+the [repository README](../README.md).
 
 ## Guides
 
 - [Getting started](guides/getting-started.md) — scaffold, migrate, run, and consume the API
+- [Git-versioned metadata](guides/git-versioned-metadata.md) — your data model as reviewable Git commits
 - [Schema guide](guides/schema.md) — fields, relations, computed fields and validation
 - [RBAC](guides/rbac.md) — roles, permissions and row scopes
 - [Formulas](guides/formulas.md) — operators, functions, aggregations and null semantics

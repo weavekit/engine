@@ -22,11 +22,11 @@
     },
     {
       "name": "Scripts",
-      "description": "Sandboxed `server.js` / `*.client.js` hook sources."
+      "description": "Sandboxed `server.js` hook sources."
     },
     {
       "name": "Metadata",
-      "description": "Object descriptors for frontend adapters."
+      "description": "Object descriptors for API clients."
     },
     {
       "name": "Permissions",
@@ -47,10 +47,6 @@
     {
       "name": "Guardrails",
       "description": "Guardrail policy sources and history (admin)."
-    },
-    {
-      "name": "Pages",
-      "description": "Custom pages stored as metadata."
     },
     {
       "name": "Proxy",
@@ -239,9 +235,7 @@
         "schema": {
           "type": "string",
           "enum": [
-            "server",
-            "show.client",
-            "list.client"
+            "server"
           ]
         },
         "description": "Script kind."
@@ -271,23 +265,6 @@
           "type": "string"
         },
         "description": "Provider/source identifier."
-      },
-      "pageId": {
-        "name": "id",
-        "in": "path",
-        "required": true,
-        "schema": {
-          "type": "string"
-        }
-      },
-      "pagePath": {
-        "name": "path",
-        "in": "path",
-        "required": true,
-        "schema": {
-          "type": "string"
-        },
-        "description": "Nested path (may contain slashes)."
       },
       "instance": {
         "name": "instance",
@@ -920,7 +897,7 @@
         ],
         "operationId": "getScriptSource",
         "summary": "Read a script source",
-        "description": "Client kinds are readable by any authenticated identity; `server` requires an `adminRoles` role.",
+        "description": "`server` requires a role listed in `adapters.rest.adminRoles`.",
         "parameters": [
           {
             "name": "name",
@@ -938,9 +915,7 @@
             "schema": {
               "type": "string",
               "enum": [
-                "server",
-                "show.client",
-                "list.client"
+                "server"
               ]
             },
             "description": "Script kind."
@@ -1003,9 +978,7 @@
             "schema": {
               "type": "string",
               "enum": [
-                "server",
-                "show.client",
-                "list.client"
+                "server"
               ]
             },
             "description": "Script kind."
@@ -1078,7 +1051,7 @@
           "Metadata"
         ],
         "operationId": "getMetadata",
-        "summary": "Object descriptors for frontend adapters",
+        "summary": "Object descriptors for API clients",
         "description": "Without `object`, returns `{ objects: [...] }` for every readable object; pass `object=<name>` for one. Responses carry an `ETag`.",
         "parameters": [
           {
@@ -1653,345 +1626,6 @@
                 }
               }
             }
-          },
-          "403": {
-            "$ref": "#/components/responses/Error"
-          },
-          "404": {
-            "$ref": "#/components/responses/Error"
-          },
-          "default": {
-            "$ref": "#/components/responses/Error"
-          }
-        }
-      }
-    },
-    "/api/pages": {
-      "get": {
-        "tags": [
-          "Pages"
-        ],
-        "operationId": "listPages",
-        "summary": "List custom pages",
-        "responses": {
-          "200": {
-            "description": "Pages.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": true
-                }
-              }
-            }
-          },
-          "403": {
-            "$ref": "#/components/responses/Error"
-          },
-          "404": {
-            "$ref": "#/components/responses/Error"
-          },
-          "default": {
-            "$ref": "#/components/responses/Error"
-          }
-        }
-      },
-      "post": {
-        "tags": [
-          "Pages"
-        ],
-        "operationId": "createPage",
-        "summary": "Create a custom page (admin)",
-        "responses": {
-          "200": {
-            "description": "Created.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": true
-                }
-              }
-            }
-          },
-          "400": {
-            "$ref": "#/components/responses/Error"
-          },
-          "403": {
-            "$ref": "#/components/responses/Error"
-          },
-          "404": {
-            "$ref": "#/components/responses/Error"
-          },
-          "409": {
-            "$ref": "#/components/responses/Error"
-          },
-          "default": {
-            "$ref": "#/components/responses/Error"
-          }
-        }
-      }
-    },
-    "/api/pages/{path}": {
-      "get": {
-        "tags": [
-          "Pages"
-        ],
-        "operationId": "getPage",
-        "summary": "Read a page layout / script",
-        "parameters": [
-          {
-            "name": "path",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            },
-            "description": "Nested path (may contain slashes)."
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Page source.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": true
-                }
-              }
-            }
-          },
-          "403": {
-            "$ref": "#/components/responses/Error"
-          },
-          "404": {
-            "$ref": "#/components/responses/Error"
-          },
-          "default": {
-            "$ref": "#/components/responses/Error"
-          }
-        }
-      },
-      "put": {
-        "tags": [
-          "Pages"
-        ],
-        "operationId": "putPage",
-        "summary": "Write a page layout / script (admin)",
-        "parameters": [
-          {
-            "name": "path",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            },
-            "description": "Nested path (may contain slashes)."
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Written.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": true
-                }
-              }
-            }
-          },
-          "400": {
-            "$ref": "#/components/responses/Error"
-          },
-          "403": {
-            "$ref": "#/components/responses/Error"
-          },
-          "404": {
-            "$ref": "#/components/responses/Error"
-          },
-          "409": {
-            "$ref": "#/components/responses/Error"
-          },
-          "default": {
-            "$ref": "#/components/responses/Error"
-          }
-        }
-      },
-      "delete": {
-        "tags": [
-          "Pages"
-        ],
-        "operationId": "deletePageResource",
-        "summary": "Delete a page resource (admin)",
-        "parameters": [
-          {
-            "name": "path",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            },
-            "description": "Nested path (may contain slashes)."
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Deleted.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": true
-                }
-              }
-            }
-          },
-          "403": {
-            "$ref": "#/components/responses/Error"
-          },
-          "404": {
-            "$ref": "#/components/responses/Error"
-          },
-          "default": {
-            "$ref": "#/components/responses/Error"
-          }
-        }
-      }
-    },
-    "/api/pages/{id}": {
-      "patch": {
-        "tags": [
-          "Pages"
-        ],
-        "operationId": "renamePage",
-        "summary": "Rename a page (admin)",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Renamed.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": true
-                }
-              }
-            }
-          },
-          "400": {
-            "$ref": "#/components/responses/Error"
-          },
-          "403": {
-            "$ref": "#/components/responses/Error"
-          },
-          "404": {
-            "$ref": "#/components/responses/Error"
-          },
-          "409": {
-            "$ref": "#/components/responses/Error"
-          },
-          "default": {
-            "$ref": "#/components/responses/Error"
-          }
-        }
-      },
-      "delete": {
-        "tags": [
-          "Pages"
-        ],
-        "operationId": "deletePage",
-        "summary": "Delete a page (admin)",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Deleted.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": true
-                }
-              }
-            }
-          },
-          "403": {
-            "$ref": "#/components/responses/Error"
-          },
-          "404": {
-            "$ref": "#/components/responses/Error"
-          },
-          "409": {
-            "$ref": "#/components/responses/Error"
-          },
-          "default": {
-            "$ref": "#/components/responses/Error"
-          }
-        }
-      }
-    },
-    "/api/pages/{id}/design": {
-      "put": {
-        "tags": [
-          "Pages"
-        ],
-        "operationId": "putPageDesign",
-        "summary": "Replace a page layout (admin)",
-        "description": "Stores the page's layout metadata (the engine holds layout as data only — it renders nothing).",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "additionalProperties": true
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Stored.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": true
-                }
-              }
-            }
-          },
-          "400": {
-            "$ref": "#/components/responses/Error"
           },
           "403": {
             "$ref": "#/components/responses/Error"

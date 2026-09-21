@@ -252,7 +252,7 @@ host caller may use any prefix.
 ## Notes
 
 - **Double audit is by design** — a custom tool call writes both `mcp.tool.<name>` (adapter layer) and `create/update/delete` (data-access layer). The first is call-level evidence, the second write-level evidence.
-- Audit events (including `before`/`after`) live in PostgreSQL, **not git**. Git versions your `schema.json` metadata; business-data evidence stays in the audit table.
+- Audit events (including `before`/`after`) live in PostgreSQL, **not git**. Git versions your `schema.json` metadata ([Git-versioned metadata](git-versioned-metadata.md)); business-data evidence stays in the audit table.
 
 ## Next
 
