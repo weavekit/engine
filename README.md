@@ -1,4 +1,4 @@
-<h1 align="center">Let AI agents operate your data — safely.</h1>
+<h1 align="center">Let AI agents operate your data — safely</h1>
 
 Define your data model once in `schema.json`, and WeaveKit compiles it into PostgreSQL tables, a
 REST API with row- and field-level RBAC, an immutable audit log, and an MCP tool surface that AI
