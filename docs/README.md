@@ -24,6 +24,11 @@ the [repository README](../README.md).
 - [Custom tools, guardrails & audit replay](guides/custom-tools-and-guardrails.md) — the open contract
 - [Quotas](guides/quotas.md) — usage budgets consumed by tools and scripts
 - [Inbound events](guides/ingress.md) — signed webhooks mapped to engine actions
+- [Live events (SSE)](guides/events.md) — push data and metadata changes to clients
+- [Generic proxy](guides/proxy.md) — a path-allowlisted gateway to other instances
+- [Tunnel transport](guides/tunnel.md) — reach a NAT'd engine over an outbound HTTP/2 tunnel
+- [Approvals](guides/approvals.md) — the human-in-the-loop queue
+- [Localization (i18n)](guides/i18n.md) — message catalogs and stable error codes
 
 ## Operations
 
