@@ -1,6 +1,6 @@
 import { createRequire } from 'node:module';
 import { Worker } from 'node:worker_threads';
-import { SchemaError } from '../../../core/index.js';
+import { SchemaError, transformScriptSource } from '../../../core/index.js';
 import type { ScriptDispatchArgs, ScriptHook } from '../../../core/index.js';
 import type { RpcExecutor, SandboxBackend, SandboxCallResult, SandboxEntry, SandboxInstance } from './types.js';
 
@@ -85,13 +85,6 @@ function rpcSync(ns, method, args, user) {
   throw err;
 }
 
-function transform(src) {
-  return src
-    .replace(/export\s+(async\s+)?function\s+(\w+)/g, '__exports.$2 = $1function $2')
-    .replace(/export\s+(const|let|var)\s+(\w+)/g, '__exports.$2 = ')
-    .replace(/export\s+default\s+/g, '__exports.default = ');
-}
-
 async function init() {
   isolate = new ivm.Isolate({ memoryLimit: workerData.memoryLimitMb });
   context = await isolate.createContext();
@@ -99,7 +92,7 @@ async function init() {
   exportsRef = await context.global.get('__exports', { reference: true });
   const rpcCb = new ivm.Callback((ns, method, args) => rpcSync(ns, method, args, currentUser));
   await context.global.set('__rpc', rpcCb);
-  await context.eval(transform(workerData.source), { timeout: workerData.timeoutMs });
+  await context.eval(workerData.source, { timeout: workerData.timeoutMs });
 }
 
 async function callHook(hook, args) {
@@ -225,7 +218,7 @@ class IsolatedVmSandboxInstance implements SandboxInstance {
       const worker = new Worker(WORKER_CODE, {
         eval: true,
         workerData: {
-          source: this.entry.source,
+          source: transformScriptSource(this.entry.source),
           timeoutMs: this.opts.timeoutMs,
           queryTimeoutMs: this.opts.queryTimeoutMs,
           memoryLimitMb: this.opts.memoryLimitMb,

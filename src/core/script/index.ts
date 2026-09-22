@@ -4,7 +4,7 @@ export {
 } from './types.js';
 export { SCRIPT_SOURCE_KINDS } from './values.js';
 export type { ScriptSourceKind } from './values.js';
-export { detectScriptHooks, invalidScriptHookSignatures } from './source.js';
+export { detectScriptHooks, invalidScriptHookSignatures, transformScriptSource } from './source.js';
 export type {
   EngineScriptConfig,
   EngineScriptSandboxConfig,
