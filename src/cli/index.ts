@@ -205,6 +205,7 @@ program
     await runAction(() => moduleToggle(process.cwd(), name, false, { printer: printer() }));
   });
 
+// `pages:*` is UI-related and pre-release: intentionally undocumented (see AGENTS.md), kept functional.
 program
   .command(WEAVE_COMMANDS.PAGES_MIGRATE)
   .description('migrate legacy flat custom pages (pages/<id>.layout.json) to directories (pages/<id>/layout.json) and auto-commit')

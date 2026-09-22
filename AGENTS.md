@@ -87,11 +87,15 @@ forbidden.
 | Live channel (SSE + replay) | ✅ |
 | Engine generic Proxy | ✅ |
 | Quotas / budgets (CounterStore + PG counters) | ✅ |
+| Approvals queue (human-in-the-loop; requires the tool executor) | ✅ |
 | External event ingress | ✅ |
 | Tunnel transport primitive | ✅ |
 
 ## Maintenance rules
 
+- `pages:*` (page layouts / scripts) and the `./layout` export are UI-related and pre-release:
+  they stay out of the public `docs/` and the generated OpenAPI on purpose (not hidden from the API),
+  and are noted at their CLI registration.
 - Keep this file to invariants only; put narrative detail in `docs/` and code comments
 - Every metadata change is auto-committed to Git by the engine; the `objects/` tree is the schema
   source of truth
