@@ -47,6 +47,9 @@ write.
   stays a derived cache.
 - **Schema as the source of truth** — `objects/<name>/schema.json` drives the tables, REST API and MCP
   surface; state-diff migrations to PostgreSQL.
+- **Custom field types** — register business-semantic types (`money`, `address`, …) as thin, namespaced
+  layers over a built-in primitive; they inherit storage, REST/MCP/OpenAPI schemas and generated
+  types. Declared in a project-local, Git-committed `field-types/` directory.
 - **Governed REST API** — object CRUD with row-level (`all`/`own`/`team`) and field-level RBAC and a
   uniform error contract.
 - **MCP tool surface** — a streamable HTTP endpoint at `/mcp` with a per-identity tool surface and
@@ -95,7 +98,7 @@ Full documentation: **[docs.weavekit.io/engine](https://docs.weavekit.io/engine)
 - [Git-versioned metadata](https://docs.weavekit.io/engine/guides/git-versioned-metadata) — your data model as reviewable Git commits
 - [Schema guide](https://docs.weavekit.io/engine/guides/schema) · [RBAC](https://docs.weavekit.io/engine/guides/rbac) · [Formulas](https://docs.weavekit.io/engine/guides/formulas) · [Audit](https://docs.weavekit.io/engine/guides/audit)
 - [CLI reference](https://docs.weavekit.io/engine/guides/cli) · [MCP](https://docs.weavekit.io/engine/guides/mcp) · [Script hooks](https://docs.weavekit.io/engine/guides/script-hooks)
-- [Custom tools & guardrails](https://docs.weavekit.io/engine/guides/custom-tools-and-guardrails) · [Quotas](https://docs.weavekit.io/engine/guides/quotas) · [Inbound events](https://docs.weavekit.io/engine/guides/ingress)
+- [Custom tools & guardrails](https://docs.weavekit.io/engine/guides/custom-tools-and-guardrails) · [Custom field types](https://docs.weavekit.io/engine/reference/custom-field-types) · [Quotas](https://docs.weavekit.io/engine/guides/quotas) · [Inbound events](https://docs.weavekit.io/engine/guides/ingress)
 - [Public API & dependency budget](https://docs.weavekit.io/engine/reference/public-api)
 - [Practices & operations](https://docs.weavekit.io/engine/practices/existing-crm-to-mcp) — real integration and deployment walkthroughs
 
@@ -140,6 +143,8 @@ await engine.app.listen({ port: 3000 });
 | `weave connect` | Connect a self-hosted engine out to a governance tunnel endpoint |
 | `weave object:create <name>` | Scaffold `objects/<name>/schema.json` + `server.js` hooks |
 | `weave field:add <object>` | Add a validated field to a schema |
+| `weave field-type:list` | List built-in + registered field types |
+| `weave field-type:check` | Validate registrations + schemas against the registry |
 | `weave module:add` / `module:remove <name>` | Enable/disable an optional subsystem (audit/script) |
 
 ## Object-level types
