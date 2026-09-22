@@ -1,5 +1,5 @@
 import type { ObjectDefinition } from '../types/index.js';
-import { DEFAULT_FIELD_TYPE_REGISTRY, DETAILS_COLUMNS, FIELD_TYPES, primaryFieldOf, primaryKeyOf } from '../types/index.js';
+import { CONSTRAINT_TYPES, DEFAULT_FIELD_TYPE_REGISTRY, DETAILS_COLUMNS, FIELD_TYPES, primaryFieldOf, primaryKeyOf } from '../types/index.js';
 import type { FieldTypeRegistry } from '../types/index.js';
 import { SchemaError } from '../types/index.js';
 import type { Locale } from '../i18n/index.js';
@@ -31,11 +31,18 @@ export interface ExpectedIndex {
   columns: string[];
 }
 
+/** a table-level UNIQUE constraint (composite/scoped) */
+export interface ExpectedUnique {
+  name: string;
+  columns: string[];
+}
+
 export interface ExpectedTable {
   name: string;
   columns: ExpectedColumn[];
   fks: ExpectedFk[];
   indexes: ExpectedIndex[];
+  uniques: ExpectedUnique[];
 }
 
 /** mapped PK type of an object (for relation FK columns), or undefined */
@@ -125,7 +132,17 @@ export function buildExpectedTable(
     indexes.push({ name: `${name}_${idx.fields.join('_')}_idx`, method: idx.type, columns: idx.fields });
   }
 
-  return { name, columns, fks, indexes };
+  // composite/scoped UNIQUE constraints; skip names already produced by a single-column `unique`
+  const columnUniqueNames = new Set(columns.filter((c) => c.unique).map((c) => `${name}_${c.name}_key`));
+  const uniques: ExpectedUnique[] = [];
+  for (const constraint of def.constraints ?? []) {
+    if (constraint.type !== CONSTRAINT_TYPES.UNIQUE) continue;
+    const cname = `${name}_${constraint.fields.join('_')}_key`;
+    if (columnUniqueNames.has(cname)) continue;
+    uniques.push({ name: cname, columns: [...constraint.fields] });
+  }
+
+  return { name, columns, fks, indexes, uniques };
 }
 
 function createTableSql(t: ExpectedTable): string {
@@ -141,6 +158,9 @@ function createTableSql(t: ExpectedTable): string {
   }
   for (const c of t.columns.filter((col) => col.unique)) {
     lines.push(`  CONSTRAINT ${q(`${t.name}_${c.name}_key`)} UNIQUE (${q(c.name)})`);
+  }
+  for (const u of t.uniques) {
+    lines.push(`  CONSTRAINT ${q(u.name)} UNIQUE (${u.columns.map(q).join(', ')})`);
   }
   return `CREATE TABLE ${q(t.name)} (\n${lines.join(',\n')}\n);`;
 }
@@ -180,6 +200,12 @@ export function diffTable(t: ExpectedTable, actual: ActualTable | undefined, loc
     for (const c of t.columns.filter((col) => col.unique)) {
       if (!actual.indexNames.includes(`${t.name}_${c.name}_key`)) {
         constraintAdds.push(`ALTER TABLE ${q(t.name)} ADD CONSTRAINT ${q(`${t.name}_${c.name}_key`)} UNIQUE (${q(c.name)})`);
+      }
+    }
+
+    for (const u of t.uniques) {
+      if (!actual.indexNames.includes(u.name)) {
+        constraintAdds.push(`ALTER TABLE ${q(t.name)} ADD CONSTRAINT ${q(u.name)} UNIQUE (${u.columns.map(q).join(', ')})`);
       }
     }
   }

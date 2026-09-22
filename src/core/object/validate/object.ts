@@ -7,6 +7,7 @@ import { FIELD_TYPES, READ_SCOPES } from '../../types/values.js';
 import { validateField } from './field.js';
 import { validateFormulas } from './formulas.js';
 import { validateIndexes } from './indexes.js';
+import { validateConstraints } from './constraints.js';
 import { validateLabels } from './labels.js';
 import { validatePermissions } from './permissions.js';
 import { fail, isRecord, expectString, SNAKE_CASE, TITLE_PLACEHOLDER_RE, type Vc } from './primitives.js';
@@ -92,6 +93,7 @@ export function validateObject(raw: unknown, options?: ValidateOptions): ObjectD
 
   const permissions = validatePermissions(raw.permissions, vc, fields);
   const indexes = validateIndexes(raw.indexes, vc);
+  const constraints = validateConstraints(raw.constraints, vc, fields);
 
   // alter: opt-in additive auto-DDL for an existing table (default false)
   if (raw.alter !== undefined && typeof raw.alter !== 'boolean') fail(vc, 'object.alter.boolean');
@@ -122,6 +124,7 @@ export function validateObject(raw: unknown, options?: ValidateOptions): ObjectD
     permissions,
     workflow: raw.workflow,
     indexes,
+    constraints,
     titleTemplate,
     alter,
   };

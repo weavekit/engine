@@ -46,7 +46,7 @@ export class ObjectRegistry {
 
   /** cross-object validation + relation graph derivation over all objects */
   buildGraph(options?: BuildGraphOptions): RelationGraph {
-    return buildGraph(this.defs, options);
+    return buildGraph(this.defs, { ...options, fieldTypes: this.fieldTypes });
   }
 }
 

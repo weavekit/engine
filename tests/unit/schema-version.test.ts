@@ -74,6 +74,11 @@ describe('schema format version', () => {
     expect(parsed.fields[0]?.labels).toEqual({ [DEFAULT_LOCALE]: 'ID' });
   });
 
+  it('parseSchema migrates a v2 file to the current version', () => {
+    const parsed = parseSchema(JSON.stringify({ ...base, schemaVersion: 2 }));
+    expect(parsed.schemaVersion).toBe(SCHEMA_FORMAT_VERSION);
+  });
+
   it('schemaVersionOf reports legacy 0 for unversioned input', () => {
     expect(schemaVersionOf({ ...base })).toBe(0);
   });

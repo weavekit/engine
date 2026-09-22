@@ -35,6 +35,22 @@ function undefinedColumnOf(error: unknown): string | undefined {
   return m?.[1];
 }
 
+/** PG error 23505 = unique_violation: a unique constraint (column or object constraint) was hit */
+function isUniqueViolation(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && (error as { code?: unknown }).code === '23505';
+}
+
+/** readable field list behind a unique violation (from the detail `Key (a, b)=(...)`) */
+function uniqueFieldsOf(error: unknown): string {
+  const detail = (error as { detail?: unknown } | null)?.detail;
+  if (typeof detail === 'string') {
+    const m = /Key \(([^)]+)\)/.exec(detail);
+    if (m?.[1] !== undefined) return m[1];
+  }
+  const constraint = (error as { constraint?: unknown } | null)?.constraint;
+  return typeof constraint === 'string' ? constraint : '?';
+}
+
 /**
  * Run a SQL statement against an object's table, mapping PG `undefined_column`
  * (42703) — a schema/DB drift (schema declares a field the table lacks) — to an
@@ -53,6 +69,9 @@ async function runTableQuery(
     if (isUndefinedColumn(error)) {
       const field = undefinedColumnOf(error);
       throw new SchemaError('data.schemaDrift', { object: objectName, field: field ?? '' }, locale);
+    }
+    if (isUniqueViolation(error)) {
+      throw new SchemaError('data.unique', { object: objectName, fields: uniqueFieldsOf(error) }, locale);
     }
     throw error;
   }

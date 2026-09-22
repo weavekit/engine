@@ -65,6 +65,14 @@ export interface MappingFk {
   present: boolean;
 }
 
+/** a declared table-level UNIQUE constraint (composite/scoped) */
+export interface MappingConstraint {
+  name: string;
+  columns: string[];
+  /** the backing unique index/constraint exists on the live table */
+  present: boolean;
+}
+
 export interface MappingRls {
   enabled: boolean;
   owner: string;
@@ -81,6 +89,8 @@ export interface MappingTable {
   columns: MappingColumn[];
   indexes: MappingIndex[];
   fks: MappingFk[];
+  /** declared table-level UNIQUE constraints (composite/scoped) */
+  constraints: MappingConstraint[];
   /** `details` edges declared on the object (no column on the parent table) */
   details: Array<{ field: string; target: string }>;
   /** live RLS state/ownership (absent when the table does not exist) */
@@ -101,6 +111,7 @@ export interface MappingTotals {
   columnsExtra: number;
   indexDrift: number;
   fkDrift: number;
+  constraintDrift: number;
 }
 
 export interface MappingReport {
@@ -239,6 +250,11 @@ export function buildMappingReport(
       ...fk,
       present: actualTable?.fks.some((a) => a.column === fk.column && a.refTable === fk.refTable) === true,
     }));
+    const constraints: MappingConstraint[] = expected.uniques.map((u) => ({
+      name: u.name,
+      columns: [...u.columns],
+      present: actualTable?.indexNames.includes(u.name) === true,
+    }));
     const details = def.fields
       .filter((field): field is Extract<FieldDefinition, { target: string }> => field.type === FIELD_TYPES.DETAILS)
       .map((field) => ({ field: field.name, target: field.target }));
@@ -257,7 +273,8 @@ export function buildMappingReport(
       actualTable === undefined ||
       columns.some((c) => c.status !== 'ok' && c.status !== 'extra') ||
       indexes.some((idx) => !idx.present) ||
-      fks.some((fk) => !fk.present);
+      fks.some((fk) => !fk.present) ||
+      constraints.some((c) => !c.present);
 
     if (actualTable === undefined) {
       warnings.push(`table "${def.name}" does not exist yet (weave migrate would CREATE it)`);
@@ -271,6 +288,7 @@ export function buildMappingReport(
       columns,
       indexes,
       fks,
+      constraints,
       details,
       rls,
       warnings,
@@ -289,11 +307,13 @@ export function buildMappingReport(
     columnsExtra: 0,
     indexDrift: 0,
     fkDrift: 0,
+    constraintDrift: 0,
   };
   for (const table of tables) {
     if (!table.exists) totals.tablesMissing += 1;
     totals.indexDrift += table.indexes.filter((idx) => !idx.present).length;
     totals.fkDrift += table.fks.filter((fk) => !fk.present).length;
+    totals.constraintDrift += table.constraints.filter((c) => !c.present).length;
     for (const col of table.columns) {
       totals.columns += 1;
       if (col.status === 'ok') totals.columnsOk += 1;

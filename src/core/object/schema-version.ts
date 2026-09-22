@@ -7,7 +7,7 @@
  * whenever the on-disk shape changes; `weave schema:upgrade` stamps files to the
  * current version and the loader reads older files through the same migrations.
  */
-export const SCHEMA_FORMAT_VERSION = 2 as const;
+export const SCHEMA_FORMAT_VERSION = 3 as const;
 export type SchemaFormatVersion = typeof SCHEMA_FORMAT_VERSION;
 
 /** implicit version of files that predate the `schemaVersion` field. */

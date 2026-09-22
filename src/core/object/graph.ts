@@ -8,6 +8,7 @@ import type {
   ObjectDefinition,
   RelationEdge,
 } from '../types/index.js';
+import type { FieldTypeRegistry } from '../types/index.js';
 import {
   DETAILS_COLUMNS,
   FIELD_TYPES,
@@ -15,12 +16,15 @@ import {
   SCALAR_FIELD_TYPES,
 } from '../types/values.js';
 import { primaryFieldOf } from '../types/index.js';
+import { primaryKeyOf } from '../types/index.js';
 
 const SCALAR_TYPE_VALUES: readonly string[] = Object.values(SCALAR_FIELD_TYPES);
 
 export interface BuildGraphOptions {
   /** message locale; defaults to English */
   locale?: Locale;
+  /** effective field-type registry (resolves registered `references` hints) */
+  fieldTypes?: FieldTypeRegistry;
 }
 
 /**
@@ -181,6 +185,28 @@ export function buildGraph(
           foreignKey: field.name,
           array: true,
         });
+      }
+
+      // registered-type membership (`references`) must point at a real object + column
+      const ref = options?.fieldTypes?.get(field.type)?.references;
+      if (ref !== undefined) {
+        const target = defs.get(ref.object);
+        if (target === undefined) {
+          graphError(locale, 'graph.references.target.missing', {
+            object: def.name,
+            field: field.name,
+            target: ref.object,
+          });
+        }
+        const column = ref.column ?? primaryKeyOf(target)!;
+        if (!target.fields.some((f) => f.name === column)) {
+          graphError(locale, 'graph.references.column.missing', {
+            object: def.name,
+            field: field.name,
+            target: ref.object,
+            column,
+          });
+        }
       }
     }
   }

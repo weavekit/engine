@@ -134,6 +134,11 @@ See [Formulas](formulas.md).
 
 - `titleTemplate` — composite title, e.g. `"{doc_no} {customer_name}"`.
 - `indexes` — extra btree/gin/gist indexes: `{ "type": "gin", "fields": ["tags"] }`.
+- `constraints` — declarative **table-level UNIQUE** constraints, e.g.
+  `{ "type": "unique", "fields": ["email", "tenant_id"] }`. Use one for **composite / scoped
+  uniqueness** (a per-field `unique: true` covers single-column). Enforced by a real `UNIQUE(...)`
+  constraint, so it is race-free; a violation returns a `409` (`data.unique`). For an existing table it
+  is added via `ADD CONSTRAINT` under `alter: true`.
 - `permissions` — see [RBAC](rbac.md).
 - `labels` / `description` — display and introspection metadata.
 

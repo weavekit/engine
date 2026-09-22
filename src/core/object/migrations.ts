@@ -26,6 +26,11 @@ function migrateLabelsToMap(raw: RawObject): RawObject {
   return { ...migrated, fields, schemaVersion: 2 };
 }
 
+/** v2 → v3: object-level `constraints` (table-level UNIQUE) become available; shape is additive */
+function migrateAddConstraintSupport(raw: RawObject): RawObject {
+  return { ...raw, schemaVersion: 3 };
+}
+
 /**
  * On-disk format migrations: `from`-version → a transform producing version+1.
  * Append a step here whenever {@link SCHEMA_FORMAT_VERSION} is bumped. Steps
@@ -36,6 +41,8 @@ const MIGRATIONS: Record<number, (raw: RawObject) => RawObject> = {
   0: (raw) => ({ ...raw, schemaVersion: 1 }),
   // v1 → v2: replace the scalar `label` with the per-locale `labels` map.
   1: migrateLabelsToMap,
+  // v2 → v3: stamp the version; `constraints` is optional and needs no rewrite.
+  2: migrateAddConstraintSupport,
 };
 
 /**

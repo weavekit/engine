@@ -1,9 +1,11 @@
 import { parseFormula } from '../../formula/index.js';
 import type { BuiltinFieldType, FieldDefinition, FieldType, OnDeleteAction } from '../../types/index.js';
 import {
+  ATTR_KINDS,
   DEFAULT_FIELD_TYPE_REGISTRY,
   FIELD_TYPE_NAME_PATTERN,
   fieldBase,
+  type AttrSpec,
   type FieldTypeRegistration,
   type FieldTypeRegistry,
 } from '../../types/index.js';
@@ -449,10 +451,42 @@ export function validateField(raw: unknown, vc: Vc, options: FieldValidateOption
   }
 }
 
+/** engine-semantic attrs a registered type does NOT inherit from its base (computed/RBAC) */
+const SEMANTIC_ATTRS = new Set<string>(['formula', ROW_SCOPE_MARKERS.OWNERSHIP, ROW_SCOPE_MARKERS.TEAM]);
+
+/** type-check one declared extra-attribute value against its AttrSpec */
+function checkAttrValue(value: unknown, attr: string, spec: AttrSpec, vc: Vc): void {
+  switch (spec.type) {
+    case ATTR_KINDS.STRING:
+      if (typeof value !== 'string') fail(vc, 'field.attr.type', { attr, type: 'string' });
+      return;
+    case ATTR_KINDS.NUMBER:
+      if (typeof value !== 'number' || Number.isNaN(value)) fail(vc, 'field.attr.type', { attr, type: 'number' });
+      return;
+    case ATTR_KINDS.INTEGER:
+      if (typeof value !== 'number' || !Number.isInteger(value)) fail(vc, 'field.attr.type', { attr, type: 'integer' });
+      return;
+    case ATTR_KINDS.BOOLEAN:
+      if (typeof value !== 'boolean') fail(vc, 'field.attr.type', { attr, type: 'boolean' });
+      return;
+    case ATTR_KINDS.JSON:
+      return;
+    case ATTR_KINDS.ENUM: {
+      const values = spec.values ?? [];
+      if (typeof value !== 'string' || !values.includes(value)) {
+        fail(vc, 'field.attr.enum', { attr, values: values.join('/') });
+      }
+      return;
+    }
+  }
+}
+
 /**
  * Validate a field whose type is a user/plugin registered type. Attributes are
- * checked against the registration's allow-list (plus the base's conveniences);
- * storage/TS/MCP/OpenAPI behaviour is inherited from `base` at consumption time.
+ * checked against the base primitive's attributes (minus engine-semantic ones)
+ * plus the registration's declared `attrs`; declared attr values are type-checked
+ * and preserved. Storage/TS/MCP/OpenAPI/write-validation behaviour is inherited
+ * from `base` at consumption time.
  */
 function validateRegisteredField(
   raw: Record<string, unknown>,
@@ -465,8 +499,10 @@ function validateRegisteredField(
   if (base === undefined) fail(vc, 'field.type.invalid', { type });
   const resolvedBase = fieldBase(DEFAULT_FIELD_TYPE_REGISTRY, base);
   const relationLike = descriptor.relationLike === true || resolvedBase === FIELD_TYPES.RELATION;
+  const specs = descriptor.attrs ?? {};
 
-  const allowed = new Set<string>([...BASE_KEYS, ...(descriptor.attrs ?? []), 'required', 'unique', 'default']);
+  const inherited = (EXTRA_KEYS[resolvedBase] ?? []).filter((k) => !SEMANTIC_ATTRS.has(k));
+  const allowed = new Set<string>([...BASE_KEYS, ...inherited, ...Object.keys(specs)]);
   if (relationLike) {
     allowed.add('target');
     allowed.add('onDelete');
@@ -488,6 +524,11 @@ function validateRegisteredField(
   const out: Record<string, unknown> = { name, type, labels, description, primary, system, sensitive, required, unique };
   if (multiple !== undefined) out.multiple = multiple;
 
+  // carry the base's own value constraints (min/max/minLength/maxLength/regex/precision)
+  for (const key of inherited) {
+    if (raw[key] !== undefined && out[key] === undefined) out[key] = raw[key];
+  }
+
   if (relationLike) {
     const target = expectString(raw, 'target', vc);
     if (target === undefined) fail(vc, 'field.relation.target.required');
@@ -501,5 +542,17 @@ function validateRegisteredField(
   }
 
   if (raw.default !== undefined) out.default = raw.default;
+
+  // declared extra attributes: required check + value validation + preserve
+  for (const [attr, spec] of Object.entries(specs)) {
+    const value = raw[attr];
+    if (value === undefined) {
+      if (spec.required === true) fail(vc, 'field.attr.required', { type, attr });
+      continue;
+    }
+    checkAttrValue(value, attr, spec, vc);
+    out[attr] = value;
+  }
+
   return out as unknown as FieldDefinition;
 }

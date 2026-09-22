@@ -1,7 +1,7 @@
 import type { Locale, MessageKey, ObjectDefinition, ObjectRegistry } from '../../core/index.js';
-import { SchemaError, primaryKeyOf } from '../../core/index.js';
-import { DETAILS_COLUMNS, FIELD_TYPES } from '../../core/index.js';
-import type { FieldDefinition } from '../../core/index.js';
+import { SchemaError, fieldBase, primaryKeyOf } from '../../core/index.js';
+import { DETAILS_COLUMNS, DEFAULT_FIELD_TYPE_REGISTRY, FIELD_TYPES } from '../../core/index.js';
+import type { FieldDefinition, RegisteredField } from '../../core/index.js';
 import type { Queryable } from './types.js';
 import { WRITE_MODES, type WriteMode } from './values.js';
 
@@ -48,7 +48,26 @@ async function checkValue(field: FieldDefinition, value: unknown, vc: Vc): Promi
   // to a present value; required-ness is enforced separately by validateRecord.
   if (value === null || value === undefined) return;
 
-  if (f.type === FIELD_TYPES.STRING || f.type === FIELD_TYPES.TEXT || f.type === FIELD_TYPES.FIRST_NAME || f.type === FIELD_TYPES.LAST_NAME || f.type === FIELD_TYPES.EMAIL || f.type === FIELD_TYPES.PHONE) {
+  // Resolve the base primitive through the field-type registry so user/plugin
+  // registered types inherit the value validation of the primitive they are
+  // layered over (a registered type's own `type` is a namespaced name).
+  const fieldTypes = vc.registry.fieldTypes ?? DEFAULT_FIELD_TYPE_REGISTRY;
+  const base = fieldBase(fieldTypes, f.type);
+
+  // media (image) shares `string` as its base but has array semantics — take it first
+  if (f.type === FIELD_TYPES.IMAGE) {
+    const im = f as { multiple?: boolean };
+    if (im.multiple === true) {
+      if (!Array.isArray(value) || !value.every((v) => typeof v === 'string')) {
+        fail(vc, 'data.field.type', { field: f.name, type: 'string array' });
+      }
+      return;
+    }
+    if (typeof value !== 'string') fail(vc, 'data.field.type', { field: f.name, type: 'string' });
+    return;
+  }
+
+  if (base === FIELD_TYPES.STRING || base === FIELD_TYPES.TEXT) {
     if (typeof value !== 'string') fail(vc, 'data.field.type', { field: f.name, type: 'string' });
     const str = value as string;
     const s = f as { minLength?: number; maxLength?: number; regex?: string };
@@ -58,58 +77,49 @@ async function checkValue(field: FieldDefinition, value: unknown, vc: Vc): Promi
     return;
   }
 
-  if (f.type === FIELD_TYPES.IMAGE) {
-    if (f.multiple === true) {
-      if (!Array.isArray(value) || !value.every((v) => typeof v === 'string')) {
-        fail(vc, 'data.field.type', { field: f.name, type: 'string array' });
-      }
-      return;
-    }
-    if (typeof value !== 'string') fail(vc, 'data.field.type', { field: f.name, type: 'string' });
-    return;
-  }
-
-  if (f.type === FIELD_TYPES.INTEGER || f.type === FIELD_TYPES.NUMBER || f.type === FIELD_TYPES.CURRENCY) {
+  if (base === FIELD_TYPES.INTEGER || base === FIELD_TYPES.NUMBER || base === FIELD_TYPES.CURRENCY) {
+    const n = f as { min?: number; max?: number };
     if (typeof value !== 'number' || Number.isNaN(value)) fail(vc, 'data.field.type', { field: f.name, type: 'number' });
-    if (f.type === FIELD_TYPES.INTEGER && !Number.isInteger(value)) fail(vc, 'data.field.type', { field: f.name, type: 'integer' });
-    if (f.min !== undefined && (value as number) < f.min) fail(vc, 'data.field.min', { field: f.name, min: f.min });
-    if (f.max !== undefined && (value as number) > f.max) fail(vc, 'data.field.max', { field: f.name, max: f.max });
+    if (base === FIELD_TYPES.INTEGER && !Number.isInteger(value)) fail(vc, 'data.field.type', { field: f.name, type: 'integer' });
+    if (n.min !== undefined && (value as number) < n.min) fail(vc, 'data.field.min', { field: f.name, min: n.min });
+    if (n.max !== undefined && (value as number) > n.max) fail(vc, 'data.field.max', { field: f.name, max: n.max });
     return;
   }
 
-  if (f.type === FIELD_TYPES.BOOLEAN) {
+  if (base === FIELD_TYPES.BOOLEAN) {
     if (typeof value !== 'boolean') fail(vc, 'data.field.type', { field: f.name, type: 'boolean' });
     return;
   }
 
-  if (f.type === FIELD_TYPES.DATETIME || f.type === FIELD_TYPES.DATE) {
+  if (base === FIELD_TYPES.DATETIME || base === FIELD_TYPES.DATE) {
     if (typeof value !== 'string') fail(vc, 'data.field.type', { field: f.name, type: 'date-time' });
     return;
   }
 
-  if (f.type === FIELD_TYPES.JSON) {
+  if (base === FIELD_TYPES.JSON) {
     // any JSON value accepted
     return;
   }
 
-  if (f.type === FIELD_TYPES.ENUM) {
-    if (f.multiple === true) {
+  if (base === FIELD_TYPES.ENUM) {
+    const e = f as { options: string[]; multiple?: boolean };
+    if (e.multiple === true) {
       if (!Array.isArray(value) || !value.every((v) => typeof v === 'string')) {
         fail(vc, 'data.field.type', { field: f.name, type: 'string array' });
       }
       for (const v of value as string[]) {
-        if (!f.options.includes(v)) fail(vc, 'data.field.enum', { field: f.name, options: f.options.join('/') });
+        if (!e.options.includes(v)) fail(vc, 'data.field.enum', { field: f.name, options: e.options.join('/') });
       }
       return;
     }
     if (typeof value !== 'string') fail(vc, 'data.field.type', { field: f.name, type: 'enum value' });
-    if (!f.options.includes(value as string)) fail(vc, 'data.field.enum', { field: f.name, options: f.options.join('/') });
+    if (!e.options.includes(value as string)) fail(vc, 'data.field.enum', { field: f.name, options: e.options.join('/') });
     return;
   }
 
-  if (f.type === FIELD_TYPES.RELATION || f.type === FIELD_TYPES.PERSON || f.type === FIELD_TYPES.DEPARTMENT) {
+  if (base === FIELD_TYPES.RELATION) {
     if (typeof value !== 'string') fail(vc, 'data.field.type', { field: f.name, type: 'record id' });
-    const target = await targetDef(vc, f.target);
+    const target = await targetDef(vc, (f as { target: string }).target);
     if (target === undefined) return; // schema-level error already handled elsewhere
     const table = target.name;
     const pk = primaryKeyOf(target)!; // targets always declare a primary (schema-validated)
@@ -118,12 +128,12 @@ async function checkValue(field: FieldDefinition, value: unknown, vc: Vc): Promi
     return;
   }
 
-  if (f.type === FIELD_TYPES.MULTI_RELATION) {
+  if (base === FIELD_TYPES.MULTI_RELATION) {
     if (!Array.isArray(value) || !value.every((v) => typeof v === 'string')) {
       fail(vc, 'data.field.type', { field: f.name, type: 'record id array' });
     }
     if (value.length === 0) return;
-    const target = await targetDef(vc, f.target);
+    const target = await targetDef(vc, (f as { target: string }).target);
     if (target === undefined) return;
     const table = target.name;
     const pk = primaryKeyOf(target)!; // targets always declare a primary (schema-validated)
@@ -135,6 +145,36 @@ async function checkValue(field: FieldDefinition, value: unknown, vc: Vc): Promi
   }
 
   // details / seq_no: handled by details/seqno modules
+}
+
+/**
+ * Apply a registered type's own `validate` hook and `references` membership
+ * check, after the base-primitive validation in `checkValue`. Built-in types
+ * carry neither, so this is a no-op for them. `references` runs on the write
+ * transaction client (`vc.pool`) when present, keeping the check consistent
+ * with the surrounding write.
+ */
+async function checkRegistered(field: FieldDefinition, value: unknown, vc: Vc): Promise<void> {
+  if (value === null || value === undefined) return;
+  const descriptor = (vc.registry.fieldTypes ?? DEFAULT_FIELD_TYPE_REGISTRY).get(field.type);
+  if (descriptor === undefined) return;
+
+  if (descriptor.validate !== undefined) {
+    const detail = descriptor.validate(field as unknown as RegisteredField, value);
+    if (detail !== undefined) fail(vc, 'data.field.custom', { field: field.name, detail });
+  }
+
+  const ref = descriptor.references;
+  if (ref !== undefined) {
+    if (typeof value !== 'string') fail(vc, 'data.field.type', { field: field.name, type: 'record id' });
+    const target = await vc.registry.get(ref.object);
+    if (target === undefined) return; // cross-object schema error already raised in buildGraph
+    const column = ref.column ?? primaryKeyOf(target)!;
+    const res = await vc.pool.query(`SELECT 1 FROM "${target.name}" WHERE "${column}" = $1 LIMIT 1`, [value]);
+    if ((res.rowCount ?? 0) === 0) {
+      fail(vc, 'data.field.references', { field: field.name, value, ref: ref.object });
+    }
+  }
 }
 
 /**
@@ -193,5 +233,6 @@ export async function validateRecord(
     const field = fields.get(key);
     if (field === undefined || field.type === FIELD_TYPES.DETAILS) continue;
     await checkValue(field, data[key], vc);
+    await checkRegistered(field, data[key], vc);
   }
 }

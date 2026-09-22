@@ -41,6 +41,10 @@ export default [
 | `relationLike` | carries a `target` (defaults from `base`) |
 | `ui` | frontend hint, e.g. `{ visual: 'image' }` (never a widget — the engine is headless) |
 | `openApiFormat` | OpenAPI `format` keyword for string-based types (`email`, `uri`, …) |
+| `attrs` | typed extra attributes a field of this type accepts: `{ <name>: { type, values?, required?, default? } }` (validated, fail-closed) |
+| `storage` | custom column mapping: `{ pgType: (field) => string }` (output safety-checked; non-relation bases only) |
+| `validate` | pure, synchronous write-time check `(field, value) => string \| undefined` (non-relation bases only) |
+| `references` | the value must exist in a modeled object's column: `{ object, column? }` (non-relation bases only) |
 | `reverse` | optional introspect hint: `{ pgType: 'NUMERIC(12,2)' }` maps a matching live column back to this type |
 
 **Allowed bases**: `string`, `text`, `integer`, `number`, `currency`, `boolean`, `datetime`, `date`,
@@ -87,6 +91,52 @@ Once registered, a type is just a type:
 `acme_money` stores as `NUMERIC`, appears as `number` in generated TypeScript, and as
 `{ "type": "number" }` in OpenAPI — all inherited from `base: "number"`.
 
+## Beyond the base: attrs, storage & validation
+
+A registered type can go beyond inheriting its base:
+
+- **`attrs`** — declare typed extra attributes. The engine validates each field value at schema load
+  (`field.attr.type` / `field.attr.enum` / `field.attr.required`) and preserves the values on the
+  field. The base primitive's own attributes (`min`/`max`/`minLength`/`maxLength`/`regex`/`precision`)
+  are inherited automatically and enforced at write time.
+- **`storage.pgType`** — map the field to a custom PostgreSQL column type. The function is pure; its
+  output is checked against a safe grammar (a known type with optional size and `[]`) before it reaches
+  DDL, and an unsafe value fails closed (`fieldtype.storage.invalid`). Relation-like types cannot
+  override storage (the column type follows the FK target).
+- **`validate`** — a pure, synchronous write-time check. Return a human-readable detail to reject the
+  value (`data.field.custom`, whose detail string is passed through verbatim), or `undefined` to
+  allow. No I/O: cross-record or database-backed rules belong to [server hooks](../guides/script-hooks.md)
+  or `references`.
+- **`references`** — the value must exist in a column of a **modeled object** (`{ object, column? }`;
+  the column defaults to the target's primary key). Checked inside the write transaction on create
+  and update (`data.field.references`); a missing object/column fails validation at load
+  (`graph.references.target.missing` / `graph.references.column.missing`).
+
+```ts
+// field-types/acme.ts
+import type { FieldTypeRegistration } from '@weave-kit/engine';
+
+export default [
+  {
+    namespace: 'acme',
+    name: 'money',
+    base: 'number',
+    attrs: { currency: { type: 'string', required: true }, scale: { type: 'integer', default: 2 } },
+    storage: { pgType: (f) => `NUMERIC(12,${(f as { scale?: number }).scale ?? 2})` },
+  },
+  {
+    namespace: 'acme',
+    name: 'currency',
+    base: 'string',
+    references: { object: 'currency', column: 'code' },
+    validate: (_f, v) => (typeof v === 'string' && v.length === 3 ? undefined : 'must be a 3-letter code'),
+  },
+] satisfies FieldTypeRegistration[];
+```
+
+> Custom `pgType` affects **new tables** and the drift report (`weave schema:map`). Migrations are
+> **additive-only** — a changed mapping is reported as `type` drift, never auto-`ALTER`ed.
+
 ## Production builds
 
 `weave dev` loads `field-types/*.ts` directly. For production, `weave build` compiles them to
@@ -114,7 +164,9 @@ you give a registration a `reverse` hint.
 
 ## Limits
 
-- A registration is **declarative** (no hooks in v1). Custom storage/validation beyond the base is
-  not yet supported.
+- `validate` must be **pure and synchronous** (no I/O). Database-backed or cross-record rules belong
+  to [server hooks](../guides/script-hooks.md), `references` (membership), or custom tools.
+- `storage` maps the **column type** only; there is no custom SQL `DEFAULT` (the base `default` is
+  used) and no custom type-change migration (additive-only).
 - Reverse inference (`introspect`) requires an explicit `reverse` hint; without one, registered types
   are forward-authoring only.

@@ -61,9 +61,11 @@ tests/              unit + e2e (node --test)
 only and unique. Field types have two layers — primitive + semantic — with a single source of truth
 in `core/types/registry.ts`. Non-primitive types are **registrable** (config `fieldTypes` +
 project-local `field-types/`): registered names are namespaced (`<ns>_<name>`, bare names reserved),
-inherit a `base` primitive, and flow through one immutable registry. Trees/TOC use a self-referencing
-`relation`. Capability gating is declarative via config (`features.fieldTypes`, fail-closed). The
-schema contains **no UI attributes**.
+inherit a `base` primitive, and flow through one immutable registry. A registered type may also
+declare typed `attrs`, `storage.pgType`, `validate`, and `references`; object-level `constraints` add
+composite UNIQUE (`23505` → `data.unique`). Trees/TOC use a self-referencing `relation`. Capability
+gating is declarative via config (`features.fieldTypes`, fail-closed). The schema contains **no UI
+attributes**.
 
 ## Product contract (weave command principles)
 

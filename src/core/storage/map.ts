@@ -1,11 +1,58 @@
-import type { FieldDefinition } from '../types/index.js';
+import type { FieldDefinition, RegisteredField } from '../types/index.js';
 import { DEFAULT_FIELD_TYPE_REGISTRY, fieldBase, type FieldTypeRegistry } from '../types/index.js';
+import { SchemaError } from '../types/errors.js';
 import { FIELD_TYPES, ON_DELETE_ACTIONS } from '../types/values.js';
+
+/** base PostgreSQL type names a registered `storage.pgType` may return */
+const SAFE_PG_BASE: ReadonlySet<string> = new Set([
+  'VARCHAR',
+  'CHARACTER VARYING',
+  'CHAR',
+  'BPCHAR',
+  'TEXT',
+  'SMALLINT',
+  'INTEGER',
+  'INT',
+  'INT2',
+  'INT4',
+  'INT8',
+  'BIGINT',
+  'NUMERIC',
+  'DECIMAL',
+  'REAL',
+  'DOUBLE PRECISION',
+  'BOOLEAN',
+  'DATE',
+  'TIME',
+  'TIMETZ',
+  'TIMESTAMP',
+  'TIMESTAMPTZ',
+  'TIMESTAMP WITH TIME ZONE',
+  'TIMESTAMP WITHOUT TIME ZONE',
+  'JSON',
+  'JSONB',
+  'UUID',
+  'MONEY',
+]);
+
+const SAFE_PG_RE = /^([A-Z][A-Z0-9_ ]*?)(\(\d+(?:\s*,\s*\d+)?\))?(\[\])?$/;
+
+/**
+ * True when a registered `storage.pgType` output is a safe PostgreSQL column
+ * type: a known base type with optional numeric parameters and an optional
+ * array suffix. Rejects anything that could inject SQL (quotes, semicolons).
+ */
+export function isSafePgType(value: string): boolean {
+  const match = SAFE_PG_RE.exec(value.trim().toUpperCase());
+  if (match === null) return false;
+  return SAFE_PG_BASE.has(match[1]!.trim());
+}
 
 /**
  * Map a field's declared type to a PostgreSQL column type. Dispatch is driven by
  * the type's **base** primitive (resolved through the field-type registry), so a
- * user/plugin registered type inherits its base's storage automatically.
+ * user/plugin registered type inherits its base's storage automatically — unless
+ * it declares a custom `storage.pgType` hook (whose output is safety-checked).
  * `targetPkType` is the mapped PK type of the target object (for `relation`).
  */
 export function pgType(
@@ -13,6 +60,18 @@ export function pgType(
   targetPkType: string | undefined,
   registry: FieldTypeRegistry = DEFAULT_FIELD_TYPE_REGISTRY,
 ): string {
+  const descriptor = registry.get(field.type);
+  if (descriptor?.storage !== undefined) {
+    const mapped = descriptor.storage.pgType(field as unknown as RegisteredField);
+    if (typeof mapped !== 'string' || !isSafePgType(mapped)) {
+      throw new SchemaError('fieldtype.storage.invalid', {
+        name: field.type,
+        detail: `storage.pgType returned "${String(mapped)}", which is not a safe PostgreSQL type`,
+      });
+    }
+    return mapped.trim().toUpperCase();
+  }
+
   const base = fieldBase(registry, field.type);
   switch (base) {
     case FIELD_TYPES.STRING:

@@ -1,10 +1,17 @@
 import type { FieldDefinition } from './fields.js';
 import type { Permissions } from './permission.js';
-import type { IndexType } from './values.js';
+import type { ConstraintType, IndexType } from './values.js';
 
 /** a user-declared extra index */
 export interface IndexDefinition {
   type: IndexType;
+  fields: string[];
+}
+
+/** a declarative table-level constraint (currently `unique`, possibly composite/scoped) */
+export interface ConstraintDefinition {
+  type: ConstraintType;
+  /** one or more field names the constraint spans */
   fields: string[];
 }
 
@@ -27,6 +34,8 @@ export interface ObjectDefinition {
   permissions?: Permissions;
   workflow?: unknown;
   indexes?: IndexDefinition[];
+  /** declarative table-level constraints (composite/scoped UNIQUE) */
+  constraints?: ConstraintDefinition[];
   /** composite title template, e.g. "{doc_no} {customer_name}" */
   titleTemplate?: string;
   /**

@@ -93,6 +93,12 @@ export const INDEX_TYPES = {
 } as const;
 export type IndexType = typeof INDEX_TYPES[keyof typeof INDEX_TYPES];
 
+/** declarative table-level constraint kinds */
+export const CONSTRAINT_TYPES = {
+  UNIQUE: 'unique',
+} as const;
+export type ConstraintType = typeof CONSTRAINT_TYPES[keyof typeof CONSTRAINT_TYPES];
+
 /** seq_no counter restart strategy */
 export const SEQUENCE_CYCLES = {
   NONE: 'none',

@@ -2,6 +2,7 @@ import { readdir, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import {
+  ATTR_KINDS,
   FIELD_TYPE_NAME_PATTERN,
   buildFieldTypeRegistry,
   type FieldTypeRegistration,
@@ -52,8 +53,63 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
+const SNAKE_CASE = /^[a-z][a-z0-9_]*$/;
+const ATTR_NAME_RE = /^[a-z][a-zA-Z0-9_]*$/;
+const ATTR_KIND_VALUES: readonly string[] = Object.values(ATTR_KINDS);
+
 function invalid(detail: string, locale?: Locale): SchemaError {
   return new SchemaError('fieldtype.invalid', { detail }, locale);
+}
+
+/** validate the declared `attrs` spec map (shape + kinds), fail-closed at load */
+function validateAttrSpecs(raw: Record<string, unknown>, name: string, locale?: Locale): void {
+  const attrs = raw.attrs;
+  if (attrs === undefined) return;
+  if (!isPlainObject(attrs)) throw new SchemaError('fieldtype.attr.invalid', { name, attr: '', detail: 'attrs must be an object of AttrSpec' }, locale);
+  for (const [attr, spec] of Object.entries(attrs)) {
+    if (!ATTR_NAME_RE.test(attr)) {
+      throw new SchemaError('fieldtype.attr.invalid', { name, attr, detail: 'attr name must be camel/snake case' }, locale);
+    }
+    if (!isPlainObject(spec)) {
+      throw new SchemaError('fieldtype.attr.invalid', { name, attr, detail: 'spec must be an object' }, locale);
+    }
+    const kind = spec.type;
+    if (typeof kind !== 'string' || !ATTR_KIND_VALUES.includes(kind)) {
+      throw new SchemaError('fieldtype.attr.invalid', { name, attr, detail: `unknown type "${String(kind)}"` }, locale);
+    }
+    if (kind === ATTR_KINDS.ENUM) {
+      const values = spec.values;
+      if (!Array.isArray(values) || values.length === 0 || !values.every((v) => typeof v === 'string')) {
+        throw new SchemaError('fieldtype.attr.invalid', { name, attr, detail: 'enum requires non-empty string `values`' }, locale);
+      }
+    }
+  }
+}
+
+/** validate `storage` / `validate` / `references` hooks (non-relation value bases only) */
+function validateHooks(raw: Record<string, unknown>, name: string, relationLike: boolean, locale?: Locale): void {
+  if (raw.storage !== undefined) {
+    if (relationLike) throw invalid(`"${name}" storage is not allowed on relation-like types`, locale);
+    if (!isPlainObject(raw.storage) || typeof raw.storage.pgType !== 'function') {
+      throw new SchemaError('fieldtype.storage.invalid', { name, detail: 'storage must be { pgType: (field) => string }' }, locale);
+    }
+  }
+  if (raw.validate !== undefined) {
+    if (relationLike) throw invalid(`"${name}" validate is not allowed on relation-like types`, locale);
+    if (typeof raw.validate !== 'function') {
+      throw new SchemaError('fieldtype.validate.invalid', { name, detail: 'validate must be a function' }, locale);
+    }
+  }
+  if (raw.references !== undefined) {
+    if (relationLike) throw invalid(`"${name}" references is not allowed on relation-like types`, locale);
+    const ref = raw.references;
+    if (!isPlainObject(ref) || typeof ref.object !== 'string' || !SNAKE_CASE.test(ref.object)) {
+      throw new SchemaError('fieldtype.references.invalid', { name, detail: 'references must be { object: string, column?: string }' }, locale);
+    }
+    if (ref.column !== undefined && (typeof ref.column !== 'string' || !SNAKE_CASE.test(ref.column))) {
+      throw new SchemaError('fieldtype.references.invalid', { name, detail: 'references.column must be snake_case' }, locale);
+    }
+  }
 }
 
 /** normalize + validate one raw registration into its effective name */
@@ -96,6 +152,10 @@ export function normalizeFieldTypeRegistration(raw: unknown, locale?: Locale): F
       throw invalid(`"${effective}" reverse is not allowed on relation-like types`, locale);
     }
   }
+
+  const relationLike = base === FIELD_TYPES.RELATION || raw.relationLike === true;
+  validateAttrSpecs(raw, effective, locale);
+  validateHooks(raw, effective, relationLike, locale);
 
   const registration: FieldTypeRegistration = { ...(raw as object), name: effective } as FieldTypeRegistration;
   if (ns !== undefined) registration.namespace = ns;
