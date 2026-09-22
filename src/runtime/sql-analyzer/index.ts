@@ -56,6 +56,33 @@ interface ColumnField {
   A_Star?: unknown;
 }
 
+/**
+ * Upper bound on AST nodes for a single statement. A legitimate `this.db.query`
+ * is small; a pathological query (deeply nested expressions, thousands of
+ * literals) is rejected up front so analysis cannot burn CPU before the DB's
+ * `statement_timeout` ever applies.
+ */
+export const MAX_SQL_AST_NODES = 5000;
+
+/** count AST nodes (plain objects / arrays) and fail-closed when over the cap */
+function assertBoundedAst(ast: unknown, locale?: Locale): void {
+  let count = 0;
+  const stack: unknown[] = [ast];
+  while (stack.length > 0) {
+    const value = stack.pop();
+    if (value === null || typeof value !== 'object') continue;
+    if (Array.isArray(value)) {
+      for (const item of value) stack.push(item);
+      continue;
+    }
+    count += 1;
+    if (count > MAX_SQL_AST_NODES) {
+      throw new SchemaError('script.query.invalid', { detail: `query is too complex (> ${MAX_SQL_AST_NODES} nodes)` }, locale);
+    }
+    for (const child of Object.values(value as Record<string, unknown>)) stack.push(child);
+  }
+}
+
 export function createSqlAnalyzer(): SqlAnalyzer {
   // `parse` awaits the WASM module init on first call — preloading with a
   // trivial probe removes the cold start from the first real db.query.
@@ -84,6 +111,8 @@ export function createSqlAnalyzer(): SqlAnalyzer {
       if (stmts[0]?.stmt?.SelectStmt === undefined) {
         throw new SchemaError('script.query.invalid', { detail: 'only SELECT statements are allowed' }, locale);
       }
+
+      assertBoundedAst(ast, locale);
 
       const tables: string[] = [];
       const resolvers: Record<string, string> = {};

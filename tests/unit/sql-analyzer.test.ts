@@ -1,5 +1,5 @@
 import { describe, it, expect, before, after } from '../helpers/test.js';
-import { createSqlAnalyzer } from '../../src/runtime/sql-analyzer/index.js';
+import { createSqlAnalyzer, MAX_SQL_AST_NODES } from '../../src/runtime/sql-analyzer/index.js';
 import type { SqlAnalyzer } from '../../src/runtime/sql-analyzer/index.js';
 
 describe('SqlAnalyzer — table/column reference extraction (pgsql-parser WASM real PG parser)', () => {
@@ -96,5 +96,18 @@ describe('SqlAnalyzer — fail-closed (parse failure/non-SELECT/multiple stateme
       expect(caught).toBeDefined();
       expect((caught as { code?: string }).code).toBe('script.query.invalid');
     }
+  });
+
+  it('over-complex statement (AST over the node cap) → script.query.invalid', async () => {
+    const huge = `SELECT ${Array.from({ length: MAX_SQL_AST_NODES }, (_, i) => String(i)).join(' + ')}`;
+    let caught: Error | undefined;
+    try {
+      await analyzer.analyzeSelect(huge);
+    } catch (e) {
+      caught = e as Error;
+    }
+    expect(caught).toBeDefined();
+    expect((caught as { code?: string }).code).toBe('script.query.invalid');
+    expect((caught as { params?: { detail?: string } }).params?.detail).toContain('too complex');
   });
 });
