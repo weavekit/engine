@@ -26,16 +26,19 @@ people may use it. Objects live in `objects/<name>/`, and the folder name must m
 The on-disk format is versioned, and new files carry a top-level `schemaVersion`:
 
 ```json
-{ "schemaVersion": 1, "name": "lead", "fields": [ /* … */ ] }
+{ "schemaVersion": 2, "name": "lead", "labels": { "en": "Lead" }, "fields": [ /* … */ ] }
 ```
 
-Files written before versioning existed are treated as legacy version `0`. The engine migrates them
-in memory while loading, so old files keep working. Run `weave schema:upgrade` to stamp every file to
+Files written before versioning existed are treated as legacy version `0`. The engine migrates older
+files in memory while loading, so they keep working; run `weave schema:upgrade` to stamp every file to
 the current version (the change is auto-committed).
 
+**Version 2** replaced the scalar `label` with the per-locale `labels` map. The loader folds a legacy
+`label` into `labels` for the default locale while loading; writing `label` in a v2 file is rejected
+with `object.label.removed`.
+
 If a file declares a version **newer** than the engine supports, the engine rejects it with
-`schema.version.unsupported`. It fails closed rather than risk misreading a future format. Bumping
-the version is an engine change that ships together with a migration.
+`schema.version.unsupported`. It fails closed rather than risk misreading a future format.
 
 ## Field types
 
