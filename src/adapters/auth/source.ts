@@ -36,7 +36,10 @@ export function createAuth(config: AuthConfig): Authenticator {
       if (header === undefined) return null;
       const match = /^Bearer\s+(\S+)$/i.exec(header.trim());
       if (match === null) return null;
-      return keys[match[1]!] ?? null;
+      const token = match[1]!;
+      // own-property check: a token like `__proto__`/`constructor` must not
+      // resolve through the prototype chain to a non-subject value
+      return Object.hasOwn(keys, token) ? (keys[token] ?? null) : null;
     },
   };
 }

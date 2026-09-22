@@ -16,6 +16,25 @@ describe('auth source — static map', () => {
     expect(await auth.resolve(undefined)).toBeNull();
   });
 
+  it('prototype-chain keys are not valid tokens', async () => {
+    const auth = createAuth({ source: { 'sk-admin': admin } });
+    expect(await auth.resolve('Bearer __proto__')).toBeNull();
+    expect(await auth.resolve('Bearer constructor')).toBeNull();
+    expect(await auth.resolve('Bearer toString')).toBeNull();
+    expect(await auth.resolve('Bearer hasOwnProperty')).toBeNull();
+  });
+
+  it('authenticate: prototype-chain key → auth.invalidKey', async () => {
+    const auth = buildAuthenticator({ source: { 'sk-admin': admin } });
+    let threw: unknown;
+    try {
+      await authenticate(auth, 'Bearer __proto__', DEFAULT_LOCALE);
+    } catch (error) {
+      threw = error;
+    }
+    expect((threw as { code?: string }).code).toBe('auth.invalidKey');
+  });
+
   it('authenticate: missing header → auth.missingKey', async () => {
     const auth = buildAuthenticator({ source: { 'sk-admin': admin } });
     let threw: unknown;
