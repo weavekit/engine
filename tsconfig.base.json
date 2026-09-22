@@ -8,6 +8,12 @@
     "forceConsistentCasingInFileNames": true,
     "strict": true,
     "noUncheckedIndexedAccess": true,
+    // Opt-in strictness. `exactOptionalPropertyTypes` is intentionally deferred: it flags
+    // ~290 sites (mostly call-sites passing explicit `undefined` for optional props) and
+    // would change public optional signatures — evaluate as a dedicated, separate change.
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitOverride": true,
+    "noUnusedLocals": true,
     "skipLibCheck": true,
     "declaration": true,
     "declarationMap": true,
