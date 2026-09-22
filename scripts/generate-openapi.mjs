@@ -6,7 +6,8 @@ import { fileURLToPath } from 'node:url';
  * Generate the generic OpenAPI document that the public docs site renders
  * (`docs.weavekit.io/engine/reference/api`). No objects: the reference documents
  * the engine's generic surface, not any specific project. Run via
- * `npm run openapi:docs`; the output is committed and drift-checked in CI.
+ * `npm run openapi:docs`; the output is committed — regenerate it after any
+ * change to the generator and commit the diff.
  */
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const { buildOpenApiDocument } = await import('../src/adapters/openapi/index.js');
