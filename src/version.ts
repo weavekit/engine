@@ -1,2 +1,2 @@
 /** engine version — single source of truth for CLI, ops routes and MCP metadata */
-export const version = '0.3.1';
+export const version = '0.4.0';

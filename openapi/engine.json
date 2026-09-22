@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "WeaveKit Engine REST API",
-    "version": "0.3.1",
+    "version": "0.4.0",
     "description": "The HTTP API exposed by `@weave-kit/engine`. Object routes are generic — `{name}` is an object from your `schema.json`. Every error response uses the same body: `{ \"error\": { \"code\", \"message\", \"params?\" } }`. Authentication is a bearer API key from `auth.source`, and RBAC is enforced in the data-access layer."
   },
   "servers": [
