@@ -36,6 +36,13 @@ export interface FieldTypeRegistration {
   openApiFormat?: string;
   /** extra attributes accepted on a field of this type (beyond the base attributes) */
   attrs?: readonly string[];
+  /**
+   * reverse hint for `weave introspect`: a live PostgreSQL column type that maps
+   * back to this registered type (e.g. `{ pgType: 'NUMERIC(12,2)' }`). Only valid
+   * on non-relation value bases. When several registrations match one column the
+   * primitive is kept and a warning is emitted (no ambiguity failure).
+   */
+  reverse?: { pgType: string; precision?: number; scale?: number };
 }
 
 /** an immutable, resolved field-type lookup */

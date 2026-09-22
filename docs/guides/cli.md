@@ -18,6 +18,8 @@ accepts `--json` for machine-readable output.
 | `weave openapi [--out <file>] [--generic] [--server <url>]` | Emit an OpenAPI 3.1 document for the REST API |
 | `weave object:create <name>` | Scaffold an object (schema.json + server.js hooks) |
 | `weave field:add <object>` | Add a field to an object's schema.json |
+| `weave field-type:list` | List built-in + registered field types |
+| `weave field-type:check` | Validate registrations + schemas against the registry |
 | `weave module:add <name>` | Enable a subsystem (audit/script) in weavekit.config.ts |
 | `weave module:remove <name>` | Disable a subsystem (audit/script) in weavekit.config.ts |
 
@@ -179,6 +181,24 @@ Adds a field to `objects/<name>/schema.json` and auto-commits:
 
 - `--name <field>` `--type <type>` (required); `--required`, `--unique`, `--default <value>`, `--options a,b,c` (enum), `--target <object>` (relation/multiRelation).
 - The whole updated schema is validated before writing (enum options, relation target, snake_case enforced).
+
+## `weave field-type:list`
+
+Prints the effective field-type surface: every built-in type plus the project's registrations, each
+with its source (`builtin` or `field-types/<file>`), inherited `base`, and flags (`scalar`,
+`relationLike`, `visual:…`, `format:…`, `reverse`). `--json` emits the structured list.
+
+## `weave field-type:check`
+
+Validates the field-type setup without a database and exits non-zero on any problem:
+
+- registrations load + validate (namespaced name, allowed `base`, no collisions);
+- every `features.fieldTypes` entry resolves to a built-in or registered type (catches typos);
+- every `objects/<name>/schema.json` loads against the effective registry (catches unregistered /
+  disabled field types).
+
+Use it in CI to fail early when a schema references a type the project doesn't provide. See
+[Custom field types](../reference/custom-field-types.md).
 
 ## `weave module:add <name>` / `weave module:remove <name>`
 

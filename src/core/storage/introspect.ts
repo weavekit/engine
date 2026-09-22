@@ -1,8 +1,10 @@
 import { DEFAULT_LOCALE } from '../i18n/index.js';
 import { validateObject } from '../object/validate.js';
+import { DEFAULT_FIELD_TYPE_REGISTRY, type FieldTypeRegistry } from '../types/index.js';
 import { FIELD_TYPES, ON_DELETE_ACTIONS } from '../types/values.js';
 import type { FieldDefinition, FieldType, ObjectDefinition } from '../types/index.js';
 import type { ActualColumn, ActualTable } from './inspect.js';
+import { pgTypeMatches } from './map.js';
 
 /** one object produced by reverse modeling (already validated) */
 export interface IntrospectedObject {
@@ -32,6 +34,23 @@ export interface IntrospectMapOptions {
   include?: string[];
   /** never convert these tables (table names) */
   exclude?: string[];
+  /** effective field-type registry; registrations with a `reverse` hint are matched back */
+  fieldTypes?: FieldTypeRegistry;
+}
+
+/** a registered type a live column can be reverse-mapped to */
+interface ReverseMatcher {
+  name: string;
+  pgType: string;
+}
+
+/** collect `reverse` hints from the registry */
+function buildReverseMatchers(registry: FieldTypeRegistry): ReverseMatcher[] {
+  const out: ReverseMatcher[] = [];
+  for (const descriptor of registry.values()) {
+    if (descriptor.reverse !== undefined) out.push({ name: descriptor.name, pgType: descriptor.reverse.pgType });
+  }
+  return out;
 }
 
 const SNAKE_CASE = /^[a-z][a-z0-9_]*$/;
@@ -110,7 +129,12 @@ function normalizeDefault(raw: string, type: FieldType): DefaultResult {
 }
 
 /** map one PostgreSQL column to an engine field (undefined = unsupported; a warning is pushed) */
-function mapColumn(col: ActualColumn, table: ActualTable, warnings: string[]): FieldDefinition | undefined {
+function mapColumn(
+  col: ActualColumn,
+  table: ActualTable,
+  warnings: string[],
+  matchers: readonly ReverseMatcher[] = [],
+): FieldDefinition | undefined {
   const base: Record<string, unknown> = { name: col.name };
   if (col.comment !== undefined) base.labels = { [DEFAULT_LOCALE]: col.comment };
   const required = col.isNullable ? undefined : true;
@@ -153,13 +177,34 @@ function mapColumn(col: ActualColumn, table: ActualTable, warnings: string[]): F
     warnings.push(`column "${table.name}.${col.name}": type "${col.dataType}" not supported — skipped`);
     return undefined;
   }
+
+  // reverse mapping: a single matching registered type overrides the primitive
+  let resolvedType: string = fieldType;
+  const hits = matchers.filter((m) =>
+    pgTypeMatches(m.pgType, {
+      dataType: col.dataType,
+      udtName: col.udtName,
+      numericPrecision: col.numericPrecision ?? null,
+      numericScale: col.numericScale ?? null,
+    }),
+  );
+  if (hits.length === 1) {
+    resolvedType = hits[0]!.name;
+  } else if (hits.length > 1) {
+    warnings.push(
+      `column "${table.name}.${col.name}": matches multiple registered types (${hits
+        .map((h) => h.name)
+        .join(', ')}) — keeping "${fieldType}"`,
+    );
+  }
+
   if (col.dataType === 'bigint') warnings.push(`column "${table.name}.${col.name}": bigint mapped to number`);
   if (col.dataType === 'uuid') warnings.push(`column "${table.name}.${col.name}": uuid mapped to string (no engine uuid type)`);
 
-  const field: Record<string, unknown> = { ...base, type: fieldType };
+  const field: Record<string, unknown> = { ...base, type: resolvedType };
   if (required === true) field.required = true;
   if (unique) field.unique = true;
-  if (fieldType === FIELD_TYPES.NUMBER && col.numericPrecision !== undefined && col.numericPrecision !== null) {
+  if (resolvedType === FIELD_TYPES.NUMBER && col.numericPrecision !== undefined && col.numericPrecision !== null) {
     field.precision = col.numericPrecision;
   }
   if (col.columnDefault !== null) {
@@ -179,6 +224,8 @@ function mapColumn(col: ActualColumn, table: ActualTable, warnings: string[]): F
 export function mapToSchema(tables: Map<string, ActualTable>, options: IntrospectMapOptions = {}): IntrospectReport {
   const include = options.include === undefined ? undefined : new Set(options.include);
   const exclude = options.exclude === undefined ? undefined : new Set(options.exclude);
+  const fieldTypes = options.fieldTypes ?? DEFAULT_FIELD_TYPE_REGISTRY;
+  const matchers = buildReverseMatchers(fieldTypes);
   const objects: IntrospectedObject[] = [];
   const skipped: IntrospectSkip[] = [];
   const warnings: string[] = [];
@@ -221,7 +268,7 @@ export function mapToSchema(tables: Map<string, ActualTable>, options: Introspec
       continue;
     }
 
-    const pkField = mapColumn(pkCol, table, warnings);
+    const pkField = mapColumn(pkCol, table, warnings, matchers);
     if (pkField === undefined) {
       skipped.push({ table: name, reason: `primary key column "${pkName}" type not supported` });
       continue;
@@ -231,7 +278,7 @@ export function mapToSchema(tables: Map<string, ActualTable>, options: Introspec
     const fields: FieldDefinition[] = [pkField];
     for (const col of table.columns) {
       if (col.name === pkName) continue;
-      const mapped = mapColumn(col, table, warnings);
+      const mapped = mapColumn(col, table, warnings, matchers);
       if (mapped !== undefined) fields.push(mapped);
     }
 
@@ -239,7 +286,7 @@ export function mapToSchema(tables: Map<string, ActualTable>, options: Introspec
     if (table.comment !== undefined) schema.labels = { [DEFAULT_LOCALE]: table.comment };
 
     try {
-      const validated = validateObject(schema, { nameHint: name });
+      const validated = validateObject(schema, { nameHint: name, fieldTypes });
       objects.push({ name, table: name, schema: validated });
       for (const f of validated.fields) {
         if (f.name === 'owner_id' && f.ownership !== true) suggestions.push(`"${name}.owner_id": consider marking ownership: true`);

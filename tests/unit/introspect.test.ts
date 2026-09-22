@@ -1,5 +1,5 @@
 import { describe, it, expect } from '../helpers/test.js';
-import { mapToSchema } from '../../src/core/index.js';
+import { buildFieldTypeRegistry, mapToSchema } from '../../src/core/index.js';
 import type { ActualTable } from '../../src/core/index.js';
 
 function table(partial: Partial<ActualTable> & { name: string }): ActualTable {
@@ -162,5 +162,48 @@ describe('mapToSchema — DB reverse modeling', () => {
     );
     expect(report.objects).toHaveLength(0);
     expect(report.skipped[0]?.reason).toContain('primary key');
+  });
+});
+
+describe('mapToSchema — registered-type reverse hook', () => {
+  const invoices = (): Map<string, ActualTable> =>
+    new Map<string, ActualTable>([
+      [
+        'invoices',
+        table({
+          name: 'invoices',
+          pk: ['id'],
+          columns: [
+            { name: 'id', dataType: 'integer', isNullable: false, columnDefault: null, udtName: 'int4' },
+            { name: 'amount', dataType: 'numeric', isNullable: false, columnDefault: null, udtName: 'numeric', numericPrecision: 12, numericScale: 2 },
+          ],
+        }),
+      ],
+    ]);
+
+  it('reverse-maps a single matching registered type', () => {
+    const fieldTypes = buildFieldTypeRegistry([
+      { name: 'acme_money', base: 'number', reverse: { pgType: 'NUMERIC(12,2)' } },
+    ]);
+    const report = mapToSchema(invoices(), { fieldTypes });
+    const obj = report.objects.find((o) => o.name === 'invoices')!;
+    expect(obj.schema.fields.find((f) => f.name === 'amount')?.type).toBe('acme_money');
+  });
+
+  it('keeps the primitive and warns when several registrations match', () => {
+    const fieldTypes = buildFieldTypeRegistry([
+      { name: 'acme_money', base: 'number', reverse: { pgType: 'NUMERIC(12,2)' } },
+      { name: 'acme_any_number', base: 'number', reverse: { pgType: 'NUMERIC' } },
+    ]);
+    const report = mapToSchema(invoices(), { fieldTypes });
+    const obj = report.objects.find((o) => o.name === 'invoices')!;
+    expect(obj.schema.fields.find((f) => f.name === 'amount')?.type).toBe('number');
+    expect(report.warnings.some((w) => w.includes('multiple registered types'))).toBe(true);
+  });
+
+  it('stays primitive when no registration matches', () => {
+    const report = mapToSchema(invoices(), { fieldTypes: buildFieldTypeRegistry([]) });
+    const obj = report.objects.find((o) => o.name === 'invoices')!;
+    expect(obj.schema.fields.find((f) => f.name === 'amount')?.type).toBe('number');
   });
 });

@@ -64,6 +64,16 @@ export interface ModuleOptions {
   printer: CliPrinter;
 }
 
+/** `weave field-type:list` options */
+export interface FieldTypeListOptions {
+  printer: CliPrinter;
+}
+
+/** `weave field-type:check` options */
+export interface FieldTypeCheckOptions {
+  printer: CliPrinter;
+}
+
 /** `weave introspect` options */
 export interface IntrospectOptions {
   /** output directory; defaults to `<schemaDir>/objects` */

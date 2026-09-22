@@ -41,6 +41,7 @@ export default [
 | `relationLike` | carries a `target` (defaults from `base`) |
 | `ui` | frontend hint, e.g. `{ visual: 'image' }` (never a widget — the engine is headless) |
 | `openApiFormat` | OpenAPI `format` keyword for string-based types (`email`, `uri`, …) |
+| `reverse` | optional introspect hint: `{ pgType: 'NUMERIC(12,2)' }` maps a matching live column back to this type |
 
 **Allowed bases**: `string`, `text`, `integer`, `number`, `currency`, `boolean`, `datetime`, `date`,
 `json`, `relation`. The structural types (`enum`, `details`, `multiRelation`, `seq_no`) and the
@@ -97,11 +98,16 @@ export default { fieldTypes: { dir: 'dist/field-types' } };
 
 ## Existing databases (brownfield)
 
-Registered types are a **forward authoring** concept; the engine does not reverse-infer them.
+Registered types are a **forward authoring** concept; the engine does not reverse-infer them unless
+you give a registration a `reverse` hint.
 
-- `weave introspect` reverse-models live tables into **built-in** types only (it cannot know your
-  registered names). Hand-edit the generated `schema.json` to switch a field to a registered type —
-  the generated files are kept unless you pass `--force`.
+- **With a `reverse` hint** — `{ pgType: 'NUMERIC(12,2)' }` — `weave introspect` maps a live column
+  whose PostgreSQL type matches back to the registered type, so the generated `schema.json` already
+  carries it. If several registrations match one column, the primitive is kept and a warning is
+  emitted (no ambiguity failure). Relation columns are never reverse-mapped.
+- **Without a hint** — `weave introspect` reverse-models live tables into **built-in** types only.
+  Hand-edit the generated `schema.json` to switch a field to a registered type; generated files are
+  kept unless you pass `--force`.
 - The existing column must be compatible with the registration's `base` storage (e.g. `NUMERIC` for
   `base: "number"`). `weave migrate` on an existing table only checks that the column **exists** and
   never alters its type; `weave schema:map` reports a `type` drift if the column doesn't match.
@@ -110,4 +116,5 @@ Registered types are a **forward authoring** concept; the engine does not revers
 
 - A registration is **declarative** (no hooks in v1). Custom storage/validation beyond the base is
   not yet supported.
-- No reverse inference from the database into registered types.
+- Reverse inference (`introspect`) requires an explicit `reverse` hint; without one, registered types
+  are forward-authoring only.

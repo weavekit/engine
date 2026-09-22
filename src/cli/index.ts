@@ -7,6 +7,7 @@ import { build } from './commands/build.js';
 import { connect } from './commands/connect.js';
 import { dev } from './commands/dev.js';
 import { fieldAdd } from './commands/field-add.js';
+import { fieldTypeCheck, fieldTypeList } from './commands/field-types.js';
 import { introspect } from './commands/introspect.js';
 import { mcpConfig } from './commands/mcp-config.js';
 import { migrate } from './commands/migrate.js';
@@ -189,6 +190,20 @@ program
         printer: printer(),
       }),
     );
+  });
+
+program
+  .command(WEAVE_COMMANDS.FIELD_TYPE_LIST)
+  .description('list the effective field-type surface (built-ins + project registrations)')
+  .action(async () => {
+    await runAction(() => fieldTypeList(process.cwd(), { printer: printer() }));
+  });
+
+program
+  .command(WEAVE_COMMANDS.FIELD_TYPE_CHECK)
+  .description('validate registrations, features.fieldTypes whitelist and objects/*/schema.json (no database needed)')
+  .action(async () => {
+    await runAction(() => fieldTypeCheck(process.cwd(), { printer: printer() }));
   });
 
 program

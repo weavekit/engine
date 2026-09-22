@@ -13,6 +13,8 @@ export const WEAVE_COMMANDS = {
   TYPES: 'types',
   OBJECT_CREATE: 'object:create',
   FIELD_ADD: 'field:add',
+  FIELD_TYPE_LIST: 'field-type:list',
+  FIELD_TYPE_CHECK: 'field-type:check',
   MODULE_ADD: 'module:add',
   MODULE_REMOVE: 'module:remove',
   PAGES_MIGRATE: 'pages:migrate',

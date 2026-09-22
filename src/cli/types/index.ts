@@ -1,3 +1,3 @@
 export { WEAVE_COMMANDS, PROJECT_TYPES } from './values.js';
 export type { WeaveCommand, ProjectType } from './values.js';
-export type { MigrateOptions, DevOptions, BuildOptions, TestOptions, TypeOptions, ObjectCreateOptions, FieldAddOptions, ModuleOptions, IntrospectOptions, McpConfigOptions, SchemaMapOptions, SchemaUpgradeOptions, OpenApiOptions } from './commands.js';
+export type { MigrateOptions, DevOptions, BuildOptions, TestOptions, TypeOptions, ObjectCreateOptions, FieldAddOptions, FieldTypeListOptions, FieldTypeCheckOptions, ModuleOptions, IntrospectOptions, McpConfigOptions, SchemaMapOptions, SchemaUpgradeOptions, OpenApiOptions } from './commands.js';

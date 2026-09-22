@@ -86,6 +86,17 @@ export function normalizeFieldTypeRegistration(raw: unknown, locale?: Locale): F
     throw new SchemaError('fieldtype.name.reserved', { name: effective }, locale);
   }
 
+  // reverse hint (introspect): non-empty pgType, only on non-relation value bases
+  const reverse = raw.reverse;
+  if (reverse !== undefined) {
+    if (!isPlainObject(reverse) || typeof reverse.pgType !== 'string' || reverse.pgType.length === 0) {
+      throw invalid(`"${effective}" reverse must be { pgType: string, precision?, scale? }`, locale);
+    }
+    if (base === FIELD_TYPES.RELATION || raw.relationLike === true) {
+      throw invalid(`"${effective}" reverse is not allowed on relation-like types`, locale);
+    }
+  }
+
   const registration: FieldTypeRegistration = { ...(raw as object), name: effective } as FieldTypeRegistration;
   if (ns !== undefined) registration.namespace = ns;
   return registration;

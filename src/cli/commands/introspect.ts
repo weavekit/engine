@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { createPool, inspectSchema, mapToSchema, SCHEMA_FORMAT_VERSION } from '../../core/index.js';
 import { autoCommit, type AutoCommitResult } from '../../runtime/git/index.js';
 import { loadConfig } from '../load-config.js';
+import { resolveProjectFieldTypes } from '../resolve-field-types.js';
 import type { IntrospectOptions } from '../types/index.js';
 
 /** split a comma-separated option into a trimmed list (undefined when empty) */
@@ -32,7 +33,11 @@ export async function introspect(cwd: string, options: IntrospectOptions): Promi
   const pool = createPool(databaseUrl);
   try {
     const actual = await inspectSchema(pool, { detail: true });
-    const report = mapToSchema(actual, { include: splitCsv(options.include), exclude: splitCsv(options.exclude) });
+    const report = mapToSchema(actual, {
+      include: splitCsv(options.include),
+      exclude: splitCsv(options.exclude),
+      fieldTypes: await resolveProjectFieldTypes(cwd, config),
+    });
 
     const rows: string[][] = [['object', 'table', 'fields']];
     for (const obj of report.objects) rows.push([obj.name, obj.table, String(obj.schema.fields.length)]);
