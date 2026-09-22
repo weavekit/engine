@@ -12,6 +12,7 @@ accepts `--json` for machine-readable output.
 | `weave types` | Generate object-level TS types |
 | `weave introspect` | Reverse-model an existing Postgres DB into `objects/*/schema.json` |
 | `weave mcp:config` | Print ready-to-paste config connecting an MCP host |
+| `weave connect` | Dial a self-hosted engine out to a governance tunnel endpoint |
 | `weave schema:map [object]` | Report the schema field ↔ PostgreSQL column mapping |
 | `weave schema:upgrade [--dry-run]` | Upgrade `objects/*/schema.json` to the current format version |
 | `weave openapi [--out <file>] [--generic] [--server <url>]` | Emit an OpenAPI 3.1 document for the REST API |
@@ -103,6 +104,26 @@ the first static key in `auth.source`, and the on-behalf-of identity to the firs
 - `--host` — one of `claude-code`, `claude-desktop`, `cursor`, `vscode`, `stdio`, `curl` (default: all).
 - `--json` — emit the snippets as structured JSON.
 - See [MCP host setup](../practices/connecting-mcp-hosts.md) for deployed hosts and [connect an agent](../practices/connect-agent.md) for the local walkthrough.
+
+## `weave connect --endpoint <url> --tunnel <id> --token <token> --engine <url> --api-key <key> [--insecure]`
+
+Connects a self-hosted, NAT'd or on-prem engine **out** to a governance tunnel endpoint, so the
+governance side can reach it without a routable URL. The command dials a persistent HTTP/2 `CONNECT`
+stream and stays up until `Ctrl+C`; the local engine is left untouched, and only the requests the
+governance side sends are forwarded (the connector only ever calls the engine on localhost).
+
+- `--endpoint <url>` — governance tunnel endpoint (h2c `http://…` or TLS `https://…`).
+- `--tunnel <id>` — the `connections.tunnel_id` this engine is paired under.
+- `--token <token>` — the `connections.pairing_token` used to authenticate the `CONNECT` handshake.
+- `--engine <url>` — the local engine base URL to forward to (e.g. `http://localhost:3000`).
+- `--api-key <key>` — required; the API key the connector uses to call the local engine.
+- `--insecure` — skip TLS certificate verification (dev / self-signed).
+
+The governance side accepts the stream, registers the session by `tunnel_id`, and routes proxied
+requests over it (a proxy target with `transport: "tunnel"`); responses, including server-sent
+events, stream back. This is the customer-side half of the tunnel transport — the primitives
+(`connectTunnel`, `createTunnelServer`) are exported from the stable API
+(see [public API](../reference/public-api.md)).
 
 ## `weave schema:map [object] [--drift]`
 

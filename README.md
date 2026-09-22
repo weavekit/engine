@@ -137,6 +137,7 @@ await engine.app.listen({ port: 3000 });
 | `weave schema:upgrade [--dry-run]` | Upgrade `objects/*/schema.json` to the current format version |
 | `weave openapi [--out] [--generic] [--server]` | Emit an OpenAPI 3.1 document for the REST API |
 | `weave mcp:config [--host]` | Print MCP client config for this project's `/mcp` endpoint |
+| `weave connect` | Connect a self-hosted engine out to a governance tunnel endpoint |
 | `weave object:create <name>` | Scaffold `objects/<name>/schema.json` + `server.js` hooks |
 | `weave field:add <object>` | Add a validated field to a schema |
 | `weave module:add` / `module:remove <name>` | Enable/disable an optional subsystem (audit/script) |
