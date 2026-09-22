@@ -44,6 +44,6 @@ export interface McpToolResult {
   isError?: boolean;
 }
 
-/** tool name prefixes / introspection names — single source in core/tools (M10a) */
-export { INTROSPECTION_TOOLS, TOOL_PREFIXES } from '../../core/index.js';
-export type { ToolPrefix } from '../../core/index.js';
+/** registry tool names / introspection names — single source in core/tools (M10a) */
+export { INTROSPECTION_TOOLS, REGISTRY_TOOLS } from '../../core/index.js';
+export type { RegistryTool } from '../../core/index.js';

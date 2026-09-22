@@ -155,24 +155,26 @@ maybe('MCP E2E (SDK Client + streamable HTTP + local PG): auth + session identit
       clients.push(alice);
       const aliceTools = await alice.client.listTools();
       const aliceNames = aliceTools.tools.map((t) => t.name);
-      expect(aliceNames).toContain('search_lead');
-      expect(aliceNames).toContain('get_lead');
-      expect(aliceNames).toContain('create_lead');
-      expect(aliceNames).toContain('update_lead');
-      expect(aliceNames).toContain('delete_lead');
+      expect(aliceNames).toContain('search_records');
+      expect(aliceNames).toContain('get_record');
+      expect(aliceNames).toContain('create_record');
+      expect(aliceNames).toContain('update_record');
+      expect(aliceNames).toContain('delete_record');
+      expect(aliceNames).toContain('list_objects');
+      expect(aliceNames).toContain('describe_object');
 
       const emma = await newClient(baseUrl, AGENT_KEYS.finance, 'emma');
       clients.push(emma);
       const emmaTools = await emma.client.listTools();
       const emmaNames = emmaTools.tools.map((t) => t.name);
-      expect(emmaNames).toContain('search_lead');
-      expect(emmaNames).toContain('get_lead');
-      expect(emmaNames).not.toContain('create_lead');
-      expect(emmaNames).not.toContain('update_lead');
-      expect(emmaNames).not.toContain('delete_lead');
+      expect(emmaNames).toContain('search_records');
+      expect(emmaNames).toContain('get_record');
+      expect(emmaNames).not.toContain('create_record');
+      expect(emmaNames).not.toContain('update_record');
+      expect(emmaNames).not.toContain('delete_record');
 
       // ── 3. search_ row-level (own) + field-level (exclude stripped)
-      const search = await alice.client.callTool({ name: 'search_lead', arguments: {} });
+      const search = await alice.client.callTool({ name: 'search_records', arguments: { object: 'lead' } });
       const searchText = textOf(search);
       const parsed = JSON.parse(searchText);
       expect(parsed.total).toBe(1);
@@ -180,32 +182,43 @@ maybe('MCP E2E (SDK Client + streamable HTTP + local PG): auth + session identit
       expect('secret' in parsed.rows[0]).toBe(false);
 
       // get_ denied row → isError (row outside own, does not leak existence)
-      const scopedOut = await alice.client.callTool({ name: 'get_lead', arguments: { id: 'L2' } });
+      const scopedOut = await alice.client.callTool({ name: 'get_record', arguments: { object: 'lead', id: 'L2' } });
       expect(scopedOut.isError).toBe(true);
 
+      // unknown object → isError (data.objectUnknown), not a protocol error
+      const unknown = await alice.client.callTool({ name: 'search_records', arguments: { object: 'ghost' } });
+      expect(unknown.isError).toBe(true);
+
       // finance (read all + exclude) sees all rows with no secret
-      const financeSearch = await emma.client.callTool({ name: 'search_lead', arguments: {} });
+      const financeSearch = await emma.client.callTool({ name: 'search_records', arguments: { object: 'lead' } });
       const financeParsed = JSON.parse(textOf(financeSearch));
       expect(financeParsed.total).toBe(2);
       expect('secret' in financeParsed.rows[0]).toBe(false);
 
-      // ── 4. update_ denied: finance tool surface lacks update_lead → manual call rejected (call enforced)
+      // ── 4. update_ denied: finance tool surface lacks update_record → manual call rejected (call enforced)
       let deniedUpdate: Error | undefined;
       try {
-        await emma.client.callTool({ name: 'update_lead', arguments: { id: 'L1', changes: { name: 'x' } } });
+        await emma.client.callTool({ name: 'update_record', arguments: { object: 'lead', id: 'L1', changes: { name: 'x' } } });
       } catch (e) {
         deniedUpdate = e as Error;
       }
       expect(deniedUpdate).toBeDefined();
-      expect(deniedUpdate!.message).toContain('update_lead');
+      expect(deniedUpdate!.message).toContain('update_record');
 
       // sales legal update (within whitelist)
       const okUpdate = await alice.client.callTool({
-        name: 'update_lead',
-        arguments: { id: 'L1', changes: { name: 'Acme2' } },
+        name: 'update_record',
+        arguments: { object: 'lead', id: 'L1', changes: { name: 'Acme2' } },
       });
       expect(okUpdate.isError).toBe(false);
       expect(JSON.parse(textOf(okUpdate) || '{}').name).toBe('Acme2');
+
+      // sales update outside the whitelist → call-level RBAC denial (isError), not a protocol error
+      const badField = await alice.client.callTool({
+        name: 'update_record',
+        arguments: { object: 'lead', id: 'L1', changes: { secret: 'x' } },
+      });
+      expect(badField.isError).toBe(true);
 
       // ── 5. unknown on-behalf-of → session establishment fails (explicit error)
       const ghost = await fetch(`${baseUrl}/mcp`, {
@@ -219,9 +232,9 @@ maybe('MCP E2E (SDK Client + streamable HTTP + local PG): auth + session identit
       const flood = await newClient(baseUrl, AGENT_KEYS.flood, 'alice');
       clients.push(flood);
       for (let i = 0; i < 100; i++) {
-        await flood.client.callTool({ name: 'search_lead', arguments: {} });
+        await flood.client.callTool({ name: 'search_records', arguments: { object: 'lead' } });
       }
-      const limited = await flood.client.callTool({ name: 'search_lead', arguments: {} });
+      const limited = await flood.client.callTool({ name: 'search_records', arguments: { object: 'lead' } });
       expect(limited.isError).toBe(true);
       expect(textOf(limited)).toContain('rate limit');
 
@@ -249,13 +262,13 @@ maybe('MCP E2E (SDK Client + streamable HTTP + local PG): auth + session identit
       );
       const actions = auditRows.rows.map((r: { action: string }) => r.action);
       expect(actions.length).toBeGreaterThan(0);
-      expect(actions).toContain('mcp.tool.search_lead');
-      expect(actions).toContain('mcp.tool.update_lead');
-      expect(actions).toContain('mcp.tool.get_lead');
+      expect(actions).toContain('mcp.tool.search_records');
+      expect(actions).toContain('mcp.tool.update_record');
+      expect(actions).toContain('mcp.tool.get_record');
       // agent identity: actor_id = agentKey
       expect(auditRows.rows.some((r: { actor_id: string }) => r.actor_id === AGENT_KEYS.sales)).toBe(true);
       // denial audited as isError
-      const denied = auditRows.rows.find((r: { action: string; is_error: boolean }) => r.action === 'mcp.tool.update_lead' && r.is_error);
+      const denied = auditRows.rows.find((r: { action: string; is_error: boolean }) => r.action === 'mcp.tool.update_record' && r.is_error);
       expect(denied).toBeDefined();
     } finally {
       await closeClients(clients);

@@ -5,15 +5,19 @@
  * hardcoded union anywhere.
  */
 
-/** prefixes of the generated per-object CRUD tools */
-export const TOOL_PREFIXES = {
-  SEARCH: 'search_',
-  GET: 'get_',
-  CREATE: 'create_',
-  UPDATE: 'update_',
-  DELETE: 'delete_',
+/**
+ * the fixed registry-mode tools: one generic CRUD op per capability, taking the
+ * target object name as an argument (the surface does not grow with the number
+ * of objects). `list_objects`/`describe_object` reveal the available objects.
+ */
+export const REGISTRY_TOOLS = {
+  SEARCH: 'search_records',
+  GET: 'get_record',
+  CREATE: 'create_record',
+  UPDATE: 'update_record',
+  DELETE: 'delete_record',
 } as const;
-export type ToolPrefix = typeof TOOL_PREFIXES[keyof typeof TOOL_PREFIXES];
+export type RegistryTool = typeof REGISTRY_TOOLS[keyof typeof REGISTRY_TOOLS];
 
 /** always-on introspection tool names */
 export const INTROSPECTION_TOOLS = {
@@ -35,10 +39,9 @@ export const APPROVAL_STATUSES = {
 } as const;
 export type ApprovalStatus = typeof APPROVAL_STATUSES[keyof typeof APPROVAL_STATUSES];
 
-const reservedPrefixes: readonly string[] = Object.values(TOOL_PREFIXES);
-const reservedNames: readonly string[] = Object.values(INTROSPECTION_TOOLS);
+const reservedNames: readonly string[] = [...Object.values(REGISTRY_TOOLS), ...Object.values(INTROSPECTION_TOOLS)];
 
-/** true when a custom tool name collides with a generated tool or the audit namespace */
+/** true when a custom tool name collides with a built-in tool or the audit namespace */
 export function isReservedToolName(name: string): boolean {
-  return reservedNames.includes(name) || reservedPrefixes.some((p) => name.startsWith(p)) || name.startsWith(RESERVED_TOOL_NAMESPACE);
+  return reservedNames.includes(name) || name.startsWith(RESERVED_TOOL_NAMESPACE);
 }

@@ -1,5 +1,5 @@
 import type { ObjectDefinition, RbacSubject } from '../../core/index.js';
-import { SchemaError, primaryKeyOf } from '../../core/index.js';
+import { REGISTRY_TOOLS, SchemaError } from '../../core/index.js';
 import type { DataAccessContext } from '../../runtime/data-access/index.js';
 import type { FindOptions } from '../../runtime/data-access/index.js';
 import { SORT_DIRS, resolvePagination } from '../../runtime/data-access/index.js';
@@ -7,16 +7,12 @@ import type { AuditEvent } from '../../core/audit/index.js';
 import { ACTION_PREFIXES, AUDIT_ACTOR_TYPES } from '../../core/audit/index.js';
 import type { McpToolResult, ToolExecContext } from './types.js';
 
-/** the tool argument name carrying the primary key (mirrors the generated schema) */
-function pkArg(def: ObjectDefinition): string {
-  return primaryKeyOf(def) ?? 'id';
-}
-
 /**
- * Tool execution handlers. Every call:
+ * Tool execution handlers for the generic registry surface. Every call:
+ *  - resolves the target object from the `object` argument (unknown → `isError`)
  *  - resolves the effective subject (session.user, or the on-behalf-of override)
- *  - runs through the RBAC-decorated data-access layer (double layer — the tool
- *    *surface* was already filtered by RBAC at compile time)
+ *  - runs through the RBAC-decorated data-access layer (double layer — the
+ *    capability was already gated at compile time, and RBAC re-checks it here)
  *  - audits the attempt (success or failure) through the injected sink
  *  - maps SchemaError → `isError` result with a localized message
  */
@@ -36,6 +32,21 @@ async function effectiveSubject(args: Record<string, unknown>, ctx: ToolExecCont
     throw new SchemaError('mcp.identity.unknown', { ref: String(override) }, ctx.engine.locale);
   }
   return resolved;
+}
+
+/** the `object` argument as requested (for audit; may be unknown) */
+function requestedObject(args: Record<string, unknown>): string | undefined {
+  return args.object === undefined ? undefined : String(args.object);
+}
+
+/** resolve the target object by name (unknown → data.objectUnknown, mapped to isError) */
+function resolveObject(ctx: ToolExecContext, args: Record<string, unknown>): ObjectDefinition {
+  const name = String(args.object ?? '');
+  const def = ctx.engine.registry.get(name);
+  if (def === undefined) {
+    throw new SchemaError('data.objectUnknown', { object: name }, ctx.engine.locale);
+  }
+  return def;
 }
 
 /** audit one tool attempt (fire-and-forget, failure-tolerant) */
@@ -128,27 +139,27 @@ function toFindOptions(args: Record<string, unknown>): FindOptions {
   return options;
 }
 
-export async function searchHandler(
-  def: ObjectDefinition,
+export async function searchRecordsHandler(
   args: Record<string, unknown>,
   ctx: ToolExecContext,
 ): Promise<McpToolResult> {
   const subject = await effectiveSubject(args, ctx);
-  return callProtected(ctx, `search_${def.name}`, def.name, args, subject, async () => {
+  return callProtected(ctx, REGISTRY_TOOLS.SEARCH, requestedObject(args), args, subject, async () => {
+    const def = resolveObject(ctx, args);
     const { rows, total } = await ctx.engine.dataAccess.find(def.name, toFindOptions(args), ctxWithSubject(ctx, subject));
     const { limit, offset } = resolvePagination(toFindOptions(args));
     return textResult(JSON.stringify({ rows, total, limit, offset }));
   });
 }
 
-export async function getHandler(
-  def: ObjectDefinition,
+export async function getRecordHandler(
   args: Record<string, unknown>,
   ctx: ToolExecContext,
 ): Promise<McpToolResult> {
   const subject = await effectiveSubject(args, ctx);
-  return callProtected(ctx, `get_${def.name}`, def.name, args, subject, async () => {
-    const id = String(args[pkArg(def)] ?? '');
+  return callProtected(ctx, REGISTRY_TOOLS.GET, requestedObject(args), args, subject, async () => {
+    const def = resolveObject(ctx, args);
+    const id = String(args.id ?? '');
     const record = await ctx.engine.dataAccess.findOne(def.name, id, ctxWithSubject(ctx, subject));
     if (record === null) {
       throw new SchemaError('data.recordNotFound', { object: def.name, id }, ctx.engine.locale);
@@ -157,41 +168,41 @@ export async function getHandler(
   });
 }
 
-export async function createHandler(
-  def: ObjectDefinition,
+export async function createRecordHandler(
   args: Record<string, unknown>,
   ctx: ToolExecContext,
 ): Promise<McpToolResult> {
   const subject = await effectiveSubject(args, ctx);
-  return callProtected(ctx, `create_${def.name}`, def.name, args, subject, async () => {
+  return callProtected(ctx, REGISTRY_TOOLS.CREATE, requestedObject(args), args, subject, async () => {
+    const def = resolveObject(ctx, args);
     const data = (args.data ?? {}) as Record<string, unknown>;
     const record = await ctx.engine.dataAccess.create(def.name, data, ctxWithSubject(ctx, subject));
     return textResult(JSON.stringify(record));
   });
 }
 
-export async function updateHandler(
-  def: ObjectDefinition,
+export async function updateRecordHandler(
   args: Record<string, unknown>,
   ctx: ToolExecContext,
 ): Promise<McpToolResult> {
   const subject = await effectiveSubject(args, ctx);
-  return callProtected(ctx, `update_${def.name}`, def.name, args, subject, async () => {
-    const id = String(args[pkArg(def)] ?? '');
+  return callProtected(ctx, REGISTRY_TOOLS.UPDATE, requestedObject(args), args, subject, async () => {
+    const def = resolveObject(ctx, args);
+    const id = String(args.id ?? '');
     const changes = (args.changes ?? {}) as Record<string, unknown>;
     const record = await ctx.engine.dataAccess.update(def.name, id, changes, ctxWithSubject(ctx, subject));
     return textResult(JSON.stringify(record));
   });
 }
 
-export async function deleteHandler(
-  def: ObjectDefinition,
+export async function deleteRecordHandler(
   args: Record<string, unknown>,
   ctx: ToolExecContext,
 ): Promise<McpToolResult> {
   const subject = await effectiveSubject(args, ctx);
-  return callProtected(ctx, `delete_${def.name}`, def.name, args, subject, async () => {
-    const id = String(args[pkArg(def)] ?? '');
+  return callProtected(ctx, REGISTRY_TOOLS.DELETE, requestedObject(args), args, subject, async () => {
+    const def = resolveObject(ctx, args);
+    const id = String(args.id ?? '');
     await ctx.engine.dataAccess.delete(def.name, id, ctxWithSubject(ctx, subject));
     return textResult(JSON.stringify({ ok: true, id }));
   });

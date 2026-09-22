@@ -28,6 +28,8 @@ Choose the static-directory path (this practice) when:
 
 If your user base is dynamic or lives in a database you already manage, use [plugging in your own user store](bring-your-own-user-store.md) instead — same engine, identity resolved by your own resolver instead of a static list.
 
+Two shapes of schema reach past this page: if you expose **many objects**, see [Exposing a large schema to an agent](large-schema-agent-surface.md) for the fixed tool surface and the discovery workflow; if you want the metadata itself to be agent-friendly (labels, descriptions, types, RBAC), see [Designing an agent-friendly schema](agent-friendly-schema.md).
+
 ## Scenario
 
 - Customer CRM tables `customers` / `orders` exist with years of data (we never ALTER them).
@@ -229,7 +231,9 @@ Claude Desktop / Cursor MCP servers point at `https://agent.crm.com/mcp` with th
 
 Compiled from RBAC at session bind time (and re-enforced at call time):
 
-- **alice (sales)** → `search_customers` / `get_customers` / `create_customers` / `update_customers` (no delete); same for `orders`. Queries are scoped to `owner_id = 'u-alice'` rows.
+- **alice (sales)** → `search_records` / `get_record` / `create_record` / `update_record` (no
+  `delete_record`); the same tools cover both `customers` and `orders` through the `object`
+  argument. Queries are scoped to `owner_id = 'u-alice'` rows.
 - **alex (manager)** → full CRUD on both objects, all rows.
 - Primary-key args are named after the schema's `primary: true` field (`id` here); relation fields (`customer_id`) take the target's primary-key type — a string.
 

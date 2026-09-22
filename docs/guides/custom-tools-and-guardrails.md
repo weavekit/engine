@@ -4,7 +4,7 @@ The engine's **open contract** lets you extend how your data is operated without
 code. Three mechanism-level features are available, and all three are off by default: until you opt
 in, nothing is imported and there is zero runtime overhead.
 
-1. **Custom tools** — register your own business tools beside the generated CRUD and introspection tools.
+1. **Custom tools** — register your own business tools beside the generic registry CRUD and introspection tools.
 2. **Guardrail policies** — a decision pipeline in front of every tool call (`allow` / `deny` / `requireApproval` / `mask`).
 3. **Audit diff replay** — row `before`/`after` snapshots on writes, for forensics and compliance.
 
@@ -21,8 +21,8 @@ semantics belong to your project.
 ## 1. Custom tools
 
 Custom tools are TypeScript (or JS) modules that export a `ToolDefinition` as their default export.
-Each module becomes one tool on the engine's **per-identity tool surface**, merged with the generated
-CRUD and introspection tools and filtered by the identity's roles.
+Each module becomes one tool on the engine's **per-identity tool surface**, merged with the generic
+registry CRUD tools and the introspection tools and filtered by the identity's roles.
 
 Agents reach that surface through the MCP adapter. Your own host code can invoke the same tool
 directly through `engine.tools.executor`, with the same policies and the same audit.
@@ -100,9 +100,10 @@ handler: async (ctx) => {
 
 ### Naming rules
 
-Tool names must match `^[a-z][a-z0-9_]*$` and must **not** collide with the generated surface: the
-`search_ / get_ / create_ / update_ / delete_` prefixes, the `list_objects` / `describe_object`
-introspection tools, or the `mcp.` audit namespace. A violation fails startup with a clear error.
+Tool names must match `^[a-z][a-z0-9_]*$` and must **not** collide with the built-in surface: the
+`search_records` / `get_record` / `create_record` / `update_record` / `delete_record` registry tools,
+the `list_objects` / `describe_object` introspection tools, or the `mcp.` audit namespace. A
+violation fails startup with a clear error.
 
 ### Loading & production build
 

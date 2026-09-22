@@ -146,7 +146,7 @@ await client.connect(transport);
 
 Run the case against your own PostgreSQL and check these behaviors:
 
-- **alice (sales)** → `search_lead`/`get_lead`/`create_lead`/`update_lead` (no delete), rows scoped to `owner_id = 'alice'`, `secret` stripped. Works even though no identity was hardcoded in config — the resolver answered.
+- **alice (sales)** → `search_records` / `get_record` / `create_record` / `update_record` (no `delete_record`), rows scoped to `owner_id = 'alice'`, `secret` stripped. Works even though no identity was hardcoded in config — the resolver answered.
 - **alex (manager)** → full CRUD on all rows.
 - **Unknown on-behalf-of** → resolver returns null → session rejected (400), same as the static directory path.
 - **Bad bearer** → resolver returns null → 401 before the transport.

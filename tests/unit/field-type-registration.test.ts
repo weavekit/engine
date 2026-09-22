@@ -11,7 +11,6 @@ import {
 import { pgType } from '../../src/core/storage/map.js';
 import { generateObjectTypes } from '../../src/core/object/gen-types.js';
 import { describeObject } from '../../src/core/object/describe.js';
-import { fieldValueSchema } from '../../src/adapters/mcp/generate.js';
 import { fieldSchema } from '../../src/adapters/openapi/schema.js';
 import { normalizeFieldTypeRegistration } from '../../src/runtime/fieldtypes/index.js';
 
@@ -137,11 +136,6 @@ describe('registered types flow through consumers', () => {
     objects.register(def, { fieldTypes: registry });
     const described = describeObject(objects, 'invoice', ['admin'], 'en');
     expect(described.relations.find((r) => r.field === 'customer_id')?.target).toBe('customer');
-  });
-
-  it('mcp value schema maps by base', () => {
-    const defs = new Map([[def.name, def]]);
-    expect(fieldValueSchema(field('amount'), defs, registry)).toEqual({ type: 'number' });
   });
 
   it('openapi schema maps by base + format hint', () => {

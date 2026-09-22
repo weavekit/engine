@@ -38,6 +38,8 @@ the [repository README](../README.md).
 ## Practices
 
 - [Integrating an existing CRM with MCP](practices/existing-crm-to-mcp.md) — start from live tables
+- [Exposing a large schema to an agent](practices/large-schema-agent-surface.md) — a fixed tool surface for many objects
+- [Designing an agent-friendly schema](practices/agent-friendly-schema.md) — labels, types and permissions an agent can trust
 - [Plugging in the customer's own user store](practices/bring-your-own-user-store.md) — resolver-driven identity
 - [Connecting MCP hosts](practices/connecting-mcp-hosts.md) — Claude Desktop, Cursor, gateways
 - [Connect an agent](practices/connect-agent.md) — local first run in five minutes

@@ -5,9 +5,9 @@ project needs business semantics the built-ins don't cover (`money`, `address`, 
 register **custom field types** without patching the engine.
 
 A registered type is a **thin, declarative layer over a built-in primitive**: you declare a `base`,
-and the engine inherits storage, TypeScript generation, MCP and OpenAPI schemas, and describe
-behaviour from it. Registered types are project-local and committed to Git, so every environment
-resolves the same set — schemas stay reproducible.
+and the engine inherits storage, TypeScript generation, OpenAPI schemas and describe behaviour from
+it. Registered types are project-local and committed to Git, so every environment resolves the same
+set — schemas stay reproducible.
 
 ## Naming: the namespace rule
 
@@ -84,7 +84,7 @@ Once registered, a type is just a type:
 }
 ```
 
-`acme_money` stores as `NUMERIC`, appears as `number` in generated TS/MCP, and as
+`acme_money` stores as `NUMERIC`, appears as `number` in generated TypeScript, and as
 `{ "type": "number" }` in OpenAPI — all inherited from `base: "number"`.
 
 ## Production builds

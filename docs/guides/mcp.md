@@ -45,7 +45,7 @@ export default {
 ## How an agent connects
 
 1. `POST /mcp` with `Authorization: Bearer <apiKey>` and `X-Weavekit-On-Behalf-Of: <ref>`, carrying the `initialize` request. The engine creates a session bound to the resolved identity and returns an `Mcp-Session-Id` header for reuse.
-2. `tools/list` returns the tool surface **compiled for that identity**. RBAC decides which objects and operations appear.
+2. `tools/list` returns the tool surface **compiled for that identity**. RBAC decides which operations appear, and each call re-checks the target object.
 3. `tools/call` runs through the RBAC-decorated data-access layer against the session identity. A call-level `onBehalfOf` argument is an optional temporary override.
 
 Auth failures return 401 **before** the transport is entered. A missing or unknown on-behalf-of ref
@@ -53,18 +53,21 @@ fails the session with a clear error.
 
 ## Tool surface
 
-For every object with `read` permission, the engine compiles:
+The surface is a **fixed registry** — it does not grow with the number of objects. Each capability
+the identity holds on at least one object is exposed as one generic tool; the target object is an
+argument:
 
 | Tool | Purpose | Key args |
 | --- | --- | --- |
-| `search_<object>` | list (row scope applied) | `filter`, `sort`, `limit` (≤1000), `offset`, `fields` |
-| `get_<object>` | fetch one by primary key | the object's primary-key field name (e.g. `doc_no`) |
-| `create_<object>` | create (writable fields only) | `data` |
-| `update_<object>` | update (RBAC `update` whitelist only) | primary-key field, `changes` |
-| `delete_<object>` | delete (row scope applied) | the object's primary-key field name |
+| `search_records` | list an object's records (row scope applied) | `object`, `filter`, `sort`, `limit` (≤1000), `offset`, `fields` |
+| `get_record` | fetch one record by primary key | `object`, `id` |
+| `create_record` | create (writable fields only) | `object`, `data` |
+| `update_record` | update (RBAC `update` whitelist only) | `object`, `id`, `changes` |
+| `delete_record` | delete (row scope applied) | `object`, `id` |
 
-The primary-key argument is named after the schema's `primary: true` field — never a hardcoded `id`.
-So `get_repair_order` takes `{ doc_no }` when the object's primary field is `doc_no`.
+`object` is the object name and `id` is its primary key. The generic schemas deliberately do **not**
+enumerate per-object fields — that is what keeps the surface small — so an agent should call
+`describe_object` first to learn an object's fields, relations and its own permissions.
 
 Always present:
 
@@ -73,10 +76,11 @@ Always present:
 | `list_objects` | objects the identity can read (`[{ name, labels }]`) |
 | `describe_object` | schema + the identity's effective permissions |
 
-Tool shaping follows RBAC exactly: an object with no listed role yields **zero** tools; `update: []`
-yields no `update_`; `fields.exclude` fields are stripped from parameter schemas and from results.
-Argument schemas are plain JSON Schema (field types map 1:1 to
-`string`/`number`/`integer`/`boolean`/`object`/`enum`, relations to their target primary-key type).
+Tool shaping follows RBAC exactly: an operation tool appears only when the identity may perform it
+on at least one object (an object with no listed role contributes nothing; `update: []` grants no
+update); `fields.exclude` fields are stripped from results and rejected on write. RBAC is enforced
+again per object at call time, so a field or row outside the identity's scope is rejected even when
+the tool itself is present.
 
 ## Guardrails
 
@@ -157,7 +161,7 @@ the [user-table identity practice](../practices/bring-your-own-user-store.md).
 
 | File | Responsibility |
 | --- | --- |
-| `generate.ts` | RBAC → tool surface + JSON Schema compilation |
+| `generate.ts` | RBAC capability → generic registry tool surface |
 | `tools.ts` | tool execution via data-access + audit + error mapping |
 | `introspection.ts` | `list_objects` / `describe_object` |
 | `guardrails.ts` | sliding-window rate limit + alert/audit injection |
@@ -173,6 +177,8 @@ served via `setRequestHandler`, so the surface stays dynamic per identity.
 
 - Practices & operations — integration and deployment walkthroughs
   - [Existing CRM → MCP](../practices/existing-crm-to-mcp.md) end to end
+  - [Exposing a large schema](../practices/large-schema-agent-surface.md) — the fixed surface + discovery workflow
+  - [Designing an agent-friendly schema](../practices/agent-friendly-schema.md) — labels, types, permissions
   - [Plug in your own user store](../practices/bring-your-own-user-store.md) via resolvers
   - [Docker deployment](../operations/docker-deploy.md) engine + PostgreSQL
   - [Reverse proxy + TLS](../operations/reverse-proxy.md) public agents over HTTPS

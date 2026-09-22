@@ -135,7 +135,7 @@ Any MCP client library works — `@modelcontextprotocol/sdk` `StreamableHTTPClie
 
 ## Verify
 
-- **In the client**: the tool list should show `list_objects`, `describe_object`, and `search_/get_/create_/update_/delete_<object>` tools — filtered by the identity's RBAC.
+- **In the client**: the tool list should show `list_objects`, `describe_object`, and the generic `search_records` / `get_record` / `create_record` / `update_record` / `delete_record` tools — filtered by the identity's RBAC.
 - **From the shell**: run the `curl` snippet from `weave mcp:config --host curl` (or [verifying a connection](connecting-mcp-hosts.md#5-verifying-a-connection)). A `200`/`201` with an `Mcp-Session-Id` response header is a successful handshake.
 
 ## Troubleshooting

@@ -56,7 +56,7 @@ const client = new Client({ name: 'crm-agent', version: '1.0.0' });
 await client.connect(transport);
 
 const tools = await client.listTools();                 // tool surface for alice
-const res = await client.callTool({ name: 'search_lead', arguments: { filter: { status: 'active' } } });
+const res = await client.callTool({ name: 'search_records', arguments: { object: 'lead', filter: { status: 'active' } } });
 console.log(res.content);
 ```
 
@@ -81,7 +81,7 @@ Claude Desktop runs a local MCP config file. Edit it (path varies by OS; on macO
 }
 ```
 
-Restart Claude Desktop; the `crm` server's tools (e.g. `search_lead`, `get_customer`) then appear in the tools list. Every conversation that uses them runs against **alice** — create a separate server entry (different `X-Weavekit-On-Behalf-Of`) per user you want to switch between.
+Restart Claude Desktop; the `crm` server's tools (`search_records`, `get_record`, and so on) then appear in the tools list. Every conversation that uses them runs against **alice** — create a separate server entry (different `X-Weavekit-On-Behalf-Of`) per user you want to switch between.
 
 > Claude Desktop's support for remote `type: "http"` servers arrived in recent releases. If your build predates it, the alternative is a tiny local relay: a script that starts an SDK client (section 1) and exposes it over stdio — Claude connects to that command instead of a URL.
 

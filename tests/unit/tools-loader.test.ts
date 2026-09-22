@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, it, expect, after } from '../helpers/test.js';
 import { loadToolsDir, validateToolDefinition } from '../../src/runtime/tools/index.js';
-import { INTROSPECTION_TOOLS, TOOL_PREFIXES, isReservedToolName } from '../../src/core/index.js';
+import { INTROSPECTION_TOOLS, REGISTRY_TOOLS, isReservedToolName } from '../../src/core/index.js';
 
 const cleanups: string[] = [];
 after(async () => {
@@ -40,9 +40,9 @@ describe('validateToolDefinition — structural validation matrix', () => {
     expect(() => validateToolDefinition({ ...validTool, name: 'Bad Name' })).toThrow(/must match/);
   });
 
-  it('reserved prefix (generated tools) errors', () => {
-    for (const prefix of Object.values(TOOL_PREFIXES)) {
-      expect(() => validateToolDefinition({ ...validTool, name: `${prefix}lead` })).toThrow(/reserved/);
+  it('reserved built-in tool name (registry tools) errors', () => {
+    for (const name of Object.values(REGISTRY_TOOLS)) {
+      expect(() => validateToolDefinition({ ...validTool, name })).toThrow(/reserved/);
     }
   });
 
@@ -73,15 +73,17 @@ describe('validateToolDefinition — structural validation matrix', () => {
 });
 
 describe('isReservedToolName — single source of truth', () => {
-  it('generated/introspection/mcp namespaces all reserved', () => {
-    expect(isReservedToolName('search_lead')).toBe(true);
-    expect(isReservedToolName('get_lead')).toBe(true);
-    expect(isReservedToolName('create_lead')).toBe(true);
-    expect(isReservedToolName('update_lead')).toBe(true);
-    expect(isReservedToolName('delete_lead')).toBe(true);
+  it('registry/introspection/mcp namespaces all reserved', () => {
+    expect(isReservedToolName('search_records')).toBe(true);
+    expect(isReservedToolName('get_record')).toBe(true);
+    expect(isReservedToolName('create_record')).toBe(true);
+    expect(isReservedToolName('update_record')).toBe(true);
+    expect(isReservedToolName('delete_record')).toBe(true);
     expect(isReservedToolName('list_objects')).toBe(true);
     expect(isReservedToolName('describe_object')).toBe(true);
     expect(isReservedToolName('mcp.foo')).toBe(true);
+    // per-object names are no longer generated, so they are free again
+    expect(isReservedToolName('search_lead')).toBe(false);
     expect(isReservedToolName('reassign_ticket')).toBe(false);
     expect(isReservedToolName('close_ticket')).toBe(false);
   });

@@ -124,7 +124,7 @@ maybe('M10b E2E (custom tools toolsDir → tools/list role filtering + tools/cal
       clients.push(alice);
       const aliceNames = (await alice.client.listTools()).tools.map((t) => t.name);
       expect(aliceNames).toContain('reassign_ticket');
-      expect(aliceNames).toContain('search_lead'); // generated tools coexist
+      expect(aliceNames).toContain('search_records'); // registry tools coexist
 
       const emma = await newClient(baseUrl, AGENT_KEYS.finance, 'emma');
       clients.push(emma);

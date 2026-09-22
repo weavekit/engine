@@ -159,13 +159,13 @@ maybe('Route B practice E2E (customer crm_users table + custom async resolver + 
       clients.push(alice);
       const aliceTools = await alice.client.listTools();
       const aliceNames = aliceTools.tools.map((t) => t.name);
-      expect(aliceNames).toContain('search_lead');
-      expect(aliceNames).toContain('get_lead');
-      expect(aliceNames).toContain('create_lead');
-      expect(aliceNames).toContain('update_lead');
-      expect(aliceNames).not.toContain('delete_lead');
+      expect(aliceNames).toContain('search_records');
+      expect(aliceNames).toContain('get_record');
+      expect(aliceNames).toContain('create_record');
+      expect(aliceNames).toContain('update_record');
+      expect(aliceNames).not.toContain('delete_record');
 
-      const search = await alice.client.callTool({ name: 'search_lead', arguments: {} });
+      const search = await alice.client.callTool({ name: 'search_records', arguments: { object: 'lead' } });
       const parsed = JSON.parse(textOf(search));
       expect(parsed.total).toBe(1);
       expect(parsed.rows[0].id).toBe('L1');
@@ -191,7 +191,7 @@ maybe('Route B practice E2E (customer crm_users table + custom async resolver + 
         | undefined;
       for (let attempt = 0; attempt < 40; attempt += 1) {
         auditRows = (await auditPool.query(
-          `SELECT actor_id, action, meta FROM weavekit_audit WHERE action = 'mcp.tool.search_lead' ORDER BY id DESC LIMIT 1`,
+          `SELECT actor_id, action, meta FROM weavekit_audit WHERE action = 'mcp.tool.search_records' ORDER BY id DESC LIMIT 1`,
         )) as { rows: Array<{ actor_id: string; action: string; meta: { onBehalfOf?: string } | string }> };
         if (auditRows.rows.length > 0) break;
         await new Promise((resolve) => setTimeout(resolve, 100));
