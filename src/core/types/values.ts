@@ -33,7 +33,14 @@ export const FIELD_TYPES = {
   // identity FK to the internal department/organization object (relation-like; not scalar)
   DEPARTMENT: 'department',
 } as const;
-export type FieldType = typeof FIELD_TYPES[keyof typeof FIELD_TYPES];
+/** a built-in field type (the closed set the engine ships) */
+export type BuiltinFieldType = typeof FIELD_TYPES[keyof typeof FIELD_TYPES];
+/**
+ * a field-type name: a built-in OR a user/plugin registered (namespaced) type.
+ * The `(string & {})` arm keeps literal autocomplete while allowing registered
+ * names; behaviour is resolved through the `FieldTypeRegistry` (base delegation).
+ */
+export type FieldType = BuiltinFieldType | (string & {});
 
 /** scalar subset of FIELD_TYPES (primary key only allows scalar types) */
 export const SCALAR_FIELD_TYPES = {

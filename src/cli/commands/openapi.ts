@@ -3,6 +3,7 @@ import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { buildOpenApiDocument, capabilitiesFromConfig } from '../../adapters/openapi/index.js';
 import { loadSchemaDir } from '../../runtime/git/index.js';
 import { loadConfig } from '../load-config.js';
+import { resolveProjectFieldTypes } from '../resolve-field-types.js';
 import type { OpenApiOptions } from '../types/index.js';
 
 /**
@@ -15,12 +16,14 @@ export async function openapi(cwd: string, options: OpenApiOptions): Promise<voi
   const p = options.printer;
   const config = await loadConfig(cwd);
   const schemaDir = config.schemaDir ?? cwd;
+  const fieldTypes = await resolveProjectFieldTypes(cwd, config);
 
   const objects: import('../../core/index.js').ObjectDefinition[] = [];
   if (options.generic !== true) {
     const { files } = await loadSchemaDir(schemaDir, {
       locale: config.locale,
       allowedFieldTypes: config.features?.fieldTypes,
+      fieldTypes,
     });
     objects.push(...files.map((f) => f.object));
   }
@@ -30,6 +33,7 @@ export async function openapi(cwd: string, options: OpenApiOptions): Promise<voi
     capabilities: capabilitiesFromConfig(config),
     generic: options.generic,
     server: options.server,
+    fieldTypes,
   });
 
   const json = `${JSON.stringify(document, null, 2)}\n`;

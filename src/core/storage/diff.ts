@@ -1,5 +1,6 @@
 import type { ObjectDefinition } from '../types/index.js';
-import { DETAILS_COLUMNS, FIELD_TYPES, primaryFieldOf, primaryKeyOf } from '../types/index.js';
+import { DEFAULT_FIELD_TYPE_REGISTRY, DETAILS_COLUMNS, FIELD_TYPES, primaryFieldOf, primaryKeyOf } from '../types/index.js';
+import type { FieldTypeRegistry } from '../types/index.js';
 import { SchemaError } from '../types/index.js';
 import type { Locale } from '../i18n/index.js';
 import { buildRlsGrantDdl, buildRlsPolicy, policyName } from '../rbac/index.js';
@@ -38,9 +39,9 @@ export interface ExpectedTable {
 }
 
 /** mapped PK type of an object (for relation FK columns), or undefined */
-function targetPkType(def: ObjectDefinition): string | undefined {
+function targetPkType(def: ObjectDefinition, registry: FieldTypeRegistry): string | undefined {
   const pkField = primaryFieldOf(def);
-  return pkField === undefined ? undefined : pgType(pkField, undefined);
+  return pkField === undefined ? undefined : pgType(pkField, undefined, registry);
 }
 
 /**
@@ -50,6 +51,7 @@ function targetPkType(def: ObjectDefinition): string | undefined {
 export function buildExpectedTable(
   def: ObjectDefinition,
   defs: ReadonlyMap<string, ObjectDefinition>,
+  registry: FieldTypeRegistry = DEFAULT_FIELD_TYPE_REGISTRY,
 ): ExpectedTable {
   const name = def.name;
   const columns: ExpectedColumn[] = [];
@@ -62,16 +64,16 @@ export function buildExpectedTable(
     let type: string;
     if (field.type === FIELD_TYPES.RELATION || field.type === FIELD_TYPES.PERSON || field.type === FIELD_TYPES.DEPARTMENT) {
       const targetDef = defs.get(field.target);
-      type = targetDef === undefined ? 'VARCHAR(255)' : (targetPkType(targetDef) ?? 'VARCHAR(255)');
+      type = targetDef === undefined ? 'VARCHAR(255)' : (targetPkType(targetDef, registry) ?? 'VARCHAR(255)');
     } else {
-      type = pgType(field, undefined);
+      type = pgType(field, undefined, registry);
     }
 
     columns.push({
       name: field.name,
       type,
       notNull: (field as { required?: boolean }).required === true || field.primary === true,
-      default: defaultExpr(field),
+      default: defaultExpr(field, registry),
       primary: field.primary === true,
       unique: (field as { unique?: boolean }).unique === true,
     });

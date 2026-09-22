@@ -1,15 +1,17 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { FIELD_TYPES, validateObject } from '../../core/index.js';
+import { FIELD_TYPES, fieldBase, isRelationLike, validateObject } from '../../core/index.js';
+import type { FieldTypeRegistry } from '../../core/index.js';
 import { autoCommit } from '../../runtime/git/index.js';
 import { loadConfig } from '../load-config.js';
+import { resolveProjectFieldTypes } from '../resolve-field-types.js';
 import type { FieldAddOptions } from '../types/index.js';
 
 const SNAKE_CASE = /^[a-z][a-z0-9_]*$/;
 
-/** coerce a CLI string default into the field's typed default */
-function parseDefault(type: string, raw: string): unknown {
-  switch (type) {
+/** coerce a CLI string default into the field's typed default (base-driven) */
+function parseDefault(registry: FieldTypeRegistry, type: string, raw: string): unknown {
+  switch (fieldBase(registry, type)) {
     case FIELD_TYPES.INTEGER:
       return Number.parseInt(raw, 10);
     case FIELD_TYPES.NUMBER:
@@ -36,24 +38,27 @@ export async function fieldAdd(cwd: string, object: string, options: FieldAddOpt
     process.exitCode = 1;
     return;
   }
+  const config = await loadConfig(cwd);
+  const fieldTypes = await resolveProjectFieldTypes(cwd, config);
   const typeValues: readonly string[] = Object.values(FIELD_TYPES);
-  if (!typeValues.includes(type)) {
-    p.error(`invalid field type "${type}" (expected one of: ${typeValues.join(', ')})`);
+  const isBuiltin = typeValues.includes(type);
+  if (!isBuiltin && fieldTypes.get(type) === undefined) {
+    p.error(`invalid field type "${type}" (expected a built-in or a registered field type)`);
     process.exitCode = 1;
     return;
   }
+  const relationLike = isRelationLike(fieldTypes, type);
   if (type === FIELD_TYPES.ENUM && options.options === undefined) {
     p.error('enum fields require --options <a,b,c>');
     process.exitCode = 1;
     return;
   }
-  if ((type === FIELD_TYPES.RELATION || type === FIELD_TYPES.MULTI_RELATION || type === FIELD_TYPES.PERSON || type === FIELD_TYPES.DEPARTMENT) && options.target === undefined) {
+  if (relationLike && options.target === undefined) {
     p.error(`${type} fields require --target <object>`);
     process.exitCode = 1;
     return;
   }
 
-  const config = await loadConfig(cwd);
   if (config.features?.fieldTypes !== undefined && !config.features.fieldTypes.includes(type)) {
     p.error(`field type "${type}" is disabled — add it to features.fieldTypes`);
     process.exitCode = 1;
@@ -99,14 +104,14 @@ export async function fieldAdd(cwd: string, object: string, options: FieldAddOpt
       .map((s) => s.trim())
       .filter((s) => s.length > 0);
   }
-  if (type === FIELD_TYPES.RELATION || type === FIELD_TYPES.MULTI_RELATION || type === FIELD_TYPES.PERSON || type === FIELD_TYPES.DEPARTMENT) {
+  if (relationLike) {
     field.target = options.target;
   }
-  if (options.default !== undefined) field.default = parseDefault(type, options.default);
+  if (options.default !== undefined) field.default = parseDefault(fieldTypes, type, options.default);
   fields.push(field);
 
   try {
-    validateObject(schema, { nameHint: object });
+    validateObject(schema, { nameHint: object, allowedFieldTypes: config.features?.fieldTypes, fieldTypes });
   } catch (error) {
     p.error(`invalid schema after adding "${name}": ${error instanceof Error ? error.message : String(error)}`);
     process.exitCode = 1;

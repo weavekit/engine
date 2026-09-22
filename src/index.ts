@@ -9,8 +9,10 @@ import {
   recordSchemaChanges,
   syncSchema,
 } from './runtime/git/index.js';
+import { resolveFieldTypeRegistry } from './runtime/fieldtypes/index.js';
 import { buildEngineFromRegistry, resolveLocale } from './runtime/engine.js';
 import type { EngineConfig, WeaveKitEngine } from './runtime/engine.js';
+import { resolve } from 'node:path';
 
 // Stable surface (contract): app/integration authors depend on these. Internals
 // live in `./experimental.js` (unstable) or stay unexported — see docs/reference/public-api.md.
@@ -46,6 +48,8 @@ export type {
 } from './subsystems/script/index.js';
 export { scaffoldProject } from './cli/scaffold.js';
 export type { ScaffoldProjectOptions, ScaffoldProjectResult } from './cli/scaffold.js';
+export { loadFieldTypesDir, normalizeFieldTypeRegistration, resolveFieldTypeRegistry } from './runtime/fieldtypes/index.js';
+export type { LoadedFieldType } from './runtime/fieldtypes/index.js';
 export { PROJECT_TYPES } from './cli/types/values.js';
 export type { ProjectType } from './cli/types/values.js';
 
@@ -64,12 +68,22 @@ export async function createEngine(config: EngineConfig): Promise<WeaveKitEngine
   const locale = resolveLocale(config.locale);
   const dir = config.schemaDir ?? '.';
 
+  // open registration: compile built-ins + project-local registrations into an
+  // immutable effective registry (explicit injection — no mutable global).
+  const fieldTypes = await resolveFieldTypeRegistry({
+    dir: config.fieldTypes?.dir === undefined ? undefined : resolve(dir, config.fieldTypes.dir),
+    entries: config.fieldTypes?.entries,
+    locale,
+  });
+
   let registry: ObjectRegistry;
   if (config.migrate?.auto === true) {
     const sync = await syncSchema({
       dir,
       databaseUrl: config.databaseUrl,
       locale,
+      allowedFieldTypes: config.features?.fieldTypes,
+      fieldTypes,
     });
     registry = sync.registry;
     if (config.commit?.meta === true) {
@@ -96,7 +110,11 @@ export async function createEngine(config: EngineConfig): Promise<WeaveKitEngine
       }
     }
   } else {
-    const { registry: loaded } = await loadSchemaDir(dir, { locale, allowedFieldTypes: config.features?.fieldTypes });
+    const { registry: loaded } = await loadSchemaDir(dir, {
+      locale,
+      allowedFieldTypes: config.features?.fieldTypes,
+      fieldTypes,
+    });
     loaded.buildGraph({ locale });
     registry = loaded;
   }

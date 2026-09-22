@@ -1,15 +1,20 @@
 import type {
+  BuiltinFieldType,
   FIELD_TYPES,
-  FieldType,
   OnDeleteAction,
   SequenceCycle,
 } from './values.js';
 
-export type { ScalarFieldType, FieldType, OnDeleteAction, SequenceCycle } from './values.js';
+export type { ScalarFieldType, BuiltinFieldType, FieldType, OnDeleteAction, SequenceCycle } from './values.js';
 
 export interface FieldBase {
   name: string;
-  type: FieldType;
+  /**
+   * the declared type name. Built-in literals for engine types; a registered
+   * (namespaced) name is produced at validation and stored via a narrow cast —
+   * runtime behaviour is resolved through the `FieldTypeRegistry`.
+   */
+  type: BuiltinFieldType;
   /**
    * display names keyed by locale, e.g. { en: 'Customer', zh: '客户' }. Resolve
    * with `resolveLabel` (falls back to `name` when absent).
@@ -206,6 +211,21 @@ export interface DepartmentField extends FieldBase {
   required?: boolean;
   unique?: boolean;
   onDelete?: OnDeleteAction;
+}
+
+/**
+ * a field whose `type` is a user/plugin registered type. Stored on
+ * `ObjectDefinition.fields` via a narrow cast (registered fields are not part of
+ * the `FieldDefinition` discriminated union, so built-in narrowing is preserved);
+ * behaviour is inherited from the registration's `base` primitive.
+ */
+export interface RegisteredField extends Omit<FieldBase, 'type'> {
+  type: string;
+  target?: string;
+  required?: boolean;
+  unique?: boolean;
+  multiple?: boolean;
+  [key: string]: unknown;
 }
 
 /** discriminated union of every field shape; each member is keyed by its literal `type` */

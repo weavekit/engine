@@ -1,5 +1,5 @@
 import { ObjectRegistry, SchemaError, createPool, migrate } from '../../core/index.js';
-import type { Locale, MigrationResult } from '../../core/index.js';
+import type { FieldTypeRegistry, Locale, MigrationResult } from '../../core/index.js';
 import { syncMetadataCache } from '../metadata/index.js';
 import { loadSchemaDir } from './loader.js';
 import type { LoadResult } from './loader.js';
@@ -15,6 +15,8 @@ export interface SyncSchemaOptions {
   rls?: { role: string };
   locale?: Locale;
   allowedFieldTypes?: readonly string[];
+  /** effective field-type registry (built-ins + user registrations) */
+  fieldTypes?: FieldTypeRegistry;
 }
 
 export interface SyncResult {
@@ -35,7 +37,11 @@ export async function syncSchema(options: SyncSchemaOptions): Promise<SyncResult
     throw new SchemaError('engine.databaseUrl.missing', {}, options.locale);
   }
 
-  const { registry, files } = await loadSchemaDir(options.dir, { locale: options.locale, allowedFieldTypes: options.allowedFieldTypes });
+  const { registry, files } = await loadSchemaDir(options.dir, {
+    locale: options.locale,
+    allowedFieldTypes: options.allowedFieldTypes,
+    fieldTypes: options.fieldTypes,
+  });
   registry.buildGraph({ locale: options.locale });
   const migration = await migrate(registry, {
     databaseUrl: url,

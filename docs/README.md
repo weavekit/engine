@@ -45,3 +45,4 @@ the [repository README](../README.md).
 ## Reference
 
 - [Public API & dependency budget](reference/public-api.md) — entry-point tiers and extension points
+- [Custom field types](reference/custom-field-types.md) — register business-semantic field types

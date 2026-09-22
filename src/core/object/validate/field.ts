@@ -1,5 +1,12 @@
 import { parseFormula } from '../../formula/index.js';
-import type { FieldDefinition, FieldType, OnDeleteAction } from '../../types/index.js';
+import type { BuiltinFieldType, FieldDefinition, FieldType, OnDeleteAction } from '../../types/index.js';
+import {
+  DEFAULT_FIELD_TYPE_REGISTRY,
+  FIELD_TYPE_NAME_PATTERN,
+  fieldBase,
+  type FieldTypeRegistration,
+  type FieldTypeRegistry,
+} from '../../types/index.js';
 import { FIELD_TYPES, ROW_SCOPE_MARKERS } from '../../types/values.js';
 import { validateLabels } from './labels.js';
 import {
@@ -20,6 +27,12 @@ import {
 
 /** keys always allowed on any field */
 const BASE_KEYS = ['name', 'type', 'labels', 'description', 'primary', 'system', 'sensitive'] as const;
+
+/** broad field-type-name shape: built-ins (camelCase) + registered (namespaced) names */
+const FIELD_TYPE_NAME_RE = /^[a-z][a-zA-Z0-9_]*$/;
+
+/** registered-type name shape (namespace segment required) */
+const REGISTERED_FIELD_TYPE_RE = new RegExp(FIELD_TYPE_NAME_PATTERN);
 
 /** extra keys allowed per field type */
 const EXTRA_KEYS: Record<FieldType, readonly string[]> = {
@@ -113,8 +126,18 @@ function parseFormulaAttr(raw: Record<string, unknown>, vc: Vc): string | undefi
   return raw.formula;
 }
 
+/** validation options for a single field (built-in + registered types) */
+export interface FieldValidateOptions {
+  /** field-type whitelist (config `features.fieldTypes`), fail-closed when provided */
+  allowedFieldTypes?: readonly string[];
+  /** the effective field-type registry (built-ins + user registrations) */
+  fieldTypes?: FieldTypeRegistry;
+}
+
 /** validate a single field definition into its typed discriminated-union member */
-export function validateField(raw: unknown, vc: Vc, allowedFieldTypes?: readonly string[]): FieldDefinition {
+export function validateField(raw: unknown, vc: Vc, options: FieldValidateOptions = {}): FieldDefinition {
+  const allowedFieldTypes = options.allowedFieldTypes;
+  const registry = options.fieldTypes ?? DEFAULT_FIELD_TYPE_REGISTRY;
   if (!isRecord(raw)) fail(vc, 'field.notObject');
 
   const name = expectString(raw, 'name', vc);
@@ -122,15 +145,27 @@ export function validateField(raw: unknown, vc: Vc, allowedFieldTypes?: readonly
   if (!SNAKE_CASE.test(name)) fail(vc, 'field.name.snake', { name });
 
   const rawType = raw.type;
-  if (typeof rawType !== 'string' || !FIELD_TYPE_VALUES.includes(rawType)) {
+  if (typeof rawType !== 'string' || !FIELD_TYPE_NAME_RE.test(rawType)) {
     fail(vc, 'field.type.invalid', { type: String(rawType) });
   }
-  const type = rawType as FieldType;
-  if (allowedFieldTypes !== undefined && !allowedFieldTypes.includes(type)) {
-    fail(vc, 'field.type.disabled', { type });
+
+  const isBuiltin = FIELD_TYPE_VALUES.includes(rawType);
+  const descriptor = isBuiltin ? undefined : registry.get(rawType);
+  if (!isBuiltin) {
+    if (!REGISTERED_FIELD_TYPE_RE.test(rawType)) fail(vc, 'field.type.invalid', { type: rawType });
+    if (descriptor === undefined) fail(vc, 'field.type.unknown', { type: rawType });
+  }
+  if (allowedFieldTypes !== undefined && !allowedFieldTypes.includes(rawType)) {
+    fail(vc, 'field.type.disabled', { type: rawType });
   }
 
-  checkAllowedKeys(raw, type, vc);
+  // registered (non-builtin) type → generic, descriptor-driven path
+  if (!isBuiltin && descriptor !== undefined) {
+    return validateRegisteredField(raw, name, rawType, descriptor, vc);
+  }
+
+  const type = rawType as BuiltinFieldType;
+  checkAllowedKeys(raw, type as FieldType, vc);
 
   const labels = validateLabels(raw.labels, vc);
   const description = expectString(raw, 'description', vc);
@@ -412,4 +447,59 @@ export function validateField(raw: unknown, vc: Vc, allowedFieldTypes?: readonly
       return { ...base, type: FIELD_TYPES.SEQ_NO, format, cycle: (cycle as 'none' | 'year' | undefined) };
     }
   }
+}
+
+/**
+ * Validate a field whose type is a user/plugin registered type. Attributes are
+ * checked against the registration's allow-list (plus the base's conveniences);
+ * storage/TS/MCP/OpenAPI behaviour is inherited from `base` at consumption time.
+ */
+function validateRegisteredField(
+  raw: Record<string, unknown>,
+  name: string,
+  type: string,
+  descriptor: FieldTypeRegistration,
+  vc: Vc,
+): FieldDefinition {
+  const base = descriptor.base;
+  if (base === undefined) fail(vc, 'field.type.invalid', { type });
+  const resolvedBase = fieldBase(DEFAULT_FIELD_TYPE_REGISTRY, base);
+  const relationLike = descriptor.relationLike === true || resolvedBase === FIELD_TYPES.RELATION;
+
+  const allowed = new Set<string>([...BASE_KEYS, ...(descriptor.attrs ?? []), 'required', 'unique', 'default']);
+  if (relationLike) {
+    allowed.add('target');
+    allowed.add('onDelete');
+  }
+  if (resolvedBase === FIELD_TYPES.STRING || resolvedBase === FIELD_TYPES.TEXT) allowed.add('multiple');
+  for (const key of Object.keys(raw)) {
+    if (!allowed.has(key)) fail(vc, 'field.attr.notAllowed', { type, attr: key });
+  }
+
+  const labels = validateLabels(raw.labels, vc);
+  const description = expectString(raw, 'description', vc);
+  const primary = expectBoolean(raw, 'primary', vc);
+  const system = expectBoolean(raw, 'system', vc);
+  const sensitive = expectBoolean(raw, 'sensitive', vc);
+  const required = expectBoolean(raw, 'required', vc);
+  const unique = expectBoolean(raw, 'unique', vc);
+  const multiple = expectBoolean(raw, 'multiple', vc);
+
+  const out: Record<string, unknown> = { name, type, labels, description, primary, system, sensitive, required, unique };
+  if (multiple !== undefined) out.multiple = multiple;
+
+  if (relationLike) {
+    const target = expectString(raw, 'target', vc);
+    if (target === undefined) fail(vc, 'field.relation.target.required');
+    if (!SNAKE_CASE.test(target)) fail(vc, 'field.relation.target.snake', { target });
+    const onDelete = expectString(raw, 'onDelete', vc) as OnDeleteAction | undefined;
+    if (onDelete !== undefined && !ON_DELETE_ACTION_VALUES.includes(onDelete)) {
+      fail(vc, 'field.relation.onDelete.invalid', { actions: ON_DELETE_ACTION_VALUES.join('/') });
+    }
+    out.target = target;
+    if (onDelete !== undefined) out.onDelete = onDelete;
+  }
+
+  if (raw.default !== undefined) out.default = raw.default;
+  return out as unknown as FieldDefinition;
 }

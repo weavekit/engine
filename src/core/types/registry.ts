@@ -1,34 +1,21 @@
-import { FIELD_TYPES, SCALAR_FIELD_TYPES, type FieldType } from './values.js';
+import { FIELD_TYPES, type FieldType } from './values.js';
+import type { FieldTypeRegistration, FieldTypeRegistry } from './field-type.js';
 
 /**
  * Field-type registry — the single source for the engine's field-type
  * descriptors. Primitive types (scalar + relation + sequence) carry `base:
  * undefined`; semantic types (string subtypes, media, identity FKs) carry a
- * `base` they fully inherit (storage/describe/gen-types/MCP behavior), plus a
+ * `base` they fully inherit (storage/describe/gen-types/MCP behaviour), plus a
  * small `ui` hints block consumed by `@weave-kit/ui`. Schema-level gating lives
  * in the config `features.fieldTypes` whitelist (see validate.ts), NOT here.
+ *
+ * The same registration shape carries user/plugin types (`buildFieldTypeRegistry`),
+ * so built-ins and extensions resolve through one mechanism.
  */
 
-export interface FieldTypeUiHints {
-  /** leading visual kind rendered in list/show (avatar / building icon / none) */
-  visual?: 'avatar' | 'icon' | 'image' | 'none';
-}
+const registry = new Map<string, FieldTypeRegistration>();
 
-export interface FieldTypeDescriptor {
-  name: FieldType;
-  /** the inherited field type; `undefined` = engine primitive. */
-  base?: FieldType;
-  /** scalar (can be a primary key). */
-  scalar?: boolean;
-  /** relation-like (target via FK). */
-  relationLike?: boolean;
-  /** frontend hints (consumed by @weave-kit/ui). */
-  ui?: FieldTypeUiHints;
-}
-
-const registry = new Map<FieldType, FieldTypeDescriptor>();
-
-function define(descriptor: FieldTypeDescriptor): void {
+function define(descriptor: FieldTypeRegistration): void {
   registry.set(descriptor.name, descriptor);
 }
 
@@ -48,39 +35,61 @@ define({ name: FIELD_TYPES.DETAILS, relationLike: true });
 define({ name: FIELD_TYPES.MULTI_RELATION, relationLike: true });
 define({ name: FIELD_TYPES.SEQ_NO });
 
-// ---- semantic types (base delegation + ui hints) ----
+// ---- semantic types (base delegation + ui hints + format hints) ----
 define({ name: FIELD_TYPES.FIRST_NAME, base: FIELD_TYPES.STRING, scalar: true, ui: { visual: 'none' } });
 define({ name: FIELD_TYPES.LAST_NAME, base: FIELD_TYPES.STRING, scalar: true, ui: { visual: 'none' } });
-define({ name: FIELD_TYPES.EMAIL, base: FIELD_TYPES.STRING, scalar: true, ui: { visual: 'none' } });
+define({ name: FIELD_TYPES.EMAIL, base: FIELD_TYPES.STRING, scalar: true, ui: { visual: 'none' }, openApiFormat: 'email' });
 define({ name: FIELD_TYPES.PHONE, base: FIELD_TYPES.STRING, scalar: true, ui: { visual: 'none' } });
-define({ name: FIELD_TYPES.IMAGE, base: FIELD_TYPES.STRING, scalar: true, ui: { visual: 'image' } });
+define({ name: FIELD_TYPES.IMAGE, base: FIELD_TYPES.STRING, scalar: true, ui: { visual: 'image' }, openApiFormat: 'uri' });
 define({ name: FIELD_TYPES.PERSON, base: FIELD_TYPES.RELATION, relationLike: true, ui: { visual: 'avatar' } });
 define({ name: FIELD_TYPES.DEPARTMENT, base: FIELD_TYPES.RELATION, relationLike: true, ui: { visual: 'icon' } });
 
-/** the base primitive a type inherits (walks one level). */
-export function fieldBase(type: FieldType): FieldType {
+/** the default registry: every engine built-in type (immutable by convention) */
+export const DEFAULT_FIELD_TYPE_REGISTRY: FieldTypeRegistry = registry;
+
+/**
+ * Build an effective registry from the built-in types plus user registrations
+ * (pure; never mutates the default registry). Later definitions must not
+ * collide with an existing name — the loader validates this before calling.
+ */
+export function buildFieldTypeRegistry(extra: readonly FieldTypeRegistration[] = []): FieldTypeRegistry {
+  if (extra.length === 0) return registry;
+  const merged = new Map<string, FieldTypeRegistration>(registry);
+  for (const descriptor of extra) merged.set(descriptor.name, descriptor);
+  return merged;
+}
+
+/** the base primitive a type inherits (walks one level; self for primitives) */
+export function fieldBase(registry: FieldTypeRegistry, type: FieldType): FieldType {
+  return registry.get(type)?.base ?? type;
+}
+
+/** true for a relation-like field (target-by-FK) */
+export function isRelationLike(registry: FieldTypeRegistry, type: FieldType): boolean {
   const desc = registry.get(type);
-  return desc?.base ?? type;
+  if (desc?.relationLike !== undefined) return desc.relationLike;
+  return registry.get(fieldBase(registry, type))?.relationLike === true;
 }
 
-/** true for a relation-like field (target-by-FK). */
-export function isRelationLike(type: FieldType): boolean {
-  return registry.get(type)?.relationLike === true;
+/** true for a field type that can be a primary key */
+export function isScalarFieldType(registry: FieldTypeRegistry, type: FieldType): boolean {
+  const desc = registry.get(type);
+  if (desc?.scalar !== undefined) return desc.scalar;
+  return registry.get(fieldBase(registry, type))?.scalar === true;
 }
 
-/** true for a field type that can be a primary key. */
-export function isScalarFieldType(type: FieldType): boolean {
-  const base = fieldBase(type);
-  return base in SCALAR_FIELD_TYPES;
-}
-
-/** the frontend visual hint for a type (single source). */
-export function fieldUiVisual(type: FieldType): FieldTypeUiHints['visual'] {
+/** the frontend visual hint for a type (single source) */
+export function fieldUiVisual(registry: FieldTypeRegistry, type: FieldType): string {
   return registry.get(type)?.ui?.visual ?? 'none';
 }
 
-/** a descriptor (or undefined for an unknown type). */
-export function describeFieldType(type: FieldType): FieldTypeDescriptor | undefined {
+/** the OpenAPI `format` hint for a type, if any */
+export function fieldOpenApiFormat(registry: FieldTypeRegistry, type: FieldType): string | undefined {
+  return registry.get(type)?.openApiFormat;
+}
+
+/** a descriptor (or undefined for an unknown type) */
+export function describeFieldType(registry: FieldTypeRegistry, type: FieldType): FieldTypeRegistration | undefined {
   return registry.get(type);
 }
 

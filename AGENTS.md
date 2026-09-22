@@ -59,8 +59,11 @@ tests/              unit + e2e (node --test)
 **No `relations` array** — relations all live in `fields`: `relation` (weak reference / FK),
 `details` (strong 1:N ownership), `multiRelation` (multi-select reference). A primary key is scalar
 only and unique. Field types have two layers — primitive + semantic — with a single source of truth
-in `core/types/registry.ts`. Trees/TOC use a self-referencing `relation`. Capability gating is
-declarative via config (`features.fieldTypes`, fail-closed). The schema contains **no UI attributes**.
+in `core/types/registry.ts`. Non-primitive types are **registrable** (config `fieldTypes` +
+project-local `field-types/`): registered names are namespaced (`<ns>_<name>`, bare names reserved),
+inherit a `base` primitive, and flow through one immutable registry. Trees/TOC use a self-referencing
+`relation`. Capability gating is declarative via config (`features.fieldTypes`, fail-closed). The
+schema contains **no UI attributes**.
 
 ## Product contract (weave command principles)
 

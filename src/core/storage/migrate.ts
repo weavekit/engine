@@ -95,7 +95,7 @@ export async function migrate(registry: ObjectRegistry, options: MigrateOptions 
     // too (additive ALTER DDL only)
     const expected: ExpectedTable[] = [...defs.values()]
       .filter((d) => d.alter === true || actual.get(d.name) === undefined)
-      .map((d) => buildExpectedTable(d, defs));
+      .map((d) => buildExpectedTable(d, defs, registry.fieldTypes));
 
     const statements = diffAll(expected, actual);
 

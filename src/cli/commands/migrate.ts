@@ -9,6 +9,7 @@ import {
   type AutoCommitResult,
 } from '../../runtime/git/index.js';
 import { loadConfig } from '../load-config.js';
+import { resolveProjectFieldTypes } from '../resolve-field-types.js';
 import type { MigrateOptions } from '../types/index.js';
 
 /** `weave migrate` — Git → PG one-way sync, then auto-commit the metadata tree */
@@ -16,6 +17,7 @@ export async function migrate(cwd: string, options: MigrateOptions): Promise<voi
   const p = options.printer;
   const config = await loadConfig(cwd);
   const schemaDir = config.schemaDir ?? cwd;
+  const fieldTypes = await resolveProjectFieldTypes(cwd, config);
   // RLS for db.query is on whenever the script subsystem is enabled (default role weavekit_query)
   const rlsRole = config.subsystems?.script?.enabled
     ? config.subsystems.script.sandbox?.rls?.role ?? 'weavekit_query'
@@ -27,6 +29,7 @@ export async function migrate(cwd: string, options: MigrateOptions): Promise<voi
     dryRun: options.dryRun,
     rls: rlsRole !== undefined ? { role: rlsRole } : undefined,
     allowedFieldTypes: config.features?.fieldTypes,
+    fieldTypes,
   });
 
   const changes = options.dryRun ? [] : await diffMetadata(schemaDir, result.files);

@@ -15,6 +15,7 @@ import {
   type CounterStore,
   type EngineScriptConfig,
   type EventPublisher,
+  type FieldTypeRegistration,
   type GuardrailPolicy,
   type Locale,
   type ProxyTargetResolver,
@@ -231,6 +232,13 @@ export interface EngineConfig {
    * plus every semantic type (no gating) unless a project narrows it.
    */
   features?: { fieldTypes?: string[] };
+  /**
+   * project-local field-type registrations (open registration): a directory of
+   * modules (each default-exporting a `FieldTypeRegistration` or array) and/or
+   * inline entries. Compiled with the built-ins into an immutable effective
+   * registry passed through validation + consumers (no mutable global).
+   */
+  fieldTypes?: { dir?: string; entries?: FieldTypeRegistration[] };
   /**
    * host-level background services (e.g. an instance-liveness monitor). Started
    * after the engine is assembled and stopped in `close()`, so both `weave dev`

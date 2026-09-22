@@ -74,6 +74,8 @@ export interface BuildOpenApiInput {
   server?: string;
   /** omit per-object component schemas (used for the generic docs reference). */
   generic?: boolean;
+  /** effective field-type registry (built-ins + registrations), for base-driven schemas. */
+  fieldTypes?: import('../../core/index.js').FieldTypeRegistry;
   info?: { title?: string; description?: string; version?: string };
 }
 

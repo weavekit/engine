@@ -1,5 +1,10 @@
 import type { ObjectDefinition, ObjectRegistry, RbacSubject, FieldDefinition, ToolDefinition } from '../../core/index.js';
 import { FIELD_TYPES, primaryFieldOf, primaryKeyOf } from '../../core/index.js';
+import {
+  DEFAULT_FIELD_TYPE_REGISTRY,
+  fieldBase,
+  type FieldTypeRegistry,
+} from '../../core/index.js';
 import { ACTION_PREFIXES } from '../../core/audit/index.js';
 import { resolvePermission } from '../../core/rbac/index.js';
 import type { ResolvedPermission } from '../../core/rbac/index.js';
@@ -23,25 +28,26 @@ function isReadonlyField(field: FieldDefinition): boolean {
 }
 
 /** target primary key JSON Schema type of a relation (fallback: string) */
-function pkSchema(target: string, defs: Map<string, ObjectDefinition>): JsonSchema {
+function pkSchema(target: string, defs: Map<string, ObjectDefinition>, registry: FieldTypeRegistry): JsonSchema {
   const pk = primaryFieldOf(defs.get(target));
   if (pk === undefined) return { type: 'string' };
-  return fieldValueSchema(pk, defs);
+  return fieldValueSchema(pk, defs, registry);
 }
 
 /** JSON Schema for a single field *value* (enum → literal set, relation → pk) */
-export function fieldValueSchema(field: FieldDefinition, defs: Map<string, ObjectDefinition>): JsonSchema {
-  switch (field.type) {
+export function fieldValueSchema(
+  field: FieldDefinition,
+  defs: Map<string, ObjectDefinition>,
+  registry: FieldTypeRegistry = DEFAULT_FIELD_TYPE_REGISTRY,
+): JsonSchema {
+  const base = fieldBase(registry, field.type);
+  const f = field as unknown as Record<string, unknown>;
+  switch (base) {
     case FIELD_TYPES.STRING:
     case FIELD_TYPES.TEXT:
     case FIELD_TYPES.DATETIME:
     case FIELD_TYPES.DATE:
     case FIELD_TYPES.SEQ_NO:
-    case FIELD_TYPES.FIRST_NAME:
-    case FIELD_TYPES.LAST_NAME:
-    case FIELD_TYPES.EMAIL:
-    case FIELD_TYPES.PHONE:
-    case FIELD_TYPES.IMAGE:
       return { type: 'string' };
     case FIELD_TYPES.INTEGER:
       return { type: 'integer' };
@@ -53,19 +59,20 @@ export function fieldValueSchema(field: FieldDefinition, defs: Map<string, Objec
     case FIELD_TYPES.JSON:
       return { type: 'object' };
     case FIELD_TYPES.ENUM: {
-      if (field.multiple === true) {
-        return { type: 'array', items: { type: 'string', enum: [...field.options] } };
+      const options = (f.options as string[] | undefined) ?? [];
+      if (f.multiple === true) {
+        return { type: 'array', items: { type: 'string', enum: options } };
       }
-      return { type: 'string', enum: [...field.options] };
+      return { type: 'string', enum: options };
     }
     case FIELD_TYPES.RELATION:
-    case FIELD_TYPES.PERSON:
-    case FIELD_TYPES.DEPARTMENT:
-      return pkSchema(field.target, defs);
+      return pkSchema(String(f.target), defs, registry);
     case FIELD_TYPES.MULTI_RELATION:
-      return { type: 'array', items: pkSchema(field.target, defs) };
+      return { type: 'array', items: pkSchema(String(f.target), defs, registry) };
     case FIELD_TYPES.DETAILS:
       return { type: 'array', items: { type: 'object' } };
+    default:
+      return { type: 'string' };
   }
 }
 
@@ -95,11 +102,16 @@ function updatableFields(def: ObjectDefinition, perm: ResolvedPermission): Field
   return def.fields.filter((f) => whitelist.has(f.name) && !isReadonlyField(f) && f.type !== FIELD_TYPES.DETAILS);
 }
 
-function objectSchema(fields: FieldDefinition[], defs: Map<string, ObjectDefinition>, requiredOnly = false): JsonSchema {
+function objectSchema(
+  fields: FieldDefinition[],
+  defs: Map<string, ObjectDefinition>,
+  registry: FieldTypeRegistry,
+  requiredOnly = false,
+): JsonSchema {
   const properties: Record<string, JsonSchema> = {};
   const required: string[] = [];
   for (const field of fields) {
-    properties[field.name] = { ...fieldValueSchema(field, defs), description: field.description };
+    properties[field.name] = { ...fieldValueSchema(field, defs, registry), description: field.description };
     if (('required' in field && field.required === true) || field.primary === true) required.push(field.name);
   }
   const schema: JsonSchema = { type: 'object', properties, additionalProperties: false };
@@ -160,11 +172,12 @@ function objectTools(
   def: ObjectDefinition,
   defs: Map<string, ObjectDefinition>,
   perm: ResolvedPermission,
+  registry: FieldTypeRegistry,
 ): CompiledTool[] {
   const tools: CompiledTool[] = [];
   const pkField = primaryFieldOf(def);
   const pkName = primaryKeyOf(def);
-  const idSchema: JsonSchema = pkField !== undefined ? fieldValueSchema(pkField, defs) : { type: 'string' };
+  const idSchema: JsonSchema = pkField !== undefined ? fieldValueSchema(pkField, defs, registry) : { type: 'string' };
   const readable = readableFields(def, perm);
 
   if (perm.read !== undefined) {
@@ -223,7 +236,7 @@ function objectTools(
         inputSchema: {
           type: 'object',
           properties: {
-            data: { ...objectSchema(writableCreateFields(def, perm), defs, true), description: 'fields to set' },
+            data: { ...objectSchema(writableCreateFields(def, perm), defs, registry, true), description: 'fields to set' },
           },
           required: ['data'],
         },
@@ -242,7 +255,7 @@ function objectTools(
           type: 'object',
           properties: {
             [pkName ?? 'id']: { ...idSchema, description: 'primary key' },
-            changes: { ...objectSchema(updatableFields(def, perm), defs), description: 'fields to change' },
+            changes: { ...objectSchema(updatableFields(def, perm), defs, registry), description: 'fields to change' },
           },
           required: [pkName ?? 'id', 'changes'],
         },
@@ -281,13 +294,14 @@ export function compileToolsFor(
   custom?: { defs: ToolDefinition[]; executor: ToolExecutor },
 ): CompiledTool[] {
   const registry: ObjectRegistry = engine.registry;
+  const fieldTypes = registry.fieldTypes;
   const defs = new Map(registry.list().map((def) => [def.name, def]));
   const tools: CompiledTool[] = [];
 
   for (const def of registry.list()) {
     const perm = resolvePermission(def, subject.roles);
     if (perm === undefined) continue; // role not listed → object invisible
-    tools.push(...objectTools(def, defs, perm));
+    tools.push(...objectTools(def, defs, perm, fieldTypes));
   }
 
   tools.push(

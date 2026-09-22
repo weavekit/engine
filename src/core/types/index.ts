@@ -1,4 +1,4 @@
-export type { ScalarFieldType, FieldType, OnDeleteAction } from './fields.js';
+export type { ScalarFieldType, BuiltinFieldType, FieldType, OnDeleteAction } from './fields.js';
 export type {
   FieldBase,
   StringField,
@@ -31,12 +31,16 @@ export { primaryFieldOf, primaryKeyOf } from './primaryField.js';
 export { SchemaError } from './errors.js';
 
 export {
+  buildFieldTypeRegistry,
+  DEFAULT_FIELD_TYPE_REGISTRY,
   describeFieldType,
   fieldBase,
+  fieldOpenApiFormat,
   fieldUiVisual,
   isRelationLike,
   isScalarFieldType,
   PRIMITIVE_FIELD_TYPES,
   SEMANTIC_FIELD_TYPES,
 } from './registry.js';
-export type { FieldTypeDescriptor, FieldTypeUiHints } from './registry.js';
+export type { FieldTypeRegistration, FieldTypeRegistry, FieldTypeUiHints } from './field-type.js';
+export { FIELD_TYPE_NAME_PATTERN } from './field-type.js';

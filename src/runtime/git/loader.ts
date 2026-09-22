@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { readdir, readFile, stat } from 'node:fs/promises';
 import { basename, dirname, join } from 'node:path';
 import { ObjectRegistry, SchemaError, parseSchema } from '../../core/index.js';
-import type { Locale, ObjectDefinition } from '../../core/index.js';
+import type { FieldTypeRegistry, Locale, ObjectDefinition } from '../../core/index.js';
 
 export interface SchemaFile {
   /** absolute path to the schema.json file */
@@ -44,7 +44,7 @@ async function collectSchemaFiles(dir: string, out: string[]): Promise<void> {
 /** load and validate every `objects/<name>/schema.json` under a project root */
 export async function loadSchemaDir(
   dir: string,
-  options: { locale?: Locale; allowedFieldTypes?: readonly string[] } = {},
+  options: { locale?: Locale; allowedFieldTypes?: readonly string[]; fieldTypes?: FieldTypeRegistry } = {},
 ): Promise<LoadResult> {
   const objectsDir = join(dir, 'objects');
   let isDir = false;
@@ -60,7 +60,7 @@ export async function loadSchemaDir(
   const paths: string[] = [];
   await collectSchemaFiles(objectsDir, paths);
 
-  const registry = new ObjectRegistry();
+  const registry = new ObjectRegistry({ fieldTypes: options.fieldTypes });
   const files: SchemaFile[] = [];
   for (const path of paths.sort()) {
     const name = basename(dirname(path));
@@ -70,8 +70,17 @@ export async function loadSchemaDir(
     } catch {
       throw new SchemaError('loader.file.read', { file: path }, options.locale);
     }
-    const object = parseSchema(raw, { locale: options.locale, nameHint: name, allowedFieldTypes: options.allowedFieldTypes });
-    registry.register(object, { locale: options.locale, allowedFieldTypes: options.allowedFieldTypes });
+    const object = parseSchema(raw, {
+      locale: options.locale,
+      nameHint: name,
+      allowedFieldTypes: options.allowedFieldTypes,
+      fieldTypes: options.fieldTypes,
+    });
+    registry.register(object, {
+      locale: options.locale,
+      allowedFieldTypes: options.allowedFieldTypes,
+      fieldTypes: options.fieldTypes,
+    });
     files.push({ path, name, contentHash: sha256(raw), object });
   }
   return { registry, files };

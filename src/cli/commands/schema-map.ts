@@ -3,6 +3,7 @@ import { buildMappingReport, createPool, inspectSchema } from '../../core/index.
 import type { MappingColumn, MappingTable } from '../../core/index.js';
 import { loadSchemaDir } from '../../runtime/git/index.js';
 import { loadConfig } from '../load-config.js';
+import { resolveProjectFieldTypes } from '../resolve-field-types.js';
 import type { SchemaMapOptions } from '../types/index.js';
 
 /** a column's declared constraints, rendered as one line */
@@ -102,6 +103,7 @@ export async function schemaMap(cwd: string, options: SchemaMapOptions): Promise
   const { registry } = await loadSchemaDir(schemaDir, {
     locale: config.locale,
     allowedFieldTypes: config.features?.fieldTypes,
+    fieldTypes: await resolveProjectFieldTypes(cwd, config),
   });
   const defs = registry.list();
   if (options.object !== undefined && !defs.some((def) => def.name === options.object)) {

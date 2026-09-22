@@ -2,13 +2,14 @@ import { DEFAULT_LOCALE } from '../../i18n/index.js';
 import type { Locale } from '../../i18n/index.js';
 import { SCHEMA_FORMAT_VERSION } from '../schema-version.js';
 import type { FieldDefinition, ObjectDefinition } from '../../types/index.js';
+import { DEFAULT_FIELD_TYPE_REGISTRY, isScalarFieldType, type FieldTypeRegistry } from '../../types/index.js';
 import { FIELD_TYPES, READ_SCOPES } from '../../types/values.js';
 import { validateField } from './field.js';
 import { validateFormulas } from './formulas.js';
 import { validateIndexes } from './indexes.js';
 import { validateLabels } from './labels.js';
 import { validatePermissions } from './permissions.js';
-import { fail, isRecord, expectString, SNAKE_CASE, SCALAR_TYPE_VALUES, TITLE_PLACEHOLDER_RE, type Vc } from './primitives.js';
+import { fail, isRecord, expectString, SNAKE_CASE, TITLE_PLACEHOLDER_RE, type Vc } from './primitives.js';
 
 export interface ValidateOptions {
   /** directory name hint; must equal object name when provided */
@@ -21,6 +22,8 @@ export interface ValidateOptions {
    * to all types (gating is opt-in via config).
    */
   allowedFieldTypes?: readonly string[];
+  /** effective field-type registry (built-ins + user registrations) */
+  fieldTypes?: FieldTypeRegistry;
 }
 
 /**
@@ -30,6 +33,7 @@ export interface ValidateOptions {
  */
 export function validateObject(raw: unknown, options?: ValidateOptions): ObjectDefinition {
   const vc: Vc = { object: '(unknown)', locale: options?.locale ?? DEFAULT_LOCALE };
+  const registry: FieldTypeRegistry = options?.fieldTypes ?? DEFAULT_FIELD_TYPE_REGISTRY;
   if (!isRecord(raw)) fail(vc, 'object.notObject');
 
   const name = expectString(raw, 'name', vc);
@@ -65,7 +69,9 @@ export function validateObject(raw: unknown, options?: ValidateOptions): ObjectD
   const rawFields = raw.fields;
   if (!Array.isArray(rawFields) || rawFields.length === 0) fail(vc, 'object.fields.required');
 
-  const fields = rawFields.map((f) => validateField(f, vc, options?.allowedFieldTypes));
+  const fields = rawFields.map((f) =>
+    validateField(f, vc, { allowedFieldTypes: options?.allowedFieldTypes, fieldTypes: options?.fieldTypes }),
+  );
   const seen = new Set<string>();
   for (const field of fields) {
     if (seen.has(field.name)) fail(vc, 'object.field.duplicate', { field: field.name });
@@ -77,7 +83,7 @@ export function validateObject(raw: unknown, options?: ValidateOptions): ObjectD
   if (primaries.length === 0) fail(vc, 'object.primary.none');
   if (primaries.length > 1) fail(vc, 'object.primary.many');
   const primaryField = primaries[0];
-  if (primaryField !== undefined && !SCALAR_TYPE_VALUES.includes(primaryField.type)) {
+  if (primaryField !== undefined && !isScalarFieldType(registry, primaryField.type)) {
     fail(vc, 'object.primary.scalarOnly', { type: primaryField.type });
   }
   if (primaryField !== undefined && (primaryField as { formula?: string }).formula !== undefined) {
@@ -135,12 +141,9 @@ function validateTitleTemplate(
     const field = fieldMap.get(fieldName);
     if (field === undefined) {
       fail(vc, 'title.placeholder.missing', { field: fieldName });
-    } else if (
-      field.type === FIELD_TYPES.DETAILS ||
-      field.type === FIELD_TYPES.MULTI_RELATION
-    ) {
+    } else if (field.type === FIELD_TYPES.DETAILS || field.type === FIELD_TYPES.MULTI_RELATION) {
       fail(vc, 'title.placeholder.relation', { field: fieldName, type: field.type });
-    } else if (field.type === FIELD_TYPES.ENUM && field.multiple === true) {
+    } else if (field.type === FIELD_TYPES.ENUM && (field as { multiple?: boolean }).multiple === true) {
       fail(vc, 'title.placeholder.multiEnum', { field: fieldName });
     }
   }

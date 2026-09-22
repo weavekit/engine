@@ -320,7 +320,7 @@ export function buildOpenApiDocument(input: BuildOpenApiInput): OpenApiDocument 
 
   if (input.generic !== true) {
     for (const obj of input.objects) {
-      const { record, create, update } = objectSchemas(obj, objects);
+      const { record, create, update } = objectSchemas(obj, objects, input.fieldTypes);
       schemas[obj.name] = record;
       schemas[`${obj.name}Create`] = create;
       schemas[`${obj.name}Update`] = update;

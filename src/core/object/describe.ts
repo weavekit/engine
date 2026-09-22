@@ -1,7 +1,7 @@
 import type { Locale } from '../i18n/index.js';
 import { resolvePermission, type ResolvedPermission } from '../rbac/index.js';
 import { SchemaError } from '../types/errors.js';
-import { FIELD_TYPES, type FieldDefinition, type ReadScope } from '../types/index.js';
+import { FIELD_TYPES, isRelationLike, type FieldDefinition, type FieldTypeRegistry, type ReadScope } from '../types/index.js';
 import type { ObjectRegistry } from './registry.js';
 
 /**
@@ -70,7 +70,7 @@ export interface ObjectListEntry {
   description?: string;
 }
 
-function fieldDescription(field: FieldDefinition): MetadataField {
+function fieldDescription(field: FieldDefinition, registry: FieldTypeRegistry): MetadataField {
   const out: MetadataField = {
     name: field.name,
     type: field.type,
@@ -88,14 +88,9 @@ function fieldDescription(field: FieldDefinition): MetadataField {
   if (field.type === FIELD_TYPES.IMAGE) {
     out.multiple = field.multiple === true;
   }
-  if (
-    field.type === FIELD_TYPES.RELATION ||
-    field.type === FIELD_TYPES.PERSON ||
-    field.type === FIELD_TYPES.DEPARTMENT ||
-    field.type === FIELD_TYPES.MULTI_RELATION ||
-    field.type === FIELD_TYPES.DETAILS
-  ) {
-    out.target = field.target;
+  if (isRelationLike(registry, field.type)) {
+    out.target = (field as { target?: string }).target;
+    if ((field as { multiple?: boolean }).multiple === true) out.multiple = true;
   }
   if (field.type === FIELD_TYPES.PERSON && field.department !== undefined) {
     out.department = field.department;
@@ -140,17 +135,11 @@ export function describeObject(
     throw new SchemaError('rbac.denied.read', { object: name, role: roles.join(',') }, locale);
   }
   const excluded = new Set(perm.exclude);
-  const fields = def.fields.filter((f) => !excluded.has(f.name)).map(fieldDescription);
+  const fieldTypes = registry.fieldTypes;
+  const fields = def.fields.filter((f) => !excluded.has(f.name)).map((f) => fieldDescription(f, fieldTypes));
   const relations = def.fields
-    .filter(
-      (f) =>
-        f.type === FIELD_TYPES.RELATION ||
-        f.type === FIELD_TYPES.PERSON ||
-        f.type === FIELD_TYPES.DEPARTMENT ||
-        f.type === FIELD_TYPES.MULTI_RELATION ||
-        f.type === FIELD_TYPES.DETAILS,
-    )
-    .map((f) => ({ field: f.name, type: f.type, target: f.target }));
+    .filter((f) => isRelationLike(fieldTypes, f.type))
+    .map((f) => ({ field: f.name, type: f.type, target: (f as { target?: string }).target }));
   return {
     name: def.name,
     labels: def.labels,

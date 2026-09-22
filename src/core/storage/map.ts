@@ -1,24 +1,32 @@
 import type { FieldDefinition } from '../types/index.js';
+import { DEFAULT_FIELD_TYPE_REGISTRY, fieldBase, type FieldTypeRegistry } from '../types/index.js';
 import { FIELD_TYPES, ON_DELETE_ACTIONS } from '../types/values.js';
 
 /**
- * Map a field's declared type to a PostgreSQL column type.
+ * Map a field's declared type to a PostgreSQL column type. Dispatch is driven by
+ * the type's **base** primitive (resolved through the field-type registry), so a
+ * user/plugin registered type inherits its base's storage automatically.
  * `targetPkType` is the mapped PK type of the target object (for `relation`).
  */
-export function pgType(field: FieldDefinition, targetPkType: string | undefined): string {
-  switch (field.type) {
+export function pgType(
+  field: FieldDefinition,
+  targetPkType: string | undefined,
+  registry: FieldTypeRegistry = DEFAULT_FIELD_TYPE_REGISTRY,
+): string {
+  const base = fieldBase(registry, field.type);
+  switch (base) {
     case FIELD_TYPES.STRING:
-    case FIELD_TYPES.FIRST_NAME:
-    case FIELD_TYPES.LAST_NAME:
-    case FIELD_TYPES.EMAIL:
-    case FIELD_TYPES.PHONE:
+      // media (image) base=string but a multi-value is an array column
+      if (field.type === FIELD_TYPES.IMAGE && (field as { multiple?: boolean }).multiple === true) return 'TEXT[]';
       return 'VARCHAR(255)';
     case FIELD_TYPES.TEXT:
       return 'TEXT';
     case FIELD_TYPES.INTEGER:
       return 'INTEGER';
     case FIELD_TYPES.NUMBER:
-      return field.precision ? `NUMERIC(${field.precision})` : 'NUMERIC';
+      return (field as { precision?: number }).precision
+        ? `NUMERIC(${(field as { precision?: number }).precision})`
+        : 'NUMERIC';
     case FIELD_TYPES.CURRENCY:
       return 'NUMERIC(12,2)';
     case FIELD_TYPES.BOOLEAN:
@@ -30,12 +38,8 @@ export function pgType(field: FieldDefinition, targetPkType: string | undefined)
     case FIELD_TYPES.JSON:
       return 'JSONB';
     case FIELD_TYPES.ENUM:
-      return field.multiple ? 'TEXT[]' : 'VARCHAR(255)';
-    case FIELD_TYPES.IMAGE:
-      return field.multiple ? 'TEXT[]' : 'VARCHAR(255)';
+      return (field as { multiple?: boolean }).multiple ? 'TEXT[]' : 'VARCHAR(255)';
     case FIELD_TYPES.RELATION:
-    case FIELD_TYPES.PERSON:
-    case FIELD_TYPES.DEPARTMENT:
       return targetPkType ?? 'VARCHAR(255)';
     case FIELD_TYPES.MULTI_RELATION:
       return 'TEXT[]';
@@ -43,29 +47,31 @@ export function pgType(field: FieldDefinition, targetPkType: string | undefined)
       return 'VARCHAR(255)';
     case FIELD_TYPES.DETAILS:
       throw new Error('details fields do not create a column');
+    default:
+      throw new Error(`unknown field type "${field.type}"`);
   }
 }
 
 /** SQL DEFAULT expression for a field's `default` value, or undefined (no default) */
-export function defaultExpr(field: FieldDefinition): string | undefined {
+export function defaultExpr(
+  field: FieldDefinition,
+  registry: FieldTypeRegistry = DEFAULT_FIELD_TYPE_REGISTRY,
+): string | undefined {
   const raw = field as { default?: unknown; multiple?: boolean };
   if (raw.default === undefined) return undefined;
-  switch (field.type) {
+  const base = fieldBase(registry, field.type);
+  switch (base) {
     case FIELD_TYPES.DATETIME:
     case FIELD_TYPES.DATE:
       return raw.default === 'now' ? 'now()' : `'${String(raw.default)}'`;
     case FIELD_TYPES.ENUM:
       // multi-value enum defaults are not expressed in DDL (application layer)
-      return raw.multiple ? undefined : `'${String(raw.default)}'`;
-    case FIELD_TYPES.IMAGE:
-      // multi-value image defaults are application layer too
-      return raw.multiple ? undefined : `'${String(raw.default)}'`;
+      return (field as { multiple?: boolean }).multiple ? undefined : `'${String(raw.default)}'`;
     case FIELD_TYPES.STRING:
+      // multi-value image defaults are application layer too
+      if (field.type === FIELD_TYPES.IMAGE && (field as { multiple?: boolean }).multiple === true) return undefined;
+      return `'${String(raw.default)}'`;
     case FIELD_TYPES.TEXT:
-    case FIELD_TYPES.FIRST_NAME:
-    case FIELD_TYPES.LAST_NAME:
-    case FIELD_TYPES.EMAIL:
-    case FIELD_TYPES.PHONE:
       return `'${String(raw.default)}'`;
     case FIELD_TYPES.BOOLEAN:
       return String(raw.default);

@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import kleur from 'kleur';
 import { createPool, SchemaError, generateObjectTypes } from '../../index.js';
 import { buildEngineFromRegistry } from '../../runtime/engine.js';
-import type { WeaveKitEngine } from '../../index.js';
+import type { WeaveKitEngine, FieldTypeRegistry } from '../../index.js';
 import {
   autoCommit,
   buildCommitMessage,
@@ -16,6 +16,7 @@ import {
 } from '../../runtime/git/index.js';
 import type { SchemaFile } from '../../runtime/git/index.js';
 import { loadConfig } from '../load-config.js';
+import { resolveProjectFieldTypes } from '../resolve-field-types.js';
 import { PROJECT_TYPES } from '../types/index.js';
 import type { DevOptions } from '../types/index.js';
 import { backfillDefaultViews } from './default-view.js';
@@ -58,8 +59,8 @@ export async function dev(cwd: string, options: DevOptions): Promise<void> {
   }
 
   /** regenerate object-level TS types (generated/types.ts) to stay in sync */
-  async function regenerateTypes(files: SchemaFile[]): Promise<void> {
-    const source = generateObjectTypes(files.map((f) => f.object));
+  async function regenerateTypes(files: SchemaFile[], fieldTypes: FieldTypeRegistry): Promise<void> {
+    const source = generateObjectTypes(files.map((f) => f.object), fieldTypes);
     await mkdir(join(cwd, 'generated'), { recursive: true });
     await writeFile(join(cwd, 'generated', 'types.ts'), source);
   }
@@ -138,9 +139,10 @@ export async function dev(cwd: string, options: DevOptions): Promise<void> {
   async function start(): Promise<void> {
     // always sync Git → PG before serving: per-object `alter: true` objects get
     // additive DDL; alter:false objects fail fast on a missing column
-    const sync = await syncSchema({ dir: schemaDir, databaseUrl: config.databaseUrl, locale: config.locale, allowedFieldTypes: config.features?.fieldTypes });
+    const fieldTypes = await resolveProjectFieldTypes(cwd, config);
+    const sync = await syncSchema({ dir: schemaDir, databaseUrl: config.databaseUrl, locale: config.locale, allowedFieldTypes: config.features?.fieldTypes, fieldTypes });
     await backfillViews(sync);
-    await regenerateTypes(sync.files);
+    await regenerateTypes(sync.files, fieldTypes);
     await commitMetadata(sync.files, sync.migration.applied);
     engine = await buildEngineFromRegistry(sync.registry, config);
     await listen();
@@ -155,6 +157,7 @@ export async function dev(cwd: string, options: DevOptions): Promise<void> {
     // adapter/identity/auth values, tools.*) take effect on reload
     config = await loadConfig(cwd);
     p.log('change detected — reloading…');
+    const fieldTypes = await resolveProjectFieldTypes(cwd, config);
 
     // Phase 1 — validate + migrate BEFORE touching the running engine.
     // migrate() uses no port, so the old engine keeps serving while this runs.
@@ -162,7 +165,7 @@ export async function dev(cwd: string, options: DevOptions): Promise<void> {
     // is rejected and the running engine stays up.
     let sync: SyncResult;
     try {
-      sync = await syncSchema({ dir: schemaDir, databaseUrl: config.databaseUrl, locale: config.locale, allowedFieldTypes: config.features?.fieldTypes });
+      sync = await syncSchema({ dir: schemaDir, databaseUrl: config.databaseUrl, locale: config.locale, allowedFieldTypes: config.features?.fieldTypes, fieldTypes });
     } catch (error) {
       const drift = driftOf(error);
       const message = drift !== null ? driftMessage(drift) : error instanceof Error ? error.message : String(error);
@@ -195,7 +198,7 @@ export async function dev(cwd: string, options: DevOptions): Promise<void> {
 
     try {
       await backfillViews(sync);
-      await regenerateTypes(sync.files);
+      await regenerateTypes(sync.files, fieldTypes);
       await commitMetadata(sync.files, sync.migration.applied);
       const next = await buildEngineFromRegistry(sync.registry, config);
       engine = next;

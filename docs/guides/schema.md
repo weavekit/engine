@@ -59,6 +59,11 @@ If a file declares a version **newer** than the engine supports, the engine reje
 | `details` | child table | strong 1:N ownership |
 | `multiRelation` | TEXT[] + GIN | multi-select reference |
 
+Built-in semantic types (`firstName`, `lastName`, `email`, `phone`, `image`, `person`,
+`department`) sit on top of these primitives. When you need a business-semantic type the engine
+doesn't ship (`money`, `address`, …), you can register your own — see
+[Custom field types](../reference/custom-field-types.md).
+
 ## Common field attributes
 
 - `primary: true` — exactly one per object, scalar types only. The object name is the table name.

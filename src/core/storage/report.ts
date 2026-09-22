@@ -1,4 +1,4 @@
-import { FIELD_TYPES } from '../types/values.js';
+import { DEFAULT_FIELD_TYPE_REGISTRY, FIELD_TYPES, type FieldTypeRegistry } from '../types/index.js';
 import { resolveLabel } from '../object/display.js';
 import type { Locale } from '../i18n/index.js';
 import type { FieldDefinition, ObjectDefinition } from '../types/index.js';
@@ -152,12 +152,13 @@ export function buildMappingReport(
   defs: readonly ObjectDefinition[],
   actual: ReadonlyMap<string, ActualTable>,
   locale?: Locale,
+  registry: FieldTypeRegistry = DEFAULT_FIELD_TYPE_REGISTRY,
 ): MappingReport {
   const defsMap = new Map(defs.map((def) => [def.name, def]));
   const tables: MappingTable[] = [];
 
   for (const def of [...defs].sort((a, b) => a.name.localeCompare(b.name))) {
-    const expected = buildExpectedTable(def, defsMap);
+    const expected = buildExpectedTable(def, defsMap, registry);
     const actualTable = actual.get(def.name);
     const warnings: string[] = [];
 

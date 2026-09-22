@@ -42,6 +42,9 @@ The stable surface exists so you can extend the engine without patching internal
 - **Providers** — implement the `core/provider/*` contracts (alerts, identity, event) and inject them; implementations live outside `core`.
 - **Subsystems** — enabled through `weavekit.config.ts` and dynamically loaded.
 - **Custom tools & guardrail policies** — `core/tools` + `runtime/tools`.
+- **Custom field types** — `loadFieldTypesDir` / `resolveFieldTypeRegistry` + config `fieldTypes`; a
+  project-local `field-types/` dir of declarative registrations (see
+  [Custom field types](./custom-field-types.md)).
 - **Generic proxy** — `proxy.resolver` carries the application semantics.
 - **Protocol adapters** — the `adapters/*` registration functions.
 

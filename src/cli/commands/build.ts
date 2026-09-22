@@ -53,5 +53,27 @@ export async function build(cwd: string, options: BuildOptions): Promise<void> {
     // no tools directory — nothing to compile
   }
 
+  // open registration: compile field-types/*.ts → dist/field-types/*.js so the
+  // production engine can dynamic-import compiled registrations. Point
+  // `fieldTypes.dir` at `dist/field-types` in production. `weave dev` needs no
+  // step — tsx is registered there and the loader accepts `.ts`.
+  const fieldTypesDir = resolve(cwd, 'field-types');
+  try {
+    if ((await stat(fieldTypesDir)).isDirectory()) {
+      await esbuild({
+        entryPoints: [join(fieldTypesDir, '*.ts')],
+        bundle: true,
+        platform: 'node',
+        target: 'node24',
+        format: 'esm',
+        outdir: resolve(cwd, 'dist/field-types'),
+        logLevel: 'silent',
+      });
+      p.log('compiled field-types/*.ts → dist/field-types/');
+    }
+  } catch {
+    // no field-types directory — nothing to compile
+  }
+
   p.data({ entry, outdir });
 }

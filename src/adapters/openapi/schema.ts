@@ -1,7 +1,10 @@
 import {
+  DEFAULT_FIELD_TYPE_REGISTRY,
   FIELD_TYPES,
   fieldBase,
+  fieldOpenApiFormat,
   type FieldDefinition,
+  type FieldTypeRegistry,
   type ObjectDefinition,
 } from '../../core/index.js';
 
@@ -26,10 +29,14 @@ function fieldRequired(field: FieldDefinition): boolean {
 }
 
 /** JSON Schema primitive for a relation target's primary key. */
-function pkType(target: string | undefined, objects: Map<string, ObjectDefinition>): string {
+function pkType(
+  target: string | undefined,
+  objects: Map<string, ObjectDefinition>,
+  registry: FieldTypeRegistry,
+): string {
   const pk = target === undefined ? undefined : objects.get(target)?.fields.find((f) => f.primary === true);
   if (pk === undefined) return 'string';
-  switch (fieldBase(pk.type)) {
+  switch (fieldBase(registry, pk.type)) {
     case FIELD_TYPES.INTEGER:
       return 'integer';
     case FIELD_TYPES.NUMBER:
@@ -45,11 +52,16 @@ function pkType(target: string | undefined, objects: Map<string, ObjectDefinitio
 /**
  * JSON Schema for one field (OpenAPI 3.1). Carries type + format + validation
  * attributes, `readOnly` for engine-managed fields, and relation targets as
- * primary-key references.
+ * primary-key references. Dispatch is base-driven, so registered types inherit
+ * their base's schema.
  */
-export function fieldSchema(field: FieldDefinition, objects: Map<string, ObjectDefinition>): Json {
+export function fieldSchema(
+  field: FieldDefinition,
+  objects: Map<string, ObjectDefinition>,
+  registry: FieldTypeRegistry = DEFAULT_FIELD_TYPE_REGISTRY,
+): Json {
   const f = asRecord(field);
-  const base = fieldBase(field.type);
+  const base = fieldBase(registry, field.type);
   const out: Json = {};
 
   const multipleImage = field.type === FIELD_TYPES.IMAGE && f.multiple === true;
@@ -81,16 +93,16 @@ export function fieldSchema(field: FieldDefinition, objects: Map<string, ObjectD
     }
   } else if (base === FIELD_TYPES.MULTI_RELATION) {
     out.type = 'array';
-    out.items = { type: pkType(f.target as string | undefined, objects) };
+    out.items = { type: pkType(f.target as string | undefined, objects, registry) };
   } else if (base === FIELD_TYPES.DETAILS) {
     out.type = 'array';
     out.items = { $ref: `#/components/schemas/${String(f.target)}` };
   } else if (base === FIELD_TYPES.RELATION) {
-    out.type = pkType(f.target as string | undefined, objects);
+    out.type = pkType(f.target as string | undefined, objects, registry);
   } else {
     out.type = 'string';
-    if (field.type === FIELD_TYPES.EMAIL) out.format = 'email';
-    else if (field.type === FIELD_TYPES.IMAGE) out.format = 'uri';
+    const format = fieldOpenApiFormat(registry, field.type);
+    if (format !== undefined) out.format = format;
   }
 
   if (typeof f.minLength === 'number') out.minLength = f.minLength;
@@ -114,7 +126,11 @@ export interface ObjectSchemas {
 }
 
 /** build the three reusable schemas for one object. */
-export function objectSchemas(obj: ObjectDefinition, objects: Map<string, ObjectDefinition>): ObjectSchemas {
+export function objectSchemas(
+  obj: ObjectDefinition,
+  objects: Map<string, ObjectDefinition>,
+  registry: FieldTypeRegistry = DEFAULT_FIELD_TYPE_REGISTRY,
+): ObjectSchemas {
   const record: Json = { type: 'object', properties: {} as Json };
   const create: Json = { type: 'object', properties: {} as Json, additionalProperties: false };
   const update: Json = { type: 'object', properties: {} as Json, additionalProperties: false };
@@ -126,15 +142,15 @@ export function objectSchemas(obj: ObjectDefinition, objects: Map<string, Object
 
   for (const field of obj.fields) {
     const readonly = isReadonlyField(field);
-    if (field.sensitive !== true) recordProps[field.name] = fieldSchema(field, objects);
+    if (field.sensitive !== true) recordProps[field.name] = fieldSchema(field, objects, registry);
     if (field.primary === true || fieldRequired(field)) recordRequired.push(field.name);
 
     if (!readonly && field.type !== FIELD_TYPES.DETAILS) {
-      createProps[field.name] = fieldSchema(field, objects);
+      createProps[field.name] = fieldSchema(field, objects, registry);
       if (fieldRequired(field)) createRequired.push(field.name);
     }
     if (!readonly && field.primary !== true && field.type !== FIELD_TYPES.DETAILS) {
-      updateProps[field.name] = fieldSchema(field, objects);
+      updateProps[field.name] = fieldSchema(field, objects, registry);
     }
   }
 
