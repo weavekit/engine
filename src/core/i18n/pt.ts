@@ -67,6 +67,8 @@ export const pt: Record<MessageKey, string> = {
   'field.labels.notObject': 'objeto "{object}": labels deve ser um objeto de locale para string',
   'field.labels.locale.invalid': 'objeto "{object}": a chave de labels "{locale}" não é uma tag de locale válida',
   'field.labels.value.string': 'objeto "{object}": o valor de labels para "{locale}" deve ser uma string não vazia',
+  'field.labels.empty': 'objeto "{object}": labels deve declarar pelo menos uma locale',
+  'object.label.removed': 'objeto "{object}": "label" não é mais suportado — use "labels", por exemplo { "en": "…" }',
   'permission.notObject': 'objeto "{object}": permissions deve ser um objeto',
   'permission.role.notObject': 'objeto "{object}": a permissão do papel "{role}" deve ser um objeto',
   'permission.read.invalid': 'objeto "{object}": read do papel "{role}" deve ser own/team/all',

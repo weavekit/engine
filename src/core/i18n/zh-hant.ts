@@ -67,6 +67,8 @@ export const zhHant: Record<MessageKey, string> = {
   'field.labels.notObject': '物件「{object}」：labels 必須是 locale 到字串的物件',
   'field.labels.locale.invalid': '物件「{object}」：labels 鍵「{locale}」不是合法 locale 標籤',
   'field.labels.value.string': '物件「{object}」：labels 的「{locale}」值必須是非空字串',
+  'field.labels.empty': '物件「{object}」：labels 必須至少宣告一個 locale',
+  'object.label.removed': '物件「{object}」：不再支援 "label"，請改用 "labels"，例如 { "en": "…" }',
   'permission.notObject': '物件「{object}」：permissions 必須是物件',
   'permission.role.notObject': '物件「{object}」：角色「{role}」的權限必須是物件',
   'permission.read.invalid': '物件「{object}」：角色「{role}」的 read 必須是 own/team/all',

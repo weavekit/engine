@@ -6,12 +6,12 @@ import type { LayoutFields, LayoutList } from '../../src/layout-format.js';
 import { backfillDefaultViews, renderShowLayout, renderListLayout, writeDefaultLayout } from '../../src/cli/commands/default-view.js';
 
 const fields = [
-  { name: 'id', type: 'string', primary: true, label: 'ID' },
-  { name: 'name', type: 'string', label: 'Name', required: true },
-  { name: 'status', type: 'enum', label: 'Status', options: ['open', 'won'] },
-  { name: 'owner_id', type: 'relation', label: 'Owner', target: 'user' },
-  { name: 'lines', type: 'details', label: 'Lines', target: 'order_line' },
-  { name: 'tags', type: 'multiRelation', label: 'Tags', target: 'tag' },
+  { name: 'id', type: 'string', primary: true, labels: { en: 'ID' } },
+  { name: 'name', type: 'string', labels: { en: 'Name' }, required: true },
+  { name: 'status', type: 'enum', labels: { en: 'Status' }, options: ['open', 'won'] },
+  { name: 'owner_id', type: 'relation', labels: { en: 'Owner' }, target: 'user' },
+  { name: 'lines', type: 'details', labels: { en: 'Lines' }, target: 'order_line' },
+  { name: 'tags', type: 'multiRelation', labels: { en: 'Tags' }, target: 'tag' },
 ];
 
 describe('default-view — renderShowLayout', () => {

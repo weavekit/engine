@@ -118,8 +118,8 @@ describe('mapToSchema — DB reverse modeling', () => {
     expect(email.unique).toBe(true);
     const createdAt = customers.schema.fields.find((f) => f.name === 'created_at') as unknown as { default?: string };
     expect(createdAt.default).toBe('now');
-    const firstName = customers.schema.fields.find((f) => f.name === 'first_name') as unknown as { label?: string; required?: boolean };
-    expect(firstName.label).toBe('First name');
+    const firstName = customers.schema.fields.find((f) => f.name === 'first_name') as unknown as { labels?: Record<string, string>; required?: boolean };
+    expect(firstName.labels?.en).toBe('First name');
     expect(firstName.required).toBe(true);
   });
 

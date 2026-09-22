@@ -16,7 +16,8 @@ import type { ObjectRegistry } from './registry.js';
 export interface MetadataField {
   name: string;
   type: string;
-  label: string;
+  /** per-locale display names; resolve with `resolveLabel` (absent → use `name`) */
+  labels?: Record<string, string>;
   description?: string;
   required?: boolean;
   options?: string[];
@@ -53,7 +54,8 @@ export interface MetadataPermissions {
 /** full object descriptor: schema + the identity's effective permissions */
 export interface ObjectDescriptor {
   name: string;
-  label: string;
+  /** per-locale display names; resolve with `resolveLabel` (absent → use `name`) */
+  labels?: Record<string, string>;
   description?: string;
   titleTemplate?: string;
   fields: MetadataField[];
@@ -61,10 +63,10 @@ export interface ObjectDescriptor {
   permissions: MetadataPermissions;
 }
 
-/** minimal list entry (object name/label/description) */
+/** minimal list entry (object name/labels/description) */
 export interface ObjectListEntry {
   name: string;
-  label: string;
+  labels?: Record<string, string>;
   description?: string;
 }
 
@@ -72,7 +74,7 @@ function fieldDescription(field: FieldDefinition): MetadataField {
   const out: MetadataField = {
     name: field.name,
     type: field.type,
-    label: field.label ?? field.name,
+    labels: field.labels,
     description: field.description,
   };
   const readonly = field.system === true || (field as { formula?: string }).formula !== undefined;
@@ -117,7 +119,7 @@ export function listObjectDescriptors(registry: ObjectRegistry, roles: readonly 
   return registry
     .list()
     .filter((def) => resolvePermission(def, roles)?.read !== undefined)
-    .map((def) => ({ name: def.name, label: def.label ?? def.name, description: def.description }));
+    .map((def) => ({ name: def.name, labels: def.labels, description: def.description }));
 }
 
 /**
@@ -151,7 +153,7 @@ export function describeObject(
     .map((f) => ({ field: f.name, type: f.type, target: f.target }));
   return {
     name: def.name,
-    label: def.label ?? def.name,
+    labels: def.labels,
     description: def.description,
     titleTemplate: def.titleTemplate,
     fields,
@@ -164,12 +166,12 @@ export function describeObject(
 export function listObjectPermissions(
   registry: ObjectRegistry,
   roles: readonly string[],
-): Array<{ name: string; label: string; permissions: MetadataPermissions }> {
-  const out: Array<{ name: string; label: string; permissions: MetadataPermissions }> = [];
+): Array<{ name: string; labels?: Record<string, string>; permissions: MetadataPermissions }> {
+  const out: Array<{ name: string; labels?: Record<string, string>; permissions: MetadataPermissions }> = [];
   for (const def of registry.list()) {
     const perm = resolvePermission(def, roles);
     if (perm !== undefined) {
-      out.push({ name: def.name, label: def.label ?? def.name, permissions: permissionsOf(perm) });
+      out.push({ name: def.name, labels: def.labels, permissions: permissionsOf(perm) });
     }
   }
   return out;

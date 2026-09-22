@@ -9,6 +9,7 @@ export { migrateSchemaObject, schemaVersionOf, type MigratedSchema } from './mig
 export { buildGraph, RelationGraph, type BuildGraphOptions } from './graph.js';
 export { ObjectRegistry, defineObject } from './registry.js';
 export { generateObjectTypes } from './gen-types.js';
+export { resolveLabel } from './display.js';
 export {
   describeObject,
   listObjectDescriptors,

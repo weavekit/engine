@@ -9,10 +9,10 @@ import {
 
 const descriptor: ObjectDescriptor = {
   name: 'lead',
-  label: 'Lead',
+  labels: { en: 'Lead' },
   fields: [
-    { name: 'id', type: 'string', primary: true, label: 'ID' },
-    { name: 'name', type: 'string', label: 'Name' },
+    { name: 'id', type: 'string', primary: true, labels: { en: 'ID' } },
+    { name: 'name', type: 'string', labels: { en: 'Name' } },
     // `secret` is absent from fields — RBAC `fields.exclude` are stripped
     // server-side, so the descriptor a frontend sees never lists them
   ],
@@ -55,13 +55,13 @@ describe('layout-format — resolveFieldEntry', () => {
   });
 
   it('object disambiguates same-named child-table fields', () => {
-    const a: ObjectDescriptor = { ...descriptor, name: 'line_items', fields: [{ name: 'qty', type: 'integer', label: 'Qty A' }] };
-    const b: ObjectDescriptor = { ...descriptor, name: 'invoice_items', fields: [{ name: 'qty', type: 'integer', label: 'Qty B' }] };
+    const a: ObjectDescriptor = { ...descriptor, name: 'line_items', fields: [{ name: 'qty', type: 'integer', labels: { en: 'Qty A' } }] };
+    const b: ObjectDescriptor = { ...descriptor, name: 'invoice_items', fields: [{ name: 'qty', type: 'integer', labels: { en: 'Qty B' } }] };
     const map = new Map([
       [a.name, a],
       [b.name, b],
     ]);
-    expect(resolveFieldEntry({ object: 'line_items', field: 'qty' }, (n) => map.get(n))?.label).toBe('Qty A');
-    expect(resolveFieldEntry({ object: 'invoice_items', field: 'qty' }, (n) => map.get(n))?.label).toBe('Qty B');
+    expect(resolveFieldEntry({ object: 'line_items', field: 'qty' }, (n) => map.get(n))?.labels?.en).toBe('Qty A');
+    expect(resolveFieldEntry({ object: 'invoice_items', field: 'qty' }, (n) => map.get(n))?.labels?.en).toBe('Qty B');
   });
 });

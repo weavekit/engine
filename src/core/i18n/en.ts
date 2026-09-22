@@ -64,6 +64,8 @@ export const en = {
   'field.labels.notObject': 'object "{object}": labels must be a plain object of locale to string',
   'field.labels.locale.invalid': 'object "{object}": labels key "{locale}" is not a valid locale tag',
   'field.labels.value.string': 'object "{object}": labels value for "{locale}" must be a non-empty string',
+  'field.labels.empty': 'object "{object}": labels must declare at least one locale',
+  'object.label.removed': 'object "{object}": "label" is no longer supported — use "labels", e.g. { "en": "…" }',
   'permission.notObject': 'object "{object}": permissions must be an object',
   'permission.role.notObject': 'object "{object}": permission for role "{role}" must be an object',
   'permission.read.invalid': 'object "{object}": read for role "{role}" must be own/team/all',

@@ -67,6 +67,8 @@ export const id: Record<MessageKey, string> = {
   'field.labels.notObject': 'objek "{object}": labels harus berupa objek dari locale ke string',
   'field.labels.locale.invalid': 'objek "{object}": kunci labels "{locale}" bukan tag locale yang valid',
   'field.labels.value.string': 'objek "{object}": nilai labels untuk "{locale}" harus berupa string yang tidak kosong',
+  'field.labels.empty': 'objek "{object}": labels harus mendeklarasikan setidaknya satu locale',
+  'object.label.removed': 'objek "{object}": "label" tidak lagi didukung — gunakan "labels", mis. { "en": "…" }',
   'permission.notObject': 'objek "{object}": permissions harus berupa objek',
   'permission.role.notObject': 'objek "{object}": izin peran "{role}" harus berupa objek',
   'permission.read.invalid': 'objek "{object}": read peran "{role}" harus own/team/all',

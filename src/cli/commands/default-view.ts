@@ -1,17 +1,18 @@
 import { access, mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
-import { FIELD_TYPES } from '../../core/index.js';
+import { FIELD_TYPES, resolveLabel } from '../../core/index.js';
+import type { Locale } from '../../core/index.js';
 import type { LayoutField, LayoutFile, LayoutList } from '../../layout-format.js';
 
 /** fields that render as layout blocks, not flat form fields (details → subtable, multiRelation → phase 2) */
 const NON_FLAT_FIELD_TYPES = new Set<string>([FIELD_TYPES.DETAILS, FIELD_TYPES.MULTI_RELATION]);
 
-/** minimal field shape the generator reads (name + type) */
+/** minimal field shape the generator reads (name + type + display names) */
 export interface DefaultLayoutField {
   name: string;
   type: string;
-  /** display label (from the descriptor) — fallback for the generated field entry */
-  label?: string;
+  /** per-locale display names resolved for the field entry's `label` */
+  labels?: Record<string, string>;
 }
 
 function flatFields(fields: ReadonlyArray<DefaultLayoutField>): DefaultLayoutField[] {
@@ -26,14 +27,18 @@ function flatFields(fields: ReadonlyArray<DefaultLayoutField>): DefaultLayoutFie
  * arrangements are authored in the designer. A bare `section` cannot hold
  * `field` entries directly (strict rule: fields only live in `fields`).
  */
-export function renderShowLayout(objectName: string, fields: ReadonlyArray<DefaultLayoutField>): LayoutFile {
+export function renderShowLayout(
+  objectName: string,
+  fields: ReadonlyArray<DefaultLayoutField>,
+  locale?: Locale,
+): LayoutFile {
   const fieldEntries = flatFields(fields).map((f) => ({
     ui_id: f.name,
     type: 'field' as const,
     object: objectName,
     field: f.name,
-    // display label defaults to the field name when the schema has none
-    label: f.label ?? f.name,
+    // display label resolves from the schema labels, defaulting to the field name
+    label: resolveLabel(f.labels, f.name, locale),
   }));
   const column = (uiId: string, children: LayoutField[]) => ({
     ui_id: uiId,
@@ -119,10 +124,11 @@ export async function writeDefaultLayout(
   schemaDir: string,
   objectName: string,
   fields: ReadonlyArray<DefaultLayoutField>,
+  locale?: Locale,
 ): Promise<DefaultLayoutWriteResult> {
   const showPath = join('pages', objectName, 'show.layout.json');
   const listPath = join('pages', objectName, 'list.layout.json');
-  const wroteShow = await writeIfMissing(schemaDir, showPath, `${JSON.stringify(renderShowLayout(objectName, fields), null, 2)}\n`);
+  const wroteShow = await writeIfMissing(schemaDir, showPath, `${JSON.stringify(renderShowLayout(objectName, fields, locale), null, 2)}\n`);
   const wroteList = await writeIfMissing(schemaDir, listPath, `${JSON.stringify(renderListLayout(objectName, fields), null, 2)}\n`);
   return { paths: [showPath, listPath], written: wroteShow || wroteList };
 }
@@ -131,10 +137,11 @@ export async function writeDefaultLayout(
 export async function backfillDefaultViews(
   schemaDir: string,
   objects: Array<{ name: string; fields: ReadonlyArray<DefaultLayoutField> }>,
+  locale?: Locale,
 ): Promise<string[]> {
   const written: string[] = [];
   for (const object of objects) {
-    const result = await writeDefaultLayout(schemaDir, object.name, object.fields);
+    const result = await writeDefaultLayout(schemaDir, object.name, object.fields, locale);
     if (result.written) written.push(...result.paths);
   }
   return written;

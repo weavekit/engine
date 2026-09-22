@@ -67,6 +67,8 @@ export const vi: Record<MessageKey, string> = {
   'field.labels.notObject': 'đối tượng "{object}": labels phải là một đối tượng từ locale đến chuỗi',
   'field.labels.locale.invalid': 'đối tượng "{object}": khóa labels "{locale}" không phải là thẻ locale hợp lệ',
   'field.labels.value.string': 'đối tượng "{object}": giá trị labels cho "{locale}" phải là chuỗi không rỗng',
+  'field.labels.empty': 'đối tượng "{object}": labels phải khai báo ít nhất một locale',
+  'object.label.removed': 'đối tượng "{object}": "label" không còn được hỗ trợ — dùng "labels", ví dụ { "en": "…" }',
   'permission.notObject': 'đối tượng "{object}": permissions phải là một đối tượng',
   'permission.role.notObject': 'đối tượng "{object}": quyền của vai trò "{role}" phải là một đối tượng',
   'permission.read.invalid': 'đối tượng "{object}": read của vai trò "{role}" phải là own/team/all',

@@ -70,7 +70,7 @@ Always present:
 
 | Tool | Purpose |
 | --- | --- |
-| `list_objects` | objects the identity can read (`[{ name, label }]`) |
+| `list_objects` | objects the identity can read (`[{ name, labels }]`) |
 | `describe_object` | schema + the identity's effective permissions |
 
 Tool shaping follows RBAC exactly: an object with no listed role yields **zero** tools; `update: []`

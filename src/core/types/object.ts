@@ -16,8 +16,11 @@ export interface ObjectDefinition {
    */
   schemaVersion?: number;
   name: string;
-  label?: string;
-  /** per-locale display names, e.g. { zh: '客户', en: 'Customer' } */
+  /**
+   * display names keyed by locale, e.g. { en: 'Customer', zh: '客户' } — the single
+   * source of truth for the object's human-readable name. Resolve with
+   * `resolveLabel` (falls back to `name` when absent).
+   */
   labels?: Record<string, string>;
   description?: string;
   fields: FieldDefinition[];

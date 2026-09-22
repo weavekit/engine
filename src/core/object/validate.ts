@@ -50,7 +50,7 @@ const SEQUENCE_PLACEHOLDER = /\{seq(?::\d+)?\}/;
 const TITLE_PLACEHOLDER_RE = /\{(\w+)\}/g;
 
 /** keys always allowed on any field */
-const BASE_KEYS = ['name', 'type', 'label', 'labels', 'description', 'primary', 'system', 'sensitive'] as const;
+const BASE_KEYS = ['name', 'type', 'labels', 'description', 'primary', 'system', 'sensitive'] as const;
 
 /** extra keys allowed per field type */
 const EXTRA_KEYS: Record<FieldType, readonly string[]> = {
@@ -136,6 +136,7 @@ function validateLabels(raw: unknown, vc: Vc): Record<string, string> | undefine
     }
     result[locale] = value;
   }
+  if (Object.keys(result).length === 0) fail(vc, 'field.labels.empty');
   return result;
 }
 
@@ -225,7 +226,6 @@ function validateField(raw: unknown, vc: Vc, allowedFieldTypes?: readonly string
 
   checkAllowedKeys(raw, type, vc);
 
-  const label = expectString(raw, 'label', vc);
   const labels = validateLabels(raw.labels, vc);
   const description = expectString(raw, 'description', vc);
   const primary = expectBoolean(raw, 'primary', vc);
@@ -234,7 +234,7 @@ function validateField(raw: unknown, vc: Vc, allowedFieldTypes?: readonly string
   const required = expectBoolean(raw, 'required', vc);
   const unique = expectBoolean(raw, 'unique', vc);
 
-  const base = { name, label, labels, description, primary, system, sensitive };
+  const base = { name, labels, description, primary, system, sensitive };
   const formula = parseFormulaAttr(raw, vc);
 
   switch (type) {
@@ -633,7 +633,7 @@ export function validateObject(raw: unknown, options?: ValidateOptions): ObjectD
     schemaVersion = rawVersion;
   }
 
-  const label = expectString(raw, 'label', vc);
+  if (raw.label !== undefined) fail(vc, 'object.label.removed');
   const labels = validateLabels(raw.labels, vc);
   const description = expectString(raw, 'description', vc);
 
@@ -685,7 +685,6 @@ export function validateObject(raw: unknown, options?: ValidateOptions): ObjectD
   return {
     schemaVersion,
     name,
-    label,
     labels,
     description,
     fields,

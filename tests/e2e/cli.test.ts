@@ -136,7 +136,7 @@ async function tableExists(table: string): Promise<boolean> {
 const LEADS_V2 = JSON.stringify(
   {
     name: "leads",
-    label: "Leads",
+    labels: { en: "Leads" },
     fields: [
       { name: "id", type: "string", primary: true },
       { name: "title", type: "string", required: true },
@@ -148,11 +148,11 @@ const LEADS_V2 = JSON.stringify(
   2,
 );
 
-/** label-only change — no DDL; exercises dev hot-reload without touching tables */
+/** labels-only change — no DDL; exercises dev hot-reload without touching tables */
 const LEADS_V3 = JSON.stringify(
   {
     name: "leads",
-    label: "Leads Relabeled",
+    labels: { en: "Leads Relabeled" },
     fields: [
       { name: "id", type: "string", primary: true },
       { name: "title", type: "string", required: true },
@@ -597,7 +597,7 @@ maybe("CLI weave E2E (spawn + local PG + .tmp/weavekit-project)", () => {
     }
   }, 90000);
 
-  it("dev hot reload: schema change → sync + rebuild (label change zero DDL) + service available", async () => {
+  it("dev hot reload: schema change → sync + rebuild (labels change zero DDL) + service available", async () => {
     await rmProjectDir();
     await mkdir(PROJECT_DIR, { recursive: true });
     const port = 3500 + Math.floor(Math.random() * 200);
@@ -649,7 +649,7 @@ maybe("CLI weave E2E (spawn + local PG + .tmp/weavekit-project)", () => {
         join(PROJECT_DIR, "objects", "leads", "schema.json"),
         LEADS_V3,
       );
-      // dev syncs Git→PG on every reload (per-object alter); label change is zero DDL, rebuild suffices
+      // dev syncs Git→PG on every reload (per-object alter); labels change is zero DDL, rebuild suffices
       const regeneratedReady = await waitFor(async () => {
         try {
           const content = await readFile(

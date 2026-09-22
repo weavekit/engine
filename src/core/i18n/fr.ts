@@ -67,6 +67,8 @@ export const fr: Record<MessageKey, string> = {
   'field.labels.notObject': 'objet "{object}" : labels doit être un objet de locale vers chaîne',
   'field.labels.locale.invalid': 'objet "{object}" : la clé labels "{locale}" n\'est pas une étiquette de locale valide',
   'field.labels.value.string': 'objet "{object}" : la valeur labels pour "{locale}" doit être une chaîne non vide',
+  'field.labels.empty': 'objet "{object}" : labels doit déclarer au moins une locale',
+  'object.label.removed': 'objet "{object}" : "label" n\'est plus pris en charge — utilisez "labels", par ex. { "en": "…" }',
   'permission.notObject': 'objet "{object}" : permissions doit être un objet',
   'permission.role.notObject': 'objet "{object}" : la permission du rôle "{role}" doit être un objet',
   'permission.read.invalid': 'objet "{object}" : read du rôle "{role}" doit être own/team/all',

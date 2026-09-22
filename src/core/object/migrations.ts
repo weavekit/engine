@@ -1,8 +1,30 @@
 import type { Locale } from '../i18n/index.js';
+import { DEFAULT_LOCALE } from '../i18n/index.js';
 import { SchemaError } from '../types/errors.js';
 import { LEGACY_SCHEMA_FORMAT_VERSION, SCHEMA_FORMAT_VERSION } from './schema-version.js';
 
 type RawObject = Record<string, unknown>;
+
+function isRecord(value: unknown): value is RawObject {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/** fold a legacy scalar `label` into `labels[default locale]` (existing labels win) */
+function labelToLabels(raw: RawObject): RawObject {
+  if (typeof raw.label !== 'string') return raw;
+  const { label, ...rest } = raw;
+  const existing = isRecord(raw.labels) ? raw.labels : {};
+  return { ...rest, labels: { [DEFAULT_LOCALE]: label, ...existing } };
+}
+
+/** v1 → v2: object- and field-level `label` become a per-locale `labels` map */
+function migrateLabelsToMap(raw: RawObject): RawObject {
+  const migrated = labelToLabels(raw);
+  const fields = Array.isArray(migrated.fields)
+    ? migrated.fields.map((field) => (isRecord(field) ? labelToLabels(field) : field))
+    : migrated.fields;
+  return { ...migrated, fields, schemaVersion: 2 };
+}
 
 /**
  * On-disk format migrations: `from`-version → a transform producing version+1.
@@ -12,6 +34,8 @@ type RawObject = Record<string, unknown>;
 const MIGRATIONS: Record<number, (raw: RawObject) => RawObject> = {
   // v0 (unversioned) → v1: make the format version explicit.
   0: (raw) => ({ ...raw, schemaVersion: 1 }),
+  // v1 → v2: replace the scalar `label` with the per-locale `labels` map.
+  1: migrateLabelsToMap,
 };
 
 /**

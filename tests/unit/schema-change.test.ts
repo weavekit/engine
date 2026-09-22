@@ -36,7 +36,7 @@ describe('schemaChange — field-level diff + commit message', () => {
         'products',
         JSON.stringify({
           name: 'products',
-          label: 'Products',
+          labels: { en: 'Products' },
           fields: [
             { name: 'id', type: 'string', primary: true },
             { name: 'name', type: 'string', required: true },
@@ -53,7 +53,7 @@ describe('schemaChange — field-level diff + commit message', () => {
         'products',
         JSON.stringify({
           name: 'products',
-          label: 'Products v2',
+          labels: { en: 'Products v2' },
           alter: true,
           fields: [
             { name: 'id', type: 'string', primary: true },
@@ -69,7 +69,7 @@ describe('schemaChange — field-level diff + commit message', () => {
       expect(changes.some((c) => c.kind === 'field.added' && c.field === 'price2' && c.type === 'currency')).toBe(true);
       expect(changes.some((c) => c.kind === 'field.removed' && c.field === 'name' && c.type === 'string')).toBe(true);
       expect(changes.some((c) => c.kind === 'object.updated' && c.attr === 'alter' && c.after === true)).toBe(true);
-      expect(changes.some((c) => c.kind === 'object.updated' && c.attr === 'label')).toBe(true);
+      expect(changes.some((c) => c.kind === 'object.updated' && c.attr === 'labels')).toBe(true);
       expect(changes.some((c) => c.kind === 'permissions.changed' && c.role === 'admin')).toBe(true);
     } finally {
       await rm(root, { recursive: true, force: true });

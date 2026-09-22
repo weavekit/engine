@@ -7,7 +7,7 @@ import { authenticateRequest, checkRateLimit } from './common.js';
  * Permissions route (M11, framework-agnostic): the identity's effective
  * permissions per object — the data source for Refine `accessControlProvider`
  * / frontend RBAC menu & action gating (no more 403 trial-and-error).
- *   GET {prefix}/permissions → { objects: [{ name, label, permissions }] }
+ *   GET {prefix}/permissions → { objects: [{ name, labels?, permissions }] }
  * Objects with no resolved permission for the identity are omitted.
  */
 export function registerPermissionsRoutes(app: FastifyInstance, deps: RestDeps, options: RestOptions = {}): void {

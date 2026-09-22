@@ -1,4 +1,6 @@
 import { FIELD_TYPES } from '../types/values.js';
+import { resolveLabel } from '../object/display.js';
+import type { Locale } from '../i18n/index.js';
 import type { FieldDefinition, ObjectDefinition } from '../types/index.js';
 import { buildExpectedTable } from './diff.js';
 import type { ExpectedFk } from './diff.js';
@@ -149,6 +151,7 @@ function schemaTypeOf(field: FieldDefinition, fk: ExpectedFk | undefined): strin
 export function buildMappingReport(
   defs: readonly ObjectDefinition[],
   actual: ReadonlyMap<string, ActualTable>,
+  locale?: Locale,
 ): MappingReport {
   const defsMap = new Map(defs.map((def) => [def.name, def]));
   const tables: MappingTable[] = [];
@@ -262,7 +265,7 @@ export function buildMappingReport(
     tables.push({
       object: def.name,
       table: def.name,
-      label: def.label,
+      label: def.labels !== undefined ? resolveLabel(def.labels, def.name, locale) : undefined,
       exists: actualTable !== undefined,
       columns,
       indexes,

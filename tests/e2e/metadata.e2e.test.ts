@@ -96,7 +96,6 @@ maybe('M11 frontend metadata contract E2E (metadata / permissions / audit, local
       expect(permsSales.statusCode).toBe(200);
       expect(permsSales.json().objects[0]).toEqual({
         name: 'lead',
-        label: 'lead',
         permissions: { read: 'own', create: true, update: ['name'], delete: true, excludedFields: ['secret'], createFields: null },
       });
     } finally {

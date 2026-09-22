@@ -130,6 +130,7 @@ export async function dev(cwd: string, options: DevOptions): Promise<void> {
     const written = await backfillDefaultViews(
       schemaDir,
       sync.registry.list().map((o) => ({ name: o.name, fields: o.fields })),
+      config.locale,
     );
     if (written.length > 0) p.log(`generated default page layouts for ${written.length} object(s)`);
   }

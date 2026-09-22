@@ -12,6 +12,7 @@ import { describe, it, expect } from '../helpers/test.js';import {
   LOCALES,
   ObjectRegistry,
   pt,
+  resolveLabel,
   ru,
   SchemaError,
   SUPPORTED_LOCALES,
@@ -132,15 +133,32 @@ describe('validateObject — labels localization', () => {
   it('field-level + object-level labels valid', () => {
     const def = validateObject({
       name: 'customer',
-      label: 'Customer',
       labels: { zh: '客户', 'zh-CN': '客户' },
       fields: [
         { name: 'id', type: 'string', primary: true },
-        { name: 'name', type: 'string', label: 'Name', labels: { zh: '名称' } },
+        { name: 'name', type: 'string', labels: { zh: '名称' } },
       ],
     });
     expect(def.labels).toEqual({ zh: '客户', 'zh-CN': '客户' });
     expect(def.fields[1]).toMatchObject({ labels: { zh: '名称' } });
+  });
+
+  it('legacy scalar label rejected (use labels)', () => {
+    expect(() =>
+      validateObject({
+        ...valid,
+        label: 'Customer',
+      }),
+    ).toThrow(/no longer supported/);
+  });
+
+  it('empty labels object rejected', () => {
+    expect(() =>
+      validateObject({
+        ...valid,
+        labels: {},
+      }),
+    ).toThrow(/at least one locale/);
   });
 
   it('labels not an object rejected', () => {
@@ -185,5 +203,14 @@ describe('i18n — registry locale propagation', () => {
     const reg = new ObjectRegistry();
     reg.register(valid);
     expect(() => reg.register(valid)).toThrow(/already defined/);
+  });
+});
+
+describe('resolveLabel — locale fallback order', () => {
+  it('prefers the requested locale, then the default locale, then the first entry, then the fallback name', () => {
+    expect(resolveLabel({ en: 'Customer', zh: '客户' }, 'customer', 'zh')).toBe('客户');
+    expect(resolveLabel({ en: 'Customer', zh: '客户' }, 'customer', 'ja')).toBe('Customer');
+    expect(resolveLabel({ fr: 'Client' }, 'customer', 'ja')).toBe('Client');
+    expect(resolveLabel(undefined, 'customer')).toBe('customer');
   });
 });

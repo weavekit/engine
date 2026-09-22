@@ -67,6 +67,8 @@ export const ko: Record<MessageKey, string> = {
   'field.labels.notObject': '객체 "{object}": labels는 locale에서 문자열로의 객체여야 합니다',
   'field.labels.locale.invalid': '객체 "{object}": labels 키 "{locale}"은(는) 유효한 locale 태그가 아닙니다',
   'field.labels.value.string': '객체 "{object}": "{locale}"에 대한 labels 값은 비어 있지 않은 문자열이어야 합니다',
+  'field.labels.empty': '객체 "{object}": labels는 최소 하나의 locale을 선언해야 합니다',
+  'object.label.removed': '객체 "{object}": "label"은(는) 더 이상 지원되지 않습니다 — "labels"를 사용하세요(예: { "en": "…" })',
   'permission.notObject': '객체 "{object}": permissions는 객체여야 합니다',
   'permission.role.notObject': '객체 "{object}": 역할 "{role}"의 권한은 객체여야 합니다',
   'permission.read.invalid': '객체 "{object}": 역할 "{role}"의 read는 own/team/all이어야 합니다',

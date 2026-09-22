@@ -13,9 +13,10 @@ import {
 const registry = new ObjectRegistry();
 registry.register({
   name: 'lead',
+  labels: { en: 'Lead' },
   fields: [
     { name: 'id', type: 'string', primary: true },
-    { name: 'name', type: 'string', required: true },
+    { name: 'name', type: 'string', required: true, labels: { en: 'Name' } },
     { name: 'status', type: 'enum', options: ['open', 'won', 'lost'], multiple: true },
     { name: 'category_id', type: 'relation', target: 'category' },
     { name: 'owner_id', type: 'string', [ROW_SCOPE_MARKERS.OWNERSHIP]: true },
@@ -36,11 +37,12 @@ describe('describeObject — single-object schema + effective permissions (M11 s
   it('fields described by type semantics (enum options/multiple, relation target), excluded fields stripped', () => {
     const desc = describeObject(registry, 'lead', sales, DEFAULT_LOCALE);
     expect(desc.name).toBe('lead');
+    expect(desc.labels).toEqual({ en: 'Lead' });
     expect(desc.titleTemplate).toBe('{name}');
 
     const byName = new Map(desc.fields.map((f) => [f.name, f]));
     expect(byName.get('id')).toMatchObject({ name: 'id', type: 'string', primary: true });
-    expect(byName.get('name')).toMatchObject({ name: 'name', type: 'string', required: true });
+    expect(byName.get('name')).toMatchObject({ name: 'name', type: 'string', required: true, labels: { en: 'Name' } });
     expect(byName.get('status')).toMatchObject({ name: 'status', type: 'enum', options: ['open', 'won', 'lost'], multiple: true });
     expect(byName.get('category_id')).toMatchObject({ name: 'category_id', type: 'relation', target: 'category' });
     // excluded field is stripped from fields but listed in permissions.excludedFields

@@ -38,16 +38,16 @@ maybe('introspect E2E (real PG)', () => {
       expect(report.objects.map((o) => o.name)).toEqual([CUSTOMER, ORDER]);
 
       const customer = report.objects.find((o) => o.name === CUSTOMER)!;
-      expect(customer.schema.label).toBe('Customer');
+      expect(customer.schema.labels?.en).toBe('Customer');
       expect(customer.schema.alter).toBe(false);
       const email = customer.schema.fields.find((f) => f.name === 'email') as unknown as {
         unique?: boolean;
         required?: boolean;
-        label?: string;
+        labels?: Record<string, string>;
       };
       expect(email.unique).toBe(true);
       expect(email.required).toBe(true);
-      expect(email.label).toBe('Email');
+      expect(email.labels?.en).toBe('Email');
       const createdAt = customer.schema.fields.find((f) => f.name === 'created_at') as unknown as { default?: string };
       expect(createdAt.default).toBe('now');
 

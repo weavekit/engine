@@ -14,7 +14,9 @@ function renderSchema(name: string): { source: string; fields: Array<{ name: str
   const object = {
     schemaVersion: SCHEMA_FORMAT_VERSION,
     name,
-    label: name.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+    labels: {
+      en: name.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+    },
     fields: [
       { name: "id", type: FIELD_TYPES.STRING, primary: true },
       { name: "title", type: FIELD_TYPES.STRING, required: true },
@@ -202,7 +204,7 @@ export async function objectCreate(
       `pages/${name}/show.client.js`,
       `pages/${name}/list.client.js`,
     );
-    const layout = await writeDefaultLayout(schemaDir, name, schema.fields);
+    const layout = await writeDefaultLayout(schemaDir, name, schema.fields, config.locale);
     layoutPath = layout.paths[0];
     if (layout.written) files.push(...layout.paths);
   }

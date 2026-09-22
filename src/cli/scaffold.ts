@@ -17,7 +17,7 @@ const TYPE_NARRATIVES: Record<ProjectType, string> = {
 const LEADS_OBJECT = {
   schemaVersion: SCHEMA_FORMAT_VERSION,
   name: 'leads',
-  label: 'Leads',
+  labels: { en: 'Leads' },
   fields: [
     { name: 'id', type: FIELD_TYPES.STRING, primary: true },
     { name: 'title', type: FIELD_TYPES.STRING, required: true },

@@ -114,7 +114,7 @@ export async function schemaMap(cwd: string, options: SchemaMapOptions): Promise
   let report;
   try {
     const actual = await inspectSchema(pool, { detail: true });
-    report = buildMappingReport(defs, actual);
+    report = buildMappingReport(defs, actual, config.locale);
   } finally {
     await pool.end();
   }

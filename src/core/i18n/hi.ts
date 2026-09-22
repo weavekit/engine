@@ -67,6 +67,8 @@ export const hi: Record<MessageKey, string> = {
   'field.labels.notObject': 'ऑब्जेक्ट "{object}": labels locale से स्ट्रिंग का एक ऑब्जेक्ट होना चाहिए',
   'field.labels.locale.invalid': 'ऑब्जेक्ट "{object}": labels कुंजी "{locale}" मान्य locale टैग नहीं है',
   'field.labels.value.string': 'ऑब्जेक्ट "{object}": "{locale}" के लिए labels मान गैर-रिक्त स्ट्रिंग होना चाहिए',
+  'field.labels.empty': 'ऑब्जेक्ट "{object}": labels को कम से कम एक locale घोषित करना चाहिए',
+  'object.label.removed': 'ऑब्जेक्ट "{object}": "label" अब समर्थित नहीं है — "labels" का उपयोग करें, उदाहरण { "en": "…" }',
   'permission.notObject': 'ऑब्जेक्ट "{object}": permissions एक ऑब्जेक्ट होनी चाहिए',
   'permission.role.notObject': 'ऑब्जेक्ट "{object}": भूमिका "{role}" की अनुमति एक ऑब्जेक्ट होनी चाहिए',
   'permission.read.invalid': 'ऑब्जेक्ट "{object}": भूमिका "{role}" का read own/team/all होना चाहिए',

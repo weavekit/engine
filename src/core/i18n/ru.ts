@@ -67,6 +67,8 @@ export const ru: Record<MessageKey, string> = {
   'field.labels.notObject': 'объект "{object}": labels должен быть объектом от locale к строке',
   'field.labels.locale.invalid': 'объект "{object}": ключ labels "{locale}" не является допустимым тегом locale',
   'field.labels.value.string': 'объект "{object}": значение labels для "{locale}" должно быть непустой строкой',
+  'field.labels.empty': 'объект "{object}": labels должен объявлять хотя бы одну локаль',
+  'object.label.removed': 'объект "{object}": "label" больше не поддерживается — используйте "labels", например { "en": "…" }',
   'permission.notObject': 'объект "{object}": permissions должен быть объектом',
   'permission.role.notObject': 'объект "{object}": разрешение роли "{role}" должно быть объектом',
   'permission.read.invalid': 'объект "{object}": read роли "{role}" должен быть own/team/all',

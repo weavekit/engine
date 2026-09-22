@@ -1,5 +1,6 @@
 import { describe, it, expect } from '../helpers/test.js';
 import {
+  DEFAULT_LOCALE,
   migrateSchemaObject,
   parseSchema,
   SCHEMA_FORMAT_VERSION,
@@ -58,6 +59,19 @@ describe('schema format version', () => {
     const current = migrateSchemaObject({ ...base, schemaVersion: SCHEMA_FORMAT_VERSION });
     expect(current.migrated).toBe(false);
     expect(current.object.schemaVersion).toBe(SCHEMA_FORMAT_VERSION);
+  });
+
+  it('migrates legacy object + field label into labels[default locale]', () => {
+    const parsed = parseSchema(
+      JSON.stringify({
+        name: 'lead',
+        label: 'Lead',
+        fields: [{ name: 'id', type: 'string', primary: true, label: 'ID' }],
+      }),
+    );
+    expect(parsed.schemaVersion).toBe(SCHEMA_FORMAT_VERSION);
+    expect(parsed.labels).toEqual({ [DEFAULT_LOCALE]: 'Lead' });
+    expect(parsed.fields[0]?.labels).toEqual({ [DEFAULT_LOCALE]: 'ID' });
   });
 
   it('schemaVersionOf reports legacy 0 for unversioned input', () => {

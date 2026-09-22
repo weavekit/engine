@@ -1,6 +1,9 @@
 import type { MetadataField, ObjectDescriptor } from './core/object/describe.js';
 import type { MessageKey } from './core/i18n/en.js';
 
+/** per-locale display-name resolver, re-exported for browser consumers (pure, no Node runtime) */
+export { resolveLabel } from './core/object/display.js';
+
 /**
  * Page layout format (hybrid: app-level pages live flat as `pages/<id>.layout.json`
  * — e.g. `pages/app.layout.json` — while object pages live in per-object dirs
@@ -14,8 +17,9 @@ import type { MessageKey } from './core/i18n/en.js';
  * dialog). Object binding happens only via `LayoutField`/`LayoutSubtable`/
  * `LayoutList` — generic blocks never bind an object.
  *
- * **Hard rule**: this file must stay import-free at runtime — only `import
- * type` (erased at compile time). Guarded by `tests/unit/values-browser-safe.test.ts`.
+ * **Hard rule**: this file must stay free of Node runtime imports — `import type`
+ * (erased at compile time) plus the one pure `resolveLabel` re-export (no Node
+ * dependencies). Guarded by `tests/unit/values-browser-safe.test.ts`.
  */
 
 export const VIEWPORTS = {

@@ -48,6 +48,7 @@ const FIELD_ATTRS = [
   'target',
   'onDelete',
   'formula',
+  'labels',
 ] as const;
 
 type FieldLike = FieldDefinition & {
@@ -103,8 +104,8 @@ function diffObject(cur: ObjectDefinition, old: ObjectDefinition | undefined): S
     return out;
   }
 
-  if (cur.label !== old.label) {
-    out.push({ kind: 'object.updated', object, attr: 'label', before: old.label, after: cur.label });
+  if (JSON.stringify(cur.labels ?? null) !== JSON.stringify(old.labels ?? null)) {
+    out.push({ kind: 'object.updated', object, attr: 'labels', before: old.labels, after: cur.labels });
   }
   if (cur.titleTemplate !== old.titleTemplate) {
     out.push({ kind: 'object.updated', object, attr: 'titleTemplate', before: old.titleTemplate, after: cur.titleTemplate });

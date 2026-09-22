@@ -1,3 +1,4 @@
+import { DEFAULT_LOCALE } from '../i18n/index.js';
 import { validateObject } from '../object/validate.js';
 import { FIELD_TYPES, ON_DELETE_ACTIONS } from '../types/values.js';
 import type { FieldDefinition, FieldType, ObjectDefinition } from '../types/index.js';
@@ -111,7 +112,7 @@ function normalizeDefault(raw: string, type: FieldType): DefaultResult {
 /** map one PostgreSQL column to an engine field (undefined = unsupported; a warning is pushed) */
 function mapColumn(col: ActualColumn, table: ActualTable, warnings: string[]): FieldDefinition | undefined {
   const base: Record<string, unknown> = { name: col.name };
-  if (col.comment !== undefined) base.label = col.comment;
+  if (col.comment !== undefined) base.labels = { [DEFAULT_LOCALE]: col.comment };
   const required = col.isNullable ? undefined : true;
   const unique = table.uniqueColumns?.includes(col.name) === true && !table.pk.includes(col.name);
 
@@ -235,7 +236,7 @@ export function mapToSchema(tables: Map<string, ActualTable>, options: Introspec
     }
 
     const schema: Record<string, unknown> = { name, alter: false, fields };
-    if (table.comment !== undefined) schema.label = table.comment;
+    if (table.comment !== undefined) schema.labels = { [DEFAULT_LOCALE]: table.comment };
 
     try {
       const validated = validateObject(schema, { nameHint: name });

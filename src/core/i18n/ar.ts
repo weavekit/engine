@@ -67,6 +67,8 @@ export const ar: Record<MessageKey, string> = {
   'field.labels.notObject': 'الكائن "{object}": labels يجب أن يكون كائنًا من locale إلى نص',
   'field.labels.locale.invalid': 'الكائن "{object}": مفتاح labels "{locale}" ليس وسم locale صالحًا',
   'field.labels.value.string': 'الكائن "{object}": قيمة labels لـ "{locale}" يجب أن تكون نصًا غير فارغ',
+  'field.labels.empty': 'الكائن "{object}": يجب أن يعلن labels عن لغة (locale) واحدة على الأقل',
+  'object.label.removed': 'الكائن "{object}": لم يعد "label" مدعومًا — استخدم "labels"، مثال { "en": "…" }',
   'permission.notObject': 'الكائن "{object}": permissions يجب أن يكون كائنًا',
   'permission.role.notObject': 'الكائن "{object}": صلاحية الدور "{role}" يجب أن تكون كائنًا',
   'permission.read.invalid': 'الكائن "{object}": read للدور "{role}" يجب أن يكون own/team/all',

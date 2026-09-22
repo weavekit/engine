@@ -67,6 +67,8 @@ export const ja: Record<MessageKey, string> = {
   'field.labels.notObject': 'オブジェクト「{object}」：labels は locale から文字列へのオブジェクトでなければなりません',
   'field.labels.locale.invalid': 'オブジェクト「{object}」：labels のキー「{locale}」は有効な locale タグではありません',
   'field.labels.value.string': 'オブジェクト「{object}」：labels の「{locale}」の値は空でない文字列でなければなりません',
+  'field.labels.empty': 'オブジェクト「{object}」：labels は少なくとも1つの locale を宣言する必要があります',
+  'object.label.removed': 'オブジェクト「{object}」："label" はサポートされなくなりました — "labels" を使用してください（例: { "en": "…" }）',
   'permission.notObject': 'オブジェクト「{object}」：permissions はオブジェクトでなければなりません',
   'permission.role.notObject': 'オブジェクト「{object}」：ロール「{role}」の権限はオブジェクトでなければなりません',
   'permission.read.invalid': 'オブジェクト「{object}」：ロール「{role}」の read は own/team/all である必要があります',

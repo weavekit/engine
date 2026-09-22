@@ -10,7 +10,7 @@ const maybe = url !== undefined ? describe : describe.skip;
 
 const LEAD = JSON.stringify({
   name: 'lead',
-  label: 'Lead',
+  labels: { en: 'Lead' },
   fields: [
     { name: 'id', type: 'string', primary: true },
     { name: 'title', type: 'string' },
@@ -19,7 +19,7 @@ const LEAD = JSON.stringify({
 
 const LEAD_V2 = JSON.stringify({
   name: 'lead',
-  label: 'Lead',
+  labels: { en: 'Lead' },
   alter: true,
   fields: [
     { name: 'id', type: 'string', primary: true },
@@ -31,7 +31,7 @@ const LEAD_V2 = JSON.stringify({
 /** same schema as LEAD_V2 but WITHOUT `alter` — existing-table change must be rejected */
 const LEAD_DRIFT = JSON.stringify({
   name: 'lead',
-  label: 'Lead',
+  labels: { en: 'Lead' },
   fields: [
     { name: 'id', type: 'string', primary: true },
     { name: 'title', type: 'string' },

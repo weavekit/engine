@@ -66,6 +66,8 @@ export const zh: Record<MessageKey, string> = {
   'field.labels.notObject': '对象 "{object}"：labels 必须是 locale 到字符串的对象',
   'field.labels.locale.invalid': '对象 "{object}"：labels 键 "{locale}" 不是合法 locale 标签',
   'field.labels.value.string': '对象 "{object}"：labels 的 "{locale}" 值必须是非空字符串',
+  'field.labels.empty': '对象 "{object}"：labels 必须至少声明一个 locale',
+  'object.label.removed': '对象 "{object}"：不再支持 "label"，请改用 "labels"，例如 { "en": "…" }',
   'permission.notObject': '对象 "{object}"：permissions 必须是对象',
   'permission.role.notObject': '对象 "{object}"：角色 "{role}" 的权限必须是对象',
   'permission.read.invalid': '对象 "{object}"：角色 "{role}" 的 read 必须是 own/team/all',

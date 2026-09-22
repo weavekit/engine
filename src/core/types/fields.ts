@@ -10,9 +10,10 @@ export type { ScalarFieldType, FieldType, OnDeleteAction, SequenceCycle } from '
 export interface FieldBase {
   name: string;
   type: FieldType;
-  /** default display name (English/fallback); see `labels` for per-locale names */
-  label?: string;
-  /** per-locale display names, e.g. { zh: 'label-zh', en: 'Customer' } */
+  /**
+   * display names keyed by locale, e.g. { en: 'Customer', zh: '客户' }. Resolve
+   * with `resolveLabel` (falls back to `name` when absent).
+   */
   labels?: Record<string, string>;
   /** free-text description surfaced via describe_object */
   description?: string;

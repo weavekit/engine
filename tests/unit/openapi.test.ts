@@ -16,7 +16,7 @@ const FULL: OpenApiCapabilities = {
 
 const lead = {
   name: 'lead',
-  label: 'Lead',
+  labels: { en: 'Lead' },
   fields: [
     { name: 'id', type: 'string', primary: true },
     { name: 'title', type: 'string', required: true, minLength: 1 },

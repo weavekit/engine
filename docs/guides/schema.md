@@ -8,7 +8,7 @@ people may use it. Objects live in `objects/<name>/`, and the folder name must m
 // objects/lead/schema.json
 {
   "name": "lead",
-  "label": "Lead",
+  "labels": { "en": "Lead" },
   "fields": [
     { "name": "id", "type": "string", "primary": true },
     { "name": "title", "type": "string", "required": true },
@@ -62,7 +62,8 @@ the version is an engine change that ships together with a migration.
 - `required: true` — NOT NULL; required on create.
 - `unique: true` — unique constraint.
 - `default` — default value (typed per field; `datetime` supports `"now"`).
-- `label` / `labels` — display names (per-locale via `labels`).
+- `labels` — display names keyed by locale, e.g. `{ "en": "Lead", "zh": "线索" }`. The engine
+  resolves the requested locale, then `en`, then the first entry, then the field name.
 - `system: true` — user-declared reserved marker (the engine never recognizes fields by name).
 - `ownership: true` / `team: true` — RBAC row-scope markers (string fields, at most one each).
 
