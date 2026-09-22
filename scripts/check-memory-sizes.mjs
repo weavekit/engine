@@ -29,7 +29,7 @@ function walk(dir) {
 function check(file) {
   const rel = relative(ROOT, file).split(sep).join('/');
   const isAgents = rel === 'AGENTS.md' || rel.endsWith('/AGENTS.md');
-  const isMemory = /\/MEMORY\//.test(rel) && rel.endsWith('.md');
+  const isMemory = /(?:^|\/)MEMORY\//.test(rel) && rel.endsWith('.md');
   if (!isAgents && !isMemory) return;
 
   const kind = isAgents ? 'AGENTS' : 'MEMORY';
