@@ -11,6 +11,7 @@ export type {
   DateField,
   JsonField,
   EnumField,
+  EnumOptions,
   RelationField,
   DetailsField,
   MultiRelationField,

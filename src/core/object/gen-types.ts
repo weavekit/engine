@@ -39,6 +39,7 @@ function relatedPk(target: string, defs: Map<string, ObjectDefinition>, registry
 }
 
 function enumType(field: EnumField): string {
+  if (!Array.isArray(field.options)) return field.multiple === true ? 'string[]' : 'string';
   const union = field.options.map((option) => quote(option)).join(' | ');
   return field.multiple === true ? `(${union})[]` : union;
 }

@@ -309,37 +309,64 @@ export function validateField(raw: unknown, vc: Vc, options: FieldValidateOption
       validateDefault(raw.default, type, vc);
       return { ...base, type: FIELD_TYPES.JSON, required, default: raw.default };
     case FIELD_TYPES.ENUM: {
-      const options = raw.options;
-      if (!Array.isArray(options) || options.length === 0) fail(vc, 'field.enum.options.required');
-      if (!options.every((o) => typeof o === 'string')) fail(vc, 'field.enum.options.strings');
-      const seen = new Set<string>();
-      for (const o of options) {
-        if (seen.has(o)) fail(vc, 'field.enum.options.duplicate', { value: o });
-        seen.add(o);
-      }
+      const rawOptions = raw.options;
       const multiple = expectBoolean(raw, 'multiple', vc);
       if (multiple === true && primary === true) fail(vc, 'field.enum.multiple.primary');
       if (multiple === true && unique === true) fail(vc, 'field.enum.multiple.unique');
-      if (multiple === true) {
-        if (raw.default !== undefined) {
-          if (!Array.isArray(raw.default) || !raw.default.every((v) => typeof v === 'string')) {
-            fail(vc, 'field.enum.multiple.default.array');
-          }
-          for (const v of raw.default) {
-            if (!(options as string[]).includes(v)) fail(vc, 'field.enum.multiple.default.inOptions', { value: v });
-          }
+
+      // inline options: a non-empty, unique list of strings
+      if (Array.isArray(rawOptions)) {
+        if (rawOptions.length === 0) fail(vc, 'field.enum.options.required');
+        if (!rawOptions.every((o) => typeof o === 'string')) fail(vc, 'field.enum.options.strings');
+        const seen = new Set<string>();
+        for (const o of rawOptions) {
+          if (seen.has(o)) fail(vc, 'field.enum.options.duplicate', { value: o });
+          seen.add(o);
         }
-      } else {
-        validateDefault(raw.default, type, vc, options as string[]);
+        const options = rawOptions as string[];
+        if (multiple === true) {
+          if (raw.default !== undefined) {
+            if (!Array.isArray(raw.default) || !raw.default.every((v) => typeof v === 'string')) {
+              fail(vc, 'field.enum.multiple.default.array');
+            }
+            for (const v of raw.default) {
+              if (!options.includes(v)) fail(vc, 'field.enum.multiple.default.inOptions', { value: v });
+            }
+          }
+        } else {
+          validateDefault(raw.default, type, vc, options);
+        }
+        return {
+          ...base,
+          type: FIELD_TYPES.ENUM,
+          options,
+          multiple,
+          required,
+          unique,
+          default: multiple === true ? (raw.default as string[] | undefined) : (raw.default as string | undefined),
+        };
       }
+
+      // data-driven options: { from: { object, column? } }
+      const fromRaw = isRecord(rawOptions) ? rawOptions.from : undefined;
+      if (!isRecord(fromRaw) || typeof fromRaw.object !== 'string' || !SNAKE_CASE.test(fromRaw.object)) {
+        fail(vc, 'field.enum.options.shape');
+      }
+      const fromObject = fromRaw.object as string;
+      const fromColumn = fromRaw.column;
+      if (fromColumn !== undefined && (typeof fromColumn !== 'string' || !SNAKE_CASE.test(fromColumn))) {
+        fail(vc, 'field.enum.options.shape');
+      }
+      if (raw.default !== undefined) fail(vc, 'field.default.optionsFrom');
       return {
         ...base,
         type: FIELD_TYPES.ENUM,
-        options: options as string[],
+        options: {
+          from: { object: fromObject, ...(fromColumn === undefined ? {} : { column: fromColumn as string }) },
+        },
         multiple,
         required,
         unique,
-        default: multiple === true ? (raw.default as string[] | undefined) : (raw.default as string | undefined),
       };
     }
     case FIELD_TYPES.RELATION: {

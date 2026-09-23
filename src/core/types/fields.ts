@@ -119,9 +119,17 @@ export interface JsonField extends FieldBase {
   default?: unknown;
 }
 
+/**
+ * Enum option source: an inline list of strings, or a data-driven source
+ * (`{ from: { object, column? } }`) whose allowed values are the distinct
+ * values of a modeled object's column (default: the object's primary key).
+ */
+export type EnumOptions = string[] | { from: { object: string; column?: string } };
+
 export interface EnumField extends FieldBase {
   type: typeof FIELD_TYPES.ENUM;
-  options: string[];
+  /** inline options, or a data-driven `{ from: { object, column? } }` source */
+  options: EnumOptions;
   multiple?: boolean;
   required?: boolean;
   unique?: boolean;

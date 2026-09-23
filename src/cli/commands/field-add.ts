@@ -48,8 +48,8 @@ export async function fieldAdd(cwd: string, object: string, options: FieldAddOpt
     return;
   }
   const relationLike = isRelationLike(fieldTypes, type);
-  if (type === FIELD_TYPES.ENUM && options.options === undefined) {
-    p.error('enum fields require --options <a,b,c>');
+  if (type === FIELD_TYPES.ENUM && options.options === undefined && options.optionsFrom === undefined) {
+    p.error('enum fields require --options <a,b,c> or --options-from <object[.column]>');
     process.exitCode = 1;
     return;
   }
@@ -99,10 +99,15 @@ export async function fieldAdd(cwd: string, object: string, options: FieldAddOpt
   if (options.required === true) field.required = true;
   if (options.unique === true) field.unique = true;
   if (type === FIELD_TYPES.ENUM) {
-    field.options = (options.options ?? '')
-      .split(',')
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0);
+    if (options.optionsFrom !== undefined) {
+      const [refObject, column] = options.optionsFrom.split('.');
+      field.options = { from: { object: refObject, ...(column === undefined ? {} : { column }) } };
+    } else {
+      field.options = (options.options ?? '')
+        .split(',')
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0);
+    }
   }
   if (relationLike) {
     field.target = options.target;

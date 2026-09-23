@@ -146,7 +146,12 @@ function schemaTypeOf(field: FieldDefinition, fk: ExpectedFk | undefined): strin
     case FIELD_TYPES.MULTI_RELATION:
       return `${field.type} → ${field.target}`;
     case FIELD_TYPES.ENUM:
-      return `${field.type}[${field.options.length}]${field.multiple === true ? '[]' : ''}`;
+      if (Array.isArray(field.options)) {
+        return `${field.type}[${field.options.length}]${field.multiple === true ? '[]' : ''}`;
+      }
+      return `enum → ${field.options.from.object}.${field.options.from.column ?? 'pk'}${
+        field.multiple === true ? '[]' : ''
+      }`;
     case FIELD_TYPES.IMAGE:
       return field.multiple === true ? `${field.type}[]` : field.type;
     default:

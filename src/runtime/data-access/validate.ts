@@ -1,7 +1,7 @@
 import type { Locale, MessageKey, ObjectDefinition, ObjectRegistry } from '../../core/index.js';
-import { SchemaError, fieldBase, primaryKeyOf } from '../../core/index.js';
+import { SchemaError, fieldBase, primaryFieldOf, primaryKeyOf } from '../../core/index.js';
 import { DETAILS_COLUMNS, DEFAULT_FIELD_TYPE_REGISTRY, FIELD_TYPES } from '../../core/index.js';
-import type { FieldDefinition, RegisteredField } from '../../core/index.js';
+import type { FieldDefinition, FieldTypeRegistry, RegisteredField } from '../../core/index.js';
 import type { Queryable } from './types.js';
 import { WRITE_MODES, type WriteMode } from './values.js';
 
@@ -26,6 +26,39 @@ interface Vc {
 
 function fail(vc: Vc, code: MessageKey, params: Record<string, unknown>): never {
   throw new SchemaError(code, { object: vc.object, ...params }, vc.locale);
+}
+
+/**
+ * Validate a record-reference value against the target primary key's value kind
+ * (so relations to integer/boolean/... keys work, not just string keys). The
+ * target is the referenced object's PK field (undefined → treat as string).
+ */
+function checkReferenceKind(
+  fieldTypes: FieldTypeRegistry,
+  targetPk: FieldDefinition | undefined,
+  fieldName: string,
+  value: unknown,
+  vc: Vc,
+): void {
+  const base = targetPk === undefined ? FIELD_TYPES.STRING : fieldBase(fieldTypes, targetPk.type);
+  switch (base) {
+    case FIELD_TYPES.INTEGER:
+      if (typeof value !== 'number' || !Number.isInteger(value)) {
+        fail(vc, 'data.field.type', { field: fieldName, type: 'integer' });
+      }
+      return;
+    case FIELD_TYPES.NUMBER:
+    case FIELD_TYPES.CURRENCY:
+      if (typeof value !== 'number' || Number.isNaN(value)) {
+        fail(vc, 'data.field.type', { field: fieldName, type: 'number' });
+      }
+      return;
+    case FIELD_TYPES.BOOLEAN:
+      if (typeof value !== 'boolean') fail(vc, 'data.field.type', { field: fieldName, type: 'boolean' });
+      return;
+    default:
+      if (typeof value !== 'string') fail(vc, 'data.field.type', { field: fieldName, type: 'string' });
+  }
 }
 
 /** engine-managed values users cannot set (system/formula/seq_no) */
@@ -102,7 +135,39 @@ async function checkValue(field: FieldDefinition, value: unknown, vc: Vc): Promi
   }
 
   if (base === FIELD_TYPES.ENUM) {
-    const e = f as { options: string[]; multiple?: boolean };
+    const e = f as {
+      options: string[] | { from: { object: string; column?: string } };
+      multiple?: boolean;
+    };
+
+    // data-driven options: membership in the target object's column
+    if (!Array.isArray(e.options)) {
+      const { object: refObject, column } = e.options.from;
+      const target = vc.registry.get(refObject);
+      if (target === undefined) return; // schema-level error already handled elsewhere
+      const col = column ?? primaryKeyOf(target)!; // targets always declare a primary
+      if (e.multiple === true) {
+        if (!Array.isArray(value) || !value.every((v) => typeof v === 'string')) {
+          fail(vc, 'data.field.type', { field: f.name, type: 'string array' });
+        }
+        const unique = [...new Set(value as string[])];
+        if (unique.length === 0) return;
+        const res = await vc.pool.query(
+          `SELECT DISTINCT "${col}" AS v FROM "${target.name}" WHERE "${col}" = ANY($1)`,
+          [unique],
+        );
+        if ((res.rowCount ?? 0) !== unique.length) {
+          fail(vc, 'data.field.optionsFrom', { field: f.name, ref: refObject });
+        }
+        return;
+      }
+      if (typeof value !== 'string') fail(vc, 'data.field.type', { field: f.name, type: 'enum value' });
+      const res = await vc.pool.query(`SELECT 1 FROM "${target.name}" WHERE "${col}" = $1 LIMIT 1`, [value]);
+      if (res.rowCount === 0) fail(vc, 'data.field.optionsFrom', { field: f.name, ref: refObject });
+      return;
+    }
+
+    // inline options
     if (e.multiple === true) {
       if (!Array.isArray(value) || !value.every((v) => typeof v === 'string')) {
         fail(vc, 'data.field.type', { field: f.name, type: 'string array' });
@@ -118,26 +183,25 @@ async function checkValue(field: FieldDefinition, value: unknown, vc: Vc): Promi
   }
 
   if (base === FIELD_TYPES.RELATION) {
-    if (typeof value !== 'string') fail(vc, 'data.field.type', { field: f.name, type: 'record id' });
     const target = await targetDef(vc, (f as { target: string }).target);
     if (target === undefined) return; // schema-level error already handled elsewhere
-    const table = target.name;
-    const pk = primaryKeyOf(target)!; // targets always declare a primary (schema-validated)
-    const res = await vc.pool.query(`SELECT 1 FROM "${table}" WHERE "${pk}" = $1`, [value]);
+    const pkField = primaryFieldOf(target);
+    const pk = pkField?.name ?? primaryKeyOf(target)!; // targets always declare a primary
+    checkReferenceKind(fieldTypes, pkField, f.name, value, vc);
+    const res = await vc.pool.query(`SELECT 1 FROM "${target.name}" WHERE "${pk}" = $1`, [value]);
     if (res.rowCount === 0) fail(vc, 'data.field.relationMissing', { field: f.name, value });
     return;
   }
 
   if (base === FIELD_TYPES.MULTI_RELATION) {
-    if (!Array.isArray(value) || !value.every((v) => typeof v === 'string')) {
-      fail(vc, 'data.field.type', { field: f.name, type: 'record id array' });
-    }
+    if (!Array.isArray(value)) fail(vc, 'data.field.type', { field: f.name, type: 'record id array' });
     if (value.length === 0) return;
     const target = await targetDef(vc, (f as { target: string }).target);
     if (target === undefined) return;
-    const table = target.name;
-    const pk = primaryKeyOf(target)!; // targets always declare a primary (schema-validated)
-    const res = await vc.pool.query(`SELECT 1 FROM "${table}" WHERE "${pk}" = ANY($1)`, [value]);
+    const pkField = primaryFieldOf(target);
+    const pk = pkField?.name ?? primaryKeyOf(target)!; // targets always declare a primary
+    for (const item of value) checkReferenceKind(fieldTypes, pkField, f.name, item, vc);
+    const res = await vc.pool.query(`SELECT 1 FROM "${target.name}" WHERE "${pk}" = ANY($1)`, [value]);
     if ((res.rowCount ?? 0) !== value.length) {
       fail(vc, 'data.field.multiRelationMissing', { field: f.name });
     }

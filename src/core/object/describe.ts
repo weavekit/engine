@@ -4,6 +4,7 @@ import { SchemaError } from '../types/errors.js';
 import {
   FIELD_TYPES,
   isRelationLike,
+  primaryKeyOf,
   type AttrKind,
   type FieldDefinition,
   type FieldTypeRegistry,
@@ -56,6 +57,12 @@ export interface MetadataField {
    * registration declares are exposed — never storage/validation/UI internals.
    */
   attrs?: Record<string, MetadataAttrSpec>;
+  /**
+   * for a data-driven `enum` (`options: { from: … }`): the object/column whose
+   * values are the allowed options (the column is resolved, defaulting to the
+   * target's primary key). Clients fetch the option set by querying that object.
+   */
+  optionsFrom?: { object: string; column: string };
 }
 
 /** a relation field (weak/strong/multi) as a named edge */
@@ -116,7 +123,8 @@ function attrSpecsOf(field: FieldDefinition, registry: FieldTypeRegistry): Recor
   return Object.keys(out).length === 0 ? undefined : out;
 }
 
-function fieldDescription(field: FieldDefinition, registry: FieldTypeRegistry): MetadataField {
+function fieldDescription(field: FieldDefinition, objects: ObjectRegistry): MetadataField {
+  const registry = objects.fieldTypes;
   const out: MetadataField = {
     name: field.name,
     type: field.type,
@@ -130,7 +138,13 @@ function fieldDescription(field: FieldDefinition, registry: FieldTypeRegistry): 
   if ('required' in field && field.required === true) out.required = true;
   if (field.primary === true) out.primary = true;
   if (field.type === FIELD_TYPES.ENUM) {
-    out.options = field.options;
+    if (Array.isArray(field.options)) {
+      out.options = field.options;
+    } else {
+      const target = objects.get(field.options.from.object);
+      const column = field.options.from.column ?? (target === undefined ? undefined : primaryKeyOf(target));
+      out.optionsFrom = { object: field.options.from.object, column: column ?? field.options.from.column ?? '' };
+    }
     out.multiple = field.multiple === true;
   }
   if (field.type === FIELD_TYPES.IMAGE) {
@@ -184,7 +198,7 @@ export function describeObject(
   }
   const excluded = new Set(perm.exclude);
   const fieldTypes = registry.fieldTypes;
-  const fields = def.fields.filter((f) => !excluded.has(f.name)).map((f) => fieldDescription(f, fieldTypes));
+  const fields = def.fields.filter((f) => !excluded.has(f.name)).map((f) => fieldDescription(f, registry));
   const relations = def.fields
     .filter((f) => isRelationLike(fieldTypes, f.type))
     .map((f) => ({ field: f.name, type: f.type, target: (f as { target?: string }).target }));

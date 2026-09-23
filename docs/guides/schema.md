@@ -53,7 +53,7 @@ If a file declares a version **newer** than the engine supports, the engine reje
 | `datetime` | TIMESTAMPTZ | default `"now"` |
 | `date` | DATE | |
 | `json` | JSONB | free-form object |
-| `enum` | VARCHAR + validation | `options`; `multiple: true` → TEXT[] |
+| `enum` | VARCHAR + validation | inline `options` or `{ from }` (data-driven); `multiple: true` → TEXT[] |
 | `seq_no` | VARCHAR | formatted sequence number |
 | `relation` | target PK column + FK | weak reference (belongsTo) |
 | `details` | child table | strong 1:N ownership |
@@ -119,6 +119,40 @@ Placeholders: `{seq}` / `{seq:N}` (zero-padded), `{year}`, `{month}`, `{day}`. `
 ### `enum.multiple`
 
 Fixed multi-select options stored as `TEXT[]` + GIN. `default` must be a subset of `options`.
+
+### `enum.options` — static or data-driven
+
+`options` is either an inline list or a `{ from }` source whose allowed values are the distinct
+values of a **modeled object's column** (default: its primary key):
+
+```jsonc
+{ "name": "status", "type": "enum", "options": ["open", "won", "lost"] }                 // static
+{ "name": "ccy",    "type": "enum", "options": { "from": { "object": "currency", "column": "code" } } }
+{ "name": "tags",   "type": "enum", "multiple": true,
+  "options": { "from": { "object": "tag", "column": "code" } } }                          // dynamic multi-select
+```
+
+- The target column must be a **string** column (`string`/`text`); the source object/column are
+  validated at schema load (`graph.optionsFrom.*`).
+- Writes are checked against the **existing** values in that column (`data.field.optionsFrom`).
+- `default` is only allowed with the inline list (a data-driven set can't be validated up-front).
+- This is a **dynamic enum**, not a relation: no FK, no graph edge, no navigation. To reference a
+  record (navigate/expand), use [`relation`](#relations); to reference a non-string, non-entity set,
+  use a [server hook](script-hooks.md).
+
+### Validating non-enum fields
+
+DB-backed "value must be one of a set" only lives on `enum`. For every other field, validation comes
+from its type and the mechanisms below:
+
+| Need | Mechanism |
+| --- | --- |
+| primitive shape (string/number/boolean/date) + `min`/`max`/`length`/`regex`/`precision` | built-in field type (declarative) |
+| required / unique | `required` / `unique` (column `UNIQUE`) / object `constraints` |
+| custom local rule | a registered type's pure `validate` hook (any base) |
+| value from a **data set (string codes)** | `enum` + `options.from` |
+| reference to an **entity** (navigate/join) | `relation` / `multiRelation` |
+| cross-field / state / aggregate / non-string codes | [server hook](script-hooks.md) `validate` |
 
 ## Computed fields
 

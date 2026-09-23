@@ -54,6 +54,8 @@ export interface FieldAddOptions {
   default?: string;
   /** comma-separated options (enum) */
   options?: string;
+  /** data-driven enum source: `<object>` or `<object>.<column>` */
+  optionsFrom?: string;
   /** target object name (relation / multiRelation) */
   target?: string;
   printer: CliPrinter;

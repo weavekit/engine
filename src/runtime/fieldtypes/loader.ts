@@ -83,6 +83,29 @@ function validateAttrSpecs(raw: Record<string, unknown>, name: string, locale?: 
         throw new SchemaError('fieldtype.attr.invalid', { name, attr, detail: 'enum requires non-empty string `values`' }, locale);
       }
     }
+    if (spec.default !== undefined) {
+      const valid = ((): boolean => {
+        switch (kind) {
+          case ATTR_KINDS.STRING:
+            return typeof spec.default === 'string';
+          case ATTR_KINDS.NUMBER:
+            return typeof spec.default === 'number' && !Number.isNaN(spec.default);
+          case ATTR_KINDS.INTEGER:
+            return typeof spec.default === 'number' && Number.isInteger(spec.default);
+          case ATTR_KINDS.BOOLEAN:
+            return typeof spec.default === 'boolean';
+          case ATTR_KINDS.JSON:
+            return true;
+          case ATTR_KINDS.ENUM:
+            return typeof spec.default === 'string' && (spec.values as string[]).includes(spec.default);
+          default:
+            return false;
+        }
+      })();
+      if (!valid) {
+        throw new SchemaError('fieldtype.attr.invalid', { name, attr, detail: `default is not a valid ${kind}` }, locale);
+      }
+    }
   }
 }
 

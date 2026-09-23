@@ -184,7 +184,7 @@ auto-committed.
 
 Adds a field to `objects/<name>/schema.json` and auto-commits:
 
-- `--name <field>` `--type <type>` (required); `--required`, `--unique`, `--default <value>`, `--options a,b,c` (enum), `--target <object>` (relation/multiRelation).
+- `--name <field>` `--type <type>` (required); `--required`, `--unique`, `--default <value>`, `--options a,b,c` (enum) or `--options-from <object[.column]>` (data-driven enum), `--target <object>` (relation/multiRelation).
 - The whole updated schema is validated before writing (enum options, relation target, snake_case enforced).
 
 ## `weave field-type:list`

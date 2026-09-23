@@ -83,14 +83,16 @@ export function fieldSchema(
   } else if (base === FIELD_TYPES.JSON) {
     // free-form: leave unconstrained
   } else if (base === FIELD_TYPES.ENUM) {
-    const options = (f.options as string[] | undefined) ?? [];
+    const opts = f.options as string[] | { from: { object: string; column?: string } };
+    const dynamic = !Array.isArray(opts);
     if (f.multiple === true) {
       out.type = 'array';
-      out.items = { type: 'string', enum: options };
+      out.items = dynamic ? { type: 'string' } : { type: 'string', enum: opts as string[] };
     } else {
       out.type = 'string';
-      out.enum = options;
+      if (!dynamic) out.enum = opts as string[];
     }
+    if (dynamic) out['x-optionsFrom'] = { ...(opts as { from: { object: string; column?: string } }).from };
   } else if (base === FIELD_TYPES.MULTI_RELATION) {
     out.type = 'array';
     out.items = { type: pkType(f.target as string | undefined, objects, registry) };

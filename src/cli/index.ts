@@ -176,8 +176,9 @@ program
   .option('--unique', 'add a UNIQUE constraint')
   .option('--default <value>', 'default value (parsed per type)')
   .option('--options <a,b,c>', 'comma-separated options (enum)')
+  .option('--options-from <object[.column]>', 'data-driven enum options from an object column (enum)')
   .option('--target <object>', 'target object (relation / multiRelation)')
-  .action(async (object: string, opts: { name: string; type: string; required?: boolean; unique?: boolean; default?: string; options?: string; target?: string }) => {
+  .action(async (object: string, opts: { name: string; type: string; required?: boolean; unique?: boolean; default?: string; options?: string; optionsFrom?: string; target?: string }) => {
     await runAction(() =>
       fieldAdd(process.cwd(), object, {
         name: opts.name,
@@ -186,6 +187,7 @@ program
         unique: opts.unique,
         default: opts.default,
         options: opts.options,
+        optionsFrom: opts.optionsFrom,
         target: opts.target,
         printer: printer(),
       }),

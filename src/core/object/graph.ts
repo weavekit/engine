@@ -15,8 +15,7 @@ import {
   RELATION_KINDS,
   SCALAR_FIELD_TYPES,
 } from '../types/values.js';
-import { primaryFieldOf } from '../types/index.js';
-import { primaryKeyOf } from '../types/index.js';
+import { DEFAULT_FIELD_TYPE_REGISTRY, fieldBase, primaryFieldOf, primaryKeyOf } from '../types/index.js';
 
 const SCALAR_TYPE_VALUES: readonly string[] = Object.values(SCALAR_FIELD_TYPES);
 
@@ -185,6 +184,39 @@ export function buildGraph(
           foreignKey: field.name,
           array: true,
         });
+      }
+
+      // enum with a data-driven source (`options.from`) must point at a real
+      // object + column whose values are strings
+      if (field.type === FIELD_TYPES.ENUM && !Array.isArray(field.options)) {
+        const { object: refObject, column } = field.options.from;
+        const target = defs.get(refObject);
+        if (target === undefined) {
+          graphError(locale, 'graph.optionsFrom.target.missing', {
+            object: def.name,
+            field: field.name,
+            target: refObject,
+          });
+        }
+        const col = column ?? primaryKeyOf(target)!;
+        const targetField = target.fields.find((f) => f.name === col);
+        if (targetField === undefined) {
+          graphError(locale, 'graph.optionsFrom.column.missing', {
+            object: def.name,
+            field: field.name,
+            target: refObject,
+            column: col,
+          });
+        }
+        const refBase = fieldBase(options?.fieldTypes ?? DEFAULT_FIELD_TYPE_REGISTRY, targetField.type);
+        if (refBase !== FIELD_TYPES.STRING && refBase !== FIELD_TYPES.TEXT) {
+          graphError(locale, 'graph.optionsFrom.type', {
+            object: def.name,
+            field: field.name,
+            target: refObject,
+            column: col,
+          });
+        }
       }
 
       // registered-type membership (`references`) must point at a real object + column

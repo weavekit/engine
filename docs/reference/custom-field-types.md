@@ -97,7 +97,9 @@ A registered type can go beyond inheriting its base:
 
 - **`attrs`** — declare typed extra attributes. The engine validates each field value at schema load
   (`field.attr.type` / `field.attr.enum` / `field.attr.required`) and preserves the values on the
-  field. The base primitive's own attributes (`min`/`max`/`minLength`/`maxLength`/`regex`/`precision`)
+  field. An `AttrSpec.default` is validated against its `type` (and `values` for `enum`) at load; it is
+  **not injected** into fields (it is documentation/tooling only). The base primitive's own attributes
+  (`min`/`max`/`minLength`/`maxLength`/`regex`/`precision`)
   are inherited automatically and enforced at write time. `describe_object` (and the REST metadata
   endpoint) surface each declared attr together with its type's spec — `{ value?, type, values?,
   default?, description? }` — so clients and agents can interpret values without knowing the type in
