@@ -167,7 +167,7 @@ function registryTools(engine: McpEngine, subject: RbacSubject): CompiledTool[] 
   return tools;
 }
 
-/** custom-tool surface merged into the session tool surface (roles filtered by the executor, D8-cached) */
+/** custom-tool surface merged into the session tool surface (roles filtered by the executor, cached per subject) */
 function customToolTools(
   engine: McpEngine,
   subject: RbacSubject,
@@ -182,7 +182,7 @@ function customToolTools(
         description: def.description,
         inputSchema: def.inputSchema,
         handler: async (args: Record<string, unknown>, ctx: ToolExecContext): Promise<McpToolResult> => {
-          // rate limit at the adapter layer (agentKey, widened by roles:tool — M10 D6)
+          // rate limit at the adapter layer (agentKey, widened by `roles:tool` scope)
           const scope = `${[...ctx.session.user.roles].sort().join(',')}:${def.name}`;
           if (!ctx.guardrails.checkRateLimit(ctx.session.agentKey, scope)) {
             const { SchemaError } = await import('../../core/index.js');
@@ -209,7 +209,7 @@ function customToolTools(
 /**
  * Compile the full tool surface for a subject: the generic CRUD tools the
  * subject's RBAC permits, the always-on introspection tools, and the
- * subject-visible custom tools (M10b, roles-filtered by the executor).
+ * subject-visible custom tools (roles-filtered by the executor).
  */
 export function compileToolsFor(
   engine: McpEngine,

@@ -18,7 +18,7 @@ const AUDIT_FILTER_COLUMNS = new Map<string, 'boolean' | 'text' | 'timestamptz'>
 
 const TABLE = 'weavekit_audit';
 
-/** create the append-only audit table (idempotent); `before`/`after` columns are always present (M10 D7 — replay only decides whether they are filled, so toggling the switch needs no migration) */
+/** create the append-only audit table (idempotent); `before`/`after` columns are always present (replay only decides whether they are filled, so toggling the switch needs no migration) */
 export async function ensureAuditTable(pool: Pool): Promise<void> {
   await pool.query(
     `CREATE TABLE IF NOT EXISTS ${TABLE} (

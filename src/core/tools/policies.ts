@@ -1,8 +1,8 @@
 import type { GuardrailContext, GuardrailDecision, GuardrailPolicy } from './types.js';
 
 /**
- * Guardrail policy evaluation core — pure, zero-dependency, protocol-agnostic
- * (D13: tool calls today, workflow activities later both run this). Policies
+ * Guardrail policy evaluation core — pure, zero-dependency, protocol-agnostic,
+ * shared by every tool caller. Policies
  * run in declaration order; the first `deny`/`requireApproval` short-circuits;
  * `mask` decisions merge (later wins). Fail-closed: a policy that throws denies
  * the call (`mcp.policy.denied`). No policies configured = fast-path allow.

@@ -20,7 +20,7 @@ function flatFields(fields: ReadonlyArray<DefaultLayoutField>): DefaultLayoutFie
 }
 
 /**
- * Show/detail default layout (SU-4c, SU-7c): a composite `fields` block holding
+ * Show/detail default layout: a composite `fields` block holding
  * one 2-column `grid`; every flat field is distributed round-robin across the
  * columns (fields live in grid columns — the strict field container rule).
  * The schema carries no UI grouping metadata (headless line); multi-section
@@ -74,7 +74,7 @@ export function renderShowLayout(
 }
 
 /**
- * List default layout (SU-7c): a first-class `list` node with every listable
+ * List default layout: a first-class `list` node with every listable
  * flat field as a column — drives the object's collection page (list.client.js).
  */
 export function renderListLayout(objectName: string, fields: ReadonlyArray<DefaultLayoutField>): LayoutFile {

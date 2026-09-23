@@ -6,7 +6,7 @@ import { commitPaths, type AutoCommitOptions } from './autoCommit.js';
 import { isMissingFile, readSource, writeSourceAtomically } from './sourceFile.js';
 
 /**
- * Multi-file source transaction (SU-7c): serialize all source writes per
+ * Multi-file source transaction: serialize all source writes per
  * project, version-check every candidate against its baseline, validate all
  * candidates BEFORE any write, then atomically replace targets and commit once.
  * Any failure leaves the working tree and index exactly as before.

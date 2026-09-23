@@ -6,7 +6,7 @@ import type { Authenticator } from '../auth/index.js';
 import { authenticateRequest, checkRateLimit, requireAdmin } from './common.js';
 import type { RestOptions } from './plugin.js';
 
-/** raw schema source routes (SU-7c): admin-only GET/PUT `{source, version}` */
+/** raw schema source routes: admin-only GET/PUT `{source, version}` */
 export interface SchemaRouteDeps {
   registry: ObjectRegistry;
   authenticator: Authenticator;

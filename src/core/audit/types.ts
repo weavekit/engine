@@ -51,9 +51,9 @@ export interface AuditEvent {
   objectId?: string;
   /** write payload / change summary; tool-call argument summary for operations */
   changes?: unknown;
-  /** row snapshot before the write (M10 replay; `subsystems.audit.replay: true` only) */
+  /** row snapshot before the write (audit replay; `subsystems.audit.replay: true` only) */
   before?: unknown;
-  /** row snapshot after the write (update only; M10 replay) */
+  /** row snapshot after the write (update only; audit replay) */
   after?: unknown;
   isError?: boolean;
   /** engine SchemaError code, e.g. 'rbac.denied.update' */

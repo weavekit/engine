@@ -35,7 +35,7 @@ function saveBody(body: unknown, locale: Locale): { source: string; expectVersio
 }
 
 /**
- * Guardrail policy source routes (M10c, admin): list the engine project's
+ * Guardrail policy source routes (admin): list the engine project's
  * `policies/` directory, read a policy's source, and write it back (git
  * committed). Only the directory configured via `tools.guardrails.policies`
  * (a string) is exposed — inline-array guardrails have no file surface.

@@ -1,7 +1,7 @@
 import type { DataAccessContext } from './types.js';
 
 /**
- * `withTx` — cross-operation atomic execution (D1). Leases a pooled client,
+ * `withTx` — cross-operation atomic execution. Leases a pooled client,
  * opens a transaction and re-enters the callback with a context that carries
  * that connection as `client`, so nested data-access calls reuse the
  * transaction instead of opening their own (see `DefaultObjectDataAccess`

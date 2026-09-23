@@ -33,7 +33,7 @@ registry.buildGraph();
 const ghost = ['ghost_role'];
 const sales = ['sales'];
 
-describe('describeObject — single-object schema + effective permissions (M11 shared metadata)', () => {
+describe('describeObject — single-object schema + effective permissions', () => {
   it('fields described by type semantics (enum options/multiple, relation target), excluded fields stripped', () => {
     const desc = describeObject(registry, 'lead', sales, DEFAULT_LOCALE);
     expect(desc.name).toBe('lead');
@@ -64,7 +64,7 @@ describe('describeObject — single-object schema + effective permissions (M11 s
     });
   });
 
-  it('system/formula fields output readOnly (M11, SU-4 form read-only signal)', () => {
+  it('system/formula fields output readOnly (form read-only signal)', () => {
     const reg = new ObjectRegistry();
     reg.register({
       name: 'invoice',

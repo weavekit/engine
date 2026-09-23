@@ -86,7 +86,7 @@ function buildOrder(filter: ApprovalListFilter): string {
 }
 
 /**
- * Postgres `ApprovalsBackend` (D1 release default; the engine's mandated DB).
+ * Postgres `ApprovalsBackend` (the release default; the engine's mandated DB).
  * Parameterized, whitelisted sort, idempotent upsert (deterministic key → a
  * resolved decision is never resurrected by a re-pending). Mirrors
  * `subsystems/audit` conventions (pool-injected, no adapters).

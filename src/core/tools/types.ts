@@ -4,7 +4,7 @@ import type { AuditSink } from '../audit/index.js';
 import type { ApprovalStatus } from './values.js';
 
 /**
- * Tool-surface contracts (M10 open contract). Zero-dependency, no runtime
+ * Tool-surface contracts (open contract). Zero-dependency, no runtime
  * imports — `runtime` depends on `core`, so `core` must not reference runtime
  * types (dependency DAG). The runtime `ObjectDataAccess` structurally
  * satisfies `ToolDataAccess` (method bivariance), so no adapter is needed at
@@ -98,7 +98,7 @@ export interface ApprovalListFilter {
  * Pluggable approval store (persistence backend). Implementations: in-memory
  * (`core/tools`, tests/default) and PG (`subsystems/approvals`, MIT — the
  * engine's mandated DB). A Redis backend is not implemented. The store
- * never audits — resolution audit (A7) belongs to the queue facade.
+ * never audits — resolution audit belongs to the queue facade.
  */
 export interface ApprovalsBackend {
   list(filter?: ApprovalListFilter): Promise<PendingApproval[]>;

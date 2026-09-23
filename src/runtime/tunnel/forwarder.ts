@@ -7,7 +7,7 @@ import { toB64 } from './framing.js';
 import type { TunnelRegistry } from './registry.js';
 
 /**
- * Tunnel-aware proxy forwarder (P1, MIT): for a `target.transport === 'tunnel'`
+ * Tunnel-aware proxy forwarder (MIT): for a `target.transport === 'tunnel'`
  * it multiplexes the proxied request over the live connector session in the
  * {@link TunnelRegistry} (instead of `fetch(url)`); for `direct` (and anything
  * else) it delegates to the passed base forwarder. The customer engine url/key

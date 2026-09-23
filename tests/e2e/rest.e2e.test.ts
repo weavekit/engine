@@ -343,7 +343,7 @@ maybe("REST API E2E (local PG + fastify inject): auth + RBAC full path", () => {
         method: "PUT",
         url: "/api/objects/lead/scripts/server",
         headers: bearer("key-admin"),
-        payload: { source: serverSource, expectVersion: "reserved-for-su-7c" },
+        payload: { source: serverSource, expectVersion: "reserved-marker" },
       });
       expect(save.statusCode).toBe(200);
       expect(save.json().ok).toBe(true);

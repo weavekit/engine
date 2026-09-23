@@ -28,7 +28,7 @@ const LEAD: ObjectDefinition = {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-maybe('M11 frontend metadata contract E2E (metadata / permissions / audit, local PG + fastify inject)', () => {
+maybe('frontend metadata contract E2E (metadata / permissions / audit, local PG + fastify inject)', () => {
   it('metadata + permissions: auth / RBAC filtering / excluded stripping / ETag 304', async () => {
     const registry0 = new ObjectRegistry();
     registry0.register(LEAD);

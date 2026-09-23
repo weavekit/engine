@@ -13,7 +13,7 @@ const LEAD: ObjectDefinition = {
   ],
 };
 
-maybe('M10d E2E (audit diff replay: update before/after, delete before, replay off zero snapshot)', () => {
+maybe('audit diff replay E2E (update before/after, delete before, replay off zero snapshot)', () => {
   it('replay:true records before/after; replay default does not populate', async () => {
     let engine: Awaited<ReturnType<typeof buildEngineFromRegistry>> | undefined;
     const pool = await new (await import('pg')).Pool({ connectionString: url });

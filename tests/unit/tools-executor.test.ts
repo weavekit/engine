@@ -62,7 +62,7 @@ const ticker: ToolDefinition = {
   },
 };
 
-describe('ToolExecutor.surface — roles whitelist filtering + D8 cache', () => {
+describe('ToolExecutor.surface — roles whitelist filtering + surface cache', () => {
   it('roles hit or missing → visible; unlisted role → invisible', () => {
     const { executor } = makeExecutor();
     const customer: RbacSubject = { id: 'u-eve', roles: ['customer'] };

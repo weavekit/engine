@@ -68,7 +68,7 @@ function textOf(result: unknown): string {
   return r.content?.find((b) => b.type === 'text')?.text ?? '';
 }
 
-maybe('M10c E2E (policy pipeline: deny / approval pending·host approve·client retry / PII masking / audit)', () => {
+maybe('policy pipeline E2E (deny / approval pending·host approve·client retry / PII masking / audit)', () => {
   it('deny → isError; requireApproval → pending → approve → client retry allowed; mask takes effect; approval action audited', async () => {
     let engine: Awaited<ReturnType<typeof buildEngineFromRegistry>> | undefined;
     let client: ClientHandle | undefined;

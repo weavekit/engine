@@ -27,7 +27,7 @@ export interface McpGuardrails {
    * limit. On over-limit it fires a WARN alert and returns false — the caller
    * turns that into an isError tool result. An optional `scope` widens the
    * window key (e.g. `${rolesHash}:${tool}`) so role/tool dimensions get their
-   * own windows (M10 D6); scope absent = per-agentKey as before.
+   * own windows; scope absent = per-agentKey as before.
    */
   checkRateLimit(key: string, scope?: string, now?: number): boolean;
   /** record a tool-call audit event; failures are caught (audit is best-effort) */

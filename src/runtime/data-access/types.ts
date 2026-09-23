@@ -13,7 +13,7 @@ export type FilterValue = { [op in FilterOp]?: unknown };
 export type FilterGroup = { [field: string]: unknown | FilterValue };
 
 /**
- * Filter contract (M5 REST `filter` JSON):
+ * Filter contract (REST `filter` JSON):
  * - plain object form (AND across fields), e.g. `{ status: 'open', amount: { gte: 100 } }`
  * - OR across groups via the reserved top-level `$or` key:
  *   `{ $or: [ { status: 'open' }, { amount: { gte: 100 } } ] }` → `(status = 'open' OR amount >= 100)`

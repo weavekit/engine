@@ -5,7 +5,7 @@ import { TunnelSession } from './framing.js';
 import type { TunnelRegistry } from './registry.js';
 
 /**
- * Tunnel endpoint (P1, MIT): a node:http2 server the customer's `weave connect`
+ * Tunnel endpoint (MIT): a node:http2 server the customer's `weave connect`
  * agent dials OUT to. Each CONNECT stream authenticated by `(tunnel_id,
  * pairing_token)` becomes a live {@link TunnelSession} registered in the
  * {@link TunnelRegistry}, which the governance proxy forwarder then routes

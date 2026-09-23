@@ -37,7 +37,7 @@ import type { Authenticator } from '../auth/index.js';
 import { authenticateRequest, checkRateLimit, requireAdmin } from './common.js';
 import type { RestOptions } from './plugin.js';
 
-/** page routes (SU-7c): path-mirrored layout source + custom-page lifecycle */
+/** page routes: path-mirrored layout source + custom-page lifecycle */
 export interface PagesRouteDeps {
   registry: ObjectRegistry;
   authenticator: Authenticator;

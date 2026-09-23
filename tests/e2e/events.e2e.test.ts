@@ -97,7 +97,7 @@ async function readUntil(sse: SseClient, event: string): Promise<{ blocks: SseBl
   }
 }
 
-maybe('M12 realtime channel E2E (SSE + subscription filtering + replay, local PG + real HTTP)', () => {
+maybe('realtime channel E2E (SSE + subscription filtering + replay, local PG + real HTTP)', () => {
   it('auth / record.changed / audit filtering / schema.changed broadcast / replay / gap notice', async () => {
     const registry0 = new ObjectRegistry();
     registry0.register(LEAD);

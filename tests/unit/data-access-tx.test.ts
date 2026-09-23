@@ -20,7 +20,7 @@ function fakePool() {
 
 const baseCtx = (pool: DataAccessContext['pool']): DataAccessContext => ({ pool, registry: {} as never });
 
-describe('withTx — cross-operation transaction primitive (D1)', () => {
+describe('withTx — cross-operation transaction primitive', () => {
   it('success path: BEGIN → fn(ctx.client) → COMMIT → release', async () => {
     const { pool, client, queries } = fakePool();
     let sawClient: unknown;

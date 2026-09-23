@@ -9,7 +9,7 @@ import { readSource, sourceVersion } from './sourceFile.js';
 import { runSourceTransaction } from './sourceTransaction.js';
 
 /**
- * Raw schema source store (SU-7c): read/write `objects/<name>/schema.json`.
+ * Raw schema source store: read/write `objects/<name>/schema.json`.
  * PUT runs the same validation as the loader — single-object `parseSchema`
  * plus the full cross-object graph over the whole registry — and never applies
  * DDL (structural changes take effect on the next `weave dev`/`migrate`).

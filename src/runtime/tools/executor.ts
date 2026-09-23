@@ -7,13 +7,13 @@ import { withTx as dataAccessWithTx } from '../data-access/index.js';
 import { applyMask, evaluateCall } from './policies.js';
 
 /**
- * Custom-tool execution pipeline (M10b, protocol-agnostic). Wraps the injected
+ * Custom-tool execution pipeline (protocol-agnostic). Wraps the injected
  * (RBAC-decorated) data-access with the controlled `ToolDataAccess` surface,
  * builds the `ToolCallContext` a handler receives, runs the handler with
  * auto-audit and wires `withTx`. `adapters/mcp` binds protocol specifics
  * (`McpSession → ToolActor`, `mcp.tool.<name>` action) on top of this.
  *
- * M10c adds the guardrail policy pipeline (`evaluatePolicies`) in front of
+ * The guardrail policy pipeline (`evaluatePolicies`) runs in front of
  * `execute`; approvals already live here as the queue the executor exposes.
  */
 
@@ -34,9 +34,9 @@ export type ApprovalsQueue = ToolApprovals & {
 };
 
 /**
- * Approval queue (D1, release-grade): thin facade over a pluggable
+ * Approval queue (release-grade): thin facade over a pluggable
  * `ApprovalsBackend` (in-memory default; PG in `subsystems/approvals`). No Redis
- * backend is implemented. `approvalKey` stays deterministic; resolution (A7)
+ * backend is implemented. `approvalKey` stays deterministic; resolution
  * is audited here, never by the store. Async because the backend performs I/O.
  */
 export function createApprovals(
@@ -49,7 +49,7 @@ export function createApprovals(
     const ok = await backend.resolve(approvalKey, by, status);
     if (ok) {
       const entry = await backend.get(approvalKey);
-      // A7: approval/rejection actions are audited against the same action
+      // approval/rejection actions are audited against the same action
       void audit
         .record({
           actorType: AUDIT_ACTOR_TYPES.USER,
@@ -106,7 +106,7 @@ export interface ToolExecutorOptions {
   /** rate-limit / alert handle (adapter-provided; agentKey scope) */
   guardrails: ToolGuardrails;
   approvals?: ApprovalsQueue;
-  /** M10c: guardrail policies evaluated before every custom-tool call (empty = no gate) */
+  /** guardrail policies evaluated before every custom-tool call (empty = no gate) */
   policies?: GuardrailPolicy[];
   locale?: Locale;
 }
@@ -129,11 +129,11 @@ export interface CustomToolSurfaceEntry {
 }
 
 export interface ToolExecutor {
-  /** roles-filtered custom-tool surface for a subject (per-subject cached, D8) */
+  /** roles-filtered custom-tool surface for a subject (per-subject cached) */
   surface(subject: RbacSubject, customTools: ToolDefinition[]): CustomToolSurfaceEntry[];
-  /** execute a custom tool with a controlled ctx + auto-audit (+ policies in M10c) */
+  /** execute a custom tool with a controlled ctx + auto-audit (+ guardrail policies) */
   execute(def: ToolDefinition, args: Record<string, unknown>, req: CustomToolExecuteRequest): Promise<ToolResult>;
-  /** approval queue handle (M10c promotes it to `engine.tools.approvals`) */
+  /** approval queue handle (also exposed as `engine.tools.approvals`) */
   approvals: ToolApprovals;
 }
 
@@ -225,7 +225,7 @@ export function createToolExecutor(options: ToolExecutorOptions): ToolExecutor {
         timestamp: new Date(),
       });
 
-      // M10c: guardrail policy gate before the handler (allow / deny / requireApproval / mask)
+      // guardrail policy gate before the handler (allow / deny / requireApproval / mask)
       let mask: Record<string, string> | undefined;
       if (options.policies !== undefined && options.policies.length > 0) {
         const guardrailCtx: GuardrailContext = {

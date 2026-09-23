@@ -79,16 +79,16 @@ export interface EngineRestConfig {
 /** audit subsystem config (optional; disabled = not loaded = zero overhead) */
 export interface EngineAuditConfig {
   enabled?: boolean;
-  /** retention window placeholder (auto-cleanup is a later milestone) */
+  /** retention window placeholder (auto-cleanup is not implemented yet) */
   retention?: string;
-  /** M10 diff replay: attach before/after row snapshots to update/delete audit events (default off; table always has the columns) */
+  /** audit diff replay: attach before/after row snapshots to update/delete audit events (default off; table always has the columns) */
   replay?: boolean;
   /** L1 buffered-sink parameters */
   batch?: { batchSize?: number; flushMs?: number };
 }
 
 /**
- * Engine-level tool mechanism config (M10 open contract, protocol-agnostic —
+ * Engine-level tool mechanism config (open contract, protocol-agnostic —
  * lives at the top level, not under `adapters.*`). Disabled when absent.
  */
 export interface EngineToolsConfig {
@@ -99,7 +99,7 @@ export interface EngineToolsConfig {
     policies?: GuardrailPolicy[] | string;
   };
   /**
-   * approval queue persistence (D1 release-grade). Absent → PG-backed when the
+   * approval queue persistence (release-grade). Absent → PG-backed when the
    * tool executor is created; `backend: 'memory'` opts into the single-process
    * in-memory queue (tests). No Redis backend is implemented.
    */
@@ -108,7 +108,7 @@ export interface EngineToolsConfig {
   };
 }
 
-/** M11 live event channel config (optional; disabled = not created = zero overhead) */
+/** live event channel config (optional; disabled = not created = zero overhead) */
 export interface EngineEventsConfig {
   enabled?: boolean;
   /** URL prefix for the SSE endpoint; defaults to `/api` */
@@ -156,7 +156,7 @@ export interface ProxyResolverDeps {
  */
 export type ProxyTargetResolverBuilder = (deps: ProxyResolverDeps) => ProxyTargetResolver;
 
-/** engine assembly configuration — the single wiring point (see AGENTS.md M5/M7) */
+/** engine assembly configuration — the single wiring point (see AGENTS.md) */
 /** a host-level background service returned by a service's `start`. */
 export interface EngineServiceHandle {
   /** tear the service down (abort streams, clear timers); called on engine close. */
@@ -206,7 +206,7 @@ export interface EngineConfig {
   auth: { source: AuthSource };
   /** protocol adapters (REST/MCP/events), closable via config */
   adapters?: { rest?: EngineRestConfig; mcp?: EngineMcpConfig; events?: EngineEventsConfig };
-  /** engine-level tool mechanism (M10): custom tools + guardrail policies; disabled when absent */
+  /** engine-level tool mechanism: custom tools + guardrail policies; disabled when absent */
   tools?: EngineToolsConfig;
   /** optional subsystems, dynamically loaded when enabled (audit/script implemented; others error out) */
   subsystems?: { audit?: EngineAuditConfig; script?: EngineScriptConfig };
@@ -257,9 +257,9 @@ export interface WeaveKitEngine {
   authenticator: Authenticator;
   /** MCP adapter handle (present unless adapters.mcp.enabled is false) */
   mcp?: McpServerHandle;
-  /** M10 tool mechanism (present when config.tools.toolsDir is set): executor + approval queue */
+  /** tool mechanism (present when config.tools.toolsDir is set): executor + approval queue */
   tools?: { defs: ToolDefinition[]; executor: ToolExecutor };
-  /** M12 live event publisher (present when adapters.events.enabled): emits committed writes / audit / schema changes */
+  /** live event publisher (present when adapters.events.enabled): emits committed writes / audit / schema changes */
   events?: EventPublisher;
   /** generic proxy handle (present when config.proxy.resolver is set): forwarder + resolver */
   proxy?: { forwarder: ProxyForwarder; resolver: ProxyTargetResolver };
@@ -322,7 +322,7 @@ export async function buildEngineFromRegistry(
     auditSink = bufferedSink;
   }
 
-  // M12 live channel: the event bus is created only when adapters.events is
+  // live channel: the event bus is created only when adapters.events is
   // enabled (absent = not imported = zero overhead). Its publisher is injected
   // into data-access (record.* on committed writes) and the audit sink
   // (audit.event dual-emit). schema.changed is exposed via `engine.events`.
@@ -378,7 +378,7 @@ export async function buildEngineFromRegistry(
   }
   const authenticator = buildAuthenticator(config.auth);
 
-  // M10 tool mechanism: load custom tools when config.tools.toolsDir is set
+  // tool mechanism: load custom tools when config.tools.toolsDir is set
   // (absent = not loaded = zero overhead). The executor wraps the RBAC-decorated
   // data-access; rate limiting stays at the adapter layer (per-agentKey), the
   // executor's `guardrails` handle is a no-op self-check for tool authors.
@@ -387,7 +387,7 @@ export async function buildEngineFromRegistry(
     const toolsDir = join(config.schemaDir ?? '.', config.tools.toolsDir);
     const loaded = await loadToolsDir(toolsDir, { locale });
     const policies = await resolvePolicies(config.tools.guardrails?.policies, config.schemaDir ?? '.');
-    // D1: persisted approvals by default (PG — the engine's mandated DB); opt out
+    // persisted approvals by default (PG — the engine's mandated DB); opt out
     // with `approvals.backend: 'memory'`. The approval queue must be durable /
     // multi-instance consistent, so it is never left single-process in-memory
     // for a release engine.
@@ -482,7 +482,7 @@ export async function buildEngineFromRegistry(
       },
       restOptions,
     );
-    // M10c guardrail policy source (list/read/write, admin) — only when the
+    // guardrail policy source (list/read/write, admin) — only when the
     // `tools.guardrails.policies` config is a directory path.
     const guardrailsPolicies = config.tools?.guardrails?.policies;
     registerGuardrailsRoutes(
@@ -496,7 +496,7 @@ export async function buildEngineFromRegistry(
       },
       restOptions,
     );
-    // M11 identity directory (admin read) — only the static `mcp.identities` map
+    // identity directory (admin read) — only the static `mcp.identities` map
     // has an introspectable surface; a function resolver returns `[]`.
     registerIdentitiesRoutes(
       app,
@@ -507,11 +507,11 @@ export async function buildEngineFromRegistry(
       },
       restOptions,
     );
-    // M11 frontend metadata contract (framework-agnostic, all frontend adapters consume these)
+    // frontend metadata contract (framework-agnostic, all frontend adapters consume these)
     registerMetadataRoutes(app, { registry, pool, dataAccess, authenticator, locale }, restOptions);
     registerPermissionsRoutes(app, { registry, pool, dataAccess, authenticator, locale }, restOptions);
     registerAuditRoutes(app, { registry, pool, dataAccess, authenticator, locale, audit }, restOptions);
-    // D1 approval queue routes (depth-1 read + local write): present when the
+    // approval queue routes (depth-1 read + local write): present when the
     // tool executor is enabled (toolsDir set) — `tools.executor.approvals`.
     registerApprovalsRoutes(
       app,
@@ -572,7 +572,7 @@ export async function buildEngineFromRegistry(
     }
   }
 
-  // M12 live channel: SSE endpoint (Bearer auth, subject-filtered, replay)
+  // live channel: SSE endpoint (Bearer auth, subject-filtered, replay)
   if (eventBus !== undefined && eventPublisher !== undefined) {
     registerEventsRoutes(
       app,

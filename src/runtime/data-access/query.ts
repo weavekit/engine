@@ -154,9 +154,9 @@ function dbJsonValue(field: { type?: string } | undefined, value: unknown): unkn
 export class DefaultObjectDataAccess implements ObjectDataAccess {
   private readonly audit?: AuditSink;
   private readonly script: ScriptDispatcher;
-  /** M10 diff replay: attach before/after row snapshots to update/delete audit events */
+  /** audit diff replay: attach before/after row snapshots to update/delete audit events */
   private readonly replay: boolean;
-  /** M12 live events: publish committed writes to the bus (undefined = zero overhead) */
+  /** live events: publish committed writes to the bus (undefined = zero overhead) */
   private readonly events?: EventPublisher;
   /** objects currently dispatching onLoad — skips re-entrant onLoad (a hook re-reading the same object) */
   private readonly onLoadInFlight = new Set<string>();

@@ -15,7 +15,7 @@ import type { ObjectRegistry } from './registry.js';
 /**
  * Metadata description — the engine's neutral "schema + permissions" view,
  * shared by the MCP introspection tools and the REST metadata/permissions
- * endpoints (M11). Protocol-agnostic: describes type semantics only (enum
+ * endpoints. Protocol-agnostic: describes type semantics only (enum
  * options, relation targets, multiple), never UI/widget hints — the Headless
  * line stays intact; frontends derive controls from field types.
  */

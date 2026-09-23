@@ -12,7 +12,7 @@ export interface IdentitiesRouteDeps {
 }
 
 /**
- * Identity directory route (M11, admin read): surface the engine's
+ * Identity directory route (admin read): surface the engine's
  * `mcp.identities` static directory so the governance console can render an
  * `IdentityTable` (ref → id / roles / team). Only the static-directory form is
  * exposed — a customer-provided `IdentityResolver` (function) has no

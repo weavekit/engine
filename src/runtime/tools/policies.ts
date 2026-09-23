@@ -5,10 +5,10 @@ import { evaluatePolicies } from '../../core/index.js';
 import type { ApprovalStatus, GuardrailContext, GuardrailPolicy, ToolResult } from '../../core/index.js';
 
 /**
- * Guardrail policy pipeline (M10c) on top of the pure `evaluatePolicies` core:
+ * Guardrail policy pipeline on top of the pure `evaluatePolicies` core:
  * policy loading (array or directory of `.js` modules), the approval gate
- * (deterministic key → pending → host approve → client retry, A2) and result
- * masking (JSON top-level field replacement, A4). Fail-closed and the
+ * (deterministic key → pending → host approve → client retry) and result
+ * masking (JSON top-level field replacement). Fail-closed and the
  * decision matrix live in the core evaluator.
  */
 
@@ -65,7 +65,7 @@ export async function evaluateCall(
   return { kind: 'allow', mask: decision.mask };
 }
 
-/** mask a tool result's JSON top-level fields (A4): non-JSON / parse failure passes through */
+/** mask a tool result's JSON top-level fields: non-JSON / parse failure passes through */
 export function applyMask(result: ToolResult, mask: Record<string, string>): ToolResult {
   const text = result.content.find((b) => b.type === 'text')?.text;
   if (text === undefined) return result;

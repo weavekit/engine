@@ -8,7 +8,7 @@ export { resolveLabel } from './core/object/display.js';
  * Page layout format (hybrid: app-level pages live flat as `pages/<id>.layout.json`
  * — e.g. `pages/app.layout.json` — while object pages live in per-object dirs
  * `pages/<object>/<view>.layout.json` mirroring `objects/<name>/`) — engine-owned
- * single source (D11/D13/D15, SU-4b/SU-4c, SU-7c). Pure types + pure functions,
+ * single source. Pure types + pure functions,
  * zero runtime imports (browser-safe via `@weave-kit/engine/layout` subpath —
  * consumers like `@weave-kit/ui` re-export these). Field entries are
  * reference-only: `{ui_id, object, field}` point at schema fields; every
@@ -210,10 +210,10 @@ export interface LayoutOutlet {
 }
 
 /**
- * Self-contained modal container (SU-7c v5): content is authored inline as
+ * Self-contained modal container: content is authored inline as
  * `children` — there is no page reference. The runtime opens the modal and
  * renders `children` inside (LayoutView). Replaces the legacy `{ref:{page}}`
- * "dialog opens another page" model (D15 override).
+ * "dialog opens another page" model.
  */
 export interface LayoutDialog {
   ui_id: string;
@@ -247,7 +247,7 @@ export interface LayoutFile {
 
 /**
  * Pick the layout for the current viewport, falling back to `desktop` when the
- * requested viewport is absent (D11 decision 1b). `undefined` → render flat.
+ * requested viewport is absent. `undefined` → render flat.
  */
 export function getViewportLayout(
   layout: LayoutFile | undefined,
@@ -261,7 +261,7 @@ export function getViewportLayout(
  * Resolve a field entry `{ object, field }` to the real schema field via the
  * object descriptor. Unknown/ignored fields (RBAC `fields.exclude` are already
  * stripped server-side) resolve to `undefined` → the entry is not rendered.
- * The `object` discriminates same-named fields across child objects (D13).
+ * The `object` discriminates same-named fields across child objects.
  */
 export function resolveFieldEntry(
   entry: { object: string; field: string },
@@ -651,7 +651,7 @@ function validateNode(
 }
 
 /**
- * Profile-aware pure validation of a whole layout file (SU-7c): allowed node
+ * Profile-aware pure validation of a whole layout file: allowed node
  * types per profile, per-viewport `ui_id` uniqueness, container/dialog children,
  * object bindings, sidebar target conflict, shell outlet presence. Returns
  * findings — the REST layer maps them onto localized `SchemaError`s.

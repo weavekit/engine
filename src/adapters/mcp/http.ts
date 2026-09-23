@@ -77,7 +77,7 @@ export interface McpHttpDeps {
   guardrails: McpGuardrails;
   sessionStore: McpSessionStore;
   locale: Locale;
-  /** M10 custom tools: loaded definitions + the protocol-agnostic executor */
+  /** custom tools: loaded definitions + the protocol-agnostic executor */
   tools?: { defs: ToolDefinition[]; executor: ToolExecutor };
   /** HTTP path to mount the endpoint on; defaults to `/mcp` */
   endpoint?: string;
@@ -129,7 +129,7 @@ export function registerMcpRoutes(app: FastifyInstance, deps: McpHttpDeps): void
   const path = endpoint ?? '/mcp';
   const sessions = new Map<string, SessionEntry>();
 
-  /** per-subject compiled surface cache (D8: kills the per-request full recompile on list AND call) */
+  /** per-subject compiled surface cache (kills the per-request full recompile on list AND call) */
   const surfaceCache = new Map<string, CompiledTool[]>();
   function surfaceFor(session: McpSession): CompiledTool[] {
     const key = `${session.user.id}:${[...session.user.roles].sort().join(',')}`;

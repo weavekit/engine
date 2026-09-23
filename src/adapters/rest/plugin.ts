@@ -26,9 +26,9 @@ export interface RestDeps {
   dataAccess: ObjectDataAccess;
   authenticator: Authenticator;
   locale: Locale;
-  /** audit query engine (M11); present when the audit subsystem is enabled — registers `GET {prefix}/audit` */
+  /** audit query engine; present when the audit subsystem is enabled — registers `GET {prefix}/audit` */
   audit?: AuditQueryEngine;
-  /** approval queue (D1); present when the tool executor is enabled — registers `/approvals` routes */
+  /** approval queue; present when the tool executor is enabled — registers `/approvals` routes */
   approvals?: ToolApprovals;
 }
 

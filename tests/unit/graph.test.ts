@@ -282,7 +282,7 @@ describe('buildGraph — multiRelation multi-select references', () => {
   });
 });
 
-describe('buildGraph — cross-object formula cycle (M8 boundary)', () => {
+describe('buildGraph — cross-object formula cycle', () => {
   it('two object formulas reference each other → formula.cycle', () => {
     const reg = registryOf({
       a: {

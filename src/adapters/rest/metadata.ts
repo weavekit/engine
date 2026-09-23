@@ -5,7 +5,7 @@ import type { RestDeps, RestOptions } from './plugin.js';
 import { authenticateRequest, checkRateLimit, readString } from './common.js';
 
 /**
- * Metadata route (M11, framework-agnostic): neutral schema + permissions for
+ * Metadata route (framework-agnostic): neutral schema + permissions for
  * frontend adapters (Refine Inferencer / react-admin auto-forms).
  *   GET {prefix}/metadata            → { objects: [ObjectDescriptor] } (readable only)
  *   GET {prefix}/metadata?object=X   → one ObjectDescriptor (404 unknown, 403 unreadable)

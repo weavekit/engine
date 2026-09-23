@@ -72,7 +72,7 @@ const SHOW_CLIENT_JS = `// Client-side hooks for this object's record surface (s
 //   this.api      @weave-kit/client instance scoped to the current permissions
 //   this.block    optional layout block ui_id
 //
-// Reserved for a later milestone; SU-7 loads the module but does not call it.
+// Reserved for future use; the loader imports the module but does not call it.
 export function onLoad() {
   // Future: dynamic defaults and role-based action visibility.
 }
@@ -88,7 +88,7 @@ export async function onFieldChange(fieldName) {
   //   }
 }
 
-// Reserved for a later milestone.
+// Reserved for future use.
 export function onActionClick(actionName) {
   // Future: intercept/confirm/custom action flows.
 }
@@ -103,12 +103,12 @@ export async function onValidate(action) {
   //   return true;
 }
 
-// Reserved for a later milestone.
+// Reserved for future use.
 export function beforeSubmit(action) {
   // Future: lock buttons or add fields immediately before transport.
 }
 
-// Reserved for a later milestone.
+// Reserved for future use.
 export function afterSubmit(action, result) {
   // Future: unlock buttons, notify, or navigate after the response.
 }
@@ -141,7 +141,7 @@ export async function onRowAction(actionName) {
   // return true;
 }
 
-// Reserved for later milestones.
+// Reserved for future use.
 export function onCellRender(fieldName, value) {
   // Future: customize one rendered cell.
 }

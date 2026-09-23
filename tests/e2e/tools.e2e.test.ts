@@ -77,7 +77,7 @@ function textOf(result: unknown): string {
   return r.content?.find((b) => b.type === 'text')?.text ?? '';
 }
 
-maybe('M10b E2E (custom tools toolsDir → tools/list role filtering + tools/call controlled ctx + auto audit)', () => {
+maybe('custom tools E2E (toolsDir → tools/list role filtering + tools/call controlled ctx + auto audit)', () => {
   it('register custom tool → visible per role → call persists via RBAC dataAccess → audit mcp.tool.<name>', async () => {
     let engine: Awaited<ReturnType<typeof buildEngineFromRegistry>> | undefined;
     const clients: ClientHandle[] = [];

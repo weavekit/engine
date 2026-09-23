@@ -64,7 +64,7 @@ describe('evaluatePolicies — decision matrix + fail-closed', () => {
   });
 });
 
-describe('evaluateCall — approval lifecycle (A2)', () => {
+describe('evaluateCall — approval lifecycle', () => {
   const approvals = () => {
     const queue = new Map<string, { approvalKey: string; status: ApprovalStatus; action: string; args: Record<string, unknown> }>();
     return {
@@ -109,7 +109,7 @@ describe('evaluateCall — approval lifecycle (A2)', () => {
   });
 });
 
-describe('applyMask — result masking (A4)', () => {
+describe('applyMask — result masking', () => {
   const text = (t: string): ToolResult => ({ content: [{ type: 'text', text: t }] });
 
   it('JSON top-level field replacement', () => {

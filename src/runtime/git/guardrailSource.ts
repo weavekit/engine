@@ -6,7 +6,7 @@ import { runGit } from './runner.js';
 import { readSource, sourceVersion, writeSourceAtomically } from './sourceFile.js';
 
 /**
- * Guardrail policy source management (M10c): a `policies/` directory holds one
+ * Guardrail policy source management: a `policies/` directory holds one
  * `.js` module per guardrail policy (default-exporting a `GuardrailPolicy` or
  * an array). The engine loads them at startup (`resolvePolicies`); this module
  * exposes the same files as an admin-editable source surface (list / read /

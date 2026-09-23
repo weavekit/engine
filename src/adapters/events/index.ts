@@ -13,7 +13,7 @@ import { authenticateRequest, checkRateLimit } from '../rest/common.js';
 import { createSseStream, type SseStream } from './stream.js';
 
 /**
- * Live event endpoint (M12, framework-agnostic push channel):
+ * Live event endpoint (framework-agnostic push channel):
  *   GET {prefix}/events  (SSE over `Authorization: Bearer`)
  *
  * Every connection is bound to the authenticated subject and filtered before

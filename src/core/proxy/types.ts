@@ -57,7 +57,7 @@ export interface ProxyTarget {
   id: string;
   /** customer-engine base URL (used for `direct`; opaque for `tunnel`/`cloud`). */
   url: string;
-  /** how the target is reached: `direct` (url) | `tunnel` (HTTP/2 connector) | `cloud` (in-cloud app instance). Forwarder uses `url` today; transport-aware routing is P1. */
+  /** how the target is reached: `direct` (url) | `tunnel` (HTTP/2 connector) | `cloud` (in-cloud app instance). Forwarder uses `url` today; transport-aware routing is not implemented yet. */
   transport?: string;
   /** read/admin key (the application layer reads it from the connection). */
   apiKey: string;

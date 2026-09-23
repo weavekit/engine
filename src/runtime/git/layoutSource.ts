@@ -18,7 +18,7 @@ import { readSource, sourceVersion } from './sourceFile.js';
 import { runSourceTransaction } from './sourceTransaction.js';
 
 /**
- * Layout source store (SU-7c): path-mirrored read/write of `pages/<path>.json`
+ * Layout source store: path-mirrored read/write of `pages/<path>.json`
  * with profile-aware validation. Addressing is driven by {@link LayoutAddress}
  * — the `/pages/<path>` shape mirrors the physical file (kind/view in the path).
  */

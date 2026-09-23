@@ -27,11 +27,11 @@ function readFilterObject(
 }
 
 /**
- * Audit route (M11, framework-agnostic): paginated audit trail for frontend
+ * Audit route (framework-agnostic): paginated audit trail for frontend
  * audit pages (react-admin audit page / Refine `auditLogProvider`).
  *   GET {prefix}/audit?actorId&action&object&from&to&limit&offset
  *
- * RBAC filter (D15): audit rows carry before/after snapshots, so a regular
+ * RBAC filter: audit rows carry before/after snapshots, so a regular
  * identity only sees its own records (`actorId` defaults to its own id).
  * Roles listed in `options.adminRoles` may query any actor (or the whole
  * trail by omitting `actorId`). Not registered when the audit subsystem is

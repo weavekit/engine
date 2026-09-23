@@ -17,7 +17,7 @@ import {
 import { commitPaths } from './autoCommit.js';
 
 /**
- * Page catalog + custom-page lifecycle (SU-7c). Pages are first-class layout
+ * Page catalog + custom-page lifecycle. Pages are first-class layout
  * files; custom pages are menu pages living in **directories** (`pages/<id>/layout.json`
  * — the whole page model is directory-based: object pages in `pages/<object>/show|list.layout.json`,
  * custom pages in `pages/<id>/layout.json`, the shell stays flat `pages/app.layout.json`).

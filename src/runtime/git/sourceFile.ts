@@ -3,7 +3,7 @@ import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 /**
- * Shared source-file primitives (SU-7c): sha256 versioning + atomic write via
+ * Shared source-file primitives: sha256 versioning + atomic write via
  * the `.weavekit/` temp area. Used by script/layout/schema sources and the
  * multi-file source transaction so hashing and atomicity stay single-sourced.
  */

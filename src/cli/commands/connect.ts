@@ -2,7 +2,7 @@ import { connectTunnel } from '../../runtime/tunnel/index.js';
 import { createPrinter } from '../render.js';
 
 /**
- * `weave connect` (P1, agent): dial a customer engine OUT to a governance tunnel
+ * `weave connect` (agent): dial a customer engine OUT to a governance tunnel
  * endpoint over a persistent HTTP/2 CONNECT stream, so a NAT'd/on-prem engine is
  * governable without a routable URL. Runs until Ctrl+C; the local engine is left
  * untouched (only read/approved governance paths are forwarded).

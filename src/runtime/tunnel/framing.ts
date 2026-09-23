@@ -1,7 +1,7 @@
 import type { Duplex } from 'node:stream';
 
 /**
- * Tunnel framing (P1, MIT): a lightweight length-prefixed JSON codec multiplexed
+ * Tunnel framing (MIT): a lightweight length-prefixed JSON codec multiplexed
  * over a full-duplex HTTP/2 `CONNECT` stream. Each frame is
  * `[4-byte big-endian length][JSON payload]`. Both directions (governance →
  * connector and back) use the same `TunnelSession` wrapper, so requests and

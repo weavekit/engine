@@ -40,14 +40,14 @@ function parseFilter(query: Record<string, unknown>, locale: Locale): ApprovalLi
 }
 
 /**
- * Approval queue routes (D1 depth-1 read + local write; MCP tools deferred):
+ * Approval queue routes (depth-1 read + local write; MCP tools deferred):
  *   GET  {prefix}/approvals — paged list with status/action/actorKey/time filters
  *   POST {prefix}/approvals/:key/approve — resolve a pending entry (admin)
  *   POST {prefix}/approvals/:key/reject — resolve a pending entry (admin)
  *
  * Reads and writes are gated to `adminRoles` (the queue carries request args —
  * a write authority boundary). Approver id comes from the authenticated subject;
- * resolution is audited (A7) by the queue facade. Cross-instance remote
+ * resolution is audited by the queue facade. Cross-instance remote
  * approve/reject (depth 2) is not implemented.
  */
 export function registerApprovalsRoutes(app: FastifyInstance, deps: RestDeps, options: RestOptions = {}): void {

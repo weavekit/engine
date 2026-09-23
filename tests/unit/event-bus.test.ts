@@ -7,7 +7,7 @@ const collect = () => {
   return { events, push: (e: { type: string; payload: unknown }) => events.push(e) };
 };
 
-describe('createEventBus — seq/subscription/replay (M12a)', () => {
+describe('createEventBus — seq/subscription/replay', () => {
   it('publish assigns monotonic seq + ts, delivers to subscribers', () => {
     const bus = createEventBus();
     const got = collect();

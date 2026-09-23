@@ -50,7 +50,7 @@ export interface McpRegisterDeps {
   locale: Locale;
   audit?: AuditSink;
   alerts?: AlertSink;
-  /** M10 custom tools (loaded definitions + protocol-agnostic executor) */
+  /** custom tools (loaded definitions + protocol-agnostic executor) */
   tools?: { defs: ToolDefinition[]; executor: ToolExecutor };
   /**
    * CORS origin to allow on hijacked MCP responses (mirrors

@@ -31,7 +31,7 @@ export async function build(cwd: string, options: BuildOptions): Promise<void> {
   });
   p.log(`bundled ${entry} → ${outdir}/main.js`);
 
-  // M10 custom tools: compile tools/*.ts → dist/tools/*.js so the production
+  // custom tools: compile tools/*.ts → dist/tools/*.js so the production
   // engine (no tsx register) can dynamic-import compiled products. Point
   // `tools.toolsDir` at `dist/tools` in production. `weave dev` needs no step —
   // tsx is registered there and the loader accepts `.ts`.

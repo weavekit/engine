@@ -234,7 +234,7 @@ describe('enum options.from — runtime membership', () => {
 });
 
 describe('enum options.from — generated metadata', () => {
-  it('describe exposes optionsFrom (M1); gen-types/OpenAPI fall back to string', () => {
+  it('describe exposes optionsFrom; gen-types/OpenAPI fall back to string', () => {
     const registry = new ObjectRegistry({});
     registry.register({ name: 'currency', fields: [{ name: 'code', type: 'string', primary: true }] });
     const def = registry.register({

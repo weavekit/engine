@@ -1,7 +1,7 @@
 import type { AuditEvent } from '../../audit/index.js';
 
 /**
- * Engine live event contract (M12) — pure interfaces, zero dependencies.
+ * Engine live event contract — pure interfaces, zero dependencies.
  * Implementations live in `infrastructure/event`; the SSE adapter in
  * `adapters/events`; data-access only depends on the narrow publisher that the
  * assembly layer injects (keeps "disabled = not imported = zero overhead").

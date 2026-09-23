@@ -33,7 +33,7 @@ export async function authenticateRequest(
 }
 
 /**
- * Fail-closed admin gate (SU-7b/SU-7c): the subject must carry at least one
+ * Fail-closed admin gate: the subject must carry at least one
  * role listed in `adminRoles`. Used for admin-only source routes (server
  * scripts, raw schema, layout writes, page lifecycle).
  */

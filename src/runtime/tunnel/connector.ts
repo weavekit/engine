@@ -4,7 +4,7 @@ import { fromB64, toB64 } from './framing.js';
 import type { TunnelFrame } from './framing.js';
 
 /**
- * Connector / agent (P1, MIT): the customer-side outbound half of the tunnel.
+ * Connector / agent (MIT): the customer-side outbound half of the tunnel.
  * Runs beside the customer engine, dials the governance tunnel endpoint over a
  * persistent HTTP/2 CONNECT stream, and forwards each proxied request the
  * governance side sends to the local engine via `fetch`. Responses (including

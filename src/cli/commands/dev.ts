@@ -125,7 +125,7 @@ export async function dev(cwd: string, options: DevOptions): Promise<void> {
     }
   }
 
-  /** backfill missing default page layouts for business projects (D14/SU-4c) */
+  /** backfill missing default page layouts for business projects */
   async function backfillViews(sync: SyncResult): Promise<void> {
     if (config.projectType !== PROJECT_TYPES.BUSINESS) return;
     const written = await backfillDefaultViews(
