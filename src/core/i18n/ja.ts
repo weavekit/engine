@@ -2,6 +2,8 @@ import type { MessageKey } from './en.js';
 
 /** Japanese (ja) */
 export const ja: Record<MessageKey, string> = {
+  'object.constraints.fields.details': 'オブジェクト "{object}"：制約 {i} は details フィールド "{field}" を参照できません（列がありません）',
+  'object.constraints.duplicate': 'オブジェクト "{object}"：制約 {i} が同じフィールドの別の制約と重複しています',
   'fieldtype.attr.invalid': 'フィールド型 "{name}"：属性 "{attr}" {detail}',
   'fieldtype.storage.invalid': 'フィールド型 "{name}"：{detail}',
   'fieldtype.validate.invalid': 'フィールド型 "{name}"：{detail}',

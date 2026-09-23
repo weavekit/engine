@@ -78,6 +78,35 @@ describe('weave field-type:list', () => {
       await rm(root, { recursive: true, force: true });
     }
   });
+
+  it('surfaces storage/validate/references/attrs in the flags column', async () => {
+    const root = await makeProject();
+    try {
+      await writeFile(
+        join(root, 'field-types', 'rich.ts'),
+        [
+          'export default {',
+          "  namespace: 'acme',",
+          "  name: 'rich',",
+          "  base: 'string',",
+          "  attrs: { format: { type: 'enum', values: ['a', 'b'] } },",
+          "  storage: { pgType: () => 'TEXT' },",
+          '  validate: () => undefined,',
+          "  references: { object: 'currency', column: 'code' },",
+          '};',
+        ].join('\n') + '\n',
+      );
+      const capture = capturingPrinter();
+      await fieldTypeList(root, { printer: capture.printer });
+      const rich = capture.tables[0]!.find((r) => r[0] === 'acme_rich');
+      expect(rich?.[3]).toContain('storage');
+      expect(rich?.[3]).toContain('validate');
+      expect(rich?.[3]).toContain('references:currency.code');
+      expect(rich?.[3]).toContain('attrs:format');
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
 });
 
 describe('weave field-type:check', () => {

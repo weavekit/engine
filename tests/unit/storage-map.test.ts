@@ -1,4 +1,5 @@
 import { describe, it, expect } from '../helpers/test.js';import { defaultExpr, pgType } from '../../src/core/index.js';
+import { pgTypeMatches } from '../../src/core/storage/map.js';
 import type { FieldDefinition } from '../../src/core/index.js';
 
 const f = (def: FieldDefinition) => def;
@@ -63,5 +64,37 @@ describe('defaultExpr — default value mapping', () => {
   });
   it('no default returns undefined', () => {
     expect(defaultExpr(f({ name: 'a', type: 'string' }))).toBeUndefined();
+  });
+});
+
+describe('pgTypeMatches — custom-storage vocabulary (no false drift)', () => {
+  const col = (dataType: string, extra: Record<string, unknown> = {}) => ({ dataType, ...extra });
+
+  it('covers the types isSafePgType allows', () => {
+    expect(pgTypeMatches('UUID', col('uuid'))).toBe(true);
+    expect(pgTypeMatches('BIGINT', col('bigint'))).toBe(true);
+    expect(pgTypeMatches('SMALLINT', col('smallint'))).toBe(true);
+    expect(pgTypeMatches('REAL', col('real'))).toBe(true);
+    expect(pgTypeMatches('DOUBLE PRECISION', col('double precision'))).toBe(true);
+    expect(pgTypeMatches('JSON', col('json'))).toBe(true);
+    expect(pgTypeMatches('MONEY', col('money'))).toBe(true);
+    expect(pgTypeMatches('TIME', col('time without time zone'))).toBe(true);
+    expect(pgTypeMatches('TIMESTAMP', col('timestamp without time zone'))).toBe(true);
+    expect(pgTypeMatches('TIMESTAMP WITH TIME ZONE', col('timestamp with time zone'))).toBe(true);
+    expect(pgTypeMatches('CHARACTER VARYING', col('character varying'))).toBe(true);
+    expect(pgTypeMatches('BPCHAR', col('bpchar'))).toBe(true);
+  });
+
+  it('handles array suffixes for the broader vocabulary', () => {
+    expect(pgTypeMatches('UUID[]', col('ARRAY', { udtName: '_uuid' }))).toBe(true);
+    expect(pgTypeMatches('BIGINT[]', col('ARRAY', { udtName: '_int8' }))).toBe(true);
+    expect(pgTypeMatches('NUMERIC[]', col('ARRAY', { udtName: '_numeric' }))).toBe(true);
+    expect(pgTypeMatches('UUID[]', col('ARRAY', { udtName: '_text' }))).toBe(false);
+  });
+
+  it('still rejects a genuine mismatch', () => {
+    expect(pgTypeMatches('UUID', col('text'))).toBe(false);
+    expect(pgTypeMatches('NUMERIC(12,2)', col('numeric', { numericPrecision: 10, numericScale: 2 }))).toBe(false);
+    expect(pgTypeMatches('NUMERIC(12,2)', col('numeric', { numericPrecision: 12, numericScale: 2 }))).toBe(true);
   });
 });

@@ -2,6 +2,8 @@ import type { MessageKey } from './en.js';
 
 /** Russian (ru) */
 export const ru: Record<MessageKey, string> = {
+  'object.constraints.fields.details': 'объект "{object}": ограничение {i} не может ссылаться на поле details "{field}" (нет столбца)',
+  'object.constraints.duplicate': 'объект "{object}": ограничение {i} дублирует другое ограничение по тем же полям',
   'fieldtype.attr.invalid': 'тип поля "{name}": атрибут "{attr}" {detail}',
   'fieldtype.storage.invalid': 'тип поля "{name}": {detail}',
   'fieldtype.validate.invalid': 'тип поля "{name}": {detail}',

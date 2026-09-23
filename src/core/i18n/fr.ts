@@ -2,6 +2,8 @@ import type { MessageKey } from './en.js';
 
 /** French (fr) */
 export const fr: Record<MessageKey, string> = {
+  'object.constraints.fields.details': 'objet "{object}" : la contrainte {i} ne peut pas référencer le champ details "{field}" (pas de colonne)',
+  'object.constraints.duplicate': 'objet "{object}" : la contrainte {i} duplique une autre contrainte sur les mêmes champs',
   'fieldtype.attr.invalid': 'type de champ "{name}" : attribut "{attr}" {detail}',
   'fieldtype.storage.invalid': 'type de champ "{name}" : {detail}',
   'fieldtype.validate.invalid': 'type de champ "{name}" : {detail}',

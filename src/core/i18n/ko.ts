@@ -2,6 +2,8 @@ import type { MessageKey } from './en.js';
 
 /** Korean (ko) */
 export const ko: Record<MessageKey, string> = {
+  'object.constraints.fields.details': '오브젝트 "{object}": 제약 {i}은(는) details 필드 "{field}"을(를) 참조할 수 없습니다(열이 없음)',
+  'object.constraints.duplicate': '오브젝트 "{object}": 제약 {i}이(가) 같은 필드의 다른 제약과 중복됩니다',
   'fieldtype.attr.invalid': '필드 유형 "{name}": 속성 "{attr}" {detail}',
   'fieldtype.storage.invalid': '필드 유형 "{name}": {detail}',
   'fieldtype.validate.invalid': '필드 유형 "{name}": {detail}',

@@ -28,6 +28,8 @@ export const en = {
   'object.constraints.fields.required': 'object "{object}": constraint {i} must declare a non-empty "fields" array',
   'object.constraints.fields.unknown': 'object "{object}": constraint {i} references unknown field "{field}"',
   'object.constraints.fields.duplicate': 'object "{object}": constraint {i} lists field "{field}" more than once',
+  'object.constraints.fields.details': 'object "{object}": constraint {i} cannot reference details field "{field}" (it has no column)',
+  'object.constraints.duplicate': 'object "{object}": constraint {i} duplicates another constraint on the same fields',
   'field.notObject': 'object "{object}": field definition must be an object',
   'field.name.required': 'object "{object}": field name is required',
   'field.name.snake': 'object "{object}": field name "{name}" must be snake_case',

@@ -47,6 +47,14 @@ function flagsOf(registration: FieldTypeRegistration): string {
   if (registration.ui?.visual !== undefined) flags.push(`visual:${registration.ui.visual}`);
   if (registration.openApiFormat !== undefined) flags.push(`format:${registration.openApiFormat}`);
   if (registration.reverse !== undefined) flags.push('reverse');
+  if (registration.storage !== undefined) flags.push('storage');
+  if (registration.validate !== undefined) flags.push('validate');
+  if (registration.references !== undefined) {
+    const { object, column } = registration.references;
+    flags.push(`references:${object}${column === undefined ? '' : `.${column}`}`);
+  }
+  const attrs = Object.keys(registration.attrs ?? {});
+  if (attrs.length > 0) flags.push(`attrs:${attrs.join('|')}`);
   return flags.join(', ');
 }
 
@@ -122,11 +130,13 @@ export async function fieldTypeCheck(cwd: string, options: FieldTypeCheckOptions
   }
 
   try {
-    const { files } = await loadSchemaDir(schemaDir, {
+    const { registry, files } = await loadSchemaDir(schemaDir, {
       locale: config.locale,
       allowedFieldTypes: whitelist,
       fieldTypes,
     });
+    // cross-object checks (relation/details/references targets) live in buildGraph
+    registry.buildGraph({ locale: config.locale });
     p.log(`schemas OK (${files.length} object(s))`);
   } catch (error) {
     problems.push(`schema: ${error instanceof Error ? error.message : String(error)}`);

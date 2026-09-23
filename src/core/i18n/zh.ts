@@ -1,6 +1,8 @@
 import type { MessageKey } from './en.js';
 
 export const zh: Record<MessageKey, string> = {
+  'object.constraints.fields.details': '对象 "{object}"：约束 {i} 不能引用 details 字段 "{field}"（无对应列）',
+  'object.constraints.duplicate': '对象 "{object}"：约束 {i} 与另一条约束使用了相同字段',
   'fieldtype.attr.invalid': '字段类型 "{name}"：属性 "{attr}" {detail}',
   'fieldtype.storage.invalid': '字段类型 "{name}"：{detail}',
   'fieldtype.validate.invalid': '字段类型 "{name}"：{detail}',

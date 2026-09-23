@@ -2,6 +2,8 @@ import type { MessageKey } from './en.js';
 
 /** Vietnamese (vi) */
 export const vi: Record<MessageKey, string> = {
+  'object.constraints.fields.details': 'đối tượng "{object}": ràng buộc {i} không thể tham chiếu trường details "{field}" (không có cột)',
+  'object.constraints.duplicate': 'đối tượng "{object}": ràng buộc {i} trùng với một ràng buộc khác trên cùng trường',
   'fieldtype.attr.invalid': 'kiểu trường "{name}": thuộc tính "{attr}" {detail}',
   'fieldtype.storage.invalid': 'kiểu trường "{name}": {detail}',
   'fieldtype.validate.invalid': 'kiểu trường "{name}": {detail}',

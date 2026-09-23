@@ -65,6 +65,32 @@ describe('object-level constraints — validation', () => {
       'object.constraints.fields.duplicate',
     );
   });
+
+  it('rejects a duplicated constraint (same field set)', () => {
+    expect(
+      codeOf(() =>
+        defineObject({
+          ...ORDER,
+          constraints: [
+            { type: 'unique', fields: ['email', 'tenant_id'] },
+            { type: 'unique', fields: ['tenant_id', 'email'] },
+          ],
+        }),
+      ),
+    ).toBe('object.constraints.duplicate');
+  });
+
+  it('rejects a constraint on a details field (no column)', () => {
+    const withDetails = {
+      name: 'order',
+      fields: [
+        { name: 'id', type: 'string', primary: true },
+        { name: 'lines', type: 'details', target: 'line' },
+      ],
+      constraints: [{ type: 'unique', fields: ['lines'] }],
+    };
+    expect(codeOf(() => defineObject(withDetails))).toBe('object.constraints.fields.details');
+  });
 });
 
 describe('object-level constraints — DDL', () => {

@@ -24,6 +24,7 @@ const CASES: Array<[MessageKey, number]> = [
   ['proxy.notFound', 404],
   // 409
   ['http.conflict', 409],
+  ['data.unique', 409],
   ['source.versionMismatch', 409],
   ['page.exists', 409],
   ['page.ref.inUse', 409],

@@ -2,6 +2,8 @@ import type { MessageKey } from './en.js';
 
 /** Portuguese (pt) */
 export const pt: Record<MessageKey, string> = {
+  'object.constraints.fields.details': 'objeto "{object}": a restrição {i} não pode referenciar o campo details "{field}" (sem coluna)',
+  'object.constraints.duplicate': 'objeto "{object}": a restrição {i} duplica outra restrição nos mesmos campos',
   'fieldtype.attr.invalid': 'tipo de campo "{name}": atributo "{attr}" {detail}',
   'fieldtype.storage.invalid': 'tipo de campo "{name}": {detail}',
   'fieldtype.validate.invalid': 'tipo de campo "{name}": {detail}',

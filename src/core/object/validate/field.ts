@@ -507,7 +507,6 @@ function validateRegisteredField(
     allowed.add('target');
     allowed.add('onDelete');
   }
-  if (resolvedBase === FIELD_TYPES.STRING || resolvedBase === FIELD_TYPES.TEXT) allowed.add('multiple');
   for (const key of Object.keys(raw)) {
     if (!allowed.has(key)) fail(vc, 'field.attr.notAllowed', { type, attr: key });
   }
@@ -519,10 +518,8 @@ function validateRegisteredField(
   const sensitive = expectBoolean(raw, 'sensitive', vc);
   const required = expectBoolean(raw, 'required', vc);
   const unique = expectBoolean(raw, 'unique', vc);
-  const multiple = expectBoolean(raw, 'multiple', vc);
 
   const out: Record<string, unknown> = { name, type, labels, description, primary, system, sensitive, required, unique };
-  if (multiple !== undefined) out.multiple = multiple;
 
   // carry the base's own value constraints (min/max/minLength/maxLength/regex/precision)
   for (const key of inherited) {

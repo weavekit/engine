@@ -124,8 +124,42 @@ describe('buildMappingReport — schema ↔ table mapping', () => {
     expect(report.totals.columnsExtra).toBe(1);
   });
 
-  it('reports a missing table with every column missing', () => {
-    const defs = [obj('customers', [ID])];
+  it('maps declared table-level UNIQUE constraints and counts constraint drift', () => {
+    const defs = [
+      parseSchema(
+        JSON.stringify({
+          name: 'memberships',
+          fields: [ID, { name: 'user_id', type: 'string' }, { name: 'team_id', type: 'string' }],
+          constraints: [{ type: 'unique', fields: ['user_id', 'team_id'] }],
+        }),
+        { nameHint: 'memberships' },
+      ),
+    ];
+    const columns = [col('id', { isNullable: false }), col('user_id'), col('team_id')];
+    const missing = buildMappingReport(defs, new Map([['memberships', table({ name: 'memberships', pk: ['id'], columns })]]));
+    const memberships = report(missing, 'memberships');
+    expect(memberships.constraints[0]).toMatchObject({
+      name: 'memberships_user_id_team_id_key',
+      columns: ['user_id', 'team_id'],
+      present: false,
+    });
+    expect(memberships.drift).toBe(true);
+    expect(missing.totals.constraintDrift).toBe(1);
+
+    const present = buildMappingReport(
+      defs,
+      new Map([
+        [
+          'memberships',
+          table({ name: 'memberships', pk: ['id'], columns, indexNames: ['memberships_pkey', 'memberships_user_id_team_id_key'] }),
+        ],
+      ]),
+    );
+    expect(report(present, 'memberships').constraints[0]!.present).toBe(true);
+    expect(present.totals.constraintDrift).toBe(0);
+  });
+
+  it('reports a missing table with every column missing', () => {    const defs = [obj('customers', [ID])];
     const report = buildMappingReport(defs, new Map());
 
     expect(report.tables[0]).toMatchObject({ exists: false, drift: true });

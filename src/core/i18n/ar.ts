@@ -2,6 +2,8 @@ import type { MessageKey } from './en.js';
 
 /** Arabic (ar) */
 export const ar: Record<MessageKey, string> = {
+  'object.constraints.fields.details': 'الكائن "{object}": لا يمكن للقيد {i} الإشارة إلى حقل details "{field}" (بلا عمود)',
+  'object.constraints.duplicate': 'الكائن "{object}": القيد {i} يكرر قيدًا آخر على نفس الحقول',
   'fieldtype.attr.invalid': 'نوع الحقل "{name}": السمة "{attr}" {detail}',
   'fieldtype.storage.invalid': 'نوع الحقل "{name}": {detail}',
   'fieldtype.validate.invalid': 'نوع الحقل "{name}": {detail}',

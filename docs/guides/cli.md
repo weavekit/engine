@@ -134,7 +134,8 @@ and constraints, plus the live column state when the table exists. It requires a
 and never emits DDL or writes.
 
 - `weave schema:map` — every object as one report (a table per object).
-- `weave schema:map <object>` — one table, with its indexes, foreign keys, and RLS/owner state.
+- `weave schema:map <object>` — one table, with its indexes, foreign keys, table-level UNIQUE
+  constraints, and RLS/owner state.
 - `--drift` — show only drifting columns and tables (what `weave migrate` would change).
 - `--json` — the structured report.
 
@@ -143,6 +144,10 @@ expected PG type, constraints (`PK` / `NOT NULL` / `UNIQUE` / `DEFAULT …` / `F
 status: `ok`, `missing`, `type: <actual>`, `null: …`, or `extra (…)` for a live column that isn't in
 the schema. Objects that are `details` children also list their engine-managed `parent_id` /
 `parent_type` / `parent_idx` columns.
+
+Tables that declare composite/scoped `constraints` also print a `unique:` line — each constraint's
+name, its columns, and `MISSING` when the backing unique index/constraint is absent. The footer
+totals include `constraint drift` alongside index and FK drift.
 
 ## `weave schema:upgrade [--dry-run]`
 
@@ -186,7 +191,8 @@ Adds a field to `objects/<name>/schema.json` and auto-commits:
 
 Prints the effective field-type surface: every built-in type plus the project's registrations, each
 with its source (`builtin` or `field-types/<file>`), inherited `base`, and flags (`scalar`,
-`relationLike`, `visual:…`, `format:…`, `reverse`). `--json` emits the structured list.
+`relationLike`, `visual:…`, `format:…`, `reverse`, `storage`, `validate`, `references:<object>.<column>`,
+`attrs:<name>|<name>`). `--json` emits the structured list.
 
 ## `weave field-type:check`
 

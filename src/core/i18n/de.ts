@@ -2,6 +2,8 @@ import type { MessageKey } from './en.js';
 
 /** German (de) */
 export const de: Record<MessageKey, string> = {
+  'object.constraints.fields.details': 'Objekt "{object}": Constraint {i} darf kein details-Feld "{field}" referenzieren (keine Spalte)',
+  'object.constraints.duplicate': 'Objekt "{object}": Constraint {i} dupliziert einen anderen Constraint über dieselben Felder',
   'fieldtype.attr.invalid': 'Feldtyp "{name}": Attribut "{attr}" {detail}',
   'fieldtype.storage.invalid': 'Feldtyp "{name}": {detail}',
   'fieldtype.validate.invalid': 'Feldtyp "{name}": {detail}',

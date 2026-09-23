@@ -147,15 +147,42 @@ export function defaultExpr(
 const ARRAY_ELEMENT_UDT: Record<string, string> = {
   TEXT: 'text',
   VARCHAR: 'varchar',
+  'CHARACTER VARYING': 'varchar',
+  CHAR: 'bpchar',
+  BPCHAR: 'bpchar',
+  SMALLINT: 'int2',
+  INT2: 'int2',
   INTEGER: 'int4',
+  INT: 'int4',
+  INT4: 'int4',
+  BIGINT: 'int8',
+  INT8: 'int8',
+  NUMERIC: 'numeric',
+  DECIMAL: 'numeric',
+  REAL: 'float4',
+  'DOUBLE PRECISION': 'float8',
+  BOOLEAN: 'bool',
+  DATE: 'date',
+  TIME: 'time',
+  TIMETZ: 'timetz',
+  TIMESTAMP: 'timestamp',
+  TIMESTAMPTZ: 'timestamptz',
+  'TIMESTAMP WITH TIME ZONE': 'timestamptz',
+  'TIMESTAMP WITHOUT TIME ZONE': 'timestamp',
+  JSON: 'json',
+  JSONB: 'jsonb',
+  UUID: 'uuid',
+  MONEY: 'money',
 };
 
 /**
  * Compare a declared column type (`pgType()` output, e.g. `VARCHAR(255)`,
- * `NUMERIC(12,2)`, `TEXT[]`) against a live `information_schema` column, for
- * the `weave schema:map` drift report. Length on `VARCHAR` is ignored (brownfield
- * tables often declare an unbounded/bespoke varchar); numeric precision/scale is
- * compared only when the declared type specifies them.
+ * `NUMERIC(12,2)`, `TEXT[]`, or a custom `storage.pgType` value) against a live
+ * `information_schema` column, for the `weave schema:map` drift report. Length on
+ * `VARCHAR` is ignored (brownfield tables often declare an unbounded/bespoke
+ * varchar); numeric precision/scale is compared only when the declared type
+ * specifies them. Accepts the same type vocabulary as `isSafePgType`, so a
+ * custom storage mapping never reports a false drift.
  */
 export function pgTypeMatches(
   expected: string,
@@ -167,36 +194,67 @@ export function pgTypeMatches(
   },
 ): boolean {
   const exp = expected.trim().toUpperCase();
+  const match = /^([A-Z][A-Z ]*?)(?:\(([^)]*)\))?(\[\])?$/.exec(exp);
+  if (match === null) return false;
+  const base = match[1]!.trim();
+  const args = match[2];
+  const isArray = match[3] !== undefined;
 
-  if (exp.endsWith('[]')) {
-    const isArray = actual.dataType.toUpperCase() === 'ARRAY' || actual.udtName?.startsWith('_') === true;
-    if (!isArray) return false;
+  if (isArray) {
+    const liveIsArray = actual.dataType.toUpperCase() === 'ARRAY' || actual.udtName?.startsWith('_') === true;
+    if (!liveIsArray) return false;
     const udt = actual.udtName?.replace(/^_/, '').toLowerCase();
-    return ARRAY_ELEMENT_UDT[exp.slice(0, -2)] === udt;
+    return ARRAY_ELEMENT_UDT[base] === udt;
   }
 
-  const match = /^([A-Z]+)(?:\(([^)]*)\))?$/.exec(exp);
-  if (match === null) return false;
-  const base = match[1]!;
-  const args = match[2];
   const actualBase = actual.dataType.toUpperCase();
 
   switch (base) {
     case 'VARCHAR':
+    case 'CHARACTER VARYING':
       return actualBase === 'CHARACTER VARYING' || actualBase === 'VARCHAR';
+    case 'CHAR':
+    case 'BPCHAR':
+      return actualBase === 'CHARACTER' || actualBase === 'CHAR' || actualBase === 'BPCHAR';
     case 'TEXT':
       return actualBase === 'TEXT';
+    case 'SMALLINT':
+    case 'INT2':
+      return actualBase === 'SMALLINT' || actualBase === 'INT2';
     case 'INTEGER':
+    case 'INT':
+    case 'INT4':
       return actualBase === 'INTEGER' || actualBase === 'INT' || actualBase === 'INT4';
+    case 'BIGINT':
+    case 'INT8':
+      return actualBase === 'BIGINT' || actualBase === 'INT8';
+    case 'REAL':
+      return actualBase === 'REAL' || actualBase === 'FLOAT4';
+    case 'DOUBLE PRECISION':
+      return actualBase === 'DOUBLE PRECISION' || actualBase === 'FLOAT8';
     case 'BOOLEAN':
       return actualBase === 'BOOLEAN' || actualBase === 'BOOL';
     case 'DATE':
       return actualBase === 'DATE';
+    case 'TIME':
+      return actualBase === 'TIME' || actualBase === 'TIME WITHOUT TIME ZONE';
+    case 'TIMETZ':
+      return actualBase === 'TIME WITH TIME ZONE';
+    case 'TIMESTAMP':
+      return actualBase === 'TIMESTAMP' || actualBase === 'TIMESTAMP WITHOUT TIME ZONE';
     case 'TIMESTAMPTZ':
+    case 'TIMESTAMP WITH TIME ZONE':
       return actualBase === 'TIMESTAMP WITH TIME ZONE';
+    case 'JSON':
+      return actualBase === 'JSON';
     case 'JSONB':
       return actualBase === 'JSONB';
-    case 'NUMERIC': {
+    case 'UUID':
+      return actualBase === 'UUID';
+    case 'MONEY':
+      return actualBase === 'MONEY';
+    case 'NUMERIC':
+    case 'DECIMAL': {
       if (actualBase !== 'NUMERIC' && actualBase !== 'DECIMAL') return false;
       if (args === undefined) return true;
       const [precision, scale] = args.split(',').map((part) => Number(part.trim()));

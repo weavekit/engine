@@ -168,5 +168,7 @@ you give a registration a `reverse` hint.
   to [server hooks](../guides/script-hooks.md), `references` (membership), or custom tools.
 - `storage` maps the **column type** only; there is no custom SQL `DEFAULT` (the base `default` is
   used) and no custom type-change migration (additive-only).
+- Registered types are **scalar** (a base value primitive); there is no `multiple`/array form — model
+  a related object or use a built-in multi-value type instead.
 - Reverse inference (`introspect`) requires an explicit `reverse` hint; without one, registered types
   are forward-authoring only.

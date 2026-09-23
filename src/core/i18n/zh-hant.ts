@@ -2,6 +2,8 @@ import type { MessageKey } from './en.js';
 
 /** Traditional Chinese (zh-Hant) */
 export const zhHant: Record<MessageKey, string> = {
+  'object.constraints.fields.details': '物件 "{object}"：約束 {i} 不能參照 details 欄位 "{field}"（沒有對應欄）',
+  'object.constraints.duplicate': '物件 "{object}"：約束 {i} 與另一條約束使用了相同欄位',
   'fieldtype.attr.invalid': '欄位類型 "{name}"：屬性 "{attr}" {detail}',
   'fieldtype.storage.invalid': '欄位類型 "{name}"：{detail}',
   'fieldtype.validate.invalid': '欄位類型 "{name}"：{detail}',

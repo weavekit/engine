@@ -2,6 +2,8 @@ import type { MessageKey } from './en.js';
 
 /** Hindi (hi) */
 export const hi: Record<MessageKey, string> = {
+  'object.constraints.fields.details': 'ऑब्जेक्ट "{object}": constraint {i} details फ़ील्ड "{field}" का संदर्भ नहीं दे सकता (कोई कॉलम नहीं)',
+  'object.constraints.duplicate': 'ऑब्जेक्ट "{object}": constraint {i} उन्हीं फ़ील्ड पर किसी अन्य constraint की नकल करता है',
   'fieldtype.attr.invalid': 'फ़ील्ड प्रकार "{name}": विशेषता "{attr}" {detail}',
   'fieldtype.storage.invalid': 'फ़ील्ड प्रकार "{name}": {detail}',
   'fieldtype.validate.invalid': 'फ़ील्ड प्रकार "{name}": {detail}',

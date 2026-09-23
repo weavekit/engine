@@ -75,6 +75,13 @@ function renderTable(p: SchemaMapOptions['printer'], table: MappingTable, mode: 
       );
     }
   }
+  if (table.constraints.length > 0 && (mode.verbose || table.constraints.some((c) => !c.present))) {
+    p.log(
+      `  unique: ${table.constraints
+        .map((c) => `${c.name} (${c.columns.join(', ')})${c.present ? '' : ` ${kleur.red('MISSING')}`}`)
+        .join(' · ')}`,
+    );
+  }
   if (table.rls !== undefined && (mode.verbose || table.rls.enabled)) {
     p.log(
       `  rls: ${table.rls.enabled ? kleur.green('on') : kleur.dim('off')}  owner: ${table.rls.owner || '-'}  policies: ${
@@ -149,5 +156,6 @@ export async function schemaMap(cwd: string, options: SchemaMapOptions): Promise
       'extra columns': totals.columnsExtra || undefined,
     },
     { 'index drift': totals.indexDrift || undefined, 'fk drift': totals.fkDrift || undefined },
+    { 'constraint drift': totals.constraintDrift || undefined },
   ]);
 }

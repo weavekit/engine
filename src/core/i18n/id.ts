@@ -2,6 +2,8 @@ import type { MessageKey } from './en.js';
 
 /** Indonesian (id) */
 export const id: Record<MessageKey, string> = {
+  'object.constraints.fields.details': 'objek "{object}": constraint {i} tidak boleh merujuk field details "{field}" (tanpa kolom)',
+  'object.constraints.duplicate': 'objek "{object}": constraint {i} menduplikasi constraint lain pada field yang sama',
   'fieldtype.attr.invalid': 'tipe field "{name}": atribut "{attr}" {detail}',
   'fieldtype.storage.invalid': 'tipe field "{name}": {detail}',
   'fieldtype.validate.invalid': 'tipe field "{name}": {detail}',
