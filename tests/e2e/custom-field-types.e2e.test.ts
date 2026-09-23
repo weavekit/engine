@@ -30,7 +30,6 @@ const fieldTypes = buildFieldTypeRegistry([
     base: 'integer',
     validate: (_f, v) => (typeof v === 'number' && v % 2 !== 0 ? 'must be even' : undefined),
   },
-  { name: 'acme_currency', base: 'string', references: { object: 'currency', column: 'code' } },
 ]);
 
 const CURRENCY = {
@@ -46,7 +45,7 @@ const INVOICE = {
     { name: 'tenant_id', type: 'string' },
     { name: 'amount', type: 'acme_money', scale: 2 },
     { name: 'even', type: 'acme_even' },
-    { name: 'ccy', type: 'acme_currency' },
+    { name: 'ccy', type: 'enum', options: { from: { object: 'currency', column: 'code' } } },
   ],
   constraints: [{ type: 'unique', fields: ['code', 'tenant_id'] }],
 };
@@ -104,9 +103,9 @@ maybe('custom field types + constraints (real PG)', () => {
 
       // composite unique violation → data.unique (409 at the API layer)
       expect(await expectCode({ id: 'I2', code: 'A', tenant_id: 'T1', amount: 1, even: 4, ccy: 'USD' })).toBe('data.unique');
-      // references membership → data.field.references
+      // dynamic enum membership → data.field.optionsFrom
       expect(await expectCode({ id: 'I3', code: 'B', tenant_id: 'T1', amount: 1, even: 4, ccy: 'ZZZ' })).toBe(
-        'data.field.references',
+        'data.field.optionsFrom',
       );
       // custom validate hook → data.field.custom
       expect(await expectCode({ id: 'I4', code: 'C', tenant_id: 'T1', amount: 1, even: 3, ccy: 'USD' })).toBe(

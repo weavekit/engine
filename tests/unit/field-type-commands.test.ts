@@ -79,7 +79,7 @@ describe('weave field-type:list', () => {
     }
   });
 
-  it('surfaces storage/validate/references/attrs in the flags column', async () => {
+  it('surfaces storage/validate/attrs in the flags column', async () => {
     const root = await makeProject();
     try {
       await writeFile(
@@ -92,7 +92,6 @@ describe('weave field-type:list', () => {
           "  attrs: { format: { type: 'enum', values: ['a', 'b'] } },",
           "  storage: { pgType: () => 'TEXT' },",
           '  validate: () => undefined,',
-          "  references: { object: 'currency', column: 'code' },",
           '};',
         ].join('\n') + '\n',
       );
@@ -101,7 +100,6 @@ describe('weave field-type:list', () => {
       const rich = capture.tables[0]!.find((r) => r[0] === 'acme_rich');
       expect(rich?.[3]).toContain('storage');
       expect(rich?.[3]).toContain('validate');
-      expect(rich?.[3]).toContain('references:currency.code');
       expect(rich?.[3]).toContain('attrs:format');
     } finally {
       await rm(root, { recursive: true, force: true });

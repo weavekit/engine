@@ -48,7 +48,6 @@ export type {
   AttrKind,
   AttrSpec,
   FieldTypeRegistration,
-  FieldTypeReferences,
   FieldTypeRegistry,
   FieldTypeStorage,
   FieldTypeUiHints,

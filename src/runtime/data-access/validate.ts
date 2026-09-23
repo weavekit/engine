@@ -212,13 +212,11 @@ async function checkValue(field: FieldDefinition, value: unknown, vc: Vc): Promi
 }
 
 /**
- * Apply a registered type's own `validate` hook and `references` membership
- * check, after the base-primitive validation in `checkValue`. Built-in types
- * carry neither, so this is a no-op for them. `references` runs on the write
- * transaction client (`vc.pool`) when present, keeping the check consistent
- * with the surrounding write.
+ * Apply a registered type's own pure `validate` hook, after the base-primitive
+ * validation in `checkValue`. Built-in types carry no hook, so this is a no-op
+ * for them.
  */
-async function checkRegistered(field: FieldDefinition, value: unknown, vc: Vc): Promise<void> {
+function checkRegistered(field: FieldDefinition, value: unknown, vc: Vc): void {
   if (value === null || value === undefined) return;
   const descriptor = (vc.registry.fieldTypes ?? DEFAULT_FIELD_TYPE_REGISTRY).get(field.type);
   if (descriptor === undefined) return;
@@ -226,18 +224,6 @@ async function checkRegistered(field: FieldDefinition, value: unknown, vc: Vc): 
   if (descriptor.validate !== undefined) {
     const detail = descriptor.validate(field as unknown as RegisteredField, value);
     if (detail !== undefined) fail(vc, 'data.field.custom', { field: field.name, detail });
-  }
-
-  const ref = descriptor.references;
-  if (ref !== undefined) {
-    if (typeof value !== 'string') fail(vc, 'data.field.type', { field: field.name, type: 'record id' });
-    const target = await vc.registry.get(ref.object);
-    if (target === undefined) return; // cross-object schema error already raised in buildGraph
-    const column = ref.column ?? primaryKeyOf(target)!;
-    const res = await vc.pool.query(`SELECT 1 FROM "${target.name}" WHERE "${column}" = $1 LIMIT 1`, [value]);
-    if ((res.rowCount ?? 0) === 0) {
-      fail(vc, 'data.field.references', { field: field.name, value, ref: ref.object });
-    }
   }
 }
 
@@ -297,6 +283,6 @@ export async function validateRecord(
     const field = fields.get(key);
     if (field === undefined || field.type === FIELD_TYPES.DETAILS) continue;
     await checkValue(field, data[key], vc);
-    await checkRegistered(field, data[key], vc);
+    checkRegistered(field, data[key], vc);
   }
 }

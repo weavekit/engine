@@ -22,7 +22,7 @@ const SCALAR_TYPE_VALUES: readonly string[] = Object.values(SCALAR_FIELD_TYPES);
 export interface BuildGraphOptions {
   /** message locale; defaults to English */
   locale?: Locale;
-  /** effective field-type registry (resolves registered `references` hints) */
+  /** effective field-type registry (resolves registered types) */
   fieldTypes?: FieldTypeRegistry;
 }
 
@@ -215,28 +215,6 @@ export function buildGraph(
             field: field.name,
             target: refObject,
             column: col,
-          });
-        }
-      }
-
-      // registered-type membership (`references`) must point at a real object + column
-      const ref = options?.fieldTypes?.get(field.type)?.references;
-      if (ref !== undefined) {
-        const target = defs.get(ref.object);
-        if (target === undefined) {
-          graphError(locale, 'graph.references.target.missing', {
-            object: def.name,
-            field: field.name,
-            target: ref.object,
-          });
-        }
-        const column = ref.column ?? primaryKeyOf(target)!;
-        if (!target.fields.some((f) => f.name === column)) {
-          graphError(locale, 'graph.references.column.missing', {
-            object: def.name,
-            field: field.name,
-            target: ref.object,
-            column,
           });
         }
       }

@@ -53,7 +53,6 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
-const SNAKE_CASE = /^[a-z][a-z0-9_]*$/;
 const ATTR_NAME_RE = /^[a-z][a-zA-Z0-9_]*$/;
 const ATTR_KIND_VALUES: readonly string[] = Object.values(ATTR_KINDS);
 
@@ -109,7 +108,7 @@ function validateAttrSpecs(raw: Record<string, unknown>, name: string, locale?: 
   }
 }
 
-/** validate `storage` / `validate` / `references` hooks (non-relation value bases only) */
+/** validate `storage` / `validate` hooks (non-relation value bases only) */
 function validateHooks(raw: Record<string, unknown>, name: string, relationLike: boolean, locale?: Locale): void {
   if (raw.storage !== undefined) {
     if (relationLike) throw invalid(`"${name}" storage is not allowed on relation-like types`, locale);
@@ -121,16 +120,6 @@ function validateHooks(raw: Record<string, unknown>, name: string, relationLike:
     if (relationLike) throw invalid(`"${name}" validate is not allowed on relation-like types`, locale);
     if (typeof raw.validate !== 'function') {
       throw new SchemaError('fieldtype.validate.invalid', { name, detail: 'validate must be a function' }, locale);
-    }
-  }
-  if (raw.references !== undefined) {
-    if (relationLike) throw invalid(`"${name}" references is not allowed on relation-like types`, locale);
-    const ref = raw.references;
-    if (!isPlainObject(ref) || typeof ref.object !== 'string' || !SNAKE_CASE.test(ref.object)) {
-      throw new SchemaError('fieldtype.references.invalid', { name, detail: 'references must be { object: string, column?: string }' }, locale);
-    }
-    if (ref.column !== undefined && (typeof ref.column !== 'string' || !SNAKE_CASE.test(ref.column))) {
-      throw new SchemaError('fieldtype.references.invalid', { name, detail: 'references.column must be snake_case' }, locale);
     }
   }
 }

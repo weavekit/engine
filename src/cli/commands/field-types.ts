@@ -49,10 +49,6 @@ function flagsOf(registration: FieldTypeRegistration): string {
   if (registration.reverse !== undefined) flags.push('reverse');
   if (registration.storage !== undefined) flags.push('storage');
   if (registration.validate !== undefined) flags.push('validate');
-  if (registration.references !== undefined) {
-    const { object, column } = registration.references;
-    flags.push(`references:${object}${column === undefined ? '' : `.${column}`}`);
-  }
   const attrs = Object.keys(registration.attrs ?? {});
   if (attrs.length > 0) flags.push(`attrs:${attrs.join('|')}`);
   return flags.join(', ');
@@ -135,7 +131,7 @@ export async function fieldTypeCheck(cwd: string, options: FieldTypeCheckOptions
       allowedFieldTypes: whitelist,
       fieldTypes,
     });
-    // cross-object checks (relation/details/references targets) live in buildGraph
+    // cross-object checks (relation/details/enum options.from targets) live in buildGraph
     registry.buildGraph({ locale: config.locale });
     p.log(`schemas OK (${files.length} object(s))`);
   } catch (error) {

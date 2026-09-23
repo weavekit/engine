@@ -15,8 +15,7 @@ import type { RegisteredField } from './fields.js';
  * - `storage.pgType` — a pure function mapping the field to its PostgreSQL
  *   column type (its output is validated against a safe grammar);
  * - `validate` — a pure, synchronous write-time check (returns a detail string
- *   to reject, or `undefined` to allow);
- * - `references` — the value must exist in a column of a modeled engine object.
+ *   to reject, or `undefined` to allow).
  */
 
 /** single source of truth for registered-type name shape (namespace segment required) */
@@ -65,18 +64,10 @@ export interface FieldTypeStorage {
 /**
  * Write-time check for a registered type: return a human-readable detail to
  * reject the value, or `undefined` to allow it. Must be pure and synchronous
- * (no I/O); DB-backed or cross-record rules belong to server hooks and
- * `references` (membership) instead.
+ * (no I/O); DB-backed or cross-record rules belong to server hooks or a
+ * data-driven `enum` (`options.from`) instead.
  */
 export type FieldTypeValidator = (field: RegisteredField, value: unknown) => string | undefined;
-
-/** declarative membership check: the value must exist in a modeled object's column */
-export interface FieldTypeReferences {
-  /** a modeled engine object whose column must contain the value */
-  object: string;
-  /** the target column; defaults to the object's primary key */
-  column?: string;
-}
 
 /** one field-type registration (built-in or user-defined) */
 export interface FieldTypeRegistration {
@@ -100,8 +91,6 @@ export interface FieldTypeRegistration {
   storage?: FieldTypeStorage;
   /** pure, synchronous write-time value check (non-relation value bases only) */
   validate?: FieldTypeValidator;
-  /** value must exist in a column of a modeled object (non-relation value bases only) */
-  references?: FieldTypeReferences;
   /**
    * reverse hint for `weave introspect`: a live PostgreSQL column type that maps
    * back to this registered type (e.g. `{ pgType: 'NUMERIC(12,2)' }`). Only valid

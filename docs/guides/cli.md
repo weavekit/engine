@@ -191,7 +191,7 @@ Adds a field to `objects/<name>/schema.json` and auto-commits:
 
 Prints the effective field-type surface: every built-in type plus the project's registrations, each
 with its source (`builtin` or `field-types/<file>`), inherited `base`, and flags (`scalar`,
-`relationLike`, `visual:…`, `format:…`, `reverse`, `storage`, `validate`, `references:<object>.<column>`,
+`relationLike`, `visual:…`, `format:…`, `reverse`, `storage`, `validate`,
 `attrs:<name>|<name>`). `--json` emits the structured list.
 
 ## `weave field-type:check`

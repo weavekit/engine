@@ -44,7 +44,6 @@ export default [
 | `attrs` | typed extra attributes a field of this type accepts: `{ <name>: { type, values?, required?, default? } }` (validated, fail-closed) |
 | `storage` | custom column mapping: `{ pgType: (field) => string }` (output safety-checked; non-relation bases only) |
 | `validate` | pure, synchronous write-time check `(field, value) => string \| undefined` (non-relation bases only) |
-| `references` | the value must exist in a modeled object's column: `{ object, column? }` (non-relation bases only) |
 | `reverse` | optional introspect hint: `{ pgType: 'NUMERIC(12,2)' }` maps a matching live column back to this type |
 
 **Allowed bases**: `string`, `text`, `integer`, `number`, `currency`, `boolean`, `datetime`, `date`,
@@ -111,11 +110,7 @@ A registered type can go beyond inheriting its base:
 - **`validate`** — a pure, synchronous write-time check. Return a human-readable detail to reject the
   value (`data.field.custom`, whose detail string is passed through verbatim), or `undefined` to
   allow. No I/O: cross-record or database-backed rules belong to [server hooks](../guides/script-hooks.md)
-  or `references`.
-- **`references`** — the value must exist in a column of a **modeled object** (`{ object, column? }`;
-  the column defaults to the target's primary key). Checked inside the write transaction on create
-  and update (`data.field.references`); a missing object/column fails validation at load
-  (`graph.references.target.missing` / `graph.references.column.missing`).
+  or a data-driven [`enum`](schema.md#enumoptions--static-or-data-driven) (`options.from`).
 
 ```ts
 // field-types/acme.ts
@@ -131,9 +126,8 @@ export default [
   },
   {
     namespace: 'acme',
-    name: 'currency',
+    name: 'iso3',
     base: 'string',
-    references: { object: 'currency', column: 'code' },
     validate: (_f, v) => (typeof v === 'string' && v.length === 3 ? undefined : 'must be a 3-letter code'),
   },
 ] satisfies FieldTypeRegistration[];
@@ -170,7 +164,8 @@ you give a registration a `reverse` hint.
 ## Limits
 
 - `validate` must be **pure and synchronous** (no I/O). Database-backed or cross-record rules belong
-  to [server hooks](../guides/script-hooks.md), `references` (membership), or custom tools.
+  to [server hooks](../guides/script-hooks.md), a data-driven [`enum`](schema.md#enumoptions--static-or-data-driven)
+  (`options.from`), or custom tools.
 - `storage` maps the **column type** only; there is no custom SQL `DEFAULT` (the base `default` is
   used) and no custom type-change migration (additive-only).
 - Registered types are **scalar** (a base value primitive); there is no `multiple`/array form — model
