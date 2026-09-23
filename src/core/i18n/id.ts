@@ -18,7 +18,7 @@ export const id: Record<MessageKey, string> = {
   'object.constraints.fields.duplicate': 'objek "{object}": constraint {i} mencantumkan field "{field}" lebih dari sekali',
   'graph.optionsFrom.target.missing': 'sumber opsi enum pada field "{field}" objek "{object}" menunjuk ke objek yang tidak ada "{target}"',
   'graph.optionsFrom.column.missing': 'sumber opsi enum pada field "{field}" objek "{object}" menunjuk ke kolom yang tidak ada "{column}" pada "{target}"',
-  'graph.optionsFrom.type': 'sumber opsi enum pada field "{field}" objek "{object}" harus menunjuk ke kolom string ("{target}.{column}")',
+  'graph.optionsFrom.type': 'sumber opsi enum pada field "{field}" objek "{object}" harus menunjuk ke kolom nilai skalar (bukan relation, array, atau json) ("{target}.{column}")',
   'data.field.custom': 'objek "{object}": nilai untuk field "{field}" tidak valid: {detail}',
   'data.field.optionsFrom': 'objek "{object}": nilai untuk field "{field}" tidak ditemukan di nilai yang ada pada "{ref}"',
   'data.unique': 'objek "{object}": record dengan {fields} yang sama sudah ada',

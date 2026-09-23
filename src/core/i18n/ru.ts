@@ -18,7 +18,7 @@ export const ru: Record<MessageKey, string> = {
   'object.constraints.fields.duplicate': 'объект "{object}": ограничение {i} перечисляет поле "{field}" более одного раза',
   'graph.optionsFrom.target.missing': 'источник опций enum поля "{field}" объекта "{object}" указывает на отсутствующий объект "{target}"',
   'graph.optionsFrom.column.missing': 'источник опций enum поля "{field}" объекта "{object}" указывает на отсутствующий столбец "{column}" в "{target}"',
-  'graph.optionsFrom.type': 'источник опций enum поля "{field}" объекта "{object}" должен указывать на строковый столбец ("{target}.{column}")',
+  'graph.optionsFrom.type': 'источник опций enum поля "{field}" объекта "{object}" должен указывать на скалярный столбец значения (не relation, не массив, не json) ("{target}.{column}")',
   'data.field.custom': 'объект "{object}": значение поля "{field}" недопустимо: {detail}',
   'data.field.optionsFrom': 'объект "{object}": значение поля "{field}" не найдено среди существующих значений "{ref}"',
   'data.unique': 'объект "{object}": запись с таким же {fields} уже существует',

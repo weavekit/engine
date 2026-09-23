@@ -19,6 +19,20 @@ import { DEFAULT_FIELD_TYPE_REGISTRY, fieldBase, primaryFieldOf, primaryKeyOf } 
 
 const SCALAR_TYPE_VALUES: readonly string[] = Object.values(SCALAR_FIELD_TYPES);
 
+/** value primitive bases a data-driven enum source column may use (compared as text) */
+const ENUM_SOURCE_BASES: ReadonlySet<string> = new Set<string>([
+  FIELD_TYPES.STRING,
+  FIELD_TYPES.TEXT,
+  FIELD_TYPES.INTEGER,
+  FIELD_TYPES.NUMBER,
+  FIELD_TYPES.CURRENCY,
+  FIELD_TYPES.BOOLEAN,
+  FIELD_TYPES.DATETIME,
+  FIELD_TYPES.DATE,
+  FIELD_TYPES.ENUM,
+  FIELD_TYPES.SEQ_NO,
+]);
+
 export interface BuildGraphOptions {
   /** message locale; defaults to English */
   locale?: Locale;
@@ -187,7 +201,7 @@ export function buildGraph(
       }
 
       // enum with a data-driven source (`options.from`) must point at a real
-      // object + column whose values are strings
+      // object + a scalar value column (values are stringified for matching)
       if (field.type === FIELD_TYPES.ENUM && !Array.isArray(field.options)) {
         const { object: refObject, column } = field.options.from;
         const target = defs.get(refObject);
@@ -209,7 +223,8 @@ export function buildGraph(
           });
         }
         const refBase = fieldBase(options?.fieldTypes ?? DEFAULT_FIELD_TYPE_REGISTRY, targetField.type);
-        if (refBase !== FIELD_TYPES.STRING && refBase !== FIELD_TYPES.TEXT) {
+        const refArray = (targetField as { multiple?: boolean }).multiple === true;
+        if (!ENUM_SOURCE_BASES.has(refBase) || refArray) {
           graphError(locale, 'graph.optionsFrom.type', {
             object: def.name,
             field: field.name,

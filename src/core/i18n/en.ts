@@ -120,7 +120,7 @@ export const en = {
   'graph.multiRelation.target.missing': 'multiRelation field "{field}" of object "{object}" points to missing target "{target}"',
   'graph.optionsFrom.target.missing': 'enum options source on field "{field}" of object "{object}" points to missing object "{target}"',
   'graph.optionsFrom.column.missing': 'enum options source on field "{field}" of object "{object}" points to missing column "{column}" on "{target}"',
-  'graph.optionsFrom.type': 'enum options source on field "{field}" of object "{object}" must point to a string column ("{target}.{column}")',
+  'graph.optionsFrom.type': 'enum options source on field "{field}" of object "{object}" must point to a scalar value column (not a relation, array, or json) ("{target}.{column}")',
   'registry.duplicate': 'object "{name}" is already defined',
   'parse.json.invalid': 'schema.json is not valid JSON',
   'formula.syntax': 'object "{object}": formula syntax error: {detail}',

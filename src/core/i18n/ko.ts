@@ -18,7 +18,7 @@ export const ko: Record<MessageKey, string> = {
   'object.constraints.fields.duplicate': '오브젝트 "{object}": 제약 {i}에 필드 "{field}"이(가) 중복되었습니다',
   'graph.optionsFrom.target.missing': '오브젝트 "{object}"의 필드 "{field}"의 enum 옵션 소스가 존재하지 않는 오브젝트 "{target}"을(를) 가리킵니다',
   'graph.optionsFrom.column.missing': '오브젝트 "{object}"의 필드 "{field}"의 enum 옵션 소스가 "{target}"에 없는 열 "{column}"을(를) 가리킵니다',
-  'graph.optionsFrom.type': '오브젝트 "{object}"의 필드 "{field}"의 enum 옵션 소스는 문자열 열("{target}.{column}")을 가리켜야 합니다',
+  'graph.optionsFrom.type': '오브젝트 "{object}"의 필드 "{field}"의 enum 옵션 소스는 스칼라 값 열(관계, 배열, json 제외)을 가리켜야 합니다 ("{target}.{column}")',
   'data.field.custom': '오브젝트 "{object}": 필드 "{field}"의 값이 유효하지 않습니다: {detail}',
   'data.field.optionsFrom': '오브젝트 "{object}": 필드 "{field}"의 값이 "{ref}"의 기존 값에 없습니다',
   'data.unique': '오브젝트 "{object}": 동일한 {fields}을(를) 가진 레코드가 이미 있습니다',

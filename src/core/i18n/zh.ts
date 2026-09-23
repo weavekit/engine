@@ -17,7 +17,7 @@ export const zh: Record<MessageKey, string> = {
   'object.constraints.fields.duplicate': '对象 "{object}"：约束 {i} 重复列出了字段 "{field}"',
   'graph.optionsFrom.target.missing': '对象 "{object}" 的字段 "{field}" 的 enum 选项来源指向不存在的对象 "{target}"',
   'graph.optionsFrom.column.missing': '对象 "{object}" 的字段 "{field}" 的 enum 选项来源指向 "{target}" 上不存在的列 "{column}"',
-  'graph.optionsFrom.type': '对象 "{object}" 的字段 "{field}" 的 enum 选项来源必须指向字符串列（"{target}.{column}"）',
+  'graph.optionsFrom.type': '对象 "{object}" 的字段 "{field}" 的 enum 选项来源必须指向标量值列（非关系、数组或 json）（"{target}.{column}"）',
   'data.field.custom': '对象 "{object}"：字段 "{field}" 的值无效：{detail}',
   'data.field.optionsFrom': '对象 "{object}"：字段 "{field}" 的值在 "{ref}" 的现有值中不存在',
   'data.unique': '对象 "{object}"：已存在具有相同 {fields} 的记录',

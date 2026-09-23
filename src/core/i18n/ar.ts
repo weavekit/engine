@@ -18,7 +18,7 @@ export const ar: Record<MessageKey, string> = {
   'object.constraints.fields.duplicate': 'الكائن "{object}": يسرد القيد {i} الحقل "{field}" أكثر من مرة',
   'graph.optionsFrom.target.missing': 'مصدر خيارات enum للحقل "{field}" في الكائن "{object}" يشير إلى كائن غير موجود "{target}"',
   'graph.optionsFrom.column.missing': 'مصدر خيارات enum للحقل "{field}" في الكائن "{object}" يشير إلى عمود غير موجود "{column}" في "{target}"',
-  'graph.optionsFrom.type': 'يجب أن يشير مصدر خيارات enum للحقل "{field}" في الكائن "{object}" إلى عمود نصي ("{target}.{column}")',
+  'graph.optionsFrom.type': 'يجب أن يشير مصدر خيارات enum للحقل "{field}" في الكائن "{object}" إلى عمود قيمة قياسي (ليس relation أو مصفوفة أو json) ("{target}.{column}")',
   'data.field.custom': 'الكائن "{object}": قيمة الحقل "{field}" غير صالحة: {detail}',
   'data.field.optionsFrom': 'الكائن "{object}": قيمة الحقل "{field}" غير موجودة في القيم الحالية لـ "{ref}"',
   'data.unique': 'الكائن "{object}": يوجد بالفعل سجل بنفس {fields}',

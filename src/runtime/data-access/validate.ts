@@ -153,7 +153,7 @@ async function checkValue(field: FieldDefinition, value: unknown, vc: Vc): Promi
         const unique = [...new Set(value as string[])];
         if (unique.length === 0) return;
         const res = await vc.pool.query(
-          `SELECT DISTINCT "${col}" AS v FROM "${target.name}" WHERE "${col}" = ANY($1)`,
+          `SELECT DISTINCT "${col}"::text AS v FROM "${target.name}" WHERE "${col}"::text = ANY($1)`,
           [unique],
         );
         if ((res.rowCount ?? 0) !== unique.length) {
@@ -162,7 +162,7 @@ async function checkValue(field: FieldDefinition, value: unknown, vc: Vc): Promi
         return;
       }
       if (typeof value !== 'string') fail(vc, 'data.field.type', { field: f.name, type: 'enum value' });
-      const res = await vc.pool.query(`SELECT 1 FROM "${target.name}" WHERE "${col}" = $1 LIMIT 1`, [value]);
+      const res = await vc.pool.query(`SELECT 1 FROM "${target.name}" WHERE "${col}"::text = $1 LIMIT 1`, [value]);
       if (res.rowCount === 0) fail(vc, 'data.field.optionsFrom', { field: f.name, ref: refObject });
       return;
     }

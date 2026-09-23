@@ -18,7 +18,7 @@ export const zhHant: Record<MessageKey, string> = {
   'object.constraints.fields.duplicate': '物件 "{object}"：約束 {i} 重複列出欄位 "{field}"',
   'graph.optionsFrom.target.missing': '物件 "{object}" 的欄位 "{field}" 的 enum 選項來源指向不存在的物件 "{target}"',
   'graph.optionsFrom.column.missing': '物件 "{object}" 的欄位 "{field}" 的 enum 選項來源指向 "{target}" 上不存在的欄位 "{column}"',
-  'graph.optionsFrom.type': '物件 "{object}" 的欄位 "{field}" 的 enum 選項來源必須指向字串欄位（"{target}.{column}"）',
+  'graph.optionsFrom.type': '物件 "{object}" 的欄位 "{field}" 的 enum 選項來源必須指向純量值欄位（非關聯、陣列或 json）（"{target}.{column}"）',
   'data.field.custom': '物件 "{object}"：欄位 "{field}" 的值無效：{detail}',
   'data.field.optionsFrom': '物件 "{object}"：欄位 "{field}" 的值在 "{ref}" 的現有值中不存在',
   'data.unique': '物件 "{object}"：已存在具有相同 {fields} 的記錄',

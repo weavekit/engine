@@ -18,7 +18,7 @@ export const fr: Record<MessageKey, string> = {
   'object.constraints.fields.duplicate': 'objet "{object}" : la contrainte {i} liste le champ "{field}" plusieurs fois',
   'graph.optionsFrom.target.missing': 'la source d\'options enum du champ "{field}" de l\'objet "{object}" pointe vers un objet inexistant "{target}"',
   'graph.optionsFrom.column.missing': 'la source d\'options enum du champ "{field}" de l\'objet "{object}" pointe vers une colonne inexistante "{column}" sur "{target}"',
-  'graph.optionsFrom.type': 'la source d\'options enum du champ "{field}" de l\'objet "{object}" doit pointer vers une colonne de type chaîne ("{target}.{column}")',
+  'graph.optionsFrom.type': 'la source d\'options enum du champ "{field}" de l\'objet "{object}" doit pointer vers une colonne de valeur scalaire (ni relation, ni tableau, ni json) ("{target}.{column}")',
   'data.field.custom': 'objet "{object}" : la valeur du champ "{field}" est invalide : {detail}',
   'data.field.optionsFrom': 'objet "{object}" : valeur du champ "{field}" introuvable dans les valeurs existantes de "{ref}"',
   'data.unique': 'objet "{object}" : un enregistrement avec le même {fields} existe déjà',

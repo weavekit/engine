@@ -18,7 +18,7 @@ export const ja: Record<MessageKey, string> = {
   'object.constraints.fields.duplicate': 'オブジェクト "{object}"：制約 {i} でフィールド "{field}" が重複しています',
   'graph.optionsFrom.target.missing': 'オブジェクト "{object}" のフィールド "{field}" の enum 選択肢ソースが存在しないオブジェクト "{target}" を指しています',
   'graph.optionsFrom.column.missing': 'オブジェクト "{object}" のフィールド "{field}" の enum 選択肢ソースが "{target}" に存在しない列 "{column}" を指しています',
-  'graph.optionsFrom.type': 'オブジェクト "{object}" のフィールド "{field}" の enum 選択肢ソースは文字列列（"{target}.{column}"）を指す必要があります',
+  'graph.optionsFrom.type': 'オブジェクト "{object}" のフィールド "{field}" の enum 選択肢ソースはスカラー値列（リレーション・配列・json 以外）を指す必要があります（"{target}.{column}"）',
   'data.field.custom': 'オブジェクト "{object}"：フィールド "{field}" の値が無効です：{detail}',
   'data.field.optionsFrom': 'オブジェクト "{object}"：フィールド "{field}" の値が "{ref}" の既存値に見つかりません',
   'data.unique': 'オブジェクト "{object}"：同じ {fields} を持つレコードが既に存在します',

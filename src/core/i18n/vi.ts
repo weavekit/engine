@@ -18,7 +18,7 @@ export const vi: Record<MessageKey, string> = {
   'object.constraints.fields.duplicate': 'đối tượng "{object}": ràng buộc {i} liệt kê trường "{field}" nhiều lần',
   'graph.optionsFrom.target.missing': 'nguồn tùy chọn enum của trường "{field}" trong đối tượng "{object}" trỏ tới đối tượng không tồn tại "{target}"',
   'graph.optionsFrom.column.missing': 'nguồn tùy chọn enum của trường "{field}" trong đối tượng "{object}" trỏ tới cột không tồn tại "{column}" trên "{target}"',
-  'graph.optionsFrom.type': 'nguồn tùy chọn enum của trường "{field}" trong đối tượng "{object}" phải trỏ tới cột chuỗi ("{target}.{column}")',
+  'graph.optionsFrom.type': 'nguồn tùy chọn enum của trường "{field}" trong đối tượng "{object}" phải trỏ tới cột giá trị vô hướng (không phải relation, mảng hay json) ("{target}.{column}")',
   'data.field.custom': 'đối tượng "{object}": giá trị của trường "{field}" không hợp lệ: {detail}',
   'data.field.optionsFrom': 'đối tượng "{object}": giá trị của trường "{field}" không tìm thấy trong các giá trị hiện có của "{ref}"',
   'data.unique': 'đối tượng "{object}": đã tồn tại bản ghi có cùng {fields}',

@@ -18,7 +18,7 @@ export const pt: Record<MessageKey, string> = {
   'object.constraints.fields.duplicate': 'objeto "{object}": a restrição {i} lista o campo "{field}" mais de uma vez',
   'graph.optionsFrom.target.missing': 'a origem das opções enum do campo "{field}" do objeto "{object}" aponta para um objeto inexistente "{target}"',
   'graph.optionsFrom.column.missing': 'a origem das opções enum do campo "{field}" do objeto "{object}" aponta para uma coluna inexistente "{column}" em "{target}"',
-  'graph.optionsFrom.type': 'a origem das opções enum do campo "{field}" do objeto "{object}" deve apontar para uma coluna de texto ("{target}.{column}")',
+  'graph.optionsFrom.type': 'a origem das opções enum do campo "{field}" do objeto "{object}" deve apontar para uma coluna de valor escalar (nem relação, nem array, nem json) ("{target}.{column}")',
   'data.field.custom': 'objeto "{object}": o valor do campo "{field}" é inválido: {detail}',
   'data.field.optionsFrom': 'objeto "{object}": valor do campo "{field}" não encontrado nos valores existentes de "{ref}"',
   'data.unique': 'objeto "{object}": já existe um registro com o mesmo {fields}',

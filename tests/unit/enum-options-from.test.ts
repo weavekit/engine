@@ -122,11 +122,29 @@ describe('enum options.from — graph validation', () => {
     expect(codeOf(() => registry.buildGraph())).toBe('graph.optionsFrom.column.missing');
   });
 
-  it('rejects a non-string target column', () => {
+  it('accepts a scalar (numeric) target column — values are stringified', () => {
     const registry = new ObjectRegistry({});
     registry.register({ name: 'level', fields: [{ name: 'n', type: 'integer', primary: true }] });
     registry.register(invoice({ name: 'lv', type: 'enum', options: { from: { object: 'level', column: 'n' } } }));
-    expect(codeOf(() => registry.buildGraph())).toBe('graph.optionsFrom.type');
+    expect(codeOf(() => registry.buildGraph())).toBeUndefined();
+  });
+
+  it('rejects a json / relation / array target column', () => {
+    const json = new ObjectRegistry({});
+    json.register({ name: 'doc', fields: [{ name: 'id', type: 'string', primary: true }, { name: 'body', type: 'json' }] });
+    json.register(invoice({ name: 'v', type: 'enum', options: { from: { object: 'doc', column: 'body' } } }));
+    expect(codeOf(() => json.buildGraph())).toBe('graph.optionsFrom.type');
+
+    const rel = new ObjectRegistry({});
+    rel.register({ name: 'customer', fields: [{ name: 'id', type: 'string', primary: true }] });
+    rel.register({ name: 'order', fields: [{ name: 'id', type: 'string', primary: true }, { name: 'customer_id', type: 'relation', target: 'customer' }] });
+    rel.register({ name: 'invoice', fields: [{ name: 'id', type: 'string', primary: true }, { name: 'v', type: 'enum', options: { from: { object: 'order', column: 'customer_id' } } }] });
+    expect(codeOf(() => rel.buildGraph())).toBe('graph.optionsFrom.type');
+
+    const arr = new ObjectRegistry({});
+    arr.register({ name: 'tagset', fields: [{ name: 'id', type: 'string', primary: true }, { name: 'tags', type: 'enum', multiple: true, options: ['a', 'b'] }] });
+    arr.register(invoice({ name: 'v', type: 'enum', options: { from: { object: 'tagset', column: 'tags' } } }));
+    expect(codeOf(() => arr.buildGraph())).toBe('graph.optionsFrom.type');
   });
 });
 
@@ -183,6 +201,28 @@ describe('enum options.from — runtime membership', () => {
     try {
       await validateRecord(def, { id: '1', tags: ['a', 'ghost'] }, WRITE_MODES.CREATE, {
         pool: lookupPool(['a', 'b', 'c']) as never,
+        registry,
+        locale: 'en',
+      });
+    } catch (error) {
+      caught = error instanceof SchemaError ? error : undefined;
+    }
+    expect(caught?.code).toBe('data.field.optionsFrom');
+  });
+
+  it('matches a numeric source column by its string form', async () => {
+    const { registry, def } = registryWith('n');
+    // allowed integer values 1..3, addressed as their string forms
+    await validateRecord(def, { id: '1', ccy: '2' }, WRITE_MODES.CREATE, {
+      pool: lookupPool(['1', '2', '3']) as never,
+      registry,
+      locale: 'en',
+    });
+
+    let caught: SchemaError | undefined;
+    try {
+      await validateRecord(def, { id: '1', ccy: '9' }, WRITE_MODES.CREATE, {
+        pool: lookupPool(['1', '2', '3']) as never,
         registry,
         locale: 'en',
       });

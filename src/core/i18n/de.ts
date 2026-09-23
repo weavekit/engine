@@ -18,7 +18,7 @@ export const de: Record<MessageKey, string> = {
   'object.constraints.fields.duplicate': 'Objekt "{object}": Constraint {i} listet Feld "{field}" mehrfach',
   'graph.optionsFrom.target.missing': 'enum-Optionsquelle von Feld "{field}" in Objekt "{object}" verweist auf ein fehlendes Objekt "{target}"',
   'graph.optionsFrom.column.missing': 'enum-Optionsquelle von Feld "{field}" in Objekt "{object}" verweist auf eine fehlende Spalte "{column}" in "{target}"',
-  'graph.optionsFrom.type': 'enum-Optionsquelle von Feld "{field}" in Objekt "{object}" muss auf eine String-Spalte verweisen ("{target}.{column}")',
+  'graph.optionsFrom.type': 'enum-Optionsquelle von Feld "{field}" in Objekt "{object}" muss auf eine skalare Wertspalte verweisen (keine Relation, kein Array, kein json) ("{target}.{column}")',
   'data.field.custom': 'Objekt "{object}": Wert für Feld "{field}" ist ungültig: {detail}',
   'data.field.optionsFrom': 'Objekt "{object}": Wert für Feld "{field}" nicht in vorhandenen Werten von "{ref}" gefunden',
   'data.unique': 'Objekt "{object}": ein Datensatz mit demselben {fields} existiert bereits',

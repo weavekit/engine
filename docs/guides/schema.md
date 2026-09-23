@@ -132,8 +132,10 @@ values of a **modeled object's column** (default: its primary key):
   "options": { "from": { "object": "tag", "column": "code" } } }                          // dynamic multi-select
 ```
 
-- The target column must be a **string** column (`string`/`text`); the source object/column are
-  validated at schema load (`graph.optionsFrom.*`).
+- The source column may be any **scalar value** column (`string`/`text`/`integer`/`number`/…);
+  values are compared as their **string form**, so the field value is always a string (e.g. an integer
+  source `42` is addressed as `"42"`). Relation, array (a `multiple` field) and `json` sources are
+  rejected at schema load (`graph.optionsFrom.*`).
 - Writes are checked against the **existing** values in that column (`data.field.optionsFrom`).
 - `default` is only allowed with the inline list (a data-driven set can't be validated up-front).
 - This is a **dynamic enum**, not a relation: no FK, no graph edge, no navigation. To reference a
@@ -150,9 +152,9 @@ from its type and the mechanisms below:
 | primitive shape (string/number/boolean/date) + `min`/`max`/`length`/`regex`/`precision` | built-in field type (declarative) |
 | required / unique | `required` / `unique` (column `UNIQUE`) / object `constraints` |
 | custom local rule | a registered type's pure `validate` hook (any base) |
-| value from a **data set (string codes)** | `enum` + `options.from` |
+| value from a **data set (codes, stringified)** | `enum` + `options.from` |
 | reference to an **entity** (navigate/join) | `relation` / `multiRelation` |
-| cross-field / state / aggregate / non-string codes | [server hook](script-hooks.md) `validate` |
+| cross-field / state / aggregate / bespoke DB rule | [server hook](script-hooks.md) `validate` |
 
 ## Computed fields
 

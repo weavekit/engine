@@ -18,7 +18,7 @@ export const hi: Record<MessageKey, string> = {
   'object.constraints.fields.duplicate': 'ऑब्जेक्ट "{object}": constraint {i} फ़ील्ड "{field}" को एक से अधिक बार सूचीबद्ध करता है',
   'graph.optionsFrom.target.missing': 'ऑब्जेक्ट "{object}" के फ़ील्ड "{field}" का enum विकल्प स्रोत अनुपस्थित ऑब्जेक्ट "{target}" की ओर इशारा करता है',
   'graph.optionsFrom.column.missing': 'ऑब्जेक्ट "{object}" के फ़ील्ड "{field}" का enum विकल्प स्रोत "{target}" पर अनुपस्थित कॉलम "{column}" की ओर इशारा करता है',
-  'graph.optionsFrom.type': 'ऑब्जेक्ट "{object}" के फ़ील्ड "{field}" का enum विकल्प स्रोत स्ट्रिंग कॉलम ("{target}.{column}") की ओर इशारा करना चाहिए',
+  'graph.optionsFrom.type': 'ऑब्जेक्ट "{object}" के फ़ील्ड "{field}" का enum विकल्प स्रोत स्केलर मान कॉलम (relation, सरणी, या json नहीं) की ओर इशारा करना चाहिए ("{target}.{column}")',
   'data.field.custom': 'ऑब्जेक्ट "{object}": फ़ील्ड "{field}" का मान अमान्य है: {detail}',
   'data.field.optionsFrom': 'ऑब्जेक्ट "{object}": फ़ील्ड "{field}" का मान "{ref}" के मौजूदा मानों में नहीं मिला',
   'data.unique': 'ऑब्जेक्ट "{object}": समान {fields} वाला रिकॉर्ड पहले से मौजूद है',
