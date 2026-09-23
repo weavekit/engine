@@ -14,6 +14,7 @@ export {
   describeObject,
   listObjectDescriptors,
   listObjectPermissions,
+  type MetadataAttrSpec,
   type MetadataField,
   type MetadataPermissions,
   type MetadataRelation,

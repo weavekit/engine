@@ -138,6 +138,47 @@ describe('registered types flow through consumers', () => {
     expect(described.relations.find((r) => r.field === 'customer_id')?.target).toBe('customer');
   });
 
+  it('describe surfaces declared attrs with their spec', () => {
+    const withAttrs = buildFieldTypeRegistry([
+      {
+        name: 'acme_money',
+        base: 'number',
+        attrs: {
+          scale: { type: 'integer', default: 2, description: 'decimal places' },
+          currency: { type: 'enum', values: ['USD', 'EUR'], required: true },
+        },
+      },
+    ]);
+    const attrsDef = validateObject(
+      {
+        name: 'invoice',
+        fields: [
+          { name: 'id', type: 'string', primary: true },
+          { name: 'amount', type: 'acme_money', scale: 3, currency: 'USD' },
+          { name: 'deposit', type: 'acme_money', currency: 'EUR' },
+        ],
+        permissions: { admin: { read: 'all', create: true, update: true, delete: true } },
+      },
+      { fieldTypes: withAttrs },
+    );
+    const objects = new ObjectRegistry({ fieldTypes: withAttrs });
+    objects.register(attrsDef, { fieldTypes: withAttrs });
+    const described = describeObject(objects, 'invoice', ['admin'], 'en');
+    const field = (name: string) => described.fields.find((f) => f.name === name)!;
+
+    expect(field('amount').attrs).toEqual({
+      scale: { value: 3, type: 'integer', default: 2, description: 'decimal places' },
+      currency: { value: 'USD', type: 'enum', values: ['USD', 'EUR'] },
+    });
+    // an optional attr left unset still surfaces its spec, without a value
+    expect(field('deposit').attrs).toEqual({
+      scale: { type: 'integer', default: 2, description: 'decimal places' },
+      currency: { value: 'EUR', type: 'enum', values: ['USD', 'EUR'] },
+    });
+    // plain built-in fields carry no attrs
+    expect(field('id').attrs).toBeUndefined();
+  });
+
   it('openapi schema maps by base + format hint', () => {
     const objects = new Map([[def.name, def]]);
     expect(fieldSchema(field('amount'), objects, registry)).toMatchObject({ type: 'number' });

@@ -74,7 +74,7 @@ Always present:
 | Tool | Purpose |
 | --- | --- |
 | `list_objects` | objects the identity can read (`[{ name, labels }]`) |
-| `describe_object` | schema + the identity's effective permissions |
+| `describe_object` | schema (fields, relations, registered-type `attrs` with their spec) + the identity's effective permissions |
 
 Tool shaping follows RBAC exactly: an operation tool appears only when the identity may perform it
 on at least one object (an object with no listed role contributes nothing; `update: []` grants no

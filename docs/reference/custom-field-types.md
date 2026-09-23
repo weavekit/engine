@@ -98,7 +98,10 @@ A registered type can go beyond inheriting its base:
 - **`attrs`** — declare typed extra attributes. The engine validates each field value at schema load
   (`field.attr.type` / `field.attr.enum` / `field.attr.required`) and preserves the values on the
   field. The base primitive's own attributes (`min`/`max`/`minLength`/`maxLength`/`regex`/`precision`)
-  are inherited automatically and enforced at write time.
+  are inherited automatically and enforced at write time. `describe_object` (and the REST metadata
+  endpoint) surface each declared attr together with its type's spec — `{ value?, type, values?,
+  default?, description? }` — so clients and agents can interpret values without knowing the type in
+  code. Only registered attributes are exposed; `storage` / `validate` internals never are.
 - **`storage.pgType`** — map the field to a custom PostgreSQL column type. The function is pure; its
   output is checked against a safe grammar (a known type with optional size and `[]`) before it reaches
   DDL, and an unsafe value fails closed (`fieldtype.storage.invalid`). Relation-like types cannot

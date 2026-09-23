@@ -1,7 +1,14 @@
 import type { Locale } from '../i18n/index.js';
 import { resolvePermission, type ResolvedPermission } from '../rbac/index.js';
 import { SchemaError } from '../types/errors.js';
-import { FIELD_TYPES, isRelationLike, type FieldDefinition, type FieldTypeRegistry, type ReadScope } from '../types/index.js';
+import {
+  FIELD_TYPES,
+  isRelationLike,
+  type AttrKind,
+  type FieldDefinition,
+  type FieldTypeRegistry,
+  type ReadScope,
+} from '../types/index.js';
 import type { ObjectRegistry } from './registry.js';
 
 /**
@@ -11,6 +18,20 @@ import type { ObjectRegistry } from './registry.js';
  * options, relation targets, multiple), never UI/widget hints — the Headless
  * line stays intact; frontends derive controls from field types.
  */
+
+/** one declared extra attribute of a registered-type field: its value (when set) plus its spec */
+export interface MetadataAttrSpec {
+  /** this field's declared value (absent when the attr is optional and not set) */
+  value?: unknown;
+  /** the attr's value kind (from the type's `AttrSpec`) */
+  type: AttrKind;
+  /** allowed values (enum only) */
+  values?: string[];
+  /** spec default (documentation; not injected into the field) */
+  default?: unknown;
+  /** human description (data semantics, never a widget) */
+  description?: string;
+}
 
 /** one field as seen by a frontend — type semantics only */
 export interface MetadataField {
@@ -29,6 +50,12 @@ export interface MetadataField {
   primary?: boolean;
   /** true for engine-managed read-only fields (system / formula); `seq_no` is derivable from its type */
   readOnly?: boolean;
+  /**
+   * declared extra attributes of a registered-type field, each paired with its
+   * type's `AttrSpec` (kind/values/default/description). Only attributes the
+   * registration declares are exposed — never storage/validation/UI internals.
+   */
+  attrs?: Record<string, MetadataAttrSpec>;
 }
 
 /** a relation field (weak/strong/multi) as a named edge */
@@ -70,6 +97,25 @@ export interface ObjectListEntry {
   description?: string;
 }
 
+/** declared extra attributes of a registered-type field, paired with their `AttrSpec` */
+function attrSpecsOf(field: FieldDefinition, registry: FieldTypeRegistry): Record<string, MetadataAttrSpec> | undefined {
+  const declared = registry.get(field.type)?.attrs;
+  if (declared === undefined) return undefined;
+  const record = field as unknown as Record<string, unknown>;
+  const out: Record<string, MetadataAttrSpec> = {};
+  for (const [name, spec] of Object.entries(declared)) {
+    const value = record[name];
+    out[name] = {
+      ...(value === undefined ? {} : { value }),
+      type: spec.type,
+      ...(spec.values === undefined ? {} : { values: [...spec.values] }),
+      ...(spec.default === undefined ? {} : { default: spec.default }),
+      ...(spec.description === undefined ? {} : { description: spec.description }),
+    };
+  }
+  return Object.keys(out).length === 0 ? undefined : out;
+}
+
 function fieldDescription(field: FieldDefinition, registry: FieldTypeRegistry): MetadataField {
   const out: MetadataField = {
     name: field.name,
@@ -77,6 +123,8 @@ function fieldDescription(field: FieldDefinition, registry: FieldTypeRegistry): 
     labels: field.labels,
     description: field.description,
   };
+  const attrs = attrSpecsOf(field, registry);
+  if (attrs !== undefined) out.attrs = attrs;
   const readonly = field.system === true || (field as { formula?: string }).formula !== undefined;
   if (readonly) out.readOnly = true;
   if ('required' in field && field.required === true) out.required = true;
