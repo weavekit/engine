@@ -25,6 +25,10 @@
       "description": "Sandboxed `server.js` hook sources."
     },
     {
+      "name": "Workflow",
+      "description": "Declarative per-object state machines (objects with a `workflow.json`)."
+    },
+    {
       "name": "Metadata",
       "description": "Object descriptors for API clients."
     },
@@ -239,6 +243,15 @@
           ]
         },
         "description": "Script kind."
+      },
+      "transitionAction": {
+        "name": "action",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Declared workflow transition action name."
       },
       "approvalKey": {
         "name": "key",
@@ -1023,6 +1036,156 @@
                       "type": "string"
                     }
                   }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/objects/{name}/{id}/workflow": {
+      "get": {
+        "tags": [
+          "Workflow"
+        ],
+        "operationId": "getWorkflow",
+        "summary": "Current state and available transitions",
+        "description": "Returns the record's current state, the object's initial state, and the transitions fireable from that state by the caller's roles. Requires the object to declare `objects/<name>/workflow.json` (otherwise `404`).",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Object name from `objects/<name>/schema.json`."
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Record primary key."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Workflow state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "state",
+                    "initial",
+                    "actions"
+                  ],
+                  "properties": {
+                    "state": {
+                      "type": "string"
+                    },
+                    "initial": {
+                      "type": "string"
+                    },
+                    "actions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "action": {
+                            "type": "string"
+                          },
+                          "to": {
+                            "type": "string"
+                          },
+                          "labels": {
+                            "type": "object",
+                            "additionalProperties": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/objects/{name}/{id}/transitions/{action}": {
+      "post": {
+        "tags": [
+          "Workflow"
+        ],
+        "operationId": "runWorkflowTransition",
+        "summary": "Fire a workflow transition",
+        "description": "Runs the declared transition `action` from the record's current state: RBAC-scoped, role-gated by the transition, atomic and audited. The state field itself is read-only except through a transition.",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Object name from `objects/<name>/schema.json`."
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Record primary key."
+          },
+          {
+            "name": "action",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Declared workflow transition action name."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The updated record.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectRecord"
                 }
               }
             }

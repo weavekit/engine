@@ -76,6 +76,7 @@ const P = {
   fields: { name: 'fields', in: 'query', schema: { type: 'string' }, description: 'Comma-separated field projection.', example: 'id,title' },
   objectQuery: { name: 'object', in: 'query', schema: { type: 'string' }, description: 'Return one object descriptor instead of all.' },
   kind: { name: 'kind', in: 'path', required: true, schema: { type: 'string', enum: [SCRIPT_SOURCE_KINDS.SERVER] }, description: 'Script kind.' },
+  transitionAction: { name: 'action', in: 'path', required: true, schema: { type: 'string' }, description: 'Declared workflow transition action name.' },
   approvalKey: { name: 'key', in: 'path', required: true, schema: { type: 'string' }, description: 'Deterministic approval key.' },
   policyName: { name: 'name', in: 'path', required: true, schema: { type: 'string' } },
   source: { name: 'source', in: 'path', required: true, schema: { type: 'string' }, description: 'Provider/source identifier.' },
@@ -173,6 +174,39 @@ route('put', (c) => `${c.prefix}/objects/{name}/scripts/{kind}`, op(OPENAPI_TAGS
   requestBody: { required: true, ...json({ type: 'object', required: ['source'], properties: { source: { type: 'string' }, expectVersion: { type: 'string' } } }) },
   responses: { 200: ok('Written.', { type: 'object', properties: { ok: { type: 'boolean' }, committed: { type: 'boolean' }, version: { type: 'string' } } }), ...errors('400', '403', '404', '409') },
 }), (c) => c.projectDir);
+
+// ---- Workflow (objects declaring objects/<name>/workflow.json) ----
+route('get', (c) => `${c.prefix}/objects/{name}/{id}/workflow`, op(OPENAPI_TAGS.WORKFLOW, 'getWorkflow', 'Current state and available transitions', {
+  description: "Returns the record's current state, the object's initial state, and the transitions fireable from that state by the caller's roles. Requires the object to declare `objects/<name>/workflow.json` (otherwise `404`).",
+  parameters: [P.name, P.id],
+  responses: {
+    200: ok('Workflow state.', {
+      type: 'object',
+      required: ['state', 'initial', 'actions'],
+      properties: {
+        state: { type: 'string' },
+        initial: { type: 'string' },
+        actions: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              action: { type: 'string' },
+              to: { type: 'string' },
+              labels: { type: 'object', additionalProperties: { type: 'string' } },
+            },
+          },
+        },
+      },
+    }),
+    ...errors('403', '404'),
+  },
+}));
+route('post', (c) => `${c.prefix}/objects/{name}/{id}/transitions/{action}`, op(OPENAPI_TAGS.WORKFLOW, 'runWorkflowTransition', 'Fire a workflow transition', {
+  description: "Runs the declared transition `action` from the record's current state: RBAC-scoped, role-gated by the transition, atomic and audited. The state field itself is read-only except through a transition.",
+  parameters: [P.name, P.id, P.transitionAction],
+  responses: { 200: ok('The updated record.', RECORD_REF), ...errors('400', '403', '404', '409') },
+}));
 
 // ---- Metadata / permissions / identities ----
 route('get', (c) => `${c.prefix}/metadata`, op(OPENAPI_TAGS.METADATA, 'getMetadata', 'Object descriptors for API clients', {
