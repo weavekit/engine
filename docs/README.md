@@ -29,7 +29,6 @@ the [repository README](../README.md).
 - [Tunnel transport](guides/tunnel.md) — reach a NAT'd engine over an outbound HTTP/2 tunnel
 - [Approvals](guides/approvals.md) — the human-in-the-loop queue
 - [Workflow](guides/workflow.md) — declarative per-object state machines
-- [Workflow tutorial](guides/workflow-tutorial.md) — end-to-end: enable, transition, approvals, timeouts, evolution
 - [Localization (i18n)](guides/i18n.md) — message catalogs and stable error codes
 
 ## Operations
@@ -45,6 +44,7 @@ the [repository README](../README.md).
 - [Plugging in the customer's own user store](practices/bring-your-own-user-store.md) — resolver-driven identity
 - [Connecting MCP hosts](practices/connecting-mcp-hosts.md) — Claude Desktop, Cursor, gateways
 - [Connect an agent](practices/connect-agent.md) — local first run in five minutes
+- [Putting a governed lifecycle on an existing object](practices/workflow-end-to-end.md) — an order lifecycle with role gates, approvals and timeouts
 
 ## Reference
 

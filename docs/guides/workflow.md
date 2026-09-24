@@ -29,8 +29,8 @@ moves between states only through declared **transitions**. It is **opt-in**: ad
 
 The fastest way to get here is the CLI: `weave workflow:open <object>` scaffolds the switch, a
 `status` enum field (unless `--state-field` reuses an existing single-valued enum) and a starter
-machine; `weave workflow:close <object>` turns it off again (the file is kept). For a full
-walkthrough see the [workflow tutorial](workflow-tutorial.md).
+machine; `weave workflow:close <object>` turns it off again (the file is kept). For a step-by-step
+case see [Putting a governed lifecycle on an existing object](../practices/workflow-end-to-end.md).
 
 `workflowEnabled` is the source of truth: **absent or `false` means disabled** — the definition file
 is ignored (the state field behaves as a plain writable enum and the workflow routes 404), while the
