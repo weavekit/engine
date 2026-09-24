@@ -64,10 +64,13 @@ argument:
 | `create_record` | create (writable fields only) | `object`, `data` |
 | `update_record` | update (RBAC `update` whitelist only) | `object`, `id`, `changes` |
 | `delete_record` | delete (row scope applied) | `object`, `id` |
+| `workflow_transition` | fire a declared [workflow](workflow.md) transition (present when the identity can update an object with a workflow) | `object`, `id`, `action` |
 
 `object` is the object name and `id` is its primary key. The generic schemas deliberately do **not**
 enumerate per-object fields — that is what keeps the surface small — so an agent should call
-`describe_object` first to learn an object's fields, relations and its own permissions.
+`describe_object` first to learn an object's fields, relations and its own permissions. For a workflow
+object, `describe_object` also returns its `workflow` (states + transitions), which `workflow_transition`
+then fires by `action`.
 
 Always present:
 

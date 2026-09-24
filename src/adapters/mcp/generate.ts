@@ -1,5 +1,5 @@
 import type { ObjectRegistry, RbacSubject, ToolDefinition } from '../../core/index.js';
-import { INTROSPECTION_TOOLS, REGISTRY_TOOLS, resolvePermission } from '../../core/index.js';
+import { INTROSPECTION_TOOLS, REGISTRY_TOOLS, WORKFLOW_TOOLS, resolvePermission } from '../../core/index.js';
 import type { ResolvedPermission } from '../../core/index.js';
 import { ACTION_PREFIXES } from '../../core/audit/index.js';
 import type { ToolExecutor } from '../../runtime/tools/index.js';
@@ -9,6 +9,7 @@ import {
   getRecordHandler,
   searchRecordsHandler,
   updateRecordHandler,
+  workflowTransitionHandler,
 } from './tools.js';
 import { describeObjectHandler, listObjectsHandler } from './introspection.js';
 import type { JsonSchema, McpEngine, McpToolResult, McpToolSpec, ToolExecContext } from './types.js';
@@ -35,15 +36,18 @@ export interface CompiledTool {
 function capabilities(
   registry: ObjectRegistry,
   subject: RbacSubject,
-): { read: boolean; create: boolean; update: boolean; delete: boolean } {
-  const caps = { read: false, create: false, update: false, delete: false };
+): { read: boolean; create: boolean; update: boolean; delete: boolean; transition: boolean } {
+  const caps = { read: false, create: false, update: false, delete: false, transition: false };
   for (const def of registry.list()) {
     const p: ResolvedPermission | undefined = resolvePermission(def, subject.roles);
     if (p === undefined) continue;
     if (p.read !== undefined) caps.read = true;
     if (p.create === true) caps.create = true;
     // `update === null` = all fields updatable; `[]` = none; `undefined` = no update permission
-    if (p.update === null || (Array.isArray(p.update) && p.update.length > 0)) caps.update = true;
+    const canUpdate = p.update === null || (Array.isArray(p.update) && p.update.length > 0);
+    if (canUpdate) caps.update = true;
+    // transitions reuse the update permission; only objects declaring a workflow qualify
+    if (canUpdate && def.workflow !== undefined) caps.transition = true;
     if (p.delete === true) caps.delete = true;
   }
   return caps;
@@ -160,6 +164,27 @@ function registryTools(engine: McpEngine, subject: RbacSubject): CompiledTool[] 
           required: ['object', 'id'],
         },
         handler: (args: Record<string, unknown>, ctx: ToolExecContext) => deleteRecordHandler(args, ctx),
+      },
+    });
+  }
+
+  if (caps.transition) {
+    tools.push({
+      objectName: undefined,
+      spec: {
+        name: WORKFLOW_TOOLS.TRANSITION,
+        description:
+          'Fire a declared workflow transition on a record (the action must be allowed from its current state and by your role; see describe_object → workflow)',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            object: OBJECT_ARG,
+            id: { type: 'string', description: 'primary key' },
+            action: { type: 'string', description: 'workflow transition action name (see describe_object)' },
+          },
+          required: ['object', 'id', 'action'],
+        },
+        handler: (args: Record<string, unknown>, ctx: ToolExecContext) => workflowTransitionHandler(args, ctx),
       },
     });
   }

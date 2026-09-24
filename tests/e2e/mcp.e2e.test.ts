@@ -21,6 +21,21 @@ const LEAD: ObjectDefinition = {
   },
 };
 
+const TICKET: ObjectDefinition = {
+  name: 'ticket',
+  fields: [
+    { name: 'id', type: 'string', primary: true },
+    { name: 'status', type: 'enum', options: ['draft', 'open'] },
+  ],
+  workflow: {
+    initial: 'draft',
+    stateField: 'status',
+    states: [{ name: 'draft' }, { name: 'open' }],
+    transitions: [{ action: 'open', from: 'draft', to: 'open' }],
+  },
+  permissions: { sales: { read: 'all', update: true } },
+};
+
 const AGENT_KEYS = {
   sales: 'key-sales-rep',
   finance: 'key-finance',
@@ -97,12 +112,13 @@ maybe('MCP E2E (SDK Client + streamable HTTP + local PG): auth + session identit
     const clients: ClientHandle[] = [];
     let auditPool = await freshPool();
     try {
-      await auditPool.query('DROP TABLE IF EXISTS lead, weavekit_meta, weavekit_audit CASCADE');
+      await auditPool.query('DROP TABLE IF EXISTS lead, ticket, weavekit_meta, weavekit_audit CASCADE');
       await auditPool.end();
       auditPool = await freshPool();
 
       const registry0 = new ObjectRegistry();
       registry0.register(LEAD);
+      registry0.register(TICKET);
       registry0.buildGraph();
       engine = await buildEngineFromRegistry(registry0, {
         databaseUrl: url!,
@@ -129,6 +145,7 @@ maybe('MCP E2E (SDK Client + streamable HTTP + local PG): auth + session identit
       // seed (internal subject-less direct connection, freely set ownership)
       await dataAccess.create('lead', { id: 'L1', name: 'Acme', status: 'open', owner_id: 'u-alice', team_id: 't1', secret: 's1' }, base);
       await dataAccess.create('lead', { id: 'L2', name: 'Globex', status: 'open', owner_id: 'u-other', team_id: 't1', secret: 's2' }, base);
+      await dataAccess.create('ticket', { id: 'T1' }, base);
 
       await app.listen({ port: 0, host: '127.0.0.1' });
       const addr = app.server.address();
@@ -162,6 +179,7 @@ maybe('MCP E2E (SDK Client + streamable HTTP + local PG): auth + session identit
       expect(aliceNames).toContain('delete_record');
       expect(aliceNames).toContain('list_objects');
       expect(aliceNames).toContain('describe_object');
+      expect(aliceNames).toContain('workflow_transition');
 
       const emma = await newClient(baseUrl, AGENT_KEYS.finance, 'emma');
       clients.push(emma);
@@ -172,6 +190,7 @@ maybe('MCP E2E (SDK Client + streamable HTTP + local PG): auth + session identit
       expect(emmaNames).not.toContain('create_record');
       expect(emmaNames).not.toContain('update_record');
       expect(emmaNames).not.toContain('delete_record');
+      expect(emmaNames).not.toContain('workflow_transition');
 
       // ── 3. search_ row-level (own) + field-level (exclude stripped)
       const search = await alice.client.callTool({ name: 'search_records', arguments: { object: 'lead' } });
@@ -220,6 +239,21 @@ maybe('MCP E2E (SDK Client + streamable HTTP + local PG): auth + session identit
       });
       expect(badField.isError).toBe(true);
 
+      // ── 4b. workflow_transition: the agent fires a declared transition
+      const transitioned = await alice.client.callTool({
+        name: 'workflow_transition',
+        arguments: { object: 'ticket', id: 'T1', action: 'open' },
+      });
+      expect(transitioned.isError).toBe(false);
+      expect(JSON.parse(textOf(transitioned)).status).toBe('open');
+
+      // an unknown/disallowed transition → isError (call-level), not a protocol error
+      const badTransition = await alice.client.callTool({
+        name: 'workflow_transition',
+        arguments: { object: 'ticket', id: 'T1', action: 'ghost' },
+      });
+      expect(badTransition.isError).toBe(true);
+
       // ── 5. unknown on-behalf-of → session establishment fails (explicit error)
       const ghost = await fetch(`${baseUrl}/mcp`, {
         method: 'POST',
@@ -265,6 +299,7 @@ maybe('MCP E2E (SDK Client + streamable HTTP + local PG): auth + session identit
       expect(actions).toContain('mcp.tool.search_records');
       expect(actions).toContain('mcp.tool.update_record');
       expect(actions).toContain('mcp.tool.get_record');
+      expect(actions).toContain('mcp.tool.workflow_transition');
       // agent identity: actor_id = agentKey
       expect(auditRows.rows.some((r: { actor_id: string }) => r.actor_id === AGENT_KEYS.sales)).toBe(true);
       // denial audited as isError
@@ -280,7 +315,7 @@ maybe('MCP E2E (SDK Client + streamable HTTP + local PG): auth + session identit
         }
       }
       try {
-        await auditPool.query('DROP TABLE IF EXISTS lead, weavekit_meta, weavekit_audit CASCADE');
+        await auditPool.query('DROP TABLE IF EXISTS lead, ticket, weavekit_meta, weavekit_audit CASCADE');
       } catch {
         // pool already ended
       }

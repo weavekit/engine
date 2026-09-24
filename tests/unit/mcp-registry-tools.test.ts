@@ -6,8 +6,9 @@ import {
   getRecordHandler,
   searchRecordsHandler,
   updateRecordHandler,
+  workflowTransitionHandler,
 } from '../../src/adapters/mcp/tools.js';
-import { REGISTRY_TOOLS } from '../../src/core/index.js';
+import { REGISTRY_TOOLS, WORKFLOW_TOOLS } from '../../src/core/index.js';
 import type { McpEngine, ToolExecContext } from '../../src/adapters/mcp/types.js';
 import type { ObjectDefinition, RbacSubject } from '../../src/core/index.js';
 import type { AuditEvent } from '../../src/core/audit/index.js';
@@ -18,6 +19,21 @@ const LEAD: ObjectDefinition = {
     { name: 'id', type: 'string', primary: true },
     { name: 'name', type: 'string' },
   ],
+};
+
+const TICKET: ObjectDefinition = {
+  name: 'ticket',
+  fields: [
+    { name: 'id', type: 'string', primary: true },
+    { name: 'status', type: 'enum', options: ['draft', 'open'] },
+  ],
+  workflow: {
+    initial: 'draft',
+    stateField: 'status',
+    states: [{ name: 'draft' }, { name: 'open' }],
+    transitions: [{ action: 'open', from: 'draft', to: 'open' }],
+  },
+  permissions: { sales: { read: 'all', update: true } },
 };
 
 interface Call {
@@ -37,6 +53,7 @@ function harness(options: { rateOk?: boolean } = {}): Harness {
   const audits: AuditEvent[] = [];
   const registry = new ObjectRegistry();
   registry.register(LEAD);
+  registry.register(TICKET);
   registry.buildGraph();
 
   const dataAccess = {
@@ -58,6 +75,10 @@ function harness(options: { rateOk?: boolean } = {}): Harness {
     },
     async delete(object: string, id: string) {
       calls.push({ method: 'delete', object, args: id });
+    },
+    async transition(object: string, id: string, action: string) {
+      calls.push({ method: 'transition', object, args: { id, action } });
+      return { id, status: 'open' };
     },
   };
 
@@ -133,5 +154,23 @@ describe('registry tool handlers — object resolution + RBAC-delegated dispatch
     expect(result.isError).toBe(true);
     expect(calls).toHaveLength(0);
     expect(audits[0]!.errorCode).toBe('mcp.rateLimited');
+  });
+
+  it('workflow_transition delegates to data-access.transition and audits the tool', async () => {
+    const { ctx, calls, audits } = harness();
+    const result = await workflowTransitionHandler({ object: 'ticket', id: 'T1', action: 'open' }, ctx);
+    expect(result.isError).toBeFalsy();
+    expect(calls[0]).toMatchObject({ method: 'transition', object: 'ticket', args: { id: 'T1', action: 'open' } });
+    expect(audits[0]!.action).toBe(`mcp.tool.${WORKFLOW_TOOLS.TRANSITION}`);
+    expect(audits[0]!.objectName).toBe('ticket');
+    expect(audits[0]!.isError).toBe(false);
+  });
+
+  it('workflow_transition on an object without a workflow → isError (workflow.transition.unknown)', async () => {
+    const { ctx, calls, audits } = harness();
+    const result = await workflowTransitionHandler({ object: 'lead', id: 'L1', action: 'open' }, ctx);
+    expect(result.isError).toBe(true);
+    expect(calls).toHaveLength(0);
+    expect(audits[0]!.errorCode).toBe('workflow.transition.unknown');
   });
 });

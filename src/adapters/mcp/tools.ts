@@ -1,5 +1,5 @@
 import type { ObjectDefinition, RbacSubject } from '../../core/index.js';
-import { REGISTRY_TOOLS, SchemaError } from '../../core/index.js';
+import { REGISTRY_TOOLS, SchemaError, WORKFLOW_TOOLS } from '../../core/index.js';
 import type { DataAccessContext } from '../../runtime/data-access/index.js';
 import type { FindOptions } from '../../runtime/data-access/index.js';
 import { SORT_DIRS, resolvePagination } from '../../runtime/data-access/index.js';
@@ -191,6 +191,32 @@ export async function updateRecordHandler(
     const id = String(args.id ?? '');
     const changes = (args.changes ?? {}) as Record<string, unknown>;
     const record = await ctx.engine.dataAccess.update(def.name, id, changes, ctxWithSubject(ctx, subject));
+    return textResult(JSON.stringify(record));
+  });
+}
+
+/**
+ * Fire a declared workflow transition on a record. The transition executor
+ * validates `(current state, action)`, applies the per-transition role gate,
+ * enforces RBAC (update permission + row scope) and audits the state change.
+ */
+export async function workflowTransitionHandler(
+  args: Record<string, unknown>,
+  ctx: ToolExecContext,
+): Promise<McpToolResult> {
+  const subject = await effectiveSubject(args, ctx);
+  return callProtected(ctx, WORKFLOW_TOOLS.TRANSITION, requestedObject(args), args, subject, async () => {
+    const def = resolveObject(ctx, args);
+    if (def.workflow === undefined) {
+      throw new SchemaError(
+        'workflow.transition.unknown',
+        { object: def.name, action: String(args.action ?? '') },
+        ctx.engine.locale,
+      );
+    }
+    const id = String(args.id ?? '');
+    const action = String(args.action ?? '');
+    const record = await ctx.engine.dataAccess.transition(def.name, id, action, ctxWithSubject(ctx, subject));
     return textResult(JSON.stringify(record));
   });
 }

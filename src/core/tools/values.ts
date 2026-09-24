@@ -25,6 +25,12 @@ export const INTROSPECTION_TOOLS = {
   DESCRIBE_OBJECT: 'describe_object',
 } as const;
 
+/** fixed workflow tool names (exposed to subjects that can update a workflow object) */
+export const WORKFLOW_TOOLS = {
+  TRANSITION: 'workflow_transition',
+} as const;
+export type WorkflowTool = typeof WORKFLOW_TOOLS[keyof typeof WORKFLOW_TOOLS];
+
 /** custom tool `name` format (snake_case, lowercase start) */
 export const TOOL_NAME_PATTERN = '^[a-z][a-z0-9_]*$';
 
@@ -39,7 +45,11 @@ export const APPROVAL_STATUSES = {
 } as const;
 export type ApprovalStatus = typeof APPROVAL_STATUSES[keyof typeof APPROVAL_STATUSES];
 
-const reservedNames: readonly string[] = [...Object.values(REGISTRY_TOOLS), ...Object.values(INTROSPECTION_TOOLS)];
+const reservedNames: readonly string[] = [
+  ...Object.values(REGISTRY_TOOLS),
+  ...Object.values(INTROSPECTION_TOOLS),
+  ...Object.values(WORKFLOW_TOOLS),
+];
 
 /** true when a custom tool name collides with a built-in tool or the audit namespace */
 export function isReservedToolName(name: string): boolean {

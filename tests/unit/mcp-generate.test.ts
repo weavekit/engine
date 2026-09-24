@@ -1,7 +1,7 @@
 import { describe, it, expect } from '../helpers/test.js';
 import { ObjectRegistry } from '../../src/core/object/registry.js';
 import { compileToolsFor } from '../../src/adapters/mcp/generate.js';
-import { INTROSPECTION_TOOLS, REGISTRY_TOOLS } from '../../src/core/index.js';
+import { INTROSPECTION_TOOLS, REGISTRY_TOOLS, WORKFLOW_TOOLS } from '../../src/core/index.js';
 import type { McpEngine } from '../../src/adapters/mcp/types.js';
 import type { ObjectDefinition, RbacSubject } from '../../src/core/index.js';
 
@@ -38,6 +38,24 @@ const ALL_OPS = [
   REGISTRY_TOOLS.UPDATE,
   REGISTRY_TOOLS.DELETE,
 ];
+
+const TICKET: ObjectDefinition = {
+  name: 'ticket',
+  fields: [
+    { name: 'id', type: 'string', primary: true },
+    { name: 'status', type: 'enum', options: ['draft', 'open'] },
+  ],
+  workflow: {
+    initial: 'draft',
+    stateField: 'status',
+    states: [{ name: 'draft' }, { name: 'open' }],
+    transitions: [{ action: 'open', from: 'draft', to: 'open' }],
+  },
+  permissions: {
+    agent: { read: 'all', update: true },
+    viewer: { read: 'all' },
+  },
+};
 
 function engineFor(defs: ObjectDefinition[], subject: RbacSubject): { engine: McpEngine; names: string[] } {
   const registry = new ObjectRegistry();
@@ -108,5 +126,26 @@ describe('compileToolsFor — registry tool surface', () => {
 
     const update = tools.find((t) => t.spec.name === REGISTRY_TOOLS.UPDATE)!;
     expect(update.spec.inputSchema.required).toEqual(['object', 'id', 'changes']);
+  });
+
+  it('workflow_transition appears only for roles that can update a workflow object', () => {
+    const agent = engineFor([TICKET], { id: 'u8', roles: ['agent'] }).names;
+    expect(agent).toContain(WORKFLOW_TOOLS.TRANSITION);
+
+    const viewer = engineFor([TICKET], { id: 'u9', roles: ['viewer'] }).names;
+    expect(viewer).not.toContain(WORKFLOW_TOOLS.TRANSITION);
+
+    // an object without a workflow never exposes the transition tool
+    const noWorkflow = engineFor([LEAD], { id: 'u10', roles: ['sales'] }).names;
+    expect(noWorkflow).not.toContain(WORKFLOW_TOOLS.TRANSITION);
+  });
+
+  it('workflow_transition input schema takes object/id/action, never the transitions', () => {
+    const { engine } = engineFor([TICKET], { id: 'u11', roles: ['agent'] });
+    const tool = compileToolsFor(engine, { id: 'u11', roles: ['agent'] }).find(
+      (t) => t.spec.name === WORKFLOW_TOOLS.TRANSITION,
+    )!;
+    expect(tool.spec.inputSchema.required).toEqual(['object', 'id', 'action']);
+    expect(JSON.stringify(tool.spec.inputSchema)).not.toContain('open');
   });
 });
