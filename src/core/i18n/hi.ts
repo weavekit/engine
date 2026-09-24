@@ -235,4 +235,5 @@ export const hi: Record<MessageKey, string> = {
   'workflow.transition.denied': 'ऑब्जेक्ट "{object}": भूमिका "{role}" को संक्रमण "{action}" चलाने की अनुमति नहीं है',
   'workflow.transition.pending': 'ऑब्जेक्ट "{object}": संक्रमण "{action}" के लिए स्वीकृति आवश्यक है — स्वीकृति कुंजी "{approvalKey}"',
   'workflow.approval.unavailable': 'ऑब्जेक्ट "{object}": संक्रमण "{action}" के लिए स्वीकृति आवश्यक है लेकिन कोई स्वीकृति कतार कॉन्फ़िगर नहीं है',
+  'workflow.timeout.invalid': 'ऑब्जेक्ट "{object}": स्थिति "{state}" का onTimeout अमान्य है (अपेक्षित { after: "<अवधि>", action? } जो उस स्थिति से संक्रमण का संदर्भ दे)',
 } as const;

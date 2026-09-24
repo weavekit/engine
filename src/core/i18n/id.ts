@@ -235,4 +235,5 @@ export const id: Record<MessageKey, string> = {
   'workflow.transition.denied': 'objek "{object}": peran "{role}" tidak diizinkan menjalankan transisi "{action}"',
   'workflow.transition.pending': 'objek "{object}": transisi "{action}" memerlukan persetujuan — kunci persetujuan "{approvalKey}"',
   'workflow.approval.unavailable': 'objek "{object}": transisi "{action}" memerlukan persetujuan tetapi antrean persetujuan belum dikonfigurasi',
+  'workflow.timeout.invalid': 'objek "{object}": status "{state}" memiliki onTimeout tidak valid (diharapkan { after: "<durasi>", action? } yang mereferensikan transisi dari status tersebut)',
 } as const;

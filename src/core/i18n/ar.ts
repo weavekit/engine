@@ -235,4 +235,5 @@ export const ar: Record<MessageKey, string> = {
   'workflow.transition.denied': 'الكائن "{object}": الدور "{role}" غير مسموح له بتنفيذ الانتقال "{action}"',
   'workflow.transition.pending': 'الكائن "{object}": يتطلب الانتقال "{action}" موافقة — مفتاح الموافقة "{approvalKey}"',
   'workflow.approval.unavailable': 'الكائن "{object}": يتطلب الانتقال "{action}" موافقة ولكن لا توجد قائمة موافقات مُهيأة',
+  'workflow.timeout.invalid': 'الكائن "{object}": الحالة "{state}" تحتوي على onTimeout غير صالح (المتوقع { after: "<المدة>", action? } يشير إلى انتقال من هذه الحالة)',
 } as const;

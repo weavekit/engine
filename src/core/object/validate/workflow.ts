@@ -1,9 +1,10 @@
 import { FIELD_TYPES } from '../../types/values.js';
 import type { FieldDefinition } from '../../types/fields.js';
-import { WORKFLOW_FORMAT_VERSION } from '../../types/workflow.js';
+import { WORKFLOW_FORMAT_VERSION, parseDuration } from '../../types/workflow.js';
 import type {
   WorkflowDefinition,
   WorkflowState,
+  WorkflowTimeout,
   WorkflowTransition,
 } from '../../types/workflow.js';
 import { validateLabels } from './labels.js';
@@ -77,10 +78,28 @@ export function validateWorkflow(
     stateNames.add(name);
     const labels = validateLabels(entry.labels, vc);
     const description = entry.description === undefined ? undefined : String(entry.description);
+    let onTimeout: WorkflowTimeout | undefined;
+    if (entry.onTimeout !== undefined) {
+      const rawTimeout = entry.onTimeout;
+      if (!isRecord(rawTimeout)) fail(vc, 'workflow.timeout.invalid', { state: name });
+      const after = rawTimeout.after;
+      if (typeof after !== 'string' || parseDuration(after) === undefined) {
+        fail(vc, 'workflow.timeout.invalid', { state: name });
+      }
+      let timeoutAction: string | undefined;
+      if (rawTimeout.action !== undefined) {
+        if (typeof rawTimeout.action !== 'string' || !SNAKE_CASE.test(rawTimeout.action)) {
+          fail(vc, 'workflow.timeout.invalid', { state: name });
+        }
+        timeoutAction = rawTimeout.action;
+      }
+      onTimeout = { after, ...(timeoutAction === undefined ? {} : { action: timeoutAction }) };
+    }
     states.push({
       name,
       ...(labels === undefined ? {} : { labels }),
       ...(description === undefined ? {} : { description }),
+      ...(onTimeout === undefined ? {} : { onTimeout }),
     });
   }
 
@@ -134,6 +153,17 @@ export function validateWorkflow(
       ...(requiresApproval === undefined ? {} : { requiresApproval }),
     });
   });
+
+  // a state's timeout action, when present, must be a declared transition from that state
+  for (const state of states) {
+    const timeoutAction = state.onTimeout?.action;
+    if (
+      timeoutAction !== undefined &&
+      !transitions.some((t) => t.from === state.name && t.action === timeoutAction)
+    ) {
+      fail(vc, 'workflow.timeout.invalid', { state: state.name });
+    }
+  }
 
   // initial must be a declared state
   const initial = raw.initial;

@@ -235,4 +235,5 @@ export const vi: Record<MessageKey, string> = {
   'workflow.transition.denied': 'đối tượng "{object}": vai trò "{role}" không được phép thực hiện chuyển đổi "{action}"',
   'workflow.transition.pending': 'đối tượng "{object}": chuyển đổi "{action}" cần phê duyệt — khóa phê duyệt "{approvalKey}"',
   'workflow.approval.unavailable': 'đối tượng "{object}": chuyển đổi "{action}" cần phê duyệt nhưng chưa cấu hình hàng đợi phê duyệt',
+  'workflow.timeout.invalid': 'đối tượng "{object}": trạng thái "{state}" có onTimeout không hợp lệ (mong đợi { after: "<thời lượng>", action? } tham chiếu một chuyển đổi từ trạng thái đó)',
 } as const;

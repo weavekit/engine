@@ -5,7 +5,7 @@ import { DETAILS_COLUMNS, FIELD_TYPES } from '../../core/index.js';
 import type { AuditEvent, AuditSink } from '../../core/audit/index.js';
 import { AUDIT_ACTOR_TYPES, DATA_ACTIONS } from '../../core/audit/index.js';
 import type { EventPublisher } from '../../core/provider/event/index.js';
-import { NOOP_SCRIPT_DISPATCHER, SCRIPT_HOOKS, type GuardrailContext, type GuardrailPolicy, type ScriptDispatcher, type ScriptHook, type ScriptUser, type ToolDataAccess } from '../../core/index.js';
+import { NOOP_SCRIPT_DISPATCHER, SCRIPT_HOOKS, type GuardrailContext, type GuardrailPolicy, type ScriptDispatcher, type ScriptHook, type ScriptUser, type ToolDataAccess, type WorkflowTimerSync } from '../../core/index.js';
 import { evaluateTransition, type PolicyApprovals } from '../tools/policies.js';
 import { buildCountSql, buildFindSql, scopeSuffix, type BuildContext } from './builder.js';
 import { deleteDetailsChildren, insertDetails } from './details.js';
@@ -181,6 +181,8 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
   private readonly policies: readonly GuardrailPolicy[];
   /** approval queue used when a policy or a transition requires approval */
   private readonly approvals?: PolicyApprovals;
+  /** workflow timer handle: re-arm/cancel a record's `onTimeout` on state changes */
+  private readonly workflowTimers?: WorkflowTimerSync;
 
   constructor(
     options: {
@@ -190,6 +192,7 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
       events?: EventPublisher;
       policies?: readonly GuardrailPolicy[];
       approvals?: PolicyApprovals;
+      workflowTimers?: WorkflowTimerSync;
     } = {},
   ) {
     this.audit = options.audit;
@@ -198,6 +201,7 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
     this.events = options.events;
     this.policies = options.policies ?? [];
     this.approvals = options.approvals;
+    this.workflowTimers = options.workflowTimers;
   }
 
   /**
@@ -432,6 +436,12 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
       if (owned) await client.query('COMMIT');
       auditWrite(this.audit, ctx, DATA_ACTIONS.CREATE, objectName, String(record[pk] ?? ''), record);
       this.events?.publishRecordChange('created', objectName, String(record[pk] ?? ''));
+      if (def.workflow !== undefined) {
+        const createdState = record[def.workflow.stateField];
+        await this.workflowTimers
+          ?.sync(objectName, String(record[pk] ?? ''), typeof createdState === 'string' ? createdState : def.workflow.initial)
+          .catch(() => {});
+      }
       await this.runAfterHook(SCRIPT_HOOKS.AFTER_UPDATE, DATA_ACTIONS.CREATE, objectName, record, payload, ctx, warnings, String(record[pk] ?? ''));
       if (warnings.length > 0) ctx.onWarnings?.(warnings);
       const loaded = await this.runOnLoad(objectName, [record], ctx);
@@ -702,6 +712,7 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
       );
       this.events?.publishRecordChange('updated', objectName, id);
       this.events?.publishRecordTransitioned(objectName, id, transition.from, transition.to, action);
+      await this.workflowTimers?.sync(objectName, id, transition.to).catch(() => {});
       await this.runAfterHook(SCRIPT_HOOKS.ON_EXIT, DATA_ACTIONS.TRANSITION, objectName, existing, {}, ctx, warnings, id, {
         transition: transitionInfo,
         state: transition.from,
@@ -764,6 +775,7 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
       if (owned) await client.query('COMMIT');
       auditWrite(this.audit, ctx, DATA_ACTIONS.DELETE, objectName, id, undefined, undefined, this.replay ? existing : undefined);
       this.events?.publishRecordChange('deleted', objectName, id);
+      await this.workflowTimers?.cancel(objectName, id).catch(() => {});
       await this.runAfterHook(SCRIPT_HOOKS.AFTER_DELETE, DATA_ACTIONS.DELETE, objectName, existing, {}, ctx, warnings, id);
       if (warnings.length > 0) ctx.onWarnings?.(warnings);
     } catch (err) {
@@ -784,6 +796,7 @@ export function createDataAccess(
     events?: EventPublisher;
     policies?: readonly GuardrailPolicy[];
     approvals?: PolicyApprovals;
+    workflowTimers?: WorkflowTimerSync;
   } = {},
 ): ObjectDataAccess {
   return new DefaultObjectDataAccess(options);

@@ -23,6 +23,7 @@ import {
   type RbacSubject,
   type ScriptDispatcher,
   type ToolDefinition,
+  type WorkflowTimerSync,
 } from '../core/index.js';
 import type { ObjectDataAccess } from './data-access/index.js';
 import { createDataAccess, withRbac } from './data-access/index.js';
@@ -56,6 +57,7 @@ import { registerOpsRoutes } from '../adapters/ops/index.js';
 import { registerMcp, type EngineMcpConfig, type McpServerHandle } from '../adapters/mcp/index.js';
 import { createAlerts } from '../infrastructure/index.js';
 import type { AuditEngine } from '../subsystems/audit/index.js';
+import type { WorkflowTimerScheduler } from '../subsystems/workflow/index.js';
 import { version } from '../version.js';
 
 /** REST interface configuration */
@@ -273,6 +275,8 @@ export interface WeaveKitEngine {
   script?: ScriptDispatcher;
   /** approval queue (present when config.tools is set): shared by tools and workflow transitions */
   approvals?: ApprovalsQueue;
+  /** workflow timer scheduler (present when `subsystems.workflow.enabled`): fires `onTimeout` */
+  workflow?: WorkflowTimerScheduler;
   close(): Promise<void>;
 }
 
@@ -391,8 +395,15 @@ export async function buildEngineFromRegistry(
   // while the engine's exposed data-access needs the script dispatcher to fire
   // hooks. The cycle is resolved by giving the bridge its own RBAC-decorated
   // instance over the same base and adding the dispatcher to the exposed one.
+  // Same shape for the workflow timer scheduler: a proxy lets writes re-arm
+  // timers before the scheduler is built (a no-op until it is assigned).
+  let workflowScheduler: WorkflowTimerScheduler | undefined;
+  const workflowTimers: WorkflowTimerSync = {
+    sync: (object, id, state) => workflowScheduler?.sync(object, id, state) ?? Promise.resolve(),
+    cancel: (object, id) => workflowScheduler?.cancel(object, id) ?? Promise.resolve(),
+  };
   const replay = subsystems.audit?.replay === true;
-  const baseDataAccess = createDataAccess({ audit: auditSink, replay, events: eventPublisher, policies, approvals });
+  const baseDataAccess = createDataAccess({ audit: auditSink, replay, events: eventPublisher, policies, approvals, workflowTimers });
 
   let script: ScriptDispatcher | undefined;
   let dataAccess: ObjectDataAccess;
@@ -408,7 +419,7 @@ export async function buildEngineFromRegistry(
       config: subsystems.script,
       locale,
     });
-    dataAccess = withRbac(createDataAccess({ audit: auditSink, script, replay, events: eventPublisher, policies, approvals }), { audit: auditSink });
+    dataAccess = withRbac(createDataAccess({ audit: auditSink, script, replay, events: eventPublisher, policies, approvals, workflowTimers }), { audit: auditSink });
   } else {
     dataAccess = withRbac(baseDataAccess, { audit: auditSink });
   }
@@ -437,9 +448,21 @@ export async function buildEngineFromRegistry(
     };
   }
 
+  // workflow `onTimeout` scheduler — load only when the subsystem is enabled
+  if (subsystems.workflow?.enabled) {
+    const { createWorkflowScheduler } = await import('../subsystems/workflow/index.js');
+    workflowScheduler = await createWorkflowScheduler({
+      pool,
+      registry,
+      dataAccess,
+      script,
+      config: subsystems.workflow,
+      locale,
+    });
+  }
+
   const rest = config.adapters?.rest;
-  const mcpCfg = config.adapters?.mcp;
-  let proxyHandle: { forwarder: ProxyForwarder; resolver: ProxyTargetResolver } | undefined;
+  const mcpCfg = config.adapters?.mcp;  let proxyHandle: { forwarder: ProxyForwarder; resolver: ProxyTargetResolver } | undefined;
   const logLevel = (process.env.WEAVEKIT_LOG_LEVEL as 'fatal' | 'error' | 'warn' | 'info' | 'debug' | 'trace' | 'silent') ?? 'info';
   // forceCloseConnections: on close, terminate lingering keep-alive/long-lived
   // connections (e.g. SSE /api/events) instead of letting `server.close()` wait
@@ -659,6 +682,7 @@ export async function buildEngineFromRegistry(
     quotas,
     script,
     approvals,
+    workflow: workflowScheduler,
     async close() {
       const warn = (phase: string, error: unknown): void => {
         console.error(`weavekit: ${phase} close error: ${error instanceof Error ? error.message : String(error)}`);
@@ -688,6 +712,7 @@ export async function buildEngineFromRegistry(
         warn('server', error);
       }
       await mcp?.close().catch((error) => warn('mcp', error));
+      await workflowScheduler?.close().catch((error) => warn('workflow', error));
       await script?.close().catch((error) => warn('script', error));
       await bufferedSink?.flush().catch((error) => warn('audit flush', error));
       await audit?.close().catch((error) => warn('audit', error));

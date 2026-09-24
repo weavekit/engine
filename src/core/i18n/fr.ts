@@ -235,4 +235,5 @@ export const fr: Record<MessageKey, string> = {
   'workflow.transition.denied': 'objet "{object}" : le rôle "{role}" ne peut pas exécuter la transition "{action}"',
   'workflow.transition.pending': 'objet "{object}" : transition "{action}" nécessite une approbation — clé "{approvalKey}"',
   'workflow.approval.unavailable': 'objet "{object}" : transition "{action}" nécessite une approbation mais aucune file approbation configurée',
+  'workflow.timeout.invalid': 'objet "{object}" : état "{state}" a un onTimeout non valide (attendu : { after: "<durée>", action? } référençant une transition depuis cet état)',
 } as const;

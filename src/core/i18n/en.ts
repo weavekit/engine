@@ -232,6 +232,7 @@ export const en = {
   'proxy.notFound': 'proxy target "{instance}" not found',
   'proxy.denied': 'proxy request denied',
   'proxy.responseTooLarge': 'proxy response from "{instance}" exceeds {max} bytes',
+  'workflow.timeout.invalid': 'object "{object}": state "{state}" has an invalid onTimeout (expected { after: "<duration>", action? } referencing a transition from that state)',
 } as const;
 
 export type MessageKey = keyof typeof en;

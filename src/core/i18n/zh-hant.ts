@@ -235,4 +235,5 @@ export const zhHant: Record<MessageKey, string> = {
   'workflow.transition.denied': '物件 "{object}"：角色 "{role}" 無權執行轉換 "{action}"',
   'workflow.transition.pending': '物件 "{object}"：轉換 "{action}" 需要審批——審批鍵 "{approvalKey}"',
   'workflow.approval.unavailable': '物件 "{object}"：轉換 "{action}" 需要審批，但未設定審批佇列',
+  'workflow.timeout.invalid': '物件 "{object}"：狀態 "{state}" 的 onTimeout 無效（應為 { after: "<時長>", action? }，且 action 須為該狀態的轉換）',
 } as const;

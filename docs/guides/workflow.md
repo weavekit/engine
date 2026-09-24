@@ -91,6 +91,30 @@ export function onEnter() {
 }
 ```
 
+## Timeouts (`onTimeout`)
+
+A state can declare a timeout; the clock starts when a record enters the state:
+
+```json
+{ "name": "pending", "onTimeout": { "after": "7d", "action": "expire" } }
+```
+
+`after` is a duration (`90s`, `30m`, `12h`, `7d`, `2w`, or a bare number of ms). Enable the scheduler:
+
+```ts
+export default { subsystems: { workflow: { enabled: true } } };
+```
+
+The engine keeps a durable timer per record in `weavekit_workflow_timers` (PostgreSQL, claimed with
+`FOR UPDATE SKIP LOCKED`, so multiple instances never double-fire). When a timer is due the engine
+dispatches the `onTimeout` script hook (if `server.js` defines one) and then fires the declared
+`action` (if any) as a system transition. Entering a state with `onTimeout` arms a timer; leaving it
+(any transition) or deleting the record cancels it.
+
+`subsystems.workflow` options: `pollMs` (default 30000), `batchSize` (default 50), and `backend` — a
+`WorkflowBackend` carrying a pluggable `WorkflowTimerStore` (the enterprise seam; the engine ships
+the PostgreSQL store and never imports a non-PG one).
+
 ## REST
 
 ```

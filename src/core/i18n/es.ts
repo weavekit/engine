@@ -235,4 +235,5 @@ export const es: Record<MessageKey, string> = {
   'workflow.transition.denied': 'objeto "{object}": el rol "{role}" no puede ejecutar la transición "{action}"',
   'workflow.transition.pending': 'objeto "{object}": la transición "{action}" requiere aprobación — clave de aprobación "{approvalKey}"',
   'workflow.approval.unavailable': 'objeto "{object}": la transición "{action}" requiere aprobación pero no hay una cola de aprobaciones configurada',
+  'workflow.timeout.invalid': 'objeto "{object}": el estado "{state}" tiene un onTimeout no válido (se espera { after: "<duración>", action? } que referencie una transición desde ese estado)',
 } as const;

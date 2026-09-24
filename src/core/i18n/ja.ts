@@ -235,4 +235,5 @@ export const ja: Record<MessageKey, string> = {
   'workflow.transition.denied': 'オブジェクト "{object}": ロール "{role}" は遷移 "{action}" を実行できません',
   'workflow.transition.pending': 'オブジェクト "{object}": 遷移 "{action}" には承認が必要です — 承認キー "{approvalKey}"',
   'workflow.approval.unavailable': 'オブジェクト "{object}": 遷移 "{action}" には承認が必要ですが、承認キューが構成されていません',
+  'workflow.timeout.invalid': 'オブジェクト "{object}": 状態 "{state}" の onTimeout が無効です（{ after: "<期間>", action? } 形式で、action はその状態からの遷移である必要があります）',
 } as const;

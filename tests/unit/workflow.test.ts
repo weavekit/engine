@@ -1,5 +1,5 @@
 import { describe, it, expect } from '../helpers/test.js';
-import { validateObject, SchemaError } from '../../src/core/index.js';
+import { validateObject, SchemaError, parseDuration } from '../../src/core/index.js';
 import type { ObjectDefinition } from '../../src/core/index.js';
 
 const STATES = ['draft', 'pending', 'approved', 'rejected'];
@@ -117,5 +117,60 @@ describe('validateWorkflow — declarative state machine on objects/<name>/workf
         def(validWorkflow({ transitions: [{ action: 'submit', from: 'draft', to: 'pending', requiresApproval: 'yes' }] })),
       ),
     ).toBe('workflow.transition.invalid');
+  });
+
+  it('accepts a state onTimeout whose action is a transition from that state', () => {
+    const ok = def(
+      validWorkflow({
+        states: [
+          { name: 'draft', onTimeout: { after: '7d', action: 'submit' } },
+          { name: 'pending' },
+          { name: 'approved' },
+          { name: 'rejected' },
+        ],
+      }),
+    );
+    expect(ok.workflow?.states.find((s) => s.name === 'draft')?.onTimeout?.after).toBe('7d');
+  });
+
+  it('rejects an invalid onTimeout duration or a non-transition action', () => {
+    expect(
+      codeOf(() =>
+        def(
+          validWorkflow({
+            states: [{ name: 'draft', onTimeout: { after: 'soon' } }, { name: 'pending' }, { name: 'approved' }, { name: 'rejected' }],
+          }),
+        ),
+      ),
+    ).toBe('workflow.timeout.invalid');
+    expect(
+      codeOf(() =>
+        def(
+          validWorkflow({
+            states: [{ name: 'draft', onTimeout: { after: '7d', action: 'approve' } }, { name: 'pending' }, { name: 'approved' }, { name: 'rejected' }],
+          }),
+        ),
+      ),
+    ).toBe('workflow.timeout.invalid');
+  });
+});
+
+describe('parseDuration', () => {
+  it('parses units and bare milliseconds', () => {
+    expect(parseDuration('500ms')).toBe(500);
+    expect(parseDuration('90s')).toBe(90_000);
+    expect(parseDuration('30m')).toBe(1_800_000);
+    expect(parseDuration('12h')).toBe(43_200_000);
+    expect(parseDuration('7d')).toBe(604_800_000);
+    expect(parseDuration('2w')).toBe(1_209_600_000);
+    expect(parseDuration('250')).toBe(250);
+  });
+
+  it('rejects invalid / non-positive durations', () => {
+    expect(parseDuration('')).toBeUndefined();
+    expect(parseDuration('0s')).toBeUndefined();
+    expect(parseDuration('1x')).toBeUndefined();
+    expect(parseDuration('-5s')).toBeUndefined();
+    expect(parseDuration('1.5h')).toBeUndefined();
   });
 });
