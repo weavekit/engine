@@ -34,11 +34,15 @@ export function parseObject(
     typeof data === 'object' && data !== null && !Array.isArray(data)
       ? migrateSchemaObject(data as Record<string, unknown>, options?.locale).object
       : data;
+  // only read/attach the sibling workflow when the schema opts in
+  // (`workflowEnabled: true`); otherwise the file is kept but ignored, so a
+  // parked/broken definition never blocks an object whose workflow is off
   if (
     workflowJson !== undefined &&
     typeof migrated === 'object' &&
     migrated !== null &&
-    !Array.isArray(migrated)
+    !Array.isArray(migrated) &&
+    (migrated as Record<string, unknown>).workflowEnabled === true
   ) {
     let workflow: unknown;
     try {

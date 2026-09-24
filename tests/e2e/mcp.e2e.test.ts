@@ -27,6 +27,7 @@ const TICKET: ObjectDefinition = {
     { name: 'id', type: 'string', primary: true },
     { name: 'status', type: 'enum', options: ['draft', 'open'] },
   ],
+  workflowEnabled: true,
   workflow: {
     initial: 'draft',
     stateField: 'status',

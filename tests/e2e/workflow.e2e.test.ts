@@ -19,6 +19,7 @@ const TICKET: ObjectDefinition = {
     { name: 'title', type: 'string' },
     { name: 'status', type: 'enum', options: ['draft', 'open', 'closed'] },
   ],
+  workflowEnabled: true,
   workflow: {
     initial: 'draft',
     stateField: 'status',
@@ -160,6 +161,7 @@ maybe('Workflow E2E (local PG): transitions, RBAC and state-field immutability',
         { name: 'id', type: 'string', primary: true },
         { name: 'status', type: 'enum', options: ['draft', 'pending', 'approved', 'rejected'] },
       ],
+      workflowEnabled: true,
       workflow: {
         initial: 'draft',
         stateField: 'status',
@@ -239,6 +241,7 @@ maybe('Workflow E2E (local PG): transitions, RBAC and state-field immutability',
         { name: 'id', type: 'string', primary: true },
         { name: 'status', type: 'enum', options: ['draft', 'pending'] },
       ],
+      workflowEnabled: true,
       workflow: {
         initial: 'draft',
         stateField: 'status',

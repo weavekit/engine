@@ -234,5 +234,9 @@ export const zh: Record<MessageKey, string> = {
   'workflow.transition.denied': '对象 "{object}"：角色 "{role}" 无权执行转换 "{action}"',
   'workflow.transition.pending': '对象 "{object}"：转换 "{action}" 需要审批——审批键 "{approvalKey}"',
   'workflow.approval.unavailable': '对象 "{object}"：转换 "{action}" 需要审批，但未配置审批队列',
+  'workflow.migrations.invalid': '对象 "{object}"：workflow.migrations 必须将已移除的状态重映射到已声明的状态',
+  'workflow.version.invalid': '对象 "{object}"：workflow.version 必须为正整数',
+  'workflow.definition.missing': '对象 "{object}"：workflowEnabled 为 true，但未声明 workflow.json',
+  'object.workflowEnabled.boolean': '对象 "{object}"：workflowEnabled 必须为布尔值',
   'workflow.timeout.invalid': '对象 "{object}"：状态 "{state}" 的 onTimeout 无效（应为 { after: "<时长>", action? }，且 action 须为该状态的转换）',
 } as const;

@@ -85,8 +85,27 @@ export function publisherOf(bus: EventBus): EventPublisher {
     publishRecordChange(action: RecordAction, object: string, id: string): void {
       bus.publish({ type: RECORD_EVENT_TYPES[action], payload: { object, id } });
     },
-    publishRecordTransitioned(object: string, id: string, from: string, to: string, action: string): void {
-      bus.publish({ type: EVENT_TYPES.RECORD_TRANSITIONED, payload: { object, id, from, to, action } });
+    publishRecordTransitioned(
+      object: string,
+      id: string,
+      from: string,
+      to: string,
+      action: string,
+      workflowVersion?: number,
+      workflowHash?: string,
+    ): void {
+      bus.publish({
+        type: EVENT_TYPES.RECORD_TRANSITIONED,
+        payload: {
+          object,
+          id,
+          from,
+          to,
+          action,
+          ...(workflowVersion === undefined ? {} : { workflowVersion }),
+          ...(workflowHash === undefined ? {} : { workflowHash }),
+        },
+      });
     },
     publishAudit(event): void {
       bus.publish({ type: EVENT_TYPES.AUDIT_EVENT, payload: { event } });

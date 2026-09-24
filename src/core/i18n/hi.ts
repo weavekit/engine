@@ -235,5 +235,9 @@ export const hi: Record<MessageKey, string> = {
   'workflow.transition.denied': 'ऑब्जेक्ट "{object}": भूमिका "{role}" को संक्रमण "{action}" चलाने की अनुमति नहीं है',
   'workflow.transition.pending': 'ऑब्जेक्ट "{object}": संक्रमण "{action}" के लिए स्वीकृति आवश्यक है — स्वीकृति कुंजी "{approvalKey}"',
   'workflow.approval.unavailable': 'ऑब्जेक्ट "{object}": संक्रमण "{action}" के लिए स्वीकृति आवश्यक है लेकिन कोई स्वीकृति कतार कॉन्फ़िगर नहीं है',
+  'workflow.migrations.invalid': 'ऑब्जेक्ट "{object}": workflow.migrations को हटाए गए स्टेट्स को घोषित स्टेट्स पर रीमैप करना चाहिए',
+  'workflow.version.invalid': 'ऑब्जेक्ट "{object}": workflow.version एक धनात्मक पूर्णांक होना चाहिए',
+  'workflow.definition.missing': 'ऑब्जेक्ट "{object}": workflowEnabled true है लेकिन workflow.json घोषित नहीं है',
+  'object.workflowEnabled.boolean': 'ऑब्जेक्ट "{object}": workflowEnabled बूलियन होना चाहिए',
   'workflow.timeout.invalid': 'ऑब्जेक्ट "{object}": स्थिति "{state}" का onTimeout अमान्य है (अपेक्षित { after: "<अवधि>", action? } जो उस स्थिति से संक्रमण का संदर्भ दे)',
 } as const;

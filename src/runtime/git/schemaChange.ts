@@ -296,3 +296,45 @@ export async function recordSchemaChanges(
     });
   }
 }
+
+/** one object's applied workflow state remaps (from `weave workflow:migrate`) */
+export interface WorkflowMigrationAuditEntry {
+  object: string;
+  stateField: string;
+  /** definition revision that declared the remaps */
+  version?: number;
+  /** semantic hash of the definition that declared the remaps */
+  hash?: string;
+  moved: Array<{ from: string; to: string; rows: number }>;
+}
+
+/**
+ * Record applied workflow state remaps as `workflow.migrated` audit events
+ * (system actor). Kept out of the runtime audit toggle, like `schema.changed`,
+ * so a data migration is always traceable. No event is written when nothing moved.
+ */
+export async function recordWorkflowMigration(
+  pool: Pool,
+  entries: WorkflowMigrationAuditEntry[],
+  commit: { author?: string } = {},
+): Promise<void> {
+  const applied = entries.filter((entry) => entry.moved.length > 0);
+  if (applied.length === 0) return;
+  await ensureAuditTable(pool);
+  const actorId = commit.author ?? 'system';
+  const actorType = actorId === 'system' ? AUDIT_ACTOR_TYPES.SYSTEM : AUDIT_ACTOR_TYPES.USER;
+  for (const entry of applied) {
+    await insertAudit(pool, {
+      actorType,
+      actorId,
+      action: 'workflow.migrated',
+      objectName: entry.object,
+      changes: { stateField: entry.stateField, moved: entry.moved },
+      meta: {
+        workflowVersion: entry.version ?? null,
+        workflowHash: entry.hash ?? null,
+      },
+      timestamp: new Date(),
+    });
+  }
+}

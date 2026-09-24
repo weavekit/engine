@@ -11,9 +11,14 @@ export async function ensureWorkflowTimersTable(pool: Pool): Promise<void> {
        id     text NOT NULL,
        state  text NOT NULL,
        due_at timestamptz NOT NULL,
+       workflow_version integer,
+       workflow_hash    text,
        PRIMARY KEY (object, id)
      )`,
   );
+  // additive columns for tables created before definition-identity tracking
+  await pool.query(`ALTER TABLE ${TABLE} ADD COLUMN IF NOT EXISTS workflow_version integer`);
+  await pool.query(`ALTER TABLE ${TABLE} ADD COLUMN IF NOT EXISTS workflow_hash text`);
   await pool.query(`CREATE INDEX IF NOT EXISTS ${TABLE}_due_idx ON ${TABLE} (due_at)`);
 }
 
@@ -22,6 +27,8 @@ interface TimerRow {
   id: string;
   state: string;
   due_at: Date;
+  workflow_version: number | null;
+  workflow_hash: string | null;
 }
 
 /**
@@ -34,9 +41,21 @@ export function createPgWorkflowTimerStore(pool: Pool): WorkflowTimerStore {
   return {
     async schedule(timer: WorkflowTimer): Promise<void> {
       await pool.query(
-        `INSERT INTO ${TABLE} (object, id, state, due_at) VALUES ($1, $2, $3, $4)
-         ON CONFLICT (object, id) DO UPDATE SET state = EXCLUDED.state, due_at = EXCLUDED.due_at`,
-        [timer.object, timer.id, timer.state, timer.dueAt],
+        `INSERT INTO ${TABLE} (object, id, state, due_at, workflow_version, workflow_hash)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         ON CONFLICT (object, id) DO UPDATE SET
+           state = EXCLUDED.state,
+           due_at = EXCLUDED.due_at,
+           workflow_version = EXCLUDED.workflow_version,
+           workflow_hash = EXCLUDED.workflow_hash`,
+        [
+          timer.object,
+          timer.id,
+          timer.state,
+          timer.dueAt,
+          timer.workflowVersion ?? null,
+          timer.workflowHash ?? null,
+        ],
       );
     },
 
@@ -54,7 +73,7 @@ export function createPgWorkflowTimerStore(pool: Pool): WorkflowTimerStore {
              LIMIT $2
              FOR UPDATE SKIP LOCKED
           )
-        RETURNING object, id, state, due_at`,
+        RETURNING object, id, state, due_at, workflow_version, workflow_hash`,
         [now, limit],
       );
       return (res.rows as TimerRow[]).map((row) => ({
@@ -62,6 +81,8 @@ export function createPgWorkflowTimerStore(pool: Pool): WorkflowTimerStore {
         id: row.id,
         state: row.state,
         dueAt: row.due_at,
+        ...(row.workflow_version === null ? {} : { workflowVersion: row.workflow_version }),
+        ...(row.workflow_hash === null ? {} : { workflowHash: row.workflow_hash }),
       }));
     },
 

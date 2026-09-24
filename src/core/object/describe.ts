@@ -96,8 +96,12 @@ export interface ObjectDescriptor {
   fields: MetadataField[];
   relations: MetadataRelation[];
   permissions: MetadataPermissions;
+  /** present only when the object declares the switch; `false` = definition kept but disabled */
+  workflowEnabled?: boolean;
   /** declared state machine (states + transitions), when the object has a workflow */
   workflow?: WorkflowDefinition;
+  /** content-addressed identity of the active workflow definition */
+  workflowHash?: string;
 }
 
 /** minimal list entry (object name/labels/description) */
@@ -213,7 +217,9 @@ export function describeObject(
     fields,
     relations,
     permissions: permissionsOf(perm),
+    ...(def.workflowEnabled === undefined ? {} : { workflowEnabled: def.workflowEnabled }),
     ...(def.workflow === undefined ? {} : { workflow: def.workflow }),
+    ...(def.workflowHash === undefined ? {} : { workflowHash: def.workflowHash }),
   };
 }
 

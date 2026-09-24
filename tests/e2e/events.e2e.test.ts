@@ -29,6 +29,7 @@ const TICKET: ObjectDefinition = {
     { name: 'id', type: 'string', primary: true },
     { name: 'status', type: 'enum', options: ['draft', 'open'] },
   ],
+  workflowEnabled: true,
   workflow: {
     initial: 'draft',
     stateField: 'status',
@@ -173,13 +174,20 @@ maybe('realtime channel E2E (SSE + subscription filtering + replay, local PG + r
       await dataAccess.transition('ticket', 'T1', 'open', sctx);
       const transitioned = await readUntil(sales, 'record.transitioned');
       expect(transitioned.target).not.toBeNull();
-      expect(JSON.parse(transitioned.target!.data!).payload).toEqual({
-        object: 'ticket',
-        id: 'T1',
-        from: 'draft',
-        to: 'open',
-        action: 'open',
-      });
+      const transitionPayload = JSON.parse(transitioned.target!.data!).payload as {
+        object: string;
+        id: string;
+        from: string;
+        to: string;
+        action: string;
+        workflowHash?: string;
+      };
+      expect(transitionPayload.object).toBe('ticket');
+      expect(transitionPayload.id).toBe('T1');
+      expect(transitionPayload.from).toBe('draft');
+      expect(transitionPayload.to).toBe('open');
+      expect(transitionPayload.action).toBe('open');
+      expect(transitionPayload.workflowHash).toMatch(/^[0-9a-f]{64}$/);
 
       // ── 3. events for unreadable objects invisible to denied subscribers (ghost only sees schema.changed broadcast) ──
       const ghost = await openSse(baseUrl, { authorization: 'Bearer key-ghost' });

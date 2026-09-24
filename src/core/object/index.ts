@@ -6,7 +6,14 @@ export {
   type SchemaFormatVersion,
 } from './schema-version.js';
 export { migrateSchemaObject, schemaVersionOf, type MigratedSchema } from './migrations.js';
+export {
+  migrateWorkflowObject,
+  workflowFormatVersionOf,
+  isWorkflowObject,
+  type MigratedWorkflow,
+} from './workflow-migrations.js';
 export { buildGraph, RelationGraph, type BuildGraphOptions } from './graph.js';
+export { hashWorkflow } from './workflow-hash.js';
 export { ObjectRegistry, defineObject } from './registry.js';
 export { generateObjectTypes } from './gen-types.js';
 export { resolveLabel } from './display.js';

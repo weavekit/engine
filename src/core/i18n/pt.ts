@@ -235,5 +235,9 @@ export const pt: Record<MessageKey, string> = {
   'workflow.transition.denied': 'objeto "{object}": o papel "{role}" não pode executar a transição "{action}"',
   'workflow.transition.pending': 'objeto "{object}": a transição "{action}" exige aprovação — chave de aprovação "{approvalKey}"',
   'workflow.approval.unavailable': 'objeto "{object}": a transição "{action}" exige aprovação, mas nenhuma fila de aprovações está configurada',
+  'workflow.migrations.invalid': 'objeto "{object}": workflow.migrations deve remapear estados removidos para estados declarados',
+  'workflow.version.invalid': 'objeto "{object}": workflow.version deve ser um inteiro positivo',
+  'workflow.definition.missing': 'objeto "{object}": workflowEnabled é true, mas nenhum workflow.json foi declarado',
+  'object.workflowEnabled.boolean': 'objeto "{object}": workflowEnabled deve ser um booleano',
   'workflow.timeout.invalid': 'objeto "{object}": o estado "{state}" tem um onTimeout inválido (esperado { after: "<duração>", action? } que referencie uma transição a partir desse estado)',
 } as const;

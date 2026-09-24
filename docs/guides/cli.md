@@ -20,8 +20,12 @@ accepts `--json` for machine-readable output.
 | `weave field:add <object>` | Add a field to an object's schema.json |
 | `weave field-type:list` | List built-in + registered field types |
 | `weave field-type:check` | Validate registrations + schemas against the registry |
-| `weave module:add <name>` | Enable a subsystem (audit/script) in weavekit.config.ts |
-| `weave module:remove <name>` | Disable a subsystem (audit/script) in weavekit.config.ts |
+| `weave module:add <name>` | Enable a subsystem (audit/script/workflow) in weavekit.config.ts |
+| `weave module:remove <name>` | Disable a subsystem (audit/script/workflow) in weavekit.config.ts |
+| `weave workflow:open <object>` | Enable the object workflow (scaffolds workflow.json + a status field) |
+| `weave workflow:close <object>` | Disable the object workflow (keeps workflow.json) |
+| `weave workflow:migrate <object>` | Apply workflow state-remap migrations to existing records |
+| `weave workflow:upgrade` | Upgrade `objects/*/workflow.json` to the current format version |
 
 ## `create-weavekit-app` — project scaffolding
 
@@ -208,7 +212,43 @@ Use it in CI to fail early when a schema references a type the project doesn't p
 
 ## `weave module:add <name>` / `weave module:remove <name>`
 
-Enables or disables a subsystem (currently `audit` or `script`) in `weavekit.config.ts` — the config
-stays the source of truth — and auto-commits. Unknown subsystems (e.g. `workflow`) are rejected. If
-the config shape is unrecognized, the command tells you to edit manually instead of corrupting the
-file.
+Enables or disables a subsystem (`audit`, `script` or `workflow`) in `weavekit.config.ts` — the config
+stays the source of truth — and auto-commits. Any other name is rejected. If the config shape is
+unrecognized, the command tells you to edit manually instead of corrupting the file.
+
+Note: the `workflow` subsystem only runs the `onTimeout` timer scheduler. The state machine itself is
+declaration-driven (a `workflowEnabled` object with a `workflow.json`) and needs no subsystem.
+
+## `weave workflow:open <object>`
+
+Enables the object's workflow by setting `"workflowEnabled": true` in its `schema.json` and
+auto-commits. When no `workflow.json` exists it scaffolds a starter machine plus a `status` enum
+field:
+
+- `--state-field <field>` — reuse an existing single-valued enum as the state field (the new field is
+  skipped; the state names must already be options of that enum).
+- `--states a,b,c` — state names (first = initial). Defaults to `draft,pending,approved,archived`
+  when creating the field, or the whole enum option list when reusing one.
+
+If the definition file already exists but is disabled, it is simply re-enabled (the definition is
+kept as-is). The schema + workflow are validated before writing.
+
+## `weave workflow:close <object>`
+
+Sets `"workflowEnabled": false` and auto-commits. `workflow.json` and the stored state values are kept;
+the state field reverts to a plain writable enum and the workflow routes 404. Re-enable with
+`weave workflow:open`.
+
+## `weave workflow:migrate <object> [--dry-run]`
+
+Applies the object's declared `workflow.json` `migrations` remaps to existing records
+(`UPDATE <table> SET "<stateField>" = to WHERE "<stateField>" = from`), reports any remaining orphan
+states (a value not declared in `states` and not covered by a remap), and writes a
+`workflow.migrated` audit event. Idempotent. See
+[Workflow → Versions & evolution](workflow.md#versions--evolution).
+
+## `weave workflow:upgrade [--dry-run]`
+
+Brings every `objects/<name>/workflow.json` up to the current on-disk format version and auto-commits
+(independent of `weave schema:upgrade`, which never touches `workflow.json`). Unversioned files are
+stamped; future/unsupported versions abort.

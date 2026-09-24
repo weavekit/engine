@@ -66,6 +66,34 @@ export interface ModuleOptions {
   printer: CliPrinter;
 }
 
+/** `weave workflow:open` options */
+export interface WorkflowOpenOptions {
+  /** reuse an existing single-valued enum field as the state field */
+  stateField?: string;
+  /** comma-separated state names (order matters; first = initial) */
+  states?: string;
+  printer: CliPrinter;
+}
+
+/** `weave workflow:close` options */
+export interface WorkflowCloseOptions {
+  printer: CliPrinter;
+}
+
+/** `weave workflow:migrate` options */
+export interface WorkflowMigrateOptions {
+  /** report which records would move without writing */
+  dryRun?: boolean;
+  printer: CliPrinter;
+}
+
+/** `weave workflow:upgrade` options */
+export interface WorkflowUpgradeOptions {
+  /** report what would change without writing files */
+  dryRun?: boolean;
+  printer: CliPrinter;
+}
+
 /** `weave field-type:list` options */
 export interface FieldTypeListOptions {
   printer: CliPrinter;

@@ -40,16 +40,37 @@ export interface WorkflowTransition {
   requiresApproval?: boolean;
 }
 
+/**
+ * An evolution remap: records still sitting in the removed/renamed `from` state
+ * are moved to `to` by `weave workflow:migrate`. `from` must be a value of the
+ * state field's enum that is no longer a declared state (so the enum option can
+ * be left in place — no destructive DDL); `to` must be a declared state.
+ */
+export interface WorkflowStateMigration {
+  from: string;
+  to: string;
+}
+
 /** validated workflow definition attached to an object */
 export interface WorkflowDefinition {
   /** on-disk `workflow.json` format version */
   schemaVersion?: number;
+  /**
+   * author-managed definition revision (an arbitrary positive integer, distinct
+   * from the on-disk `schemaVersion`). Surfaced in the descriptor / transition
+   * events + audit so history stays interpretable after a definition changes.
+   * The engine does not run multiple revisions concurrently — it is a single
+   * live definition; see `workflowHash` for the exact content identity.
+   */
+  version?: number;
   /** enum field on the object that carries the current state */
   stateField: string;
   /** state assigned to new records */
   initial: string;
   states: WorkflowState[];
   transitions: WorkflowTransition[];
+  /** evolution remaps applied to existing records by `weave workflow:migrate` */
+  migrations?: WorkflowStateMigration[];
 }
 
 /** `weavekit.config.ts -> subsystems.workflow` */
@@ -75,6 +96,10 @@ export interface WorkflowTimer {
   id: string;
   state: string;
   dueAt: Date;
+  /** definition revision the timer was armed under (traceability) */
+  workflowVersion?: number;
+  /** semantic hash of the definition the timer was armed under */
+  workflowHash?: string;
 }
 
 /**

@@ -1,13 +1,24 @@
 # Workflow
 
 A **workflow** is a declarative state machine for one object. Each record sits in a named state and
-moves between states only through declared **transitions**. Put this in `objects/<name>/workflow.json`
-next to `schema.json`:
+moves between states only through declared **transitions**. It is **opt-in**: add the switch to
+`objects/<name>/schema.json`, then put the machine in a sibling `objects/<name>/workflow.json`:
 
 ```json
 {
-  "initial": "draft",
+  "name": "order",
+  "workflowEnabled": true,
+  "fields": [
+    { "name": "id", "type": "string", "primary": true },
+    { "name": "status", "type": "enum", "options": ["draft", "pending", "approved"] }
+  ]
+}
+```
+
+```json
+{
   "stateField": "status",
+  "initial": "draft",
   "states": [{ "name": "draft" }, { "name": "pending" }, { "name": "approved" }],
   "transitions": [
     { "action": "submit", "from": "draft", "to": "pending" },
@@ -15,6 +26,16 @@ next to `schema.json`:
   ]
 }
 ```
+
+The fastest way to get here is the CLI: `weave workflow:open <object>` scaffolds the switch, a
+`status` enum field (unless `--state-field` reuses an existing single-valued enum) and a starter
+machine; `weave workflow:close <object>` turns it off again (the file is kept). For a full
+walkthrough see the [workflow tutorial](workflow-tutorial.md).
+
+`workflowEnabled` is the source of truth: **absent or `false` means disabled** — the definition file
+is ignored (the state field behaves as a plain writable enum and the workflow routes 404), while the
+file and its data are kept. Setting it `true` without a `workflow.json` fails validation
+(`workflow.definition.missing`).
 
 `stateField` must name a **single-valued `enum` field** on the object, and its `options` must list
 every state. New records start in `initial`. The state field is engine-managed: it is **read-only**
@@ -114,6 +135,34 @@ dispatches the `onTimeout` script hook (if `server.js` defines one) and then fir
 `subsystems.workflow` options: `pollMs` (default 30000), `batchSize` (default 50), and `backend` — a
 `WorkflowBackend` carrying a pluggable `WorkflowTimerStore` (the enterprise seam; the engine ships
 the PostgreSQL store and never imports a non-PG one).
+
+## Versions & evolution
+
+`workflow.json` carries two independent versions, and the engine adds a third identity:
+
+- **`schemaVersion`** — the on-disk format version, stamped and migrated by `weave workflow:upgrade`.
+- **`version`** — an optional author-managed definition revision.
+- a **semantic hash** computed over the active definition (state field, initial, states, transitions
+  and `version`). All three are surfaced in the descriptor, in every `record.transitioned` event and
+  `transition` audit event, and on each timer — so history stays interpretable after the machine changes.
+
+The engine runs a **single live definition** (it does not keep several revisions in flight). To evolve
+it safely:
+
+- **Adding** states/transitions is safe. Adding a state also adds an `enum` option; `weave migrate`
+  applies the additive DDL when the object sets `alter: true`.
+- **Removing or renaming** a state leaves records stranded in it. Declare a remap and apply it:
+
+  ```json
+  { "migrations": [{ "from": "draft", "to": "pending" }] }
+  ```
+
+  `weave workflow:migrate <object>` runs `UPDATE <table> SET "<stateField>" = to WHERE "<stateField>" = from`
+  for each remap (use `--dry-run` first), reports any remaining **orphan** states, and writes a
+  `workflow.migrated` audit event. `from` must be an enum option that is no longer a declared state and
+  `to` must be a declared state; the enum option is left in place, so no destructive DDL is needed.
+- Changing `initial` only affects new records; existing records keep their state.
+- Disabling the workflow (`weave workflow:close`) keeps the definition and the data untouched.
 
 ## REST
 

@@ -42,6 +42,10 @@ export interface RecordTransitionedPayload {
   from: string;
   to: string;
   action: string;
+  /** author-managed definition revision active at transition time */
+  workflowVersion?: number;
+  /** semantic hash of the definition active at transition time */
+  workflowHash?: string;
 }
 
 /** audit payload — the full AuditEvent, filtered per-subscriber before delivery */
@@ -106,8 +110,16 @@ export type ReplayResult = 'ok' | 'gap';
  */
 export interface EventPublisher {
   publishRecordChange(action: RecordAction, object: string, id: string): void;
-  /** compact workflow-transition event (from/to/action); emitted alongside the record update */
-  publishRecordTransitioned(object: string, id: string, from: string, to: string, action: string): void;
+  /** compact workflow-transition event (from/to/action + definition identity); emitted alongside the record update */
+  publishRecordTransitioned(
+    object: string,
+    id: string,
+    from: string,
+    to: string,
+    action: string,
+    workflowVersion?: number,
+    workflowHash?: string,
+  ): void;
   publishAudit(event: AuditEvent): void;
   publishSchemaChanged(): void;
   /** notify connected subscribers that a schema reload was rejected (drift) */

@@ -235,5 +235,9 @@ export const ja: Record<MessageKey, string> = {
   'workflow.transition.denied': 'オブジェクト "{object}": ロール "{role}" は遷移 "{action}" を実行できません',
   'workflow.transition.pending': 'オブジェクト "{object}": 遷移 "{action}" には承認が必要です — 承認キー "{approvalKey}"',
   'workflow.approval.unavailable': 'オブジェクト "{object}": 遷移 "{action}" には承認が必要ですが、承認キューが構成されていません',
+  'workflow.migrations.invalid': 'オブジェクト "{object}": workflow.migrations は削除された状態を宣言済みの状態に再マップする必要があります',
+  'workflow.version.invalid': 'オブジェクト "{object}": workflow.version は正の整数である必要があります',
+  'workflow.definition.missing': 'オブジェクト "{object}": workflowEnabled が true ですが workflow.json が宣言されていません',
+  'object.workflowEnabled.boolean': 'オブジェクト "{object}": workflowEnabled は真偽値である必要があります',
   'workflow.timeout.invalid': 'オブジェクト "{object}": 状態 "{state}" の onTimeout が無効です（{ after: "<期間>", action? } 形式で、action はその状態からの遷移である必要があります）',
 } as const;

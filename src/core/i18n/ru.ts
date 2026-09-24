@@ -235,5 +235,9 @@ export const ru: Record<MessageKey, string> = {
   'workflow.transition.denied': 'объект "{object}": роль "{role}" не может выполнить переход "{action}"',
   'workflow.transition.pending': 'объект "{object}": переход "{action}" требует утверждения — ключ утверждения "{approvalKey}"',
   'workflow.approval.unavailable': 'объект "{object}": переход "{action}" требует утверждения, но очередь утверждений не настроена',
+  'workflow.migrations.invalid': 'объект "{object}": workflow.migrations должен переназначать удалённые состояния в объявленные',
+  'workflow.version.invalid': 'объект "{object}": workflow.version должен быть положительным целым числом',
+  'workflow.definition.missing': 'объект "{object}": workflowEnabled имеет значение true, но workflow.json не объявлен',
+  'object.workflowEnabled.boolean': 'объект "{object}": workflowEnabled должен быть логическим значением',
   'workflow.timeout.invalid': 'объект "{object}": состояние "{state}" имеет недопустимый onTimeout (ожидается { after: "<длительность>", action? }, ссылающийся на переход из этого состояния)',
 } as const;

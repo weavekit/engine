@@ -235,5 +235,9 @@ export const de: Record<MessageKey, string> = {
   'workflow.transition.denied': 'Objekt "{object}": Rolle "{role}" darf den Übergang "{action}" nicht ausführen',
   'workflow.transition.pending': 'Objekt "{object}": Übergang "{action}" erfordert eine Genehmigung — Genehmigungsschlüssel "{approvalKey}"',
   'workflow.approval.unavailable': 'Objekt "{object}": Übergang "{action}" erfordert eine Genehmigung, aber es ist keine Genehmigungswarteschlange konfiguriert',
+  'workflow.migrations.invalid': 'Objekt "{object}": workflow.migrations muss entfernte Zustände auf deklarierte Zustände abbilden',
+  'workflow.version.invalid': 'Objekt "{object}": workflow.version muss eine positive ganze Zahl sein',
+  'workflow.definition.missing': 'Objekt "{object}": workflowEnabled ist true, aber keine workflow.json deklariert',
+  'object.workflowEnabled.boolean': 'Objekt "{object}": workflowEnabled muss ein boolescher Wert sein',
   'workflow.timeout.invalid': 'Objekt "{object}": Zustand "{state}" hat ein ungültiges onTimeout (erwartet { after: "<Dauer>", action? }, das einen Übergang aus diesem Zustand referenziert)',
 } as const;

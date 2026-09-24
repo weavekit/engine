@@ -29,6 +29,7 @@ the [repository README](../README.md).
 - [Tunnel transport](guides/tunnel.md) — reach a NAT'd engine over an outbound HTTP/2 tunnel
 - [Approvals](guides/approvals.md) — the human-in-the-loop queue
 - [Workflow](guides/workflow.md) — declarative per-object state machines
+- [Workflow tutorial](guides/workflow-tutorial.md) — end-to-end: enable, transition, approvals, timeouts, evolution
 - [Localization (i18n)](guides/i18n.md) — message catalogs and stable error codes
 
 ## Operations

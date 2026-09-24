@@ -11,6 +11,7 @@ import { validateConstraints } from './constraints.js';
 import { validateLabels } from './labels.js';
 import { validatePermissions } from './permissions.js';
 import { validateWorkflow } from './workflow.js';
+import { hashWorkflow } from '../workflow-hash.js';
 import { fail, isRecord, expectString, SNAKE_CASE, TITLE_PLACEHOLDER_RE, type Vc } from './primitives.js';
 
 export interface ValidateOptions {
@@ -116,7 +117,15 @@ export function validateObject(raw: unknown, options?: ValidateOptions): ObjectD
     }
   }
 
-  const workflow = validateWorkflow(raw.workflow, fields, vc);
+  // workflow opt-in switch: absent/false = disabled (the definition file is
+  // ignored); true = enabled and a definition must be present (fail-closed)
+  if (raw.workflowEnabled !== undefined && typeof raw.workflowEnabled !== 'boolean') {
+    fail(vc, 'object.workflowEnabled.boolean');
+  }
+  const workflowEnabled = raw.workflowEnabled === true;
+  const workflow = workflowEnabled ? validateWorkflow(raw.workflow, fields, vc) : undefined;
+  if (workflowEnabled && workflow === undefined) fail(vc, 'workflow.definition.missing');
+  const workflowHash = workflow === undefined ? undefined : hashWorkflow(workflow);
 
   return {
     schemaVersion,
@@ -125,7 +134,9 @@ export function validateObject(raw: unknown, options?: ValidateOptions): ObjectD
     description,
     fields,
     permissions,
+    ...(raw.workflowEnabled === undefined ? {} : { workflowEnabled }),
     workflow,
+    ...(workflowHash === undefined ? {} : { workflowHash }),
     indexes,
     constraints,
     titleTemplate,

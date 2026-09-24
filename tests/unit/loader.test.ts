@@ -14,6 +14,7 @@ const LEAD = JSON.stringify({
 
 const LEAD_WF = JSON.stringify({
   name: 'lead',
+  workflowEnabled: true,
   fields: [
     { name: 'id', type: 'string', primary: true },
     { name: 'status', type: 'enum', options: ['draft', 'approved'] },
@@ -93,6 +94,24 @@ describe('loadSchemaDir — objects/<name>/schema.json directory layout', () => 
       await writeFile(join(root, 'objects', 'lead', 'schema.json'), LEAD_WF);
       await writeFile(join(root, 'objects', 'lead', 'workflow.json'), '{ bad json');
       expect(codeOf(await thrownBy(() => loadSchemaDir(root)))).toBe('parse.json.invalid');
+    });
+  });
+
+  it('a parked workflow.json is ignored while the workflow is disabled', async () => {
+    await withProjectDir(async (root) => {
+      await mkdir(join(root, 'objects', 'lead'), { recursive: true });
+      await writeFile(join(root, 'objects', 'lead', 'schema.json'), LEAD);
+      await writeFile(join(root, 'objects', 'lead', 'workflow.json'), '{ bad json');
+      const { files } = await loadSchemaDir(root);
+      expect(files[0]!.object.workflow).toBeUndefined();
+    });
+  });
+
+  it('workflowEnabled: true without workflow.json → workflow.definition.missing', async () => {
+    await withProjectDir(async (root) => {
+      await mkdir(join(root, 'objects', 'lead'), { recursive: true });
+      await writeFile(join(root, 'objects', 'lead', 'schema.json'), LEAD_WF);
+      expect(codeOf(await thrownBy(() => loadSchemaDir(root)))).toBe('workflow.definition.missing');
     });
   });
 

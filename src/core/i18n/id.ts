@@ -235,5 +235,9 @@ export const id: Record<MessageKey, string> = {
   'workflow.transition.denied': 'objek "{object}": peran "{role}" tidak diizinkan menjalankan transisi "{action}"',
   'workflow.transition.pending': 'objek "{object}": transisi "{action}" memerlukan persetujuan — kunci persetujuan "{approvalKey}"',
   'workflow.approval.unavailable': 'objek "{object}": transisi "{action}" memerlukan persetujuan tetapi antrean persetujuan belum dikonfigurasi',
+  'workflow.migrations.invalid': 'objek "{object}": workflow.migrations harus memetakan ulang status yang dihapus ke status yang dideklarasikan',
+  'workflow.version.invalid': 'objek "{object}": workflow.version harus bilangan bulat positif',
+  'workflow.definition.missing': 'objek "{object}": workflowEnabled true tetapi workflow.json tidak dideklarasikan',
+  'object.workflowEnabled.boolean': 'objek "{object}": workflowEnabled harus berupa boolean',
   'workflow.timeout.invalid': 'objek "{object}": status "{state}" memiliki onTimeout tidak valid (diharapkan { after: "<durasi>", action? } yang mereferensikan transisi dari status tersebut)',
 } as const;

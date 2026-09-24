@@ -235,5 +235,9 @@ export const ko: Record<MessageKey, string> = {
   'workflow.transition.denied': '개체 "{object}": 역할 "{role}"은(는) 전환 "{action}"을(를) 실행할 수 없습니다',
   'workflow.transition.pending': '개체 "{object}": 전환 "{action}"에 승인이 필요합니다 — 승인 키 "{approvalKey}"',
   'workflow.approval.unavailable': '개체 "{object}": 전환 "{action}"에는 승인이 필요하지만 승인 대기열이 구성되지 않았습니다',
+  'workflow.migrations.invalid': '객체 "{object}": workflow.migrations는 제거된 상태를 선언된 상태로 다시 매핑해야 합니다',
+  'workflow.version.invalid': '객체 "{object}": workflow.version는 양의 정수여야 합니다',
+  'workflow.definition.missing': '객체 "{object}": workflowEnabled가 true이지만 workflow.json이 선언되지 않았습니다',
+  'object.workflowEnabled.boolean': '객체 "{object}": workflowEnabled는 불리언이어야 합니다',
   'workflow.timeout.invalid': '개체 "{object}": 상태 "{state}"의 onTimeout이 유효하지 않습니다 ({ after: "<기간>", action? } 형식이며 action은 해당 상태에서의 전환이어야 함)',
 } as const;

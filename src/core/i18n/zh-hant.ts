@@ -235,5 +235,9 @@ export const zhHant: Record<MessageKey, string> = {
   'workflow.transition.denied': '物件 "{object}"：角色 "{role}" 無權執行轉換 "{action}"',
   'workflow.transition.pending': '物件 "{object}"：轉換 "{action}" 需要審批——審批鍵 "{approvalKey}"',
   'workflow.approval.unavailable': '物件 "{object}"：轉換 "{action}" 需要審批，但未設定審批佇列',
+  'workflow.migrations.invalid': '物件 "{object}"：workflow.migrations 必須將已移除的狀態重新對應到已宣告的狀態',
+  'workflow.version.invalid': '物件 "{object}"：workflow.version 必須為正整數',
+  'workflow.definition.missing': '物件 "{object}"：workflowEnabled 為 true，但未宣告 workflow.json',
+  'object.workflowEnabled.boolean': '物件 "{object}"：workflowEnabled 必須為布林值',
   'workflow.timeout.invalid': '物件 "{object}"：狀態 "{state}" 的 onTimeout 無效（應為 { after: "<時長>", action? }，且 action 須為該狀態的轉換）',
 } as const;

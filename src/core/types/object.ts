@@ -33,8 +33,17 @@ export interface ObjectDefinition {
   description?: string;
   fields: FieldDefinition[];
   permissions?: Permissions;
-  /** declared state machine (`objects/<name>/workflow.json`), when present */
+  /**
+   * whether the declared state machine in `objects/<name>/workflow.json` is
+   * active. Absent/`false` = disabled (the file is kept but ignored, so the
+   * state field stays a plain writable enum). Only an explicit `true` enables it.
+   * Present on the definition only when the flag was declared.
+   */
+  workflowEnabled?: boolean;
+  /** declared state machine (`objects/<name>/workflow.json`), when enabled */
   workflow?: WorkflowDefinition;
+  /** content-addressed identity of the active workflow's runtime semantics (see `hashWorkflow`) */
+  workflowHash?: string;
   indexes?: IndexDefinition[];
   /** declarative table-level constraints (composite/scoped UNIQUE) */
   constraints?: ConstraintDefinition[];

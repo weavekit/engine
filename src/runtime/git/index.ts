@@ -48,5 +48,5 @@ export {
   emptyCustomLayout,
 } from './pageCatalog.js';
 export type { PageSummary, CreateCustomPageOptions, DeleteCustomPageOptions, RenameCustomPageOptions } from './pageCatalog.js';
-export { buildCommitMessage, diffMetadata, gitCommitAuthor, recordSchemaChanges } from './schemaChange.js';
-export type { SchemaAuditCommit, SchemaChange } from './schemaChange.js';
+export { buildCommitMessage, diffMetadata, gitCommitAuthor, recordSchemaChanges, recordWorkflowMigration } from './schemaChange.js';
+export type { SchemaAuditCommit, SchemaChange, WorkflowMigrationAuditEntry } from './schemaChange.js';

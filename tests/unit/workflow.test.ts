@@ -1,5 +1,5 @@
 import { describe, it, expect } from '../helpers/test.js';
-import { validateObject, SchemaError, parseDuration } from '../../src/core/index.js';
+import { validateObject, SchemaError, parseDuration, hashWorkflow, migrateWorkflowObject } from '../../src/core/index.js';
 import type { ObjectDefinition } from '../../src/core/index.js';
 
 const STATES = ['draft', 'pending', 'approved', 'rejected'];
@@ -11,6 +11,7 @@ function objectWith(workflow: unknown): Record<string, unknown> {
       { name: 'id', type: 'string', primary: true },
       { name: 'status', type: 'enum', options: STATES },
     ],
+    ...(workflow === undefined ? {} : { workflowEnabled: true }),
     workflow,
   };
 }
@@ -152,6 +153,133 @@ describe('validateWorkflow — declarative state machine on objects/<name>/workf
         ),
       ),
     ).toBe('workflow.timeout.invalid');
+  });
+});
+
+describe('workflowEnabled — the schema.json opt-in switch', () => {
+  function bare(extra: Record<string, unknown>): Record<string, unknown> {
+    return {
+      name: 'lead',
+      fields: [
+        { name: 'id', type: 'string', primary: true },
+        { name: 'status', type: 'enum', options: STATES },
+      ],
+      ...extra,
+    };
+  }
+
+  it('absent switch → a declared workflow is ignored (disabled)', () => {
+    expect(validateObject(bare({ workflow: validWorkflow() })).workflow).toBeUndefined();
+  });
+
+  it('workflowEnabled: false → ignored but reported', () => {
+    const result = validateObject(bare({ workflowEnabled: false, workflow: validWorkflow() }));
+    expect(result.workflow).toBeUndefined();
+    expect(result.workflowEnabled).toBe(false);
+  });
+
+  it('workflowEnabled: true → validated and attached', () => {
+    const result = validateObject(bare({ workflowEnabled: true, workflow: validWorkflow() }));
+    expect(result.workflowEnabled).toBe(true);
+    expect(result.workflow?.stateField).toBe('status');
+  });
+
+  it('workflowEnabled: true without a definition → workflow.definition.missing', () => {
+    expect(codeOf(() => validateObject(bare({ workflowEnabled: true })))).toBe(
+      'workflow.definition.missing',
+    );
+  });
+
+  it('non-boolean workflowEnabled → object.workflowEnabled.boolean', () => {
+    expect(codeOf(() => validateObject(bare({ workflowEnabled: 'yes' })))).toBe(
+      'object.workflowEnabled.boolean',
+    );
+  });
+});
+
+describe('workflow definition identity (version + semantic hash)', () => {
+  it('attaches a stable hash and matches the exported helper', () => {
+    const result = def(validWorkflow());
+    expect(result.workflowHash).toMatch(/^[0-9a-f]{64}$/);
+    expect(hashWorkflow(result.workflow!)).toBe(result.workflowHash);
+    expect(def(validWorkflow()).workflowHash).toBe(result.workflowHash);
+  });
+
+  it('changes when runtime semantics change, not when the format version changes', () => {
+    const base = def(validWorkflow()).workflowHash;
+    expect(def(validWorkflow({ schemaVersion: 1 })).workflowHash).toBe(base);
+    const withRoles = def(
+      validWorkflow({
+        transitions: [
+          { action: 'submit', from: 'draft', to: 'pending', roles: ['manager'] },
+          { action: 'approve', from: 'pending', to: 'approved' },
+          { action: 'reject', from: 'pending', to: 'rejected' },
+        ],
+      }),
+    ).workflowHash;
+    expect(withRoles).not.toBe(base);
+    expect(def(validWorkflow({ version: 2 })).workflowHash).not.toBe(base);
+  });
+
+  it('rejects a non-positive-integer version → workflow.version.invalid', () => {
+    expect(codeOf(() => def(validWorkflow({ version: 0 })))).toBe('workflow.version.invalid');
+    expect(codeOf(() => def(validWorkflow({ version: 1.5 })))).toBe('workflow.version.invalid');
+    expect(codeOf(() => def(validWorkflow({ version: 'v2' })))).toBe('workflow.version.invalid');
+  });
+});
+
+describe('workflow migrations (evolution remap DSL)', () => {
+  function withMigrations(migrations: unknown): Record<string, unknown> {
+    return {
+      name: 'lead',
+      fields: [
+        { name: 'id', type: 'string', primary: true },
+        { name: 'status', type: 'enum', options: [...STATES, 'old'] },
+      ],
+      workflowEnabled: true,
+      workflow: validWorkflow({ migrations }),
+    };
+  }
+
+  it('accepts a remap from a removed enum option to a live state', () => {
+    const result = validateObject(withMigrations([{ from: 'old', to: 'draft' }]));
+    expect(result.workflow?.migrations).toEqual([{ from: 'old', to: 'draft' }]);
+  });
+
+  it('rejects a bad target, a live `from`, an unknown `from`, or a duplicate', () => {
+    expect(codeOf(() => validateObject(withMigrations([{ from: 'old', to: 'ghost' }])))).toBe(
+      'workflow.migrations.invalid',
+    );
+    expect(codeOf(() => validateObject(withMigrations([{ from: 'draft', to: 'approved' }])))).toBe(
+      'workflow.migrations.invalid',
+    );
+    expect(codeOf(() => validateObject(withMigrations([{ from: 'ghost', to: 'draft' }])))).toBe(
+      'workflow.migrations.invalid',
+    );
+    expect(
+      codeOf(() =>
+        validateObject(
+          withMigrations([
+            { from: 'old', to: 'draft' },
+            { from: 'old', to: 'pending' },
+          ]),
+        ),
+      ),
+    ).toBe('workflow.migrations.invalid');
+  });
+});
+
+describe('workflow.json format migrations', () => {
+  it('stamps an unversioned file up to the current format', () => {
+    const { workflow, from, migrated } = migrateWorkflowObject({ stateField: 'status', initial: 'draft' });
+    expect(from).toBe(0);
+    expect(migrated).toBe(true);
+    expect(workflow.schemaVersion).toBe(1);
+  });
+
+  it('is a no-op at the current version and rejects a future one', () => {
+    expect(migrateWorkflowObject({ schemaVersion: 1, stateField: 'status' }).migrated).toBe(false);
+    expect(codeOf(() => migrateWorkflowObject({ schemaVersion: 99 }))).toBe('schema.version.unsupported');
   });
 });
 

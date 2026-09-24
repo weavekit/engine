@@ -705,13 +705,28 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
         DATA_ACTIONS.TRANSITION,
         objectName,
         id,
-        { transition: action, from: transition.from, to: transition.to, changes: payload },
+        {
+          transition: action,
+          from: transition.from,
+          to: transition.to,
+          changes: payload,
+          ...(wf.version === undefined ? {} : { workflowVersion: wf.version }),
+          ...(def.workflowHash === undefined ? {} : { workflowHash: def.workflowHash }),
+        },
         undefined,
         this.replay ? existing : undefined,
         this.replay ? updated : undefined,
       );
       this.events?.publishRecordChange('updated', objectName, id);
-      this.events?.publishRecordTransitioned(objectName, id, transition.from, transition.to, action);
+      this.events?.publishRecordTransitioned(
+        objectName,
+        id,
+        transition.from,
+        transition.to,
+        action,
+        wf.version,
+        def.workflowHash,
+      );
       await this.workflowTimers?.sync(objectName, id, transition.to).catch(() => {});
       await this.runAfterHook(SCRIPT_HOOKS.ON_EXIT, DATA_ACTIONS.TRANSITION, objectName, existing, {}, ctx, warnings, id, {
         transition: transitionInfo,

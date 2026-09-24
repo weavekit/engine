@@ -4,6 +4,7 @@ import { WORKFLOW_FORMAT_VERSION, parseDuration } from '../../types/workflow.js'
 import type {
   WorkflowDefinition,
   WorkflowState,
+  WorkflowStateMigration,
   WorkflowTimeout,
   WorkflowTransition,
 } from '../../types/workflow.js';
@@ -40,6 +41,19 @@ export function validateWorkflow(
       });
     }
     schemaVersion = rawVersion;
+  }
+
+  // author-managed definition revision (optional positive integer)
+  let version: number | undefined;
+  if (raw.version !== undefined) {
+    if (
+      typeof raw.version !== 'number' ||
+      !Number.isInteger(raw.version) ||
+      raw.version < 1
+    ) {
+      fail(vc, 'workflow.version.invalid');
+    }
+    version = raw.version;
   }
 
   // stateField must name a single-valued enum field with inline options
@@ -154,6 +168,33 @@ export function validateWorkflow(
     });
   });
 
+  // evolution remaps: `from` is an enum option no longer declared as a state,
+  // `to` is a live state (applied to existing records by `weave workflow:migrate`)
+  let migrations: WorkflowStateMigration[] | undefined;
+  if (raw.migrations !== undefined) {
+    if (!Array.isArray(raw.migrations)) fail(vc, 'workflow.migrations.invalid');
+    const seenFrom = new Set<string>();
+    const list: WorkflowStateMigration[] = [];
+    for (const entry of raw.migrations) {
+      if (!isRecord(entry)) fail(vc, 'workflow.migrations.invalid');
+      const from = entry.from;
+      const to = entry.to;
+      if (
+        typeof from !== 'string' ||
+        typeof to !== 'string' ||
+        !optionSet.has(from) ||
+        stateNames.has(from) ||
+        !stateNames.has(to) ||
+        seenFrom.has(from)
+      ) {
+        fail(vc, 'workflow.migrations.invalid');
+      }
+      seenFrom.add(from);
+      list.push({ from, to });
+    }
+    migrations = list;
+  }
+
   // a state's timeout action, when present, must be a declared transition from that state
   for (const state of states) {
     const timeoutAction = state.onTimeout?.action;
@@ -175,9 +216,11 @@ export function validateWorkflow(
 
   return {
     ...(schemaVersion === undefined ? {} : { schemaVersion }),
+    ...(version === undefined ? {} : { version }),
     stateField,
     initial,
     states,
     transitions,
+    ...(migrations === undefined ? {} : { migrations }),
   };
 }

@@ -16,6 +16,7 @@ const TIMED: ObjectDefinition = {
     { name: 'id', type: 'string', primary: true },
     { name: 'status', type: 'enum', options: ['draft', 'expired', 'done'] },
   ],
+  workflowEnabled: true,
   workflow: {
     initial: 'draft',
     stateField: 'status',

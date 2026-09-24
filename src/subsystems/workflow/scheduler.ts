@@ -65,13 +65,23 @@ export async function createWorkflowScheduler(
   }
 
   async function sync(object: string, id: string, state: string): Promise<void> {
-    const timeout = timeoutOf(object, state);
+    const entry = options.registry.get(object);
+    const timeout = entry?.workflow?.states.find((s) => s.name === state)?.onTimeout;
     const ms = timeout === undefined ? undefined : parseDuration(timeout.after);
     if (ms === undefined) {
       await store.cancel(object, id);
       return;
     }
-    await store.schedule({ object, id, state, dueAt: new Date(Date.now() + ms) });
+    const version = entry?.workflow?.version;
+    const hash = entry?.workflowHash;
+    await store.schedule({
+      object,
+      id,
+      state,
+      dueAt: new Date(Date.now() + ms),
+      ...(version === undefined ? {} : { workflowVersion: version }),
+      ...(hash === undefined ? {} : { workflowHash: hash }),
+    });
   }
 
   async function fire(timer: WorkflowTimer): Promise<void> {
