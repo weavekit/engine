@@ -233,4 +233,6 @@ export const ja: Record<MessageKey, string> = {
   'workflow.transition.notAllowed': 'オブジェクト "{object}": 状態 "{from}" から遷移 "{action}" は許可されていません',
   'workflow.transition.required': 'オブジェクト "{object}": フィールド "{field}" はワークフロー管理です——遷移で変更してください',
   'workflow.transition.denied': 'オブジェクト "{object}": ロール "{role}" は遷移 "{action}" を実行できません',
+  'workflow.transition.pending': 'オブジェクト "{object}": 遷移 "{action}" には承認が必要です — 承認キー "{approvalKey}"',
+  'workflow.approval.unavailable': 'オブジェクト "{object}": 遷移 "{action}" には承認が必要ですが、承認キューが構成されていません',
 } as const;

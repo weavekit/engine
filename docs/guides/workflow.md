@@ -34,11 +34,39 @@ Add labels for display names and an optional role gate per transition:
 { "action": "approve", "from": "pending", "to": "approved", "roles": ["manager"] }
 ```
 
+```json
+{ "action": "publish", "from": "approved", "to": "published", "requiresApproval": true }
+```
+
 - **`roles`** (transition-level) restricts who may fire it; when omitted, any identity allowed to
   update the object may fire it.
+- **`requiresApproval: true`** holds the transition until it is approved (see below).
 - **Audit & live events** — every transition is recorded as a `transition` audit event (with the
   `action`, `from` and `to`) and published on the live channel as `record.transitioned`
   (`{ object, id, from, to, action }`), alongside the generic `record.updated`.
+
+## Guardrails and approvals
+
+When the [open contract](custom-tools-and-guardrails.md) is enabled (`config.tools`), its guardrail
+policies and approval queue also apply to transitions. The engine passes
+`ctx.action = workflow.transition.<object>.<action>`, so a policy self-filters:
+
+```ts
+export default {
+  name: 'no-big-refunds',
+  decide(ctx) {
+    if (!ctx.action.startsWith('workflow.transition.')) return { allow: true };
+    return { allow: false, requireApproval: true, approvalKey: 'refund-approval' };
+  },
+};
+```
+
+- A `deny` decision fails the transition with `400 mcp.policy.denied`.
+- A `requireApproval` decision (or a transition's own `requiresApproval: true`) suspends it: the
+  caller gets `409 workflow.transition.pending` with an `approvalKey`; an admin approves it through
+  the [approval queue](approvals.md), and the caller retries the same transition.
+- If a transition requires approval but no approval queue is configured, it **fails closed**
+  (`workflow.approval.unavailable`) rather than firing.
 
 ## Hooks
 

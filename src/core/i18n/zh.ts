@@ -232,4 +232,6 @@ export const zh: Record<MessageKey, string> = {
   'workflow.transition.notAllowed': '对象 "{object}"：状态 "{from}" 不允许转换 "{action}"',
   'workflow.transition.required': '对象 "{object}"：字段 "{field}" 由工作流管理——请通过转换修改',
   'workflow.transition.denied': '对象 "{object}"：角色 "{role}" 无权执行转换 "{action}"',
+  'workflow.transition.pending': '对象 "{object}"：转换 "{action}" 需要审批——审批键 "{approvalKey}"',
+  'workflow.approval.unavailable': '对象 "{object}"：转换 "{action}" 需要审批，但未配置审批队列',
 } as const;

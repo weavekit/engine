@@ -23,7 +23,7 @@ const FORBIDDEN = new Set<MessageKey>([
 const NOT_FOUND = new Set<MessageKey>(['data.recordNotFound', 'data.objectUnknown', 'http.notFound', 'approval.notFound', 'proxy.notFound', 'workflow.transition.unknown']);
 
 /** message keys that map to 409 Conflict (optimistic locking / reference protection) */
-const CONFLICT = new Set<MessageKey>(['data.unique', 'http.conflict', 'source.versionMismatch', 'page.exists', 'page.ref.inUse', 'workflow.transition.notAllowed']);
+const CONFLICT = new Set<MessageKey>(['data.unique', 'http.conflict', 'source.versionMismatch', 'page.exists', 'page.ref.inUse', 'workflow.transition.notAllowed', 'workflow.transition.pending']);
 
 /** message keys that map to 429 Too Many Requests */
 const RATE_LIMITED = new Set<MessageKey>(['http.rateLimited', 'quota.exceeded']);

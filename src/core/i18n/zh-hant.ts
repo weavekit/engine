@@ -233,4 +233,6 @@ export const zhHant: Record<MessageKey, string> = {
   'workflow.transition.notAllowed': '物件 "{object}"：狀態 "{from}" 不允許轉換 "{action}"',
   'workflow.transition.required': '物件 "{object}"：欄位 "{field}" 由工作流程管理——請透過轉換修改',
   'workflow.transition.denied': '物件 "{object}"：角色 "{role}" 無權執行轉換 "{action}"',
+  'workflow.transition.pending': '物件 "{object}"：轉換 "{action}" 需要審批——審批鍵 "{approvalKey}"',
+  'workflow.approval.unavailable': '物件 "{object}"：轉換 "{action}" 需要審批，但未設定審批佇列',
 } as const;

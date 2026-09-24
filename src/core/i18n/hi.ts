@@ -233,4 +233,6 @@ export const hi: Record<MessageKey, string> = {
   'workflow.transition.notAllowed': 'ऑब्जेक्ट "{object}": स्थिति "{from}" से संक्रमण "{action}" की अनुमति नहीं है',
   'workflow.transition.required': 'ऑब्जेक्ट "{object}": फ़ील्ड "{field}" workflow द्वारा प्रबंधित है — इसे संक्रमण से बदलें',
   'workflow.transition.denied': 'ऑब्जेक्ट "{object}": भूमिका "{role}" को संक्रमण "{action}" चलाने की अनुमति नहीं है',
+  'workflow.transition.pending': 'ऑब्जेक्ट "{object}": संक्रमण "{action}" के लिए स्वीकृति आवश्यक है — स्वीकृति कुंजी "{approvalKey}"',
+  'workflow.approval.unavailable': 'ऑब्जेक्ट "{object}": संक्रमण "{action}" के लिए स्वीकृति आवश्यक है लेकिन कोई स्वीकृति कतार कॉन्फ़िगर नहीं है',
 } as const;

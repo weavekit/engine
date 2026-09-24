@@ -233,4 +233,6 @@ export const es: Record<MessageKey, string> = {
   'workflow.transition.notAllowed': 'objeto "{object}": la transición "{action}" no está permitida desde el estado "{from}"',
   'workflow.transition.required': 'objeto "{object}": el campo "{field}" es gestionado por un workflow — cámbialo mediante una transición',
   'workflow.transition.denied': 'objeto "{object}": el rol "{role}" no puede ejecutar la transición "{action}"',
+  'workflow.transition.pending': 'objeto "{object}": la transición "{action}" requiere aprobación — clave de aprobación "{approvalKey}"',
+  'workflow.approval.unavailable': 'objeto "{object}": la transición "{action}" requiere aprobación pero no hay una cola de aprobaciones configurada',
 } as const;

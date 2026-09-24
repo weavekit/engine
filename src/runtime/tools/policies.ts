@@ -2,7 +2,7 @@ import { readdir, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { evaluatePolicies } from '../../core/index.js';
-import type { ApprovalStatus, GuardrailContext, GuardrailPolicy, ToolResult } from '../../core/index.js';
+import type { ApprovalStatus, GuardrailContext, GuardrailDecision, GuardrailPolicy, MessageKey, ToolResult } from '../../core/index.js';
 
 /**
  * Guardrail policy pipeline on top of the pure `evaluatePolicies` core:
@@ -49,20 +49,62 @@ export async function evaluateCall(
   const decision = await evaluatePolicies(policies, ctx);
   if (decision.allow === false) {
     if ('requireApproval' in decision) {
-      const key = decision.approvalKey ?? policyApprovalKey(ctx.actor.key, ctx.action, ctx.args);
-      const existing = (await approvals.query()).find((a) => a.approvalKey === key);
-      if (existing?.status === 'approved') return { kind: 'allow' };
-      if (existing?.status === 'rejected') {
-        return { kind: 'deny', reason: 'approval was rejected', errorCode: 'mcp.approval.notFound' };
-      }
-      if (existing === undefined) {
-        await approvals.pending(ctx.action, ctx.args, ctx.actor, key);
-      }
-      return { kind: 'pending', approvalKey: key };
+      return resolveApproval(approvals, decision.approvalKey ?? policyApprovalKey(ctx.actor.key, ctx.action, ctx.args), ctx);
     }
     return { kind: 'deny', reason: decision.reason, errorCode: decision.errorCode ?? 'mcp.policy.denied' };
   }
   return { kind: 'allow', mask: decision.mask };
+}
+
+/** resolve a `requireApproval` decision: approved → allow; rejected → deny; absent → enqueue pending */
+async function resolveApproval(
+  approvals: PolicyApprovals,
+  approvalKey: string,
+  ctx: GuardrailContext,
+): Promise<PolicyGateResult> {
+  const key = approvalKey === '' ? policyApprovalKey(ctx.actor.key, ctx.action, ctx.args) : approvalKey;
+  const existing = (await approvals.query()).find((a) => a.approvalKey === key);
+  if (existing?.status === 'approved') return { kind: 'allow' };
+  if (existing?.status === 'rejected') {
+    return { kind: 'deny', reason: 'approval was rejected', errorCode: 'mcp.approval.notFound' };
+  }
+  if (existing === undefined) {
+    await approvals.pending(ctx.action, ctx.args, ctx.actor, key);
+  }
+  return { kind: 'pending', approvalKey: key };
+}
+
+/** transition-guard result with typed message keys (the caller throws the SchemaError) */
+export type TransitionGateResult =
+  | { kind: 'allow' }
+  | { kind: 'deny'; code: MessageKey; reason?: string }
+  | { kind: 'pending'; approvalKey: string };
+
+/**
+ * Guardrail gate for a workflow transition. Runs the shared policy set (a policy
+ * self-filters on `ctx.action`) and/or the transition's own `requiresApproval`
+ * flag, then resolves the approval lifecycle. No policies and no flag → allow.
+ */
+export async function evaluateTransition(
+  policies: readonly GuardrailPolicy[],
+  approvals: PolicyApprovals | undefined,
+  ctx: GuardrailContext,
+  requireApproval: boolean,
+): Promise<TransitionGateResult> {
+  let decision: GuardrailDecision = { allow: true };
+  if (policies.length > 0) decision = await evaluatePolicies(policies, ctx);
+  if (decision.allow === true) {
+    if (!requireApproval) return { kind: 'allow' };
+    decision = { allow: false, requireApproval: true, approvalKey: policyApprovalKey(ctx.actor.key, ctx.action, ctx.args) };
+  }
+  if ('requireApproval' in decision) {
+    if (approvals === undefined) return { kind: 'deny', code: 'workflow.approval.unavailable' };
+    const result = await resolveApproval(approvals, decision.approvalKey, ctx);
+    if (result.kind === 'allow') return { kind: 'allow' };
+    if (result.kind === 'pending') return { kind: 'pending', approvalKey: result.approvalKey };
+    return { kind: 'deny', code: 'mcp.policy.denied', reason: result.reason };
+  }
+  return { kind: 'deny', code: 'mcp.policy.denied', reason: decision.reason };
 }
 
 /** mask a tool result's JSON top-level fields: non-JSON / parse failure passes through */

@@ -106,4 +106,16 @@ describe('validateWorkflow — declarative state machine on objects/<name>/workf
   it('future workflow schemaVersion → schema.version.unsupported', () => {
     expect(codeOf(() => def(validWorkflow({ schemaVersion: 99 })))).toBe('schema.version.unsupported');
   });
+
+  it('accepts requiresApproval on a transition; rejects a non-boolean', () => {
+    const ok = def(
+      validWorkflow({ transitions: [{ action: 'submit', from: 'draft', to: 'pending', requiresApproval: true }] }),
+    );
+    expect(ok.workflow?.transitions[0]?.requiresApproval).toBe(true);
+    expect(
+      codeOf(() =>
+        def(validWorkflow({ transitions: [{ action: 'submit', from: 'draft', to: 'pending', requiresApproval: 'yes' }] })),
+      ),
+    ).toBe('workflow.transition.invalid');
+  });
 });

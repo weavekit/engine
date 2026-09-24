@@ -26,6 +26,8 @@ export interface WorkflowTransition {
   labels?: Record<string, string>;
   /** roles allowed to fire this transition; absent = any identity allowed to update */
   roles?: string[];
+  /** when true, the transition must be approved through the approval queue before it fires */
+  requiresApproval?: boolean;
 }
 
 /** validated workflow definition attached to an object */

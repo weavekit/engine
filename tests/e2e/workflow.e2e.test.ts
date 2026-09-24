@@ -5,6 +5,7 @@ import {
   migrate,
   ObjectRegistry,
   SchemaError,
+  type GuardrailPolicy,
   type ObjectDefinition,
 } from '../../src/index.js';
 
@@ -147,6 +148,122 @@ maybe('Workflow E2E (local PG): transitions, RBAC and state-field immutability',
         .then(() => undefined)
         .catch((error: unknown) => (error instanceof SchemaError ? error.code : 'other'));
       expect(hookBypass).toBe('workflow.transition.required');
+    } finally {
+      await engine.close();
+    }
+  }, 120000);
+
+  it('guardrail policy + approval gate: pending → approve → retry, policy deny', async () => {
+    const GATED: ObjectDefinition = {
+      name: 'wf_gated',
+      fields: [
+        { name: 'id', type: 'string', primary: true },
+        { name: 'status', type: 'enum', options: ['draft', 'pending', 'approved', 'rejected'] },
+      ],
+      workflow: {
+        initial: 'draft',
+        stateField: 'status',
+        states: [{ name: 'draft' }, { name: 'pending' }, { name: 'approved' }, { name: 'rejected' }],
+        transitions: [
+          { action: 'submit', from: 'draft', to: 'pending', requiresApproval: true },
+          { action: 'approve', from: 'pending', to: 'approved' },
+          { action: 'reject', from: 'pending', to: 'rejected' },
+        ],
+      },
+      permissions: { admin: { read: 'all', create: true, update: true } },
+    };
+    const denyReject: GuardrailPolicy = {
+      name: 'deny-reject',
+      decide: (c) =>
+        c.action.endsWith('.reject')
+          ? { allow: false, reason: 'reject is not allowed here' }
+          : { allow: true },
+    };
+    const registry0 = new ObjectRegistry();
+    registry0.register(GATED);
+    registry0.buildGraph();
+    const engine = await buildEngineFromRegistry(registry0, {
+      databaseUrl: url!,
+      auth: { source: { 'key-admin': { id: 'admin1', roles: ['admin'] } } },
+      tools: { guardrails: { policies: [denyReject] }, approvals: { backend: 'memory' } },
+    });
+    const { app, pool, registry, dataAccess } = engine;
+    try {
+      await pool.query('DROP TABLE IF EXISTS wf_gated, weavekit_meta CASCADE');
+      await migrate(registry, { databaseUrl: url! });
+      await dataAccess.create('wf_gated', { id: 'G1' }, { pool, registry });
+      const post = (action: string) =>
+        app.inject({
+          method: 'POST',
+          url: `/api/objects/wf_gated/G1/transitions/${action}`,
+          headers: { authorization: 'Bearer key-admin' },
+        });
+
+      // requiresApproval → 409 pending with the deterministic key
+      const pending = await post('submit');
+      expect(pending.statusCode).toBe(409);
+      expect(pending.json().error.code).toBe('workflow.transition.pending');
+      const key = pending.json().error.params.approvalKey as string;
+      expect(typeof key).toBe('string');
+
+      // not yet approved → still pending
+      expect((await post('submit')).statusCode).toBe(409);
+
+      // approve the key → retry succeeds
+      expect(engine.approvals).toBeDefined();
+      await engine.approvals!.approve(key, 'admin1');
+      const submitted = await post('submit');
+      expect(submitted.statusCode).toBe(200);
+      expect(submitted.json().status).toBe('pending');
+
+      // policy denies the reject transition → 400 mcp.policy.denied
+      const denied = await post('reject');
+      expect(denied.statusCode).toBe(400);
+      expect(denied.json().error.code).toBe('mcp.policy.denied');
+
+      // policy allows approve
+      const approved = await post('approve');
+      expect(approved.statusCode).toBe(200);
+      expect(approved.json().status).toBe('approved');
+    } finally {
+      await engine.close();
+    }
+  }, 120000);
+
+  it('fails closed when a transition requires approval but no queue is configured', async () => {
+    const GATED: ObjectDefinition = {
+      name: 'wf_gated',
+      fields: [
+        { name: 'id', type: 'string', primary: true },
+        { name: 'status', type: 'enum', options: ['draft', 'pending'] },
+      ],
+      workflow: {
+        initial: 'draft',
+        stateField: 'status',
+        states: [{ name: 'draft' }, { name: 'pending' }],
+        transitions: [{ action: 'submit', from: 'draft', to: 'pending', requiresApproval: true }],
+      },
+      permissions: { admin: { read: 'all', create: true, update: true } },
+    };
+    const registry0 = new ObjectRegistry();
+    registry0.register(GATED);
+    registry0.buildGraph();
+    const engine = await buildEngineFromRegistry(registry0, {
+      databaseUrl: url!,
+      auth: { source: { 'key-admin': { id: 'admin1', roles: ['admin'] } } },
+    });
+    const { app, pool, registry, dataAccess } = engine;
+    try {
+      await pool.query('DROP TABLE IF EXISTS wf_gated, weavekit_meta CASCADE');
+      await migrate(registry, { databaseUrl: url! });
+      await dataAccess.create('wf_gated', { id: 'G2' }, { pool, registry });
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/objects/wf_gated/G2/transitions/submit',
+        headers: { authorization: 'Bearer key-admin' },
+      });
+      expect(res.statusCode).toBe(500);
+      expect(res.json().error.code).toBe('workflow.approval.unavailable');
     } finally {
       await engine.close();
     }

@@ -192,6 +192,8 @@ export const en = {
   'workflow.transition.notAllowed': 'object "{object}": transition "{action}" is not allowed from state "{from}"',
   'workflow.transition.required': 'object "{object}": field "{field}" is managed by a workflow — change it via a transition',
   'workflow.transition.denied': 'object "{object}": role "{role}" is not allowed to run transition "{action}"',
+  'workflow.transition.pending': 'object "{object}": transition "{action}" requires approval — approval key "{approvalKey}"',
+  'workflow.approval.unavailable': 'object "{object}": transition "{action}" requires approval but no approval queue is configured',
   'schema.version.unsupported': 'unsupported schema format version "{version}" (this engine supports up to {supported})',
   'quota.exceeded': 'quota exceeded for "{key}" (limit {limit} per {period})',
   'ingress.unauthorized': 'inbound event rejected for source "{source}"',

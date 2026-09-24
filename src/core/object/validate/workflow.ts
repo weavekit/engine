@@ -120,12 +120,18 @@ export function validateWorkflow(
       }
       roles = entry.roles as string[];
     }
+    let requiresApproval: boolean | undefined;
+    if (entry.requiresApproval !== undefined) {
+      if (typeof entry.requiresApproval !== 'boolean') fail(vc, 'workflow.transition.invalid', { i });
+      requiresApproval = entry.requiresApproval;
+    }
     transitions.push({
       action,
       from,
       to,
       ...(labels === undefined ? {} : { labels }),
       ...(roles === undefined ? {} : { roles }),
+      ...(requiresApproval === undefined ? {} : { requiresApproval }),
     });
   });
 

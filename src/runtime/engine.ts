@@ -271,6 +271,8 @@ export interface WeaveKitEngine {
   quotas?: CounterStore;
   /** script subsystem (present when enabled); workers are terminated on close */
   script?: ScriptDispatcher;
+  /** approval queue (present when config.tools is set): shared by tools and workflow transitions */
+  approvals?: ApprovalsQueue;
   close(): Promise<void>;
 }
 
@@ -355,12 +357,32 @@ export async function buildEngineFromRegistry(
     }
   }
 
+  // Guardrail policies + approval queue are shared by the tool open-contract and
+  // by workflow transitions (a transition policy self-filters on `ctx.action`,
+  // e.g. it must check `ctx.action.startsWith('workflow.transition.')`).
+  let policies: GuardrailPolicy[] = [];
+  let approvals: ApprovalsQueue | undefined;
+  if (config.tools !== undefined) {
+    policies = await resolvePolicies(config.tools.guardrails?.policies, config.schemaDir ?? '.');
+    // persisted approvals by default (PG — the engine's mandated DB); opt out
+    // with `approvals.backend: 'memory'`. The approval queue must be durable /
+    // multi-instance consistent, so it is never left single-process in-memory
+    // for a release engine.
+    if (config.tools.approvals?.backend !== 'memory') {
+      const { createApprovalsBackend } = await import('../subsystems/approvals/index.js');
+      const backend = await createApprovalsBackend(pool);
+      approvals = createApprovals({ audit: auditSink, backend });
+    } else {
+      approvals = createApprovals({ audit: auditSink });
+    }
+  }
+
   // The script subsystem needs a data-access to serve `this.db.objects` RPCs,
   // while the engine's exposed data-access needs the script dispatcher to fire
   // hooks. The cycle is resolved by giving the bridge its own RBAC-decorated
   // instance over the same base and adding the dispatcher to the exposed one.
   const replay = subsystems.audit?.replay === true;
-  const baseDataAccess = createDataAccess({ audit: auditSink, replay, events: eventPublisher });
+  const baseDataAccess = createDataAccess({ audit: auditSink, replay, events: eventPublisher, policies, approvals });
 
   let script: ScriptDispatcher | undefined;
   let dataAccess: ObjectDataAccess;
@@ -376,7 +398,7 @@ export async function buildEngineFromRegistry(
       config: subsystems.script,
       locale,
     });
-    dataAccess = withRbac(createDataAccess({ audit: auditSink, script, replay, events: eventPublisher }), { audit: auditSink });
+    dataAccess = withRbac(createDataAccess({ audit: auditSink, script, replay, events: eventPublisher, policies, approvals }), { audit: auditSink });
   } else {
     dataAccess = withRbac(baseDataAccess, { audit: auditSink });
   }
@@ -390,17 +412,6 @@ export async function buildEngineFromRegistry(
   if (config.tools?.toolsDir !== undefined) {
     const toolsDir = join(config.schemaDir ?? '.', config.tools.toolsDir);
     const loaded = await loadToolsDir(toolsDir, { locale });
-    const policies = await resolvePolicies(config.tools.guardrails?.policies, config.schemaDir ?? '.');
-    // persisted approvals by default (PG — the engine's mandated DB); opt out
-    // with `approvals.backend: 'memory'`. The approval queue must be durable /
-    // multi-instance consistent, so it is never left single-process in-memory
-    // for a release engine.
-    let approvals: ApprovalsQueue | undefined;
-    if (config.tools.approvals?.backend !== 'memory') {
-      const { createApprovalsBackend } = await import('../subsystems/approvals/index.js');
-      const backend = await createApprovalsBackend(pool);
-      approvals = createApprovals({ audit: auditSink, backend });
-    }
     tools = {
       defs: loaded.map((l) => l.definition),
       executor: createToolExecutor({
@@ -519,7 +530,7 @@ export async function buildEngineFromRegistry(
     // tool executor is enabled (toolsDir set) — `tools.executor.approvals`.
     registerApprovalsRoutes(
       app,
-      { registry, pool, dataAccess, authenticator, locale, approvals: tools?.executor.approvals },
+      { registry, pool, dataAccess, authenticator, locale, approvals },
       restOptions,
     );
     // workflow transitions — available for any object declaring objects/<name>/workflow.json
@@ -637,6 +648,7 @@ export async function buildEngineFromRegistry(
     audit,
     quotas,
     script,
+    approvals,
     async close() {
       const warn = (phase: string, error: unknown): void => {
         console.error(`weavekit: ${phase} close error: ${error instanceof Error ? error.message : String(error)}`);

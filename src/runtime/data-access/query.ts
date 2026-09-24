@@ -5,7 +5,8 @@ import { DETAILS_COLUMNS, FIELD_TYPES } from '../../core/index.js';
 import type { AuditEvent, AuditSink } from '../../core/audit/index.js';
 import { AUDIT_ACTOR_TYPES, DATA_ACTIONS } from '../../core/audit/index.js';
 import type { EventPublisher } from '../../core/provider/event/index.js';
-import { NOOP_SCRIPT_DISPATCHER, SCRIPT_HOOKS, type ScriptDispatcher, type ScriptHook, type ScriptUser } from '../../core/index.js';
+import { NOOP_SCRIPT_DISPATCHER, SCRIPT_HOOKS, type GuardrailContext, type GuardrailPolicy, type ScriptDispatcher, type ScriptHook, type ScriptUser } from '../../core/index.js';
+import { evaluateTransition, type PolicyApprovals } from '../tools/policies.js';
 import { buildCountSql, buildFindSql, scopeSuffix, type BuildContext } from './builder.js';
 import { deleteDetailsChildren, insertDetails } from './details.js';
 import { computeFormulas } from './formula.js';
@@ -160,12 +161,27 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
   private readonly events?: EventPublisher;
   /** objects currently dispatching onLoad — skips re-entrant onLoad (a hook re-reading the same object) */
   private readonly onLoadInFlight = new Set<string>();
+  /** guardrail policies shared with the open-contract (empty = no policy gate on transitions) */
+  private readonly policies: readonly GuardrailPolicy[];
+  /** approval queue used when a policy or a transition requires approval */
+  private readonly approvals?: PolicyApprovals;
 
-  constructor(options: { audit?: AuditSink; script?: ScriptDispatcher; replay?: boolean; events?: EventPublisher } = {}) {
+  constructor(
+    options: {
+      audit?: AuditSink;
+      script?: ScriptDispatcher;
+      replay?: boolean;
+      events?: EventPublisher;
+      policies?: readonly GuardrailPolicy[];
+      approvals?: PolicyApprovals;
+    } = {},
+  ) {
     this.audit = options.audit;
     this.script = options.script ?? NOOP_SCRIPT_DISPATCHER;
     this.replay = options.replay ?? false;
     this.events = options.events;
+    this.policies = options.policies ?? [];
+    this.approvals = options.approvals;
   }
 
   /**
@@ -569,6 +585,38 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
         }
       }
 
+      // guardrail policy gate + optional approval (shared policy set with the open-contract)
+      if (this.policies.length > 0 || transition.requiresApproval === true) {
+        const actorId = subject?.id ?? 'system';
+        const guardrailCtx: GuardrailContext = {
+          actor: { key: actorId, label: actorId, onBehalfOf: actorId },
+          subject: subject ?? { id: 'system', roles: [] },
+          action: `workflow.transition.${def.name}.${action}`,
+          args: { object: def.name, id, action, from: transition.from, to: transition.to },
+          dataAccess: this as unknown as GuardrailContext['dataAccess'],
+        };
+        const gate = await evaluateTransition(
+          this.policies,
+          this.approvals,
+          guardrailCtx,
+          transition.requiresApproval === true,
+        );
+        if (gate.kind === 'deny') {
+          throw new SchemaError(
+            gate.code,
+            { object: objectName, action, reason: gate.reason ?? '' },
+            ctx.locale,
+          );
+        }
+        if (gate.kind === 'pending') {
+          throw new SchemaError(
+            'workflow.transition.pending',
+            { object: objectName, action, approvalKey: gate.approvalKey },
+            ctx.locale,
+          );
+        }
+      }
+
       const transitionInfo = { from: transition.from, to: transition.to };
       const before = await this.runBeforeHook(
         SCRIPT_HOOKS.BEFORE_TRANSITION,
@@ -706,6 +754,15 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
   }
 }
 
-export function createDataAccess(options: { audit?: AuditSink; script?: ScriptDispatcher; replay?: boolean; events?: EventPublisher } = {}): ObjectDataAccess {
+export function createDataAccess(
+  options: {
+    audit?: AuditSink;
+    script?: ScriptDispatcher;
+    replay?: boolean;
+    events?: EventPublisher;
+    policies?: readonly GuardrailPolicy[];
+    approvals?: PolicyApprovals;
+  } = {},
+): ObjectDataAccess {
   return new DefaultObjectDataAccess(options);
 }

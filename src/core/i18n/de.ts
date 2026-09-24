@@ -233,4 +233,6 @@ export const de: Record<MessageKey, string> = {
   'workflow.transition.notAllowed': 'Objekt "{object}": Übergang "{action}" ist aus Zustand "{from}" nicht erlaubt',
   'workflow.transition.required': 'Objekt "{object}": Feld "{field}" wird von einem Workflow verwaltet — ändern Sie es über einen Übergang',
   'workflow.transition.denied': 'Objekt "{object}": Rolle "{role}" darf den Übergang "{action}" nicht ausführen',
+  'workflow.transition.pending': 'Objekt "{object}": Übergang "{action}" erfordert eine Genehmigung — Genehmigungsschlüssel "{approvalKey}"',
+  'workflow.approval.unavailable': 'Objekt "{object}": Übergang "{action}" erfordert eine Genehmigung, aber es ist keine Genehmigungswarteschlange konfiguriert',
 } as const;

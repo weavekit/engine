@@ -38,7 +38,7 @@ export function capabilitiesFromConfig(config: OpenApiConfigLike): OpenApiCapabi
     events: eventsEnabled ? { prefix: config.adapters?.events?.prefix ?? '/api' } : undefined,
     ingress: config.ingress === undefined ? undefined : { prefix: config.ingress.prefix ?? '/api' },
     audit: config.subsystems?.audit?.enabled === true,
-    approvals: config.tools?.toolsDir !== undefined,
+    approvals: config.tools !== undefined,
     proxy: config.proxy?.resolver !== undefined,
     guardrails: typeof config.tools?.guardrails?.policies === 'string',
     projectDir: config.schemaDir !== undefined,

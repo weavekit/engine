@@ -8,3 +8,5 @@ export type {
   CustomToolSurfaceEntry,
   ApprovalsQueue,
 } from './executor.js';
+export { evaluateCall, evaluateTransition, policyApprovalKey } from './policies.js';
+export type { PolicyApprovals, PolicyGateResult, TransitionGateResult } from './policies.js';
