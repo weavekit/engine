@@ -36,8 +36,9 @@ Add labels for display names and an optional role gate per transition:
 
 - **`roles`** (transition-level) restricts who may fire it; when omitted, any identity allowed to
   update the object may fire it.
-- **Audit & live events** — every transition is recorded as a write (with the `action`, `from` and
-  `to`) and published on the live channel.
+- **Audit & live events** — every transition is recorded as a `transition` audit event (with the
+  `action`, `from` and `to`) and published on the live channel as `record.transitioned`
+  (`{ object, id, from, to, action }`), alongside the generic `record.updated`.
 
 ## Hooks
 

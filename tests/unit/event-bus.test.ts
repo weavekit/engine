@@ -79,6 +79,20 @@ describe('createEventBus — seq/subscription/replay', () => {
     expect(got.events[4]!.payload).toMatchObject({ event: { actorId: 'u1' } });
   });
 
+  it('publisherOf transitioned: record.transitioned carries from/to/action', () => {
+    const bus = createEventBus();
+    const got = collect();
+    bus.subscribe((e) => got.push({ type: e.type, payload: e.payload }));
+    publisherOf(bus).publishRecordTransitioned('ticket', 'T1', 'draft', 'open', 'submit');
+    expect(EVENT_TYPES.RECORD_TRANSITIONED).toBe('record.transitioned');
+    expect(got.events).toEqual([
+      {
+        type: EVENT_TYPES.RECORD_TRANSITIONED,
+        payload: { object: 'ticket', id: 'T1', from: 'draft', to: 'open', action: 'submit' },
+      },
+    ]);
+  });
+
   it('publisherOf lifecycle: publishLifecycle broadcasts lifecycle.shutdown (single source)', () => {
     const bus = createEventBus();
     const got = collect();

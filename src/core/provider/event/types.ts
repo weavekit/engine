@@ -12,6 +12,7 @@ export const EVENT_TYPES = {
   RECORD_CREATED: 'record.created',
   RECORD_UPDATED: 'record.updated',
   RECORD_DELETED: 'record.deleted',
+  RECORD_TRANSITIONED: 'record.transitioned',
   AUDIT_EVENT: 'audit.event',
   SCHEMA_CHANGED: 'schema.changed',
   SCHEMA_DRIFT: 'schema.drift',
@@ -32,6 +33,15 @@ export type RecordAction = 'created' | 'updated' | 'deleted';
 export interface RecordChangePayload {
   object: string;
   id: string;
+}
+
+/** workflow transition payload — the state change and the action that fired it */
+export interface RecordTransitionedPayload {
+  object: string;
+  id: string;
+  from: string;
+  to: string;
+  action: string;
 }
 
 /** audit payload — the full AuditEvent, filtered per-subscriber before delivery */
@@ -65,7 +75,13 @@ export interface LifecyclePayload {
 }
 
 /** type-specific payload */
-export type EventPayload = RecordChangePayload | AuditEventPayload | SchemaChangedPayload | SchemaDriftPayload | LifecyclePayload;
+export type EventPayload =
+  | RecordChangePayload
+  | RecordTransitionedPayload
+  | AuditEventPayload
+  | SchemaChangedPayload
+  | SchemaDriftPayload
+  | LifecyclePayload;
 
 /** one engine event with a monotonically increasing sequence (replay anchor) */
 export interface EngineEvent {
@@ -90,6 +106,8 @@ export type ReplayResult = 'ok' | 'gap';
  */
 export interface EventPublisher {
   publishRecordChange(action: RecordAction, object: string, id: string): void;
+  /** compact workflow-transition event (from/to/action); emitted alongside the record update */
+  publishRecordTransitioned(object: string, id: string, from: string, to: string, action: string): void;
   publishAudit(event: AuditEvent): void;
   publishSchemaChanged(): void;
   /** notify connected subscribers that a schema reload was rejected (drift) */

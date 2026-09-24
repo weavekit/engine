@@ -17,13 +17,16 @@ never leak a record the identity cannot read, nor an audit event it may not see.
 | `type` | Payload | Delivered to |
 | --- | --- | --- |
 | `record.created` / `record.updated` / `record.deleted` | `{ object, id }` | identities that can read `object` |
+| `record.transitioned` | `{ object, id, from, to, action }` | identities that can read `object` |
 | `audit.event` | `{ event }` (the full audit event) | the event's own `actorId`, or any `adminRoles` holder |
 | `schema.changed` | `{ kind: 'schema' }` | everyone (cache-invalidation nudge, no payload) |
 | `schema.drift` | `{ object, field?, message }` | everyone (a `weave dev` reload was rejected) |
 | `lifecycle.shutdown` | `{ kind: 'shutdown' }` | everyone (instance exiting) |
 
 Record payloads carry only the object name and id — never column values. Subscribers refetch the row
-through the REST API (with their own RBAC) if they need the data.
+through the REST API (with their own RBAC) if they need the data. A workflow transition emits
+`record.transitioned` (with `from`/`to`/`action`) **in addition to** `record.updated`, so generic
+cache-invalidation listeners keep working while workflow-aware ones can react to the state change.
 
 ## Wire format
 

@@ -23,6 +23,21 @@ const LEAD: ObjectDefinition = {
   },
 };
 
+const TICKET: ObjectDefinition = {
+  name: 'ticket',
+  fields: [
+    { name: 'id', type: 'string', primary: true },
+    { name: 'status', type: 'enum', options: ['draft', 'open'] },
+  ],
+  workflow: {
+    initial: 'draft',
+    stateField: 'status',
+    states: [{ name: 'draft' }, { name: 'open' }],
+    transitions: [{ action: 'open', from: 'draft', to: 'open' }],
+  },
+  permissions: { sales: { read: 'all', create: true, update: true } },
+};
+
 interface SseBlock {
   id?: string;
   event?: string;
@@ -101,10 +116,11 @@ maybe('realtime channel E2E (SSE + subscription filtering + replay, local PG + r
   it('auth / record.changed / audit filtering / schema.changed broadcast / replay / gap notice', async () => {
     const registry0 = new ObjectRegistry();
     registry0.register(LEAD);
+    registry0.register(TICKET);
     registry0.buildGraph();
 
     const cleanupPool = createPool(url!);
-    await cleanupPool.query('DROP TABLE IF EXISTS lead, weavekit_audit, weavekit_metadata, weavekit_meta CASCADE');
+    await cleanupPool.query('DROP TABLE IF EXISTS lead, ticket, weavekit_audit, weavekit_metadata, weavekit_meta CASCADE');
     await cleanupPool.end();
 
     const engine = await buildEngineFromRegistry(registry0, {
@@ -150,6 +166,20 @@ maybe('realtime channel E2E (SSE + subscription filtering + replay, local PG + r
       await dataAccess.delete('lead', 'E1', sctx);
       const deleted = await readUntil(sales, 'record.deleted');
       expect(deleted.target).not.toBeNull();
+
+      // ── 2b. workflow transition → record.transitioned (from/to/action) ──
+      await dataAccess.create('ticket', { id: 'T1' }, sctx);
+      await readUntil(sales, 'record.created');
+      await dataAccess.transition('ticket', 'T1', 'open', sctx);
+      const transitioned = await readUntil(sales, 'record.transitioned');
+      expect(transitioned.target).not.toBeNull();
+      expect(JSON.parse(transitioned.target!.data!).payload).toEqual({
+        object: 'ticket',
+        id: 'T1',
+        from: 'draft',
+        to: 'open',
+        action: 'open',
+      });
 
       // ── 3. events for unreadable objects invisible to denied subscribers (ghost only sees schema.changed broadcast) ──
       const ghost = await openSse(baseUrl, { authorization: 'Bearer key-ghost' });

@@ -622,7 +622,7 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
       auditWrite(
         this.audit,
         ctx,
-        DATA_ACTIONS.UPDATE,
+        DATA_ACTIONS.TRANSITION,
         objectName,
         id,
         { transition: action, from: transition.from, to: transition.to, changes: payload },
@@ -631,15 +631,16 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
         this.replay ? updated : undefined,
       );
       this.events?.publishRecordChange('updated', objectName, id);
-      await this.runAfterHook(SCRIPT_HOOKS.ON_EXIT, DATA_ACTIONS.UPDATE, objectName, existing, {}, ctx, warnings, id, {
+      this.events?.publishRecordTransitioned(objectName, id, transition.from, transition.to, action);
+      await this.runAfterHook(SCRIPT_HOOKS.ON_EXIT, DATA_ACTIONS.TRANSITION, objectName, existing, {}, ctx, warnings, id, {
         transition: transitionInfo,
         state: transition.from,
       });
-      await this.runAfterHook(SCRIPT_HOOKS.ON_ENTER, DATA_ACTIONS.UPDATE, objectName, updated, payload, ctx, warnings, id, {
+      await this.runAfterHook(SCRIPT_HOOKS.ON_ENTER, DATA_ACTIONS.TRANSITION, objectName, updated, payload, ctx, warnings, id, {
         transition: transitionInfo,
         state: transition.to,
       });
-      await this.runAfterHook(SCRIPT_HOOKS.AFTER_TRANSITION, DATA_ACTIONS.UPDATE, objectName, updated, payload, ctx, warnings, id, {
+      await this.runAfterHook(SCRIPT_HOOKS.AFTER_TRANSITION, DATA_ACTIONS.TRANSITION, objectName, updated, payload, ctx, warnings, id, {
         transition: transitionInfo,
         state: transition.to,
       });
@@ -648,7 +649,7 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
       return loaded[0] as T;
     } catch (err) {
       if (owned) await client.query('ROLLBACK');
-      auditWrite(this.audit, ctx, DATA_ACTIONS.UPDATE, objectName, id, { transition: action }, err);
+      auditWrite(this.audit, ctx, DATA_ACTIONS.TRANSITION, objectName, id, { transition: action }, err);
       throw err;
     } finally {
       if (owned) client.release();

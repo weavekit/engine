@@ -23,6 +23,8 @@ export const DATA_ACTIONS = {
   UPDATE: 'update',
   DELETE: 'delete',
   READ: 'read',
+  /** a workflow transition (fires the state change via `dataAccess.transition`) */
+  TRANSITION: 'transition',
 } as const;
 export type DataAction = typeof DATA_ACTIONS[keyof typeof DATA_ACTIONS];
 

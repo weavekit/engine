@@ -9,6 +9,7 @@ export {
   type PublishInput,
   type RecordAction,
   type RecordChangePayload,
+  type RecordTransitionedPayload,
   type ReplayResult,
   type SchemaChangedPayload,
 } from './types.js';

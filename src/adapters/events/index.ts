@@ -5,7 +5,6 @@ import type {
   AuditEventPayload,
   EngineEvent,
   EventBus,
-  RecordChangePayload,
 } from '../../core/provider/event/index.js';
 import type { SlidingWindow } from '../../core/limiter/index.js';
 import type { Authenticator } from '../auth/index.js';
@@ -20,6 +19,7 @@ import { createSseStream, type SseStream } from './stream.js';
  * delivery (a push must never leak a record the identity cannot read, nor an
  * audit event it may not see):
  *   - record.* events   → object must be readable (mirrors MCP list_objects)
+ *   - record.transitioned → same object-readability filter as record.*
  *   - audit.event       → own actorId only, unless the subject holds an admin role
  *   - schema.changed    → broadcast (cache-invalidation nudge, no payload)
  *
@@ -53,8 +53,9 @@ function passesFilter(event: EngineEvent, subject: RbacSubject, readable: Set<st
   switch (event.type) {
     case EVENT_TYPES.RECORD_CREATED:
     case EVENT_TYPES.RECORD_UPDATED:
-    case EVENT_TYPES.RECORD_DELETED: {
-      const payload = event.payload as RecordChangePayload;
+    case EVENT_TYPES.RECORD_DELETED:
+    case EVENT_TYPES.RECORD_TRANSITIONED: {
+      const payload = event.payload as { object: string };
       return readable.has(payload.object);
     }
     case EVENT_TYPES.AUDIT_EVENT: {
