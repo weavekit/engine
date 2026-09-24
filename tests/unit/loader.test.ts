@@ -12,6 +12,21 @@ const LEAD = JSON.stringify({
   ],
 });
 
+const LEAD_WF = JSON.stringify({
+  name: 'lead',
+  fields: [
+    { name: 'id', type: 'string', primary: true },
+    { name: 'status', type: 'enum', options: ['draft', 'approved'] },
+  ],
+});
+
+const LEAD_WORKFLOW = JSON.stringify({
+  initial: 'draft',
+  stateField: 'status',
+  states: [{ name: 'draft' }, { name: 'approved' }],
+  transitions: [{ action: 'approve', from: 'draft', to: 'approved' }],
+});
+
 async function withProjectDir(fn: (root: string) => Promise<void>): Promise<void> {
   const root = await mkdtemp(join(tmpdir(), 'weavekit-loader-'));
   try {
@@ -58,15 +73,26 @@ describe('loadSchemaDir — objects/<name>/schema.json directory layout', () => 
     });
   });
 
-  it('other files inside object dir (future workflow/script) ignored', async () => {
+  it('loads a sibling workflow.json and ignores other files', async () => {
     await withProjectDir(async (root) => {
       await mkdir(join(root, 'objects', 'lead'), { recursive: true });
-      await writeFile(join(root, 'objects', 'lead', 'schema.json'), LEAD);
-      await writeFile(join(root, 'objects', 'lead', 'workflow.json'), '{ "future": true }');
+      await writeFile(join(root, 'objects', 'lead', 'schema.json'), LEAD_WF);
+      await writeFile(join(root, 'objects', 'lead', 'workflow.json'), LEAD_WORKFLOW);
       await writeFile(join(root, 'objects', 'lead', 'script.ts'), 'export const x = 1;');
       const { files } = await loadSchemaDir(root);
       expect(files).toHaveLength(1);
       expect(files[0]!.name).toBe('lead');
+      expect(files[0]!.object.workflow?.stateField).toBe('status');
+      expect(files[0]!.object.workflow?.transitions).toHaveLength(1);
+    });
+  });
+
+  it('invalid workflow.json → parse.json.invalid', async () => {
+    await withProjectDir(async (root) => {
+      await mkdir(join(root, 'objects', 'lead'), { recursive: true });
+      await writeFile(join(root, 'objects', 'lead', 'schema.json'), LEAD_WF);
+      await writeFile(join(root, 'objects', 'lead', 'workflow.json'), '{ bad json');
+      expect(codeOf(await thrownBy(() => loadSchemaDir(root)))).toBe('parse.json.invalid');
     });
   });
 

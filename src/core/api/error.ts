@@ -16,19 +16,20 @@ const FORBIDDEN = new Set<MessageKey>([
   'script.query.denied',
   'audit.denied.actor',
   'proxy.denied',
+  'workflow.transition.denied',
 ]);
 
 /** message keys that map to 404 Not Found */
-const NOT_FOUND = new Set<MessageKey>(['data.recordNotFound', 'data.objectUnknown', 'http.notFound', 'approval.notFound', 'proxy.notFound']);
+const NOT_FOUND = new Set<MessageKey>(['data.recordNotFound', 'data.objectUnknown', 'http.notFound', 'approval.notFound', 'proxy.notFound', 'workflow.transition.unknown']);
 
 /** message keys that map to 409 Conflict (optimistic locking / reference protection) */
-const CONFLICT = new Set<MessageKey>(['data.unique', 'http.conflict', 'source.versionMismatch', 'page.exists', 'page.ref.inUse']);
+const CONFLICT = new Set<MessageKey>(['data.unique', 'http.conflict', 'source.versionMismatch', 'page.exists', 'page.ref.inUse', 'workflow.transition.notAllowed']);
 
 /** message keys that map to 429 Too Many Requests */
 const RATE_LIMITED = new Set<MessageKey>(['http.rateLimited', 'quota.exceeded']);
 
 /** message keys that map to 400 Bad Request */
-const BAD_REQUEST = new Set<MessageKey>(['script.abort', 'schema.version.unsupported']);
+const BAD_REQUEST = new Set<MessageKey>(['script.abort', 'schema.version.unsupported', 'workflow.transition.required']);
 
 function errorBody(code: MessageKey, message: string, params: Record<string, unknown>): ApiErrorBody {
   return { error: { code, message, params } };

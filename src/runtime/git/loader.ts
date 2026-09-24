@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { readdir, readFile, stat } from 'node:fs/promises';
 import { basename, dirname, join } from 'node:path';
-import { ObjectRegistry, SchemaError, parseSchema } from '../../core/index.js';
+import { ObjectRegistry, SchemaError, parseObject } from '../../core/index.js';
 import type { FieldTypeRegistry, Locale, ObjectDefinition } from '../../core/index.js';
 
 export interface SchemaFile {
@@ -25,9 +25,9 @@ function sha256(input: string): string {
 }
 
 /**
- * Directory layout: one object per directory — `objects/<name>/schema.json`.
- * The parent directory name must equal the object name (`nameHint` check).
- * Any other file under the tree (future workflow.json/script.ts) is ignored.
+ * Directory layout: one object per directory — `objects/<name>/schema.json`,
+ * with an optional sibling `objects/<name>/workflow.json` (declarative state
+ * machine). Any other file under the tree (script.ts/server.js/…) is ignored.
  */
 async function collectSchemaFiles(dir: string, out: string[]): Promise<void> {
   const entries = await readdir(dir, { withFileTypes: true });
@@ -70,7 +70,13 @@ export async function loadSchemaDir(
     } catch {
       throw new SchemaError('loader.file.read', { file: path }, options.locale);
     }
-    const object = parseSchema(raw, {
+    let workflowRaw: string | undefined;
+    try {
+      workflowRaw = await readFile(join(dirname(path), 'workflow.json'), 'utf8');
+    } catch {
+      workflowRaw = undefined;
+    }
+    const object = parseObject(raw, workflowRaw, {
       locale: options.locale,
       nameHint: name,
       allowedFieldTypes: options.allowedFieldTypes,
@@ -81,7 +87,12 @@ export async function loadSchemaDir(
       allowedFieldTypes: options.allowedFieldTypes,
       fieldTypes: options.fieldTypes,
     });
-    files.push({ path, name, contentHash: sha256(raw), object });
+    files.push({
+      path,
+      name,
+      contentHash: sha256(workflowRaw === undefined ? raw : `${raw}\u0000${workflowRaw}`),
+      object,
+    });
   }
   return { registry, files };
 }

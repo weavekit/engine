@@ -505,8 +505,14 @@ maybe("CLI weave E2E (spawn + local PG + .tmp/weavekit-project)", () => {
       config = await readFile(join(PROJECT_DIR, "weavekit.config.ts"), "utf8");
       expect(config).toContain("audit: { enabled: false }");
 
-      // unimplemented subsystem rejected
-      const bad = await runCli(["module:add", "workflow", "--json"]);
+      // workflow is now a toggleable subsystem
+      const wfAdd = await runCli(["module:add", "workflow", "--json"]);
+      expect(wfAdd.code).toBe(0);
+      config = await readFile(join(PROJECT_DIR, "weavekit.config.ts"), "utf8");
+      expect(config).toContain("workflow: { enabled: true }");
+
+      // unknown subsystem rejected
+      const bad = await runCli(["module:add", "bogus", "--json"]);
       expect(bad.code).not.toBe(0);
       expect(bad.stdout + bad.stderr).toContain("unsupported subsystem");
     } finally {

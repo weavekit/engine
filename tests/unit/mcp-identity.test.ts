@@ -24,6 +24,7 @@ const noopDataAccess: ObjectDataAccess = {
   findOne: async () => null,
   create: async () => ({}) as never,
   update: async () => ({}) as never,
+  transition: async () => ({}) as never,
   delete: async () => undefined,
 };
 

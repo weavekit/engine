@@ -94,5 +94,18 @@ export interface ObjectDataAccess {
     changes: Record<string, unknown>,
     ctx: DataAccessContext,
   ): Promise<T>;
+  /**
+   * Fire a declared workflow transition (`objects/<name>/workflow.json`): resolve
+   * the transition for the record's current state, check role permissions, run the
+   * workflow hooks and write the target state atomically. The object must declare a
+   * workflow; unknown/disallowed transitions throw (`workflow.transition.unknown` /
+   * `workflow.transition.notAllowed`).
+   */
+  transition<T = Record<string, unknown>>(
+    objectName: string,
+    id: string,
+    action: string,
+    ctx: DataAccessContext,
+  ): Promise<T>;
   delete(objectName: string, id: string, ctx: DataAccessContext): Promise<void>;
 }

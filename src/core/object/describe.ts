@@ -9,6 +9,7 @@ import {
   type FieldDefinition,
   type FieldTypeRegistry,
   type ReadScope,
+  type WorkflowDefinition,
 } from '../types/index.js';
 import type { ObjectRegistry } from './registry.js';
 
@@ -95,6 +96,8 @@ export interface ObjectDescriptor {
   fields: MetadataField[];
   relations: MetadataRelation[];
   permissions: MetadataPermissions;
+  /** declared state machine (states + transitions), when the object has a workflow */
+  workflow?: WorkflowDefinition;
 }
 
 /** minimal list entry (object name/labels/description) */
@@ -210,6 +213,7 @@ export function describeObject(
     fields,
     relations,
     permissions: permissionsOf(perm),
+    ...(def.workflow === undefined ? {} : { workflow: def.workflow }),
   };
 }
 

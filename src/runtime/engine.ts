@@ -14,6 +14,7 @@ import {
   type AuditSink,
   type CounterStore,
   type EngineScriptConfig,
+  type EngineWorkflowConfig,
   type EventPublisher,
   type FieldTypeRegistration,
   type GuardrailPolicy,
@@ -44,6 +45,7 @@ import {
   registerSchemaRoutes,
   registerGuardrailsRoutes,
   registerIdentitiesRoutes,
+  registerWorkflowRoutes,
   setErrorHandlers,
   type RestOptions,
 } from '../adapters/rest/index.js';
@@ -208,8 +210,8 @@ export interface EngineConfig {
   adapters?: { rest?: EngineRestConfig; mcp?: EngineMcpConfig; events?: EngineEventsConfig };
   /** engine-level tool mechanism: custom tools + guardrail policies; disabled when absent */
   tools?: EngineToolsConfig;
-  /** optional subsystems, dynamically loaded when enabled (audit/script implemented; others error out) */
-  subsystems?: { audit?: EngineAuditConfig; script?: EngineScriptConfig };
+  /** optional subsystems, dynamically loaded when enabled (audit/script; workflow is declaration-driven; unknown keys error out) */
+  subsystems?: { audit?: EngineAuditConfig; script?: EngineScriptConfig; workflow?: EngineWorkflowConfig };
   /**
    * durable fixed-period counters / usage budgets (optional; disabled when
    * absent). Backed by PostgreSQL (`weavekit_counters`) and exposed as
@@ -307,7 +309,9 @@ export async function buildEngineFromRegistry(
 
   // optional subsystems — dynamically loaded when enabled (disabled = not imported = zero overhead)
   const subsystems = config.subsystems ?? {};
-  const unimplemented = Object.keys(subsystems).filter((k) => k !== 'audit' && k !== 'script');
+  const unimplemented = Object.keys(subsystems).filter(
+    (k) => k !== 'audit' && k !== 'script' && k !== 'workflow',
+  );
   if (unimplemented.length > 0) {
     throw new Error(`subsystem not implemented: ${unimplemented.join(', ')}`);
   }
@@ -518,6 +522,8 @@ export async function buildEngineFromRegistry(
       { registry, pool, dataAccess, authenticator, locale, approvals: tools?.executor.approvals },
       restOptions,
     );
+    // workflow transitions — available for any object declaring objects/<name>/workflow.json
+    registerWorkflowRoutes(app, { registry, pool, dataAccess, authenticator, locale }, restOptions);
 
     // Generic outbound proxy (P-4). Wired only when `config.proxy.resolver` is
     // provided (absent = createProxyForwarder is not imported = zero overhead).

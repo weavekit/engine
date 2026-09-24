@@ -159,7 +159,9 @@ export async function createScriptDispatcher(options: ScriptDispatcherOptions): 
         }
         const value = result.value;
         const changes =
-          hook === SCRIPT_HOOKS.BEFORE_UPDATE && value !== null && typeof value === 'object'
+          (hook === SCRIPT_HOOKS.BEFORE_UPDATE || hook === SCRIPT_HOOKS.BEFORE_TRANSITION) &&
+          value !== null &&
+          typeof value === 'object'
             ? (value as Record<string, unknown>)
             : undefined;
         const records =

@@ -5,6 +5,7 @@ export { registerMetadataRoutes } from './metadata.js';
 export { registerPermissionsRoutes } from './permissions.js';
 export { registerAuditRoutes } from './audit.js';
 export { registerApprovalsRoutes } from './approvals.js';
+export { registerWorkflowRoutes } from './workflow.js';
 export { registerScriptRoutes } from './scripts.js';
 export { registerPagesRoutes } from './pages.js';
 export { registerSchemaRoutes } from './schemas.js';

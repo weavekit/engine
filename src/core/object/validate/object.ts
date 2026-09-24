@@ -10,6 +10,7 @@ import { validateIndexes } from './indexes.js';
 import { validateConstraints } from './constraints.js';
 import { validateLabels } from './labels.js';
 import { validatePermissions } from './permissions.js';
+import { validateWorkflow } from './workflow.js';
 import { fail, isRecord, expectString, SNAKE_CASE, TITLE_PLACEHOLDER_RE, type Vc } from './primitives.js';
 
 export interface ValidateOptions {
@@ -115,6 +116,8 @@ export function validateObject(raw: unknown, options?: ValidateOptions): ObjectD
     }
   }
 
+  const workflow = validateWorkflow(raw.workflow, fields, vc);
+
   return {
     schemaVersion,
     name,
@@ -122,7 +125,7 @@ export function validateObject(raw: unknown, options?: ValidateOptions): ObjectD
     description,
     fields,
     permissions,
-    workflow: raw.workflow,
+    workflow,
     indexes,
     constraints,
     titleTemplate,

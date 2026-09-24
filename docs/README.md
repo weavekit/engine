@@ -28,6 +28,7 @@ the [repository README](../README.md).
 - [Generic proxy](guides/proxy.md) — a path-allowlisted gateway to other instances
 - [Tunnel transport](guides/tunnel.md) — reach a NAT'd engine over an outbound HTTP/2 tunnel
 - [Approvals](guides/approvals.md) — the human-in-the-loop queue
+- [Workflow](guides/workflow.md) — declarative per-object state machines
 - [Localization (i18n)](guides/i18n.md) — message catalogs and stable error codes
 
 ## Operations

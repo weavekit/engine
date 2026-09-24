@@ -48,6 +48,7 @@ const noopDataAccess: ObjectDataAccess = {
   findOne: async () => null,
   create: async <T>() => ({}) as T,
   update: async <T>() => ({}) as T,
+  transition: async <T>() => ({}) as T,
   delete: async () => {},
 };
 

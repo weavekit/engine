@@ -10,9 +10,23 @@ import { validateObject, type ValidateOptions } from './validate.js';
  * invalid JSON, an unsupported format version, or an invalid schema.
  */
 export function parseSchema(json: string, options?: ValidateOptions): ObjectDefinition {
+  return parseObject(json, undefined, options);
+}
+
+/**
+ * Parse a `schema.json` together with its sibling `objects/<name>/workflow.json`
+ * (when present). The workflow is validated as part of the object so its
+ * `stateField` can be checked against the object's fields. Either JSON being
+ * invalid throws `parse.json.invalid`.
+ */
+export function parseObject(
+  schemaJson: string,
+  workflowJson: string | undefined,
+  options?: ValidateOptions,
+): ObjectDefinition {
   let data: unknown;
   try {
-    data = JSON.parse(json);
+    data = JSON.parse(schemaJson);
   } catch {
     throw new SchemaError('parse.json.invalid');
   }
@@ -20,5 +34,19 @@ export function parseSchema(json: string, options?: ValidateOptions): ObjectDefi
     typeof data === 'object' && data !== null && !Array.isArray(data)
       ? migrateSchemaObject(data as Record<string, unknown>, options?.locale).object
       : data;
+  if (
+    workflowJson !== undefined &&
+    typeof migrated === 'object' &&
+    migrated !== null &&
+    !Array.isArray(migrated)
+  ) {
+    let workflow: unknown;
+    try {
+      workflow = JSON.parse(workflowJson);
+    } catch {
+      throw new SchemaError('parse.json.invalid');
+    }
+    (migrated as Record<string, unknown>).workflow = workflow;
+  }
   return validateObject(migrated, options);
 }

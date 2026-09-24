@@ -215,12 +215,14 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
     record: Record<string, unknown> | null,
     changes: Record<string, unknown>,
     ctx: DataAccessContext,
+    extra?: { transition?: { from: string; to: string; label?: string } | null; state?: string | null },
   ): Promise<Record<string, unknown> | undefined> {
     if (!this.script.has(objectName, hook)) return undefined;
     const result = await this.script.dispatch(objectName, hook, {
       record,
       changes,
       user: scriptUserOf(ctx),
+      ...(extra ?? {}),
     });
     return result.changes;
   }
@@ -239,6 +241,7 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
     ctx: DataAccessContext,
     warnings: string[],
     objectId: string,
+    extra?: { transition?: { from: string; to: string; label?: string } | null; state?: string | null },
   ): Promise<void> {
     if (!this.script.has(objectName, hook)) return;
     try {
@@ -246,6 +249,7 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
         record,
         changes,
         user: scriptUserOf(ctx),
+        ...(extra ?? {}),
       });
     } catch (error) {
       // surface the hook's own message (SchemaError(script.abort) wraps it)
@@ -333,6 +337,12 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
             : raw.default;
       }
       Object.assign(record, payload);
+
+      // workflow-managed state: new records always start in the declared initial
+      // state (engine-managed — a hook cannot seed a different state)
+      if (def.workflow !== undefined) {
+        record[def.workflow.stateField] = def.workflow.initial;
+      }
 
       const seqFields = def.fields.filter((f) => f.type === FIELD_TYPES.SEQ_NO);
       if (seqFields.length > 0) {
@@ -440,6 +450,15 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
       const before = await this.runBeforeHook(SCRIPT_HOOKS.BEFORE_UPDATE, objectName, existing, changes, ctx);
       if (before !== undefined) payload = before;
 
+      // the workflow state is transition-only: a beforeUpdate hook may not move it
+      if (
+        def.workflow !== undefined &&
+        payload[def.workflow.stateField] !== undefined &&
+        payload[def.workflow.stateField] !== existing[def.workflow.stateField]
+      ) {
+        throw new SchemaError('workflow.transition.required', { object: objectName, field: def.workflow.stateField }, ctx.locale);
+      }
+
       const now = new Date();
       const record = { ...existing, ...payload };
       await computeFormulas(def, record, client, ctx.registry, now);
@@ -482,6 +501,154 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
     } catch (err) {
       if (owned) await client.query('ROLLBACK');
       auditWrite(this.audit, ctx, DATA_ACTIONS.UPDATE, objectName, id, changes, err);
+      throw err;
+    } finally {
+      if (owned) client.release();
+    }
+  }
+
+  /**
+   * Fire a declared workflow transition: read the current state, resolve the
+   * transition for `(from, action)`, run the before-hook, write the target state
+   * (plus any hook-returned changes) guarded by an optimistic `WHERE state = from`,
+   * then run the after/onExit/onEnter hooks. The state field is otherwise
+   * read-only, so this is the only path that moves a record between states.
+   */
+  async transition<T = Record<string, unknown>>(
+    objectName: string,
+    id: string,
+    action: string,
+    ctx: DataAccessContext,
+  ): Promise<T> {
+    const def = requireDef(ctx, objectName);
+    const wf = def.workflow;
+    if (wf === undefined) {
+      throw new SchemaError('workflow.transition.unknown', { object: objectName, action }, ctx.locale);
+    }
+    const pk = primaryKeyOf(def);
+    if (pk === undefined) {
+      throw new SchemaError('data.recordNotFound', { object: objectName, id }, ctx.locale);
+    }
+    let client: PoolClient;
+    let owned = false;
+    if (ctx.client !== undefined) {
+      client = ctx.client;
+    } else {
+      owned = true;
+      client = await ctx.pool.connect();
+    }
+    const warnings: string[] = [];
+    try {
+      if (owned) await client.query('BEGIN');
+      const { sql, params } = buildFindSql(def, { filter: { [pk]: id }, limit: 1 }, bctx(ctx, objectName), ctx.rowScope);
+      const { rows } = await runTableQuery(client, objectName, sql, params, ctx.locale);
+      const existing = rows[0] as Record<string, unknown> | undefined;
+      if (existing === undefined) {
+        throw new SchemaError('data.recordNotFound', { object: objectName, id }, ctx.locale);
+      }
+
+      const rawState = existing[wf.stateField];
+      const currentState = typeof rawState === 'string' ? rawState : String(rawState ?? '');
+      const transition = wf.transitions.find((t) => t.action === action && t.from === currentState);
+      if (transition === undefined) {
+        const known = wf.transitions.some((t) => t.action === action);
+        throw new SchemaError(
+          known ? 'workflow.transition.notAllowed' : 'workflow.transition.unknown',
+          { object: objectName, action, from: currentState },
+          ctx.locale,
+        );
+      }
+      const subject = ctx.subject;
+      if (transition.roles !== undefined && subject !== undefined) {
+        if (!transition.roles.some((role) => subject.roles.includes(role))) {
+          throw new SchemaError(
+            'workflow.transition.denied',
+            { object: objectName, role: subject.roles.join(','), action },
+            ctx.locale,
+          );
+        }
+      }
+
+      const transitionInfo = { from: transition.from, to: transition.to };
+      const before = await this.runBeforeHook(
+        SCRIPT_HOOKS.BEFORE_TRANSITION,
+        objectName,
+        existing,
+        { [wf.stateField]: transition.to },
+        ctx,
+        { transition: transitionInfo, state: transition.to },
+      );
+      const payload: Record<string, unknown> = {
+        ...(before ?? {}),
+        [wf.stateField]: transition.to,
+      };
+
+      const now = new Date();
+      const record = { ...existing, ...payload };
+      await computeFormulas(def, record, client, ctx.registry, now);
+
+      const settable = new Set<string>();
+      for (const key of Object.keys(payload)) {
+        const field = def.fields.find((f) => f.name === key);
+        if (field !== undefined && field.type !== FIELD_TYPES.DETAILS) settable.add(key);
+      }
+      for (const field of def.fields) {
+        if ((field as { formula?: string }).formula !== undefined) settable.add(field.name);
+      }
+      settable.delete(pk);
+      settable.add(wf.stateField);
+
+      const cols = [...settable];
+      const setSql = cols.map((c, i) => `${q(c)} = $${i + 1}`).join(', ');
+      const values = cols.map((c) => dbJsonValue(def.fields.find((f) => f.name === c), record[c] ?? null));
+      const scope = ctx.rowScope !== undefined ? scopeSuffix(ctx.rowScope, cols.length + 3) : undefined;
+      const res = await runTableQuery(
+        client,
+        objectName,
+        `UPDATE ${q(def.name)} SET ${setSql} WHERE ${q(pk)} = $${cols.length + 1} AND ${q(wf.stateField)} = $${cols.length + 2}${scope !== undefined ? ` AND (${scope.sql})` : ''}`,
+        [...values, id, currentState, ...(scope?.params ?? [])],
+        ctx.locale,
+      );
+      if (res.rowCount === 0) {
+        throw new SchemaError(
+          'http.conflict',
+          { detail: `record "${id}" changed state during the transition` },
+          ctx.locale,
+        );
+      }
+
+      if (owned) await client.query('COMMIT');
+      const updated = record;
+      auditWrite(
+        this.audit,
+        ctx,
+        DATA_ACTIONS.UPDATE,
+        objectName,
+        id,
+        { transition: action, from: transition.from, to: transition.to, changes: payload },
+        undefined,
+        this.replay ? existing : undefined,
+        this.replay ? updated : undefined,
+      );
+      this.events?.publishRecordChange('updated', objectName, id);
+      await this.runAfterHook(SCRIPT_HOOKS.ON_EXIT, DATA_ACTIONS.UPDATE, objectName, existing, {}, ctx, warnings, id, {
+        transition: transitionInfo,
+        state: transition.from,
+      });
+      await this.runAfterHook(SCRIPT_HOOKS.ON_ENTER, DATA_ACTIONS.UPDATE, objectName, updated, payload, ctx, warnings, id, {
+        transition: transitionInfo,
+        state: transition.to,
+      });
+      await this.runAfterHook(SCRIPT_HOOKS.AFTER_TRANSITION, DATA_ACTIONS.UPDATE, objectName, updated, payload, ctx, warnings, id, {
+        transition: transitionInfo,
+        state: transition.to,
+      });
+      if (warnings.length > 0) ctx.onWarnings?.(warnings);
+      const loaded = await this.runOnLoad(objectName, [updated], ctx);
+      return loaded[0] as T;
+    } catch (err) {
+      if (owned) await client.query('ROLLBACK');
+      auditWrite(this.audit, ctx, DATA_ACTIONS.UPDATE, objectName, id, { transition: action }, err);
       throw err;
     } finally {
       if (owned) client.release();

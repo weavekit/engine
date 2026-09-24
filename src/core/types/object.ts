@@ -1,6 +1,7 @@
 import type { FieldDefinition } from './fields.js';
 import type { Permissions } from './permission.js';
 import type { ConstraintType, IndexType } from './values.js';
+import type { WorkflowDefinition } from './workflow.js';
 
 /** a user-declared extra index */
 export interface IndexDefinition {
@@ -32,7 +33,8 @@ export interface ObjectDefinition {
   description?: string;
   fields: FieldDefinition[];
   permissions?: Permissions;
-  workflow?: unknown;
+  /** declared state machine (`objects/<name>/workflow.json`), when present */
+  workflow?: WorkflowDefinition;
   indexes?: IndexDefinition[];
   /** declarative table-level constraints (composite/scoped UNIQUE) */
   constraints?: ConstraintDefinition[];

@@ -1,5 +1,5 @@
 export { validateObject, type ValidateOptions } from './validate.js';
-export { parseSchema } from './parse.js';
+export { parseSchema, parseObject } from './parse.js';
 export {
   LEGACY_SCHEMA_FORMAT_VERSION,
   SCHEMA_FORMAT_VERSION,

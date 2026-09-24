@@ -210,14 +210,14 @@ program
 
 program
   .command(`${WEAVE_COMMANDS.MODULE_ADD} <name>`)
-  .description('enable a subsystem (audit/script) in weavekit.config.ts and auto-commit')
+  .description('enable a subsystem (audit/script/workflow) in weavekit.config.ts and auto-commit')
   .action(async (name: string) => {
     await runAction(() => moduleToggle(process.cwd(), name, true, { printer: printer() }));
   });
 
 program
   .command(`${WEAVE_COMMANDS.MODULE_REMOVE} <name>`)
-  .description('disable a subsystem (audit/script) in weavekit.config.ts and auto-commit')
+  .description('disable a subsystem (audit/script/workflow) in weavekit.config.ts and auto-commit')
   .action(async (name: string) => {
     await runAction(() => moduleToggle(process.cwd(), name, false, { printer: printer() }));
   });

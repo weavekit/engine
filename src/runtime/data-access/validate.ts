@@ -255,6 +255,12 @@ export async function validateRecord(
       continue; // nested details validated by the details module on create
     }
     if (field !== undefined && isReadonly(field)) fail(vc, 'data.field.readonly', { field: key });
+    if (field !== undefined && object.workflow !== undefined && field.name === object.workflow.stateField) {
+      // the workflow state is engine-managed: only a transition may change it
+      if (mode === WRITE_MODES.UPDATE || data[key] !== object.workflow.initial) {
+        fail(vc, 'workflow.transition.required', { field: key });
+      }
+    }
   }
 
   if (isDetailsChild && mode === WRITE_MODES.CREATE) {
@@ -269,6 +275,7 @@ export async function validateRecord(
     const pk = primaryKeyOf(object);
     for (const field of object.fields) {
       if (field.type === FIELD_TYPES.DETAILS || isReadonly(field)) continue;
+      if (object.workflow !== undefined && field.name === object.workflow.stateField) continue;
       if (field.name === pk) continue; // PK handled below
       if ((field as { required?: boolean }).required === true && data[field.name] === undefined) {
         fail(vc, 'data.field.required', { field: field.name });

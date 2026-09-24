@@ -3,8 +3,8 @@ import { autoCommit } from '../../runtime/git/index.js';
 import { loadConfig } from '../load-config.js';
 import type { ModuleOptions } from '../types/index.js';
 
-/** subsystems that can be toggled with `weave module:add/remove` (workflow is not implemented yet) */
-export const TOGGLEABLE_SUBSYSTEMS = ['audit', 'script'] as const;
+/** subsystems that can be toggled with `weave module:add/remove` */
+export const TOGGLEABLE_SUBSYSTEMS = ['audit', 'script', 'workflow'] as const;
 
 /**
  * Set a subsystem's `enabled` flag inside `weavekit.config.ts` (the config is

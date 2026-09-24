@@ -179,6 +179,30 @@ export function withRbac(inner: ObjectDataAccess, options: { audit?: AuditSink }
       return strip(record, p?.exclude ?? []);
     },
 
+    async transition<T>(
+      objectName: string,
+      id: string,
+      action: string,
+      ctx: DataAccessContext,
+    ): Promise<T> {
+      if (ctx.subject === undefined) return inner.transition<T>(objectName, id, action, ctx);
+      const def = requireDef(ctx, objectName);
+      try {
+        assertCanUpdate(def, ctx.subject.roles, ctx.locale);
+      } catch (error) {
+        denied(audit, ctx, DATA_ACTIONS.UPDATE, objectName, id, error);
+        throw error;
+      }
+      const p = resolvePermission(def, ctx.subject.roles);
+      if (p?.read === undefined) {
+        const err = new SchemaError('rbac.denied.update', { object: objectName, role: ctx.subject.roles.join(',') }, ctx.locale);
+        denied(audit, ctx, DATA_ACTIONS.UPDATE, objectName, id, err);
+        throw err;
+      }
+      const record = await inner.transition<T>(objectName, id, action, scopedCtx(ctx, objectName, p.read));
+      return strip(record, p?.exclude ?? []);
+    },
+
     async delete(objectName: string, id: string, ctx: DataAccessContext): Promise<void> {
       if (ctx.subject === undefined) return inner.delete(objectName, id, ctx);
       const def = requireDef(ctx, objectName);
