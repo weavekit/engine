@@ -364,16 +364,26 @@ export async function buildEngineFromRegistry(
   let approvals: ApprovalsQueue | undefined;
   if (config.tools !== undefined) {
     policies = await resolvePolicies(config.tools.guardrails?.policies, config.schemaDir ?? '.');
-    // persisted approvals by default (PG — the engine's mandated DB); opt out
-    // with `approvals.backend: 'memory'`. The approval queue must be durable /
-    // multi-instance consistent, so it is never left single-process in-memory
-    // for a release engine.
-    if (config.tools.approvals?.backend !== 'memory') {
-      const { createApprovalsBackend } = await import('../subsystems/approvals/index.js');
-      const backend = await createApprovalsBackend(pool);
-      approvals = createApprovals({ audit: auditSink, backend });
-    } else {
-      approvals = createApprovals({ audit: auditSink });
+    // Create the queue only when it can be used (tools path, explicit config, a
+    // transition policy, or a `requiresApproval` transition) — avoid an eager
+    // PG table for a config that has none of them.
+    const needsApprovals =
+      config.tools.approvals !== undefined ||
+      config.tools.toolsDir !== undefined ||
+      policies.length > 0 ||
+      registry.list().some((d) => d.workflow?.transitions.some((t) => t.requiresApproval === true));
+    if (needsApprovals) {
+      // persisted approvals by default (PG — the engine's mandated DB); opt out
+      // with `approvals.backend: 'memory'`. The approval queue must be durable /
+      // multi-instance consistent, so it is never left single-process in-memory
+      // for a release engine.
+      if (config.tools.approvals?.backend !== 'memory') {
+        const { createApprovalsBackend } = await import('../subsystems/approvals/index.js');
+        const backend = await createApprovalsBackend(pool);
+        approvals = createApprovals({ audit: auditSink, backend });
+      } else {
+        approvals = createApprovals({ audit: auditSink });
+      }
     }
   }
 

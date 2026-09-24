@@ -5,7 +5,7 @@ import { DETAILS_COLUMNS, FIELD_TYPES } from '../../core/index.js';
 import type { AuditEvent, AuditSink } from '../../core/audit/index.js';
 import { AUDIT_ACTOR_TYPES, DATA_ACTIONS } from '../../core/audit/index.js';
 import type { EventPublisher } from '../../core/provider/event/index.js';
-import { NOOP_SCRIPT_DISPATCHER, SCRIPT_HOOKS, type GuardrailContext, type GuardrailPolicy, type ScriptDispatcher, type ScriptHook, type ScriptUser } from '../../core/index.js';
+import { NOOP_SCRIPT_DISPATCHER, SCRIPT_HOOKS, type GuardrailContext, type GuardrailPolicy, type ScriptDispatcher, type ScriptHook, type ScriptUser, type ToolDataAccess } from '../../core/index.js';
 import { evaluateTransition, type PolicyApprovals } from '../tools/policies.js';
 import { buildCountSql, buildFindSql, scopeSuffix, type BuildContext } from './builder.js';
 import { deleteDetailsChildren, insertDetails } from './details.js';
@@ -136,6 +136,22 @@ function requireDef(ctx: DataAccessContext, objectName: string): ObjectDefinitio
 
 function bctx(ctx: DataAccessContext, objectName: string): BuildContext {
   return { object: objectName, locale: ctx.locale, allowParentCols: isDetailsChild(ctx.registry, objectName) };
+}
+
+/**
+ * Narrow `ToolDataAccess` over this data-access for guardrail policies: a policy
+ * calls `ctx.dataAccess.find(obj, opts, { subject? })` with no pool/registry, so
+ * those are injected from the execution context (mirrors the tool executor's
+ * wrapper; `...c` lets a policy override the subject per call).
+ */
+function toolDataAccessOver(inner: ObjectDataAccess, base: DataAccessContext): ToolDataAccess {
+  return {
+    find: (n, o, c) => inner.find(n, o as unknown as FindOptions, { ...base, ...c }),
+    findOne: (n, id, c) => inner.findOne(n, id, { ...base, ...c }),
+    create: (n, d, c) => inner.create(n, d, { ...base, ...c }),
+    update: (n, id, changes, c) => inner.update(n, id, changes, { ...base, ...c }),
+    delete: (n, id, c) => inner.delete(n, id, { ...base, ...c }),
+  } as ToolDataAccess;
 }
 
 /**
@@ -593,7 +609,13 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
           subject: subject ?? { id: 'system', roles: [] },
           action: `workflow.transition.${def.name}.${action}`,
           args: { object: def.name, id, action, from: transition.from, to: transition.to },
-          dataAccess: this as unknown as GuardrailContext['dataAccess'],
+          dataAccess: toolDataAccessOver(this, {
+            pool: ctx.pool,
+            registry: ctx.registry,
+            ...(ctx.locale === undefined ? {} : { locale: ctx.locale }),
+            ...(ctx.client === undefined ? {} : { client: ctx.client }),
+            ...(subject === undefined ? {} : { subject }),
+          }),
         };
         const gate = await evaluateTransition(
           this.policies,

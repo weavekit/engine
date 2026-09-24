@@ -174,10 +174,12 @@ maybe('Workflow E2E (local PG): transitions, RBAC and state-field immutability',
     };
     const denyReject: GuardrailPolicy = {
       name: 'deny-reject',
-      decide: (c) =>
-        c.action.endsWith('.reject')
-          ? { allow: false, reason: 'reject is not allowed here' }
-          : { allow: true },
+      decide: async (c) => {
+        if (!c.action.endsWith('.reject')) return { allow: true };
+        // exercise the injected data-access surface (pool/registry come from the engine)
+        const row = await c.dataAccess.findOne('wf_gated', 'G1', { subject: c.subject });
+        return { allow: false, reason: row === null ? 'record missing' : 'reject is not allowed here' };
+      },
     };
     const registry0 = new ObjectRegistry();
     registry0.register(GATED);
