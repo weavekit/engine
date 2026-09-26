@@ -577,7 +577,7 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
       if (settable.size > 0) {
         const cols = [...settable];
         const setSql = cols.map((c, i) => `${q(c)} = $${i + 1}`).join(', ');
-        const scope = ctx.rowScope !== undefined ? scopeSuffix(ctx.rowScope, cols.length + pkValues.length + 1) : undefined;
+        const scope = ctx.rowScope !== undefined ? scopeSuffix(ctx.rowScope, cols.length + pkValues.length) : undefined;
         const values = cols.map((c) => dbJsonValue(def.fields.find((f) => f.name === c), record[c] ?? null));
         await runTableQuery(
           client,
@@ -738,7 +738,7 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
       const setSql = cols.map((c, i) => `${q(c)} = $${i + 1}`).join(', ');
       const values = cols.map((c) => dbJsonValue(def.fields.find((f) => f.name === c), record[c] ?? null));
       const stateParam = cols.length + pkValues.length + 1;
-      const scope = ctx.rowScope !== undefined ? scopeSuffix(ctx.rowScope, stateParam + 1) : undefined;
+      const scope = ctx.rowScope !== undefined ? scopeSuffix(ctx.rowScope, stateParam) : undefined;
       const res = await runTableQuery(
         client,
         objectName,
@@ -860,7 +860,7 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
 
       await this.runBeforeHook(SCRIPT_HOOKS.BEFORE_DELETE, objectName, existing, {}, ctx);
       await deleteDetailsChildren(client, def, id, ctx.registry);
-      const scope = ctx.rowScope !== undefined ? scopeSuffix(ctx.rowScope, pkValues.length + 1) : undefined;
+      const scope = ctx.rowScope !== undefined ? scopeSuffix(ctx.rowScope, pkValues.length) : undefined;
       const res = await runTableQuery(
         client,
         objectName,
