@@ -26,8 +26,12 @@ define({ name: FIELD_TYPES.INTEGER, scalar: true });
 define({ name: FIELD_TYPES.NUMBER, scalar: true });
 define({ name: FIELD_TYPES.CURRENCY, scalar: true });
 define({ name: FIELD_TYPES.BOOLEAN, scalar: true });
-define({ name: FIELD_TYPES.DATETIME, scalar: true });
 define({ name: FIELD_TYPES.DATE, scalar: true });
+define({ name: FIELD_TYPES.TIME, scalar: true });
+define({ name: FIELD_TYPES.TIMETZ, scalar: true });
+define({ name: FIELD_TYPES.TIMESTAMP, scalar: true });
+define({ name: FIELD_TYPES.TIMESTAMPTZ, scalar: true });
+define({ name: FIELD_TYPES.INTERVAL, scalar: true });
 define({ name: FIELD_TYPES.JSON, scalar: true });
 define({ name: FIELD_TYPES.ENUM, scalar: true });
 define({ name: FIELD_TYPES.RELATION, relationLike: true });
@@ -101,8 +105,12 @@ export const PRIMITIVE_FIELD_TYPES: readonly FieldType[] = [
   FIELD_TYPES.NUMBER,
   FIELD_TYPES.CURRENCY,
   FIELD_TYPES.BOOLEAN,
-  FIELD_TYPES.DATETIME,
   FIELD_TYPES.DATE,
+  FIELD_TYPES.TIME,
+  FIELD_TYPES.TIMETZ,
+  FIELD_TYPES.TIMESTAMP,
+  FIELD_TYPES.TIMESTAMPTZ,
+  FIELD_TYPES.INTERVAL,
   FIELD_TYPES.JSON,
   FIELD_TYPES.ENUM,
   FIELD_TYPES.RELATION,

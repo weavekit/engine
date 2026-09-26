@@ -74,12 +74,18 @@ export function fieldSchema(
     out.type = 'number';
   } else if (base === FIELD_TYPES.BOOLEAN) {
     out.type = 'boolean';
-  } else if (base === FIELD_TYPES.DATETIME) {
+  } else if (base === FIELD_TYPES.TIMESTAMPTZ || base === FIELD_TYPES.TIMESTAMP) {
     out.type = 'string';
     out.format = 'date-time';
   } else if (base === FIELD_TYPES.DATE) {
     out.type = 'string';
     out.format = 'date';
+  } else if (base === FIELD_TYPES.TIME || base === FIELD_TYPES.TIMETZ) {
+    out.type = 'string';
+    out.format = 'time';
+  } else if (base === FIELD_TYPES.INTERVAL) {
+    out.type = 'string';
+    out.format = 'duration';
   } else if (base === FIELD_TYPES.JSON) {
     // free-form: leave unconstrained
   } else if (base === FIELD_TYPES.ENUM) {

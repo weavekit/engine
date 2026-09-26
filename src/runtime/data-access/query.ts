@@ -368,7 +368,10 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
         if (raw.default === undefined) continue;
         if (payload[field.name] !== undefined) continue;
         record[field.name] =
-          (field.type === FIELD_TYPES.DATETIME || field.type === FIELD_TYPES.DATE) && raw.default === 'now'
+          (field.type === FIELD_TYPES.DATE ||
+            field.type === FIELD_TYPES.TIMESTAMP ||
+            field.type === FIELD_TYPES.TIMESTAMPTZ) &&
+          raw.default === 'now'
             ? now.toISOString()
             : raw.default;
       }

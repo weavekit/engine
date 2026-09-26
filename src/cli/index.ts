@@ -175,7 +175,7 @@ program
   .command(`${WEAVE_COMMANDS.FIELD_ADD} <object>`)
   .description('add a field to an object (objects/<name>/schema.json) and auto-commit')
   .requiredOption('--name <field>', 'snake_case field name')
-  .requiredOption('--type <type>', 'field type (string/text/integer/number/currency/boolean/datetime/date/json/enum/relation/multiRelation/seq_no)')
+  .requiredOption('--type <type>', 'field type (string/text/integer/number/currency/boolean/date/time/timetz/timestamp/timestamptz/interval/json/enum/relation/multiRelation/seq_no)')
   .option('--required', 'mark the field required')
   .option('--unique', 'add a UNIQUE constraint')
   .option('--default <value>', 'default value (parsed per type)')

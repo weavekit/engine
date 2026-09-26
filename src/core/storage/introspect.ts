@@ -69,9 +69,13 @@ const PG_TO_FIELD: Record<string, FieldType> = {
   real: FIELD_TYPES.NUMBER,
   'double precision': FIELD_TYPES.NUMBER,
   boolean: FIELD_TYPES.BOOLEAN,
-  'timestamp with time zone': FIELD_TYPES.DATETIME,
-  'timestamp without time zone': FIELD_TYPES.DATETIME,
+  'timestamp with time zone': FIELD_TYPES.TIMESTAMPTZ,
+  'timestamp without time zone': FIELD_TYPES.TIMESTAMP,
   date: FIELD_TYPES.DATE,
+  time: FIELD_TYPES.TIME,
+  'time without time zone': FIELD_TYPES.TIME,
+  'time with time zone': FIELD_TYPES.TIMETZ,
+  interval: FIELD_TYPES.INTERVAL,
   json: FIELD_TYPES.JSON,
   jsonb: FIELD_TYPES.JSON,
   uuid: FIELD_TYPES.STRING,
@@ -92,7 +96,9 @@ interface DefaultResult {
 function normalizeDefault(raw: string, type: FieldType): DefaultResult {
   const trimmed = raw.trim();
   if (/^now\(\)$/i.test(trimmed) || /^current_timestamp$/i.test(trimmed)) {
-    return type === FIELD_TYPES.DATETIME || type === FIELD_TYPES.DATE ? { value: 'now' } : { unsupported: true };
+    return type === FIELD_TYPES.TIMESTAMPTZ || type === FIELD_TYPES.TIMESTAMP || type === FIELD_TYPES.DATE
+      ? { value: 'now' }
+      : { unsupported: true };
   }
   // any other function call (nextval(...), gen_random_uuid(), ...) is not representable
   if (/\(/.test(trimmed)) return { unsupported: true };
@@ -112,8 +118,11 @@ function normalizeDefault(raw: string, type: FieldType): DefaultResult {
       const n = Number(literal);
       return Number.isFinite(n) ? { value: n } : { unsupported: true };
     }
-    case FIELD_TYPES.DATETIME:
+    case FIELD_TYPES.TIMESTAMPTZ:
+    case FIELD_TYPES.TIMESTAMP:
     case FIELD_TYPES.DATE:
+    case FIELD_TYPES.TIME:
+    case FIELD_TYPES.TIMETZ:
     case FIELD_TYPES.STRING:
     case FIELD_TYPES.TEXT:
     case FIELD_TYPES.ENUM:

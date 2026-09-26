@@ -41,6 +41,8 @@ export const zh: Record<MessageKey, string> = {
   'object.alter.boolean': '对象 "{object}"：alter 必须是布尔值',
   'data.schemaDrift': 'schema/DB 漂移：对象 "{object}" 声明了字段 "{field}"，但表缺少该列——运行 "weave migrate"，或在 objects/{object}/schema.json 中设置 "alter": true',
   'object.primary.many': '对象 "{object}" 只能有一个主键字段',
+  'object.primary.notAllowed': '对象 "{object}"：类型为 "{type}" 的字段 "{field}" 不能作为主键',
+  'recordKey.invalid': '无效的记录键 "{key}"',
   'object.primary.scalarOnly': 'primary 仅允许标量字段，不能是 "{type}"',
   'object.primary.columnMissing': '对象 "{object}"：主键字段 "{column}" 不存在于已有表 "{table}"',
   'object.field.columnMissing': '对象 "{object}"：字段 "{field}" 不是已有表 "{table}" 中的列',

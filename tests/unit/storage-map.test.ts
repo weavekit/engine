@@ -11,8 +11,12 @@ describe('pgType — type mapping', () => {
     expect(pgType(f({ name: 'a', type: 'integer' }), undefined)).toBe('INTEGER');
     expect(pgType(f({ name: 'a', type: 'currency' }), undefined)).toBe('NUMERIC(12,2)');
     expect(pgType(f({ name: 'a', type: 'boolean' }), undefined)).toBe('BOOLEAN');
-    expect(pgType(f({ name: 'a', type: 'datetime' }), undefined)).toBe('TIMESTAMPTZ');
+    expect(pgType(f({ name: 'a', type: 'timestamptz' }), undefined)).toBe('TIMESTAMPTZ');
+    expect(pgType(f({ name: 'a', type: 'timestamp' }), undefined)).toBe('TIMESTAMP');
     expect(pgType(f({ name: 'a', type: 'date' }), undefined)).toBe('DATE');
+    expect(pgType(f({ name: 'a', type: 'time' }), undefined)).toBe('TIME');
+    expect(pgType(f({ name: 'a', type: 'timetz' }), undefined)).toBe('TIMETZ');
+    expect(pgType(f({ name: 'a', type: 'interval' }), undefined)).toBe('INTERVAL');
     expect(pgType(f({ name: 'a', type: 'json' }), undefined)).toBe('JSONB');
     expect(pgType(f({ name: 'a', type: 'number' }), undefined)).toBe('NUMERIC');
     expect(pgType(f({ name: 'a', type: 'number', precision: 10 }), undefined)).toBe('NUMERIC(10)');
@@ -46,8 +50,8 @@ describe('pgType — type mapping', () => {
 });
 
 describe('defaultExpr — default value mapping', () => {
-  it('datetime now → now()', () => {
-    expect(defaultExpr(f({ name: 'c', type: 'datetime', default: 'now' }))).toBe('now()');
+  it('timestamptz now → now()', () => {
+    expect(defaultExpr(f({ name: 'c', type: 'timestamptz', default: 'now' }))).toBe('now()');
   });
   it('string/boolean/integer', () => {
     expect(defaultExpr(f({ name: 's', type: 'string', default: 'abc' }))).toBe("'abc'");

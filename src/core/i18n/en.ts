@@ -20,6 +20,8 @@ export const en = {
   'data.schemaDrift': 'schema/DB drift: object "{object}" declares field "{field}" but the column is missing — run "weave migrate" or set "alter": true in objects/{object}/schema.json',
   'object.primary.many': 'object "{object}" may only have one primary field',
   'object.primary.scalarOnly': 'primary only allows scalar field types, not "{type}"',
+  'object.primary.notAllowed': 'object "{object}": field "{field}" of type "{type}" cannot be a primary key',
+  'recordKey.invalid': 'invalid record key "{key}"',
   'object.primary.columnMissing': 'object "{object}": primary column "{column}" not found in existing table "{table}"',
   'object.field.columnMissing': 'object "{object}": field "{field}" does not exist as a column in existing table "{table}"',
   'object.constraints.notArray': 'object "{object}": constraints must be an array',

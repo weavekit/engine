@@ -13,6 +13,12 @@ export {
   type MigratedWorkflow,
 } from './workflow-migrations.js';
 export { buildGraph, RelationGraph, type BuildGraphOptions } from './graph.js';
+export {
+  encodeRecordKey,
+  decodeRecordKey,
+  canonicalizePrimaryValue,
+  recordKeyOf,
+} from './record-key.js';
 export { hashWorkflow } from './workflow-hash.js';
 export { ObjectRegistry, defineObject } from './registry.js';
 export { generateObjectTypes } from './gen-types.js';

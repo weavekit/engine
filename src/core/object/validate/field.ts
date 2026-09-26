@@ -36,6 +36,9 @@ const FIELD_TYPE_NAME_RE = /^[a-z][a-zA-Z0-9_]*$/;
 /** registered-type name shape (namespace segment required) */
 const REGISTERED_FIELD_TYPE_RE = new RegExp(FIELD_TYPE_NAME_PATTERN);
 
+/** the pre-rename name for `timestamptz`; accepted as a deprecated schema alias (user types win) */
+const DEPRECATED_DATETIME_ALIAS = 'datetime';
+
 /** extra keys allowed per field type */
 const EXTRA_KEYS: Record<FieldType, readonly string[]> = {
   string: ['minLength', 'maxLength', 'regex', 'required', 'unique', 'default', 'formula', ROW_SCOPE_MARKERS.OWNERSHIP, ROW_SCOPE_MARKERS.TEAM],
@@ -44,8 +47,12 @@ const EXTRA_KEYS: Record<FieldType, readonly string[]> = {
   number: ['min', 'max', 'precision', 'required', 'unique', 'default', 'formula'],
   currency: ['min', 'max', 'required', 'unique', 'default', 'formula'],
   boolean: ['required', 'unique', 'default', 'formula'],
-  datetime: ['required', 'unique', 'default'],
   date: ['required', 'unique', 'default'],
+  time: ['required', 'unique', 'default'],
+  timetz: ['required', 'unique', 'default'],
+  timestamp: ['required', 'unique', 'default'],
+  timestamptz: ['required', 'unique', 'default'],
+  interval: ['required'],
   json: ['required', 'default'],
   enum: ['options', 'multiple', 'required', 'unique', 'default'],
   relation: ['target', 'required', 'unique', 'onDelete'],
@@ -94,7 +101,10 @@ function validateDefault(value: unknown, type: FieldType, vc: Vc, options?: stri
     case FIELD_TYPES.BOOLEAN:
       if (typeof value !== 'boolean') fail(vc, 'field.default.boolean');
       break;
-    case FIELD_TYPES.DATETIME:
+    case FIELD_TYPES.TIMESTAMPTZ:
+    case FIELD_TYPES.TIMESTAMP:
+    case FIELD_TYPES.TIME:
+    case FIELD_TYPES.TIMETZ:
       if (typeof value !== 'string') fail(vc, 'field.default.iso');
       break;
     case FIELD_TYPES.DATE:
@@ -112,6 +122,7 @@ function validateDefault(value: unknown, type: FieldType, vc: Vc, options?: stri
     case FIELD_TYPES.DETAILS:
     case FIELD_TYPES.MULTI_RELATION:
     case FIELD_TYPES.SEQ_NO:
+    case FIELD_TYPES.INTERVAL:
       fail(vc, 'field.default.notSupported', { type });
   }
 }
@@ -146,9 +157,16 @@ export function validateField(raw: unknown, vc: Vc, options: FieldValidateOption
   if (name === undefined) fail(vc, 'field.name.required');
   if (!SNAKE_CASE.test(name)) fail(vc, 'field.name.snake', { name });
 
-  const rawType = raw.type;
-  if (typeof rawType !== 'string' || !FIELD_TYPE_NAME_RE.test(rawType)) {
-    fail(vc, 'field.type.invalid', { type: String(rawType) });
+  const rawTypeInput = raw.type;
+  if (typeof rawTypeInput !== 'string' || !FIELD_TYPE_NAME_RE.test(rawTypeInput)) {
+    fail(vc, 'field.type.invalid', { type: String(rawTypeInput) });
+  }
+  let rawType: string = rawTypeInput;
+  // deprecated alias: the field type `datetime` was renamed to `timestamptz`.
+  // Resolved here (not in the registry) so the bare name stays available for a
+  // user-registered type, which takes precedence.
+  if (rawType === DEPRECATED_DATETIME_ALIAS && registry.get(DEPRECATED_DATETIME_ALIAS) === undefined) {
+    rawType = FIELD_TYPES.TIMESTAMPTZ;
   }
 
   const isBuiltin = FIELD_TYPE_VALUES.includes(rawType);
@@ -287,15 +305,6 @@ export function validateField(raw: unknown, vc: Vc, options: FieldValidateOption
         unique,
         default: raw.default as boolean | undefined,
       };
-    case FIELD_TYPES.DATETIME:
-      validateDefault(raw.default, type, vc);
-      return {
-        ...base,
-        type: FIELD_TYPES.DATETIME,
-        required,
-        unique,
-        default: raw.default as string | undefined,
-      };
     case FIELD_TYPES.DATE:
       validateDefault(raw.default, type, vc);
       return {
@@ -305,6 +314,45 @@ export function validateField(raw: unknown, vc: Vc, options: FieldValidateOption
         unique,
         default: raw.default as string | undefined,
       };
+    case FIELD_TYPES.TIME:
+      validateDefault(raw.default, type, vc);
+      return {
+        ...base,
+        type: FIELD_TYPES.TIME,
+        required,
+        unique,
+        default: raw.default as string | undefined,
+      };
+    case FIELD_TYPES.TIMETZ:
+      validateDefault(raw.default, type, vc);
+      return {
+        ...base,
+        type: FIELD_TYPES.TIMETZ,
+        required,
+        unique,
+        default: raw.default as string | undefined,
+      };
+    case FIELD_TYPES.TIMESTAMP:
+      validateDefault(raw.default, type, vc);
+      return {
+        ...base,
+        type: FIELD_TYPES.TIMESTAMP,
+        required,
+        unique,
+        default: raw.default as string | undefined,
+      };
+    case FIELD_TYPES.TIMESTAMPTZ:
+      validateDefault(raw.default, type, vc);
+      return {
+        ...base,
+        type: FIELD_TYPES.TIMESTAMPTZ,
+        required,
+        unique,
+        default: raw.default as string | undefined,
+      };
+    case FIELD_TYPES.INTERVAL:
+      validateDefault(raw.default, type, vc);
+      return { ...base, type: FIELD_TYPES.INTERVAL, required, unique };
     case FIELD_TYPES.JSON:
       validateDefault(raw.default, type, vc);
       return { ...base, type: FIELD_TYPES.JSON, required, default: raw.default };

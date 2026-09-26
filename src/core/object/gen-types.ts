@@ -54,8 +54,12 @@ function tsTypeOf(
   switch (base) {
     case FIELD_TYPES.STRING:
     case FIELD_TYPES.TEXT:
-    case FIELD_TYPES.DATETIME:
     case FIELD_TYPES.DATE:
+    case FIELD_TYPES.TIME:
+    case FIELD_TYPES.TIMETZ:
+    case FIELD_TYPES.TIMESTAMP:
+    case FIELD_TYPES.TIMESTAMPTZ:
+    case FIELD_TYPES.INTERVAL:
     case FIELD_TYPES.SEQ_NO:
       return 'string';
     case FIELD_TYPES.INTEGER:

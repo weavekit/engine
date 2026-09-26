@@ -90,10 +90,18 @@ export function pgType(
       return 'NUMERIC(12,2)';
     case FIELD_TYPES.BOOLEAN:
       return 'BOOLEAN';
-    case FIELD_TYPES.DATETIME:
-      return 'TIMESTAMPTZ';
     case FIELD_TYPES.DATE:
       return 'DATE';
+    case FIELD_TYPES.TIME:
+      return 'TIME';
+    case FIELD_TYPES.TIMETZ:
+      return 'TIMETZ';
+    case FIELD_TYPES.TIMESTAMP:
+      return 'TIMESTAMP';
+    case FIELD_TYPES.TIMESTAMPTZ:
+      return 'TIMESTAMPTZ';
+    case FIELD_TYPES.INTERVAL:
+      return 'INTERVAL';
     case FIELD_TYPES.JSON:
       return 'JSONB';
     case FIELD_TYPES.ENUM:
@@ -120,9 +128,13 @@ export function defaultExpr(
   if (raw.default === undefined) return undefined;
   const base = fieldBase(registry, field.type);
   switch (base) {
-    case FIELD_TYPES.DATETIME:
     case FIELD_TYPES.DATE:
+    case FIELD_TYPES.TIMESTAMP:
+    case FIELD_TYPES.TIMESTAMPTZ:
       return raw.default === 'now' ? 'now()' : `'${String(raw.default)}'`;
+    case FIELD_TYPES.TIME:
+    case FIELD_TYPES.TIMETZ:
+      return `'${String(raw.default)}'`;
     case FIELD_TYPES.ENUM:
       // multi-value enum defaults are not expressed in DDL (application layer)
       return (field as { multiple?: boolean }).multiple ? undefined : `'${String(raw.default)}'`;
@@ -245,6 +257,8 @@ export function pgTypeMatches(
     case 'TIMESTAMPTZ':
     case 'TIMESTAMP WITH TIME ZONE':
       return actualBase === 'TIMESTAMP WITH TIME ZONE';
+    case 'INTERVAL':
+      return actualBase === 'INTERVAL';
     case 'JSON':
       return actualBase === 'JSON';
     case 'JSONB':

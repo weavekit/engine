@@ -20,7 +20,7 @@ const LEAD: ObjectDefinition = {
     { name: 'count', type: 'integer' },
     { name: 'amount', type: 'currency' },
     { name: 'active', type: 'boolean' },
-    { name: 'created_at', type: 'datetime' },
+    { name: 'created_at', type: 'timestamptz' },
     { name: 'due_date', type: 'date' },
     { name: 'meta', type: 'json' },
     { name: 'status', type: 'enum', options: ['open', "won't", 'archived'] },
@@ -69,7 +69,7 @@ const PROFILE: ObjectDefinition = {
 };
 
 describe('generateObjectTypes — object-level TS type compilation', () => {
-  it('scalar/text/number/boolean/datetime/date/json mapping', () => {
+  it('scalar/text/number/boolean/timestamptz/date/json mapping', () => {
     const src = generateObjectTypes([LEAD]);
     expect(src).toContain('export interface Lead {');
     expect(src).toContain('  id: string;');

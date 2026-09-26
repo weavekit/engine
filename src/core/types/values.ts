@@ -14,8 +14,12 @@ export const FIELD_TYPES = {
   NUMBER: 'number',
   CURRENCY: 'currency',
   BOOLEAN: 'boolean',
-  DATETIME: 'datetime',
   DATE: 'date',
+  TIME: 'time',
+  TIMETZ: 'timetz',
+  TIMESTAMP: 'timestamp',
+  TIMESTAMPTZ: 'timestamptz',
+  INTERVAL: 'interval',
   JSON: 'json',
   ENUM: 'enum',
   RELATION: 'relation',
@@ -42,7 +46,7 @@ export type BuiltinFieldType = typeof FIELD_TYPES[keyof typeof FIELD_TYPES];
  */
 export type FieldType = BuiltinFieldType | (string & {});
 
-/** scalar subset of FIELD_TYPES (primary key only allows scalar types) */
+/** value scalar subset of FIELD_TYPES (most are PK-eligible; `json`/`interval` excluded at object validation) */
 export const SCALAR_FIELD_TYPES = {
   STRING: 'string',
   TEXT: 'text',
@@ -50,8 +54,12 @@ export const SCALAR_FIELD_TYPES = {
   NUMBER: 'number',
   CURRENCY: 'currency',
   BOOLEAN: 'boolean',
-  DATETIME: 'datetime',
   DATE: 'date',
+  TIME: 'time',
+  TIMETZ: 'timetz',
+  TIMESTAMP: 'timestamp',
+  TIMESTAMPTZ: 'timestamptz',
+  INTERVAL: 'interval',
   JSON: 'json',
   ENUM: 'enum',
   FIRST_NAME: 'firstName',

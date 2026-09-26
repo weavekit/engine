@@ -99,18 +99,38 @@ export interface BooleanField extends FieldBase {
   formula?: string;
 }
 
-export interface DateTimeField extends FieldBase {
-  type: typeof FIELD_TYPES.DATETIME;
+/** shared shape for the date/time family (a scalar column with an optional textual default) */
+interface TemporalFieldBase extends FieldBase {
   required?: boolean;
   unique?: boolean;
   default?: string;
 }
 
-export interface DateField extends FieldBase {
+export interface DateField extends TemporalFieldBase {
   type: typeof FIELD_TYPES.DATE;
+}
+
+export interface TimeField extends TemporalFieldBase {
+  type: typeof FIELD_TYPES.TIME;
+}
+
+export interface TimeTzField extends TemporalFieldBase {
+  type: typeof FIELD_TYPES.TIMETZ;
+}
+
+export interface TimestampField extends TemporalFieldBase {
+  type: typeof FIELD_TYPES.TIMESTAMP;
+}
+
+export interface TimestamptzField extends TemporalFieldBase {
+  type: typeof FIELD_TYPES.TIMESTAMPTZ;
+}
+
+/** interval is a value scalar but not PK-eligible (no textual default in DDL) */
+export interface IntervalField extends FieldBase {
+  type: typeof FIELD_TYPES.INTERVAL;
   required?: boolean;
   unique?: boolean;
-  default?: string;
 }
 
 export interface JsonField extends FieldBase {
@@ -244,8 +264,12 @@ export type FieldDefinition =
   | NumberField
   | CurrencyField
   | BooleanField
-  | DateTimeField
   | DateField
+  | TimeField
+  | TimeTzField
+  | TimestampField
+  | TimestamptzField
+  | IntervalField
   | JsonField
   | EnumField
   | RelationField

@@ -42,6 +42,8 @@ export const hi: Record<MessageKey, string> = {
   'object.alter.boolean': 'ऑब्जेक्ट "{object}": alter बूलियन होना चाहिए',
   'data.schemaDrift': 'schema/DB ड्रिफ्ट: ऑब्जेक्ट "{object}" फ़ील्ड "{field}" घोषित करता है लेकिन कॉलम गायब है — "weave migrate" चलाएँ या objects/{object}/schema.json में "alter": true सेट करें',
   'object.primary.many': 'ऑब्जेक्ट "{object}" में केवल एक प्राथमिक कुंजी फ़ील्ड हो सकती है',
+  'object.primary.notAllowed': 'ऑब्जेक्ट "{object}": "{type}" प्रकार का फ़ील्ड "{field}" प्राथमिक कुंजी नहीं हो सकता',
+  'recordKey.invalid': 'अमान्य रिकॉर्ड कुंजी "{key}"',
   'object.primary.scalarOnly': 'primary केवल स्केलर प्रकारों की अनुमति देता है, "{type}" नहीं',
   'object.primary.columnMissing': 'ऑब्जेक्ट "{object}": प्राथमिक कुंजी कॉलम "{column}" मौजूदा टेबल "{table}" में नहीं मिला',
   'object.field.columnMissing': 'ऑब्जेक्ट "{object}": फ़ील्ड "{field}" मौजूदा टेबल "{table}" में कॉलम के रूप में मौजूद नहीं है',

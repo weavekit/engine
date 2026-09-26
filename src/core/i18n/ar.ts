@@ -42,6 +42,8 @@ export const ar: Record<MessageKey, string> = {
   'object.alter.boolean': 'الكائن "{object}": alter يجب أن يكون قيمة منطقية',
   'data.schemaDrift': 'انحراف schema/DB: الكائن "{object}" يعلن عن الحقل "{field}" ولكن العمود مفقود — نفّذ "weave migrate" أو اضبط "alter": true في objects/{object}/schema.json',
   'object.primary.many': 'الكائن "{object}" لا يمكن أن يحتوي إلا على حقل أساسي واحد',
+  'object.primary.notAllowed': 'الكائن "{object}": الحقل "{field}" من النوع "{type}" لا يمكن أن يكون مفتاحًا أساسيًا',
+  'recordKey.invalid': 'مفتاح سجل غير صالح "{key}"',
   'object.primary.scalarOnly': 'primary يسمح فقط بالأنواع القياسية، وليس "{type}"',
   'object.primary.columnMissing': 'الكائن "{object}": عمود المفتاح الأساسي "{column}" غير موجود في الجدول "{table}"',
   'object.field.columnMissing': 'الكائن "{object}": الحقل "{field}" غير موجود كعمود في الجدول الموجود "{table}"',

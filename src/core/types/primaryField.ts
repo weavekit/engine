@@ -15,7 +15,15 @@ export function primaryFieldOf(def: ObjectDefinition | undefined): FieldDefiniti
   return def === undefined ? undefined : def.fields.find((f) => f.primary === true);
 }
 
-/** name of the primary field; undefined when the object has no primary declaration */
+/**
+ * every primary field, in declaration order. A composite key carries more than
+ * one; declare order is the tuple order used by `record_key`.
+ */
+export function primaryFieldsOf(def: ObjectDefinition | undefined): FieldDefinition[] {
+  return def === undefined ? [] : def.fields.filter((f) => f.primary === true);
+}
+
+/** name of the (first) primary field; undefined when the object has no primary declaration */
 export function primaryKeyOf(def: ObjectDefinition | undefined): string | undefined {
   return primaryFieldOf(def)?.name;
 }

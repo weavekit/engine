@@ -42,6 +42,8 @@ export const ru: Record<MessageKey, string> = {
   'object.alter.boolean': 'объект "{object}": alter должен быть логическим значением',
   'data.schemaDrift': 'расхождение schema/DB: объект "{object}" объявляет поле "{field}", но столбец отсутствует — выполните "weave migrate" или установите "alter": true в objects/{object}/schema.json',
   'object.primary.many': 'объект "{object}" может иметь только одно поле первичного ключа',
+  'object.primary.notAllowed': 'объект "{object}": поле "{field}" типа "{type}" не может быть первичным ключом',
+  'recordKey.invalid': 'недопустимый ключ записи "{key}"',
   'object.primary.scalarOnly': 'primary допускает только скалярные типы, не "{type}"',
   'object.primary.columnMissing': 'объект "{object}": столбец первичного ключа "{column}" не найден в существующей таблице "{table}"',
   'object.field.columnMissing': 'объект "{object}": поле "{field}" не существует как столбец в существующей таблице "{table}"',

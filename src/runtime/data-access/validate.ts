@@ -124,8 +124,19 @@ async function checkValue(field: FieldDefinition, value: unknown, vc: Vc): Promi
     return;
   }
 
-  if (base === FIELD_TYPES.DATETIME || base === FIELD_TYPES.DATE) {
+  if (
+    base === FIELD_TYPES.DATE ||
+    base === FIELD_TYPES.TIME ||
+    base === FIELD_TYPES.TIMETZ ||
+    base === FIELD_TYPES.TIMESTAMP ||
+    base === FIELD_TYPES.TIMESTAMPTZ
+  ) {
     if (typeof value !== 'string') fail(vc, 'data.field.type', { field: f.name, type: 'date-time' });
+    return;
+  }
+
+  if (base === FIELD_TYPES.INTERVAL) {
+    if (typeof value !== 'string') fail(vc, 'data.field.type', { field: f.name, type: 'interval' });
     return;
   }
 

@@ -42,6 +42,8 @@ export const vi: Record<MessageKey, string> = {
   'object.alter.boolean': 'đối tượng "{object}": alter phải là boolean',
   'data.schemaDrift': 'lệch schema/DB: đối tượng "{object}" khai báo trường "{field}" nhưng thiếu cột — chạy "weave migrate" hoặc đặt "alter": true trong objects/{object}/schema.json',
   'object.primary.many': 'đối tượng "{object}" chỉ được có một trường khóa chính',
+  'object.primary.notAllowed': 'đối tượng "{object}": trường "{field}" kiểu "{type}" không thể là khóa chính',
+  'recordKey.invalid': 'khóa bản ghi không hợp lệ "{key}"',
   'object.primary.scalarOnly': 'primary chỉ cho phép kiểu vô hướng, không phải "{type}"',
   'object.primary.columnMissing': 'đối tượng "{object}": không tìm thấy cột khóa chính "{column}" trong bảng "{table}"',
   'object.field.columnMissing': 'đối tượng "{object}": trường "{field}" không tồn tại như một cột trong bảng "{table}"',

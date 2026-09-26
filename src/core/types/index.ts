@@ -7,8 +7,12 @@ export type {
   NumberField,
   CurrencyField,
   BooleanField,
-  DateTimeField,
   DateField,
+  TimeField,
+  TimeTzField,
+  TimestampField,
+  TimestamptzField,
+  IntervalField,
   JsonField,
   EnumField,
   EnumOptions,
@@ -31,7 +35,7 @@ export type { WorkflowDefinition, WorkflowState, WorkflowTransition, WorkflowTim
 export type { IndexType, ConstraintType, SequenceCycle, SequenceToken, DetailsColumn, RelationKind, RowScopeMarker } from './values.js';
 export { DETAILS_COLUMNS, FIELD_TYPES, READ_SCOPES, RELATION_KINDS, ROW_SCOPE_MARKERS, CONSTRAINT_TYPES } from './values.js';
 export { WORKFLOW_FORMAT_VERSION, WORKFLOW_TIMER_DEFAULTS, parseDuration } from './workflow.js';
-export { primaryFieldOf, primaryKeyOf } from './primaryField.js';
+export { primaryFieldOf, primaryFieldsOf, primaryKeyOf } from './primaryField.js';
 export { SchemaError } from './errors.js';
 
 export {

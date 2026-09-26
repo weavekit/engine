@@ -84,10 +84,18 @@ export function validateObject(raw: unknown, options?: ValidateOptions): ObjectD
 
   const primaries = fields.filter((f) => f.primary);
   if (primaries.length === 0) fail(vc, 'object.primary.none');
+  // composite primary keys land in stage A'1/A'2 (DDL + data-access); until then
+  // keep the single-primary invariant so runtime behaviour stays coherent
   if (primaries.length > 1) fail(vc, 'object.primary.many');
   const primaryField = primaries[0];
   if (primaryField !== undefined && !isScalarFieldType(registry, primaryField.type)) {
     fail(vc, 'object.primary.scalarOnly', { type: primaryField.type });
+  }
+  if (
+    primaryField !== undefined &&
+    (primaryField.type === FIELD_TYPES.JSON || primaryField.type === FIELD_TYPES.INTERVAL)
+  ) {
+    fail(vc, 'object.primary.notAllowed', { field: primaryField.name, type: primaryField.type });
   }
   if (primaryField !== undefined && (primaryField as { formula?: string }).formula !== undefined) {
     fail(vc, 'formula.excludedAttr', { attr: 'primary' });
