@@ -16,7 +16,7 @@ export const en = {
   'object.nameHint.mismatch': 'directory name "{dir}" does not match object name "{name}"',
   'object.fields.required': 'object "{object}" must declare at least one field',
   'object.field.duplicate': 'object "{object}" has duplicate field "{field}"',
-  'object.primary.none': 'object "{object}" must declare exactly one primary field',
+  'object.primary.none': 'object "{object}" must declare at least one primary field',
   'object.alter.boolean': 'object "{object}": alter must be a boolean',
   'data.schemaDrift': 'schema/DB drift: object "{object}" declares field "{field}" but the column is missing — run "weave migrate" or set "alter": true in objects/{object}/schema.json',
   'object.primary.many': 'object "{object}" may only have one primary field',

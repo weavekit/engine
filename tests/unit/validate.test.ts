@@ -48,9 +48,9 @@ describe('validateObject — object level', () => {
 });
 
 describe('validateObject — primary key rules', () => {
-  it('every object must have exactly one primary', () => {
+  it('requires at least one primary; allows a composite key', () => {
     const noPrimary = { ...base, fields: [{ name: 'id', type: 'string' }] };
-    expect(() => validateObject(noPrimary)).toThrow(/must declare exactly one primary/);
+    expect(() => validateObject(noPrimary)).toThrow(/must declare at least one primary/);
 
     const twoPrimary = {
       ...base,
@@ -59,7 +59,8 @@ describe('validateObject — primary key rules', () => {
         { name: 'b', type: 'string', primary: true },
       ],
     };
-    expect(() => validateObject(twoPrimary)).toThrow(/may only have one primary/);
+    const def = validateObject(twoPrimary);
+    expect(def.fields.filter((f) => f.primary).map((f) => f.name)).toEqual(['a', 'b']);
   });
 
   it('object does not declare table attribute (object name is table name)', () => {
@@ -76,7 +77,7 @@ describe('validateObject — primary key rules', () => {
         { name: 'owner_id', type: 'relation', target: 'user', primary: true },
       ],
     };
-    expect(() => validateObject(relPrimary)).toThrow(/may only have one primary/);
+    expect(() => validateObject(relPrimary)).toThrow(/scalar/);
 
     const detailsPrimary = {
       ...base,
@@ -85,7 +86,7 @@ describe('validateObject — primary key rules', () => {
         { name: 'id', type: 'string', primary: true },
       ],
     };
-    expect(() => validateObject(detailsPrimary)).toThrow(/may only have one primary/);
+    expect(() => validateObject(detailsPrimary)).toThrow(/scalar/);
   });
 });
 
@@ -295,7 +296,7 @@ describe('validateObject — multiRelation', () => {
           { name: 'contacts', type: 'multiRelation', target: 'contact', primary: true },
         ],
       }),
-    ).toThrow(/may only have one primary/);
+    ).toThrow(/scalar/);
   });
 });
 
@@ -360,7 +361,7 @@ describe('validateObject — seq_no sequence number', () => {
           { name: 'doc_no', type: 'seq_no', primary: true },
         ],
       }),
-    ).toThrow(/may only have one primary/);
+    ).toThrow(/scalar/);
 
     expect(() =>
       validateObject({

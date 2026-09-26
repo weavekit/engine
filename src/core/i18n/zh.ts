@@ -38,7 +38,7 @@ export const zh: Record<MessageKey, string> = {
   'object.nameHint.mismatch': '目录名 "{dir}" 与对象名 "{name}" 不一致',
   'object.fields.required': '对象 "{object}" 必须声明至少一个字段',
   'object.field.duplicate': '对象 "{object}" 字段 "{field}" 重复',
-  'object.primary.none': '对象 "{object}" 必须声明且仅声明一个主键字段',
+  'object.primary.none': '对象 "{object}" 必须声明至少一个主键字段',
   'object.alter.boolean': '对象 "{object}"：alter 必须是布尔值',
   'data.schemaDrift': 'schema/DB 漂移：对象 "{object}" 声明了字段 "{field}"，但表缺少该列——运行 "weave migrate"，或在 objects/{object}/schema.json 中设置 "alter": true',
   'object.primary.many': '对象 "{object}" 只能有一个主键字段',

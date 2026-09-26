@@ -124,8 +124,8 @@ describe('SchemaError — code/params/locale', () => {
   it('translate supports cross-language consistent keys', () => {
     const enMsg = translate('object.primary.none', { object: 'x' }, 'en');
     const zhMsg = translate('object.primary.none', { object: 'x' }, 'zh');
-    expect(enMsg).toContain('must declare exactly one primary');
-    expect(zhMsg).toContain('必须声明且仅声明一个主键字段');
+    expect(enMsg).toContain('must declare at least one primary');
+    expect(zhMsg).toContain('必须声明至少一个主键字段');
   });
 });
 

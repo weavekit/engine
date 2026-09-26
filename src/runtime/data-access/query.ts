@@ -1,6 +1,6 @@
 import type { PoolClient } from 'pg';
 import type { ObjectDefinition, ObjectRegistry } from '../../core/index.js';
-import { SchemaError, primaryKeyOf, primaryFieldsOf, encodeRecordKey, canonicalizePrimaryValue, type Locale } from '../../core/index.js';
+import { SchemaError, primaryFieldsOf, encodeRecordKey, decodeRecordKey, canonicalizePrimaryValue, type Locale } from '../../core/index.js';
 import { DETAILS_COLUMNS, FIELD_TYPES } from '../../core/index.js';
 import type { AuditEvent, AuditSink } from '../../core/audit/index.js';
 import { AUDIT_ACTOR_TYPES, DATA_ACTIONS } from '../../core/audit/index.js';
@@ -142,6 +142,45 @@ function bctx(ctx: DataAccessContext, objectName: string): BuildContext {
 /** the record_key of a row, from its declared primary fields (declaration order) */
 function recordKeyOfRow(def: ObjectDefinition, record: Record<string, unknown>): string {
   return encodeRecordKey(primaryFieldsOf(def).map((f) => canonicalizePrimaryValue(record[f.name])));
+}
+
+/** declared primary field names, in declaration order */
+function primaryNames(def: ObjectDefinition): string[] {
+  return primaryFieldsOf(def).map((f) => f.name);
+}
+
+/** decode an external id into primary values: raw (single PK) or record_key (composite) */
+function pkValuesOf(def: ObjectDefinition, id: string, ctx: DataAccessContext): string[] {
+  const names = primaryNames(def);
+  if (names.length <= 1) return [id];
+  const values = decodeRecordKey(id);
+  if (values.length !== names.length) {
+    throw new SchemaError('data.recordNotFound', { object: def.name, id }, ctx.locale);
+  }
+  return values;
+}
+
+/** primary-key filter object for `find` (declared names zipped with values) */
+function pkFilter(def: ObjectDefinition, values: readonly string[]): Record<string, unknown> {
+  const filter: Record<string, unknown> = {};
+  primaryNames(def).forEach((name, i) => {
+    filter[name] = values[i];
+  });
+  return filter;
+}
+
+/** `"a" = $1 AND "b" = $2` predicate for the primary names, starting at `startIndex` */
+function pkWhereSql(def: ObjectDefinition, startIndex: number): string {
+  return primaryNames(def)
+    .map((name, i) => `${q(name)} = $${startIndex + i}`)
+    .join(' AND ');
+}
+
+/** the external id of a row: raw primary value (single) or its record_key (composite) */
+function externalIdOf(def: ObjectDefinition, record: Record<string, unknown>): string {
+  const names = primaryNames(def);
+  if (names.length <= 1) return String(record[names[0] ?? ''] ?? '');
+  return recordKeyOfRow(def, record);
 }
 
 /**
@@ -327,11 +366,14 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
     ctx: DataAccessContext,
   ): Promise<T | null> {
     const def = requireDef(ctx, objectName);
-    const pk = primaryKeyOf(def);
-    if (pk === undefined) {
+    if (primaryNames(def).length === 0) {
       throw new SchemaError('data.recordNotFound', { object: objectName, id }, ctx.locale);
     }
-    const result = await this.find<T>(objectName, { filter: { [pk]: id }, limit: 1 }, ctx);
+    const result = await this.find<T>(
+      objectName,
+      { filter: pkFilter(def, pkValuesOf(def, id, ctx)), limit: 1 },
+      ctx,
+    );
     return result.rows[0] ?? null;
   }
 
@@ -341,8 +383,7 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
     ctx: DataAccessContext,
   ): Promise<T> {
     const def = requireDef(ctx, objectName);
-    const pk = primaryKeyOf(def);
-    if (pk === undefined) {
+    if (primaryNames(def).length === 0) {
       throw new SchemaError('data.recordNotFound', { object: objectName }, ctx.locale);
     }
     let client: PoolClient;
@@ -423,7 +464,7 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
         ctx.locale,
       );
 
-      await insertDetails(client, def, record[pk], payload, ctx.registry, ctx.locale);
+      await insertDetails(client, def, externalIdOf(def, record), payload, ctx.registry, ctx.locale);
 
       // compute formula fields AFTER children exist (aggregates see them), then persist
       await computeFormulas(def, record, client, ctx.registry, now);
@@ -433,32 +474,36 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
       if (formulaCols.length > 0) {
         const setSql = formulaCols.map((c, i) => `${q(c)} = $${i + 1}`).join(', ');
         const formulaValues = formulaCols.map((c) => record[c] ?? null);
+        const pkValues = pkValuesOf(def, externalIdOf(def, record), ctx);
         await runTableQuery(
           client,
           def.name,
-          `UPDATE ${q(def.name)} SET ${setSql} WHERE ${q(pk)} = $${formulaCols.length + 1}`,
-          [...formulaValues, record[pk]],
+          `UPDATE ${q(def.name)} SET ${setSql} WHERE ${pkWhereSql(def, formulaCols.length + 1)}`,
+          [...formulaValues, ...pkValues],
           ctx.locale,
         );
       }
 
       await this.writeRecordMeta(client, def, record, ctx, now, true);
       if (owned) await client.query('COMMIT');
-      auditWrite(this.audit, ctx, DATA_ACTIONS.CREATE, objectName, String(record[pk] ?? ''), record);
-      this.events?.publishRecordChange('created', objectName, String(record[pk] ?? ''));
+      auditWrite(this.audit, ctx, DATA_ACTIONS.CREATE, objectName, externalIdOf(def, record), record);
+      this.events?.publishRecordChange('created', objectName, externalIdOf(def, record));
       if (def.workflow !== undefined) {
         const createdState = record[def.workflow.stateField];
         await this.workflowTimers
-          ?.sync(objectName, String(record[pk] ?? ''), typeof createdState === 'string' ? createdState : def.workflow.initial)
+          ?.sync(objectName, externalIdOf(def, record), typeof createdState === 'string' ? createdState : def.workflow.initial)
           .catch(() => {});
       }
-      await this.runAfterHook(SCRIPT_HOOKS.AFTER_UPDATE, DATA_ACTIONS.CREATE, objectName, record, payload, ctx, warnings, String(record[pk] ?? ''));
+      await this.runAfterHook(SCRIPT_HOOKS.AFTER_UPDATE, DATA_ACTIONS.CREATE, objectName, record, payload, ctx, warnings, externalIdOf(def, record));
       if (warnings.length > 0) ctx.onWarnings?.(warnings);
       const loaded = await this.runOnLoad(objectName, [record], ctx);
       return loaded[0] as T;
     } catch (err) {
       if (owned) await client.query('ROLLBACK');
-      auditWrite(this.audit, ctx, DATA_ACTIONS.CREATE, objectName, data[pk] === undefined ? undefined : String(data[pk]), data, err);
+      const failedId = primaryNames(def).every((n) => data[n] !== undefined)
+        ? externalIdOf(def, data)
+        : undefined;
+      auditWrite(this.audit, ctx, DATA_ACTIONS.CREATE, objectName, failedId, data, err);
       throw err;
     } finally {
       if (owned) client.release();
@@ -472,10 +517,10 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
     ctx: DataAccessContext,
   ): Promise<T> {
     const def = requireDef(ctx, objectName);
-    const pk = primaryKeyOf(def);
-    if (pk === undefined) {
+    if (primaryNames(def).length === 0) {
       throw new SchemaError('data.recordNotFound', { object: objectName, id }, ctx.locale);
     }
+    const pkValues = pkValuesOf(def, id, ctx);
     let client: PoolClient;
     let owned = false;
     if (ctx.client !== undefined) {
@@ -489,7 +534,7 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
       if (owned) await client.query('BEGIN');
       await validateRecord(def, changes, WRITE_MODES.UPDATE, { pool: client, registry: ctx.registry, locale: ctx.locale });
 
-      const { sql, params } = buildFindSql(def, { filter: { [pk]: id }, limit: 1 }, bctx(ctx, objectName), ctx.rowScope);
+      const { sql, params } = buildFindSql(def, { filter: pkFilter(def, pkValues), limit: 1 }, bctx(ctx, objectName), ctx.rowScope);
       const { rows } = await runTableQuery(client, objectName, sql, params, ctx.locale);
       const existing = rows[0] as Record<string, unknown> | undefined;
       if (existing === undefined) {
@@ -527,18 +572,18 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
       for (const field of def.fields) {
         if ((field as { formula?: string }).formula !== undefined) settable.add(field.name);
       }
-      settable.delete(pk);
+      for (const name of primaryNames(def)) settable.delete(name);
 
       if (settable.size > 0) {
         const cols = [...settable];
         const setSql = cols.map((c, i) => `${q(c)} = $${i + 1}`).join(', ');
-        const scope = ctx.rowScope !== undefined ? scopeSuffix(ctx.rowScope, cols.length + 1) : undefined;
+        const scope = ctx.rowScope !== undefined ? scopeSuffix(ctx.rowScope, cols.length + pkValues.length + 1) : undefined;
         const values = cols.map((c) => dbJsonValue(def.fields.find((f) => f.name === c), record[c] ?? null));
         await runTableQuery(
           client,
           objectName,
-          `UPDATE ${q(def.name)} SET ${setSql} WHERE ${q(pk)} = $${cols.length + 1}${scope !== undefined ? ` AND (${scope.sql})` : ''}`,
-          [...values, id, ...(scope?.params ?? [])],
+          `UPDATE ${q(def.name)} SET ${setSql} WHERE ${pkWhereSql(def, cols.length + 1)}${scope !== undefined ? ` AND (${scope.sql})` : ''}`,
+          [...values, ...pkValues, ...(scope?.params ?? [])],
           ctx.locale,
         );
       }
@@ -578,10 +623,10 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
     if (wf === undefined) {
       throw new SchemaError('workflow.transition.unknown', { object: objectName, action }, ctx.locale);
     }
-    const pk = primaryKeyOf(def);
-    if (pk === undefined) {
+    if (primaryNames(def).length === 0) {
       throw new SchemaError('data.recordNotFound', { object: objectName, id }, ctx.locale);
     }
+    const pkValues = pkValuesOf(def, id, ctx);
     let client: PoolClient;
     let owned = false;
     if (ctx.client !== undefined) {
@@ -593,7 +638,7 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
     const warnings: string[] = [];
     try {
       if (owned) await client.query('BEGIN');
-      const { sql, params } = buildFindSql(def, { filter: { [pk]: id }, limit: 1 }, bctx(ctx, objectName), ctx.rowScope);
+      const { sql, params } = buildFindSql(def, { filter: pkFilter(def, pkValues), limit: 1 }, bctx(ctx, objectName), ctx.rowScope);
       const { rows } = await runTableQuery(client, objectName, sql, params, ctx.locale);
       const existing = rows[0] as Record<string, unknown> | undefined;
       if (existing === undefined) {
@@ -686,18 +731,19 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
       for (const field of def.fields) {
         if ((field as { formula?: string }).formula !== undefined) settable.add(field.name);
       }
-      settable.delete(pk);
+      for (const name of primaryNames(def)) settable.delete(name);
       settable.add(wf.stateField);
 
       const cols = [...settable];
       const setSql = cols.map((c, i) => `${q(c)} = $${i + 1}`).join(', ');
       const values = cols.map((c) => dbJsonValue(def.fields.find((f) => f.name === c), record[c] ?? null));
-      const scope = ctx.rowScope !== undefined ? scopeSuffix(ctx.rowScope, cols.length + 3) : undefined;
+      const stateParam = cols.length + pkValues.length + 1;
+      const scope = ctx.rowScope !== undefined ? scopeSuffix(ctx.rowScope, stateParam + 1) : undefined;
       const res = await runTableQuery(
         client,
         objectName,
-        `UPDATE ${q(def.name)} SET ${setSql} WHERE ${q(pk)} = $${cols.length + 1} AND ${q(wf.stateField)} = $${cols.length + 2}${scope !== undefined ? ` AND (${scope.sql})` : ''}`,
-        [...values, id, currentState, ...(scope?.params ?? [])],
+        `UPDATE ${q(def.name)} SET ${setSql} WHERE ${pkWhereSql(def, cols.length + 1)} AND ${q(wf.stateField)} = $${stateParam}${scope !== undefined ? ` AND (${scope.sql})` : ''}`,
+        [...values, ...pkValues, currentState, ...(scope?.params ?? [])],
         ctx.locale,
       );
       if (res.rowCount === 0) {
@@ -790,10 +836,10 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
 
   async delete(objectName: string, id: string, ctx: DataAccessContext): Promise<void> {
     const def = requireDef(ctx, objectName);
-    const pk = primaryKeyOf(def);
-    if (pk === undefined) {
+    if (primaryNames(def).length === 0) {
       throw new SchemaError('data.recordNotFound', { object: objectName, id }, ctx.locale);
     }
+    const pkValues = pkValuesOf(def, id, ctx);
     let client: PoolClient;
     let owned = false;
     if (ctx.client !== undefined) {
@@ -805,7 +851,7 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
     const warnings: string[] = [];
     try {
       if (owned) await client.query('BEGIN');
-      const { sql, params } = buildFindSql(def, { filter: { [pk]: id }, limit: 1 }, bctx(ctx, objectName), ctx.rowScope);
+      const { sql, params } = buildFindSql(def, { filter: pkFilter(def, pkValues), limit: 1 }, bctx(ctx, objectName), ctx.rowScope);
       const { rows } = await runTableQuery(client, objectName, sql, params, ctx.locale);
       const existing = rows[0] as Record<string, unknown> | undefined;
       if (existing === undefined) {
@@ -814,12 +860,12 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
 
       await this.runBeforeHook(SCRIPT_HOOKS.BEFORE_DELETE, objectName, existing, {}, ctx);
       await deleteDetailsChildren(client, def, id, ctx.registry);
-      const scope = ctx.rowScope !== undefined ? scopeSuffix(ctx.rowScope, 1) : undefined;
+      const scope = ctx.rowScope !== undefined ? scopeSuffix(ctx.rowScope, pkValues.length + 1) : undefined;
       const res = await runTableQuery(
         client,
         objectName,
-        `DELETE FROM ${q(def.name)} WHERE ${q(pk)} = $1${scope !== undefined ? ` AND (${scope.sql})` : ''}`,
-        [id, ...(scope?.params ?? [])],
+        `DELETE FROM ${q(def.name)} WHERE ${pkWhereSql(def, 1)}${scope !== undefined ? ` AND (${scope.sql})` : ''}`,
+        [...pkValues, ...(scope?.params ?? [])],
         ctx.locale,
       );
       if (res.rowCount === 0) throw new SchemaError('data.recordNotFound', { object: objectName, id }, ctx.locale);

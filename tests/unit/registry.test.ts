@@ -37,6 +37,6 @@ describe('defineObject — programmatic API', () => {
   it('invalid input throws SchemaError', () => {
     expect(() =>
       defineObject({ name: 'lead', fields: [{ name: 'id', type: 'string' }] }),
-    ).toThrow(/must declare exactly one primary/);
+    ).toThrow(/must declare at least one primary/);
   });
 });
