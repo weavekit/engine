@@ -34,6 +34,7 @@ export const ru: Record<MessageKey, string> = {
   'mcp.approval.notFound': 'одобрение "{approvalKey}" не найдено или уже обработано',
   'object.notObject': 'определение объекта должно быть JSON-объектом',
   'object.name.required': 'объект "{object}": имя обязательно',
+  'object.name.reserved': 'имя объекта "{name}" зарезервировано движком (префикс "weavekit_")',
   'object.name.snake': 'объект "{object}": имя должно быть в snake_case',
   'object.nameHint.mismatch': 'имя папки "{dir}" не совпадает с именем объекта "{name}"',
   'object.fields.required': 'объект "{object}" должен объявлять хотя бы одно поле',

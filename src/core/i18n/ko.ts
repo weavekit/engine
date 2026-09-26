@@ -34,6 +34,7 @@ export const ko: Record<MessageKey, string> = {
   'mcp.approval.notFound': '승인 "{approvalKey}"을(를) 찾을 수 없거나 이미 처리되었습니다',
   'object.notObject': '객체 정의는 JSON 객체여야 합니다',
   'object.name.required': '객체 "{object}": 이름은 필수입니다',
+  'object.name.reserved': '객체 이름 "{name}"은(는) 엔진에서 예약되어 있습니다 ("weavekit_" 접두사)',
   'object.name.snake': '객체 "{object}": 이름은 snake_case여야 합니다',
   'object.nameHint.mismatch': '폴더 이름 "{dir}"이(가) 객체 이름 "{name}"과(와) 일치하지 않습니다',
   'object.fields.required': '객체 "{object}"은(는) 필드를 하나 이상 선언해야 합니다',

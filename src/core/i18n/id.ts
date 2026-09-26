@@ -34,6 +34,7 @@ export const id: Record<MessageKey, string> = {
   'mcp.approval.notFound': 'persetujuan "{approvalKey}" tidak ditemukan atau sudah diselesaikan',
   'object.notObject': 'definisi objek harus berupa objek JSON',
   'object.name.required': 'objek "{object}": nama wajib diisi',
+  'object.name.reserved': 'nama objek "{name}" dicadangkan oleh mesin (awalan "weavekit_")',
   'object.name.snake': 'objek "{object}": nama harus snake_case',
   'object.nameHint.mismatch': 'nama folder "{dir}" tidak cocok dengan nama objek "{name}"',
   'object.fields.required': 'objek "{object}" harus mendeklarasikan setidaknya satu kolom',

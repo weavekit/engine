@@ -3,7 +3,7 @@ import type { Locale } from '../../i18n/index.js';
 import { SCHEMA_FORMAT_VERSION } from '../schema-version.js';
 import type { FieldDefinition, ObjectDefinition } from '../../types/index.js';
 import { DEFAULT_FIELD_TYPE_REGISTRY, isScalarFieldType, type FieldTypeRegistry } from '../../types/index.js';
-import { FIELD_TYPES, READ_SCOPES } from '../../types/values.js';
+import { FIELD_TYPES, READ_SCOPES, RESERVED_OBJECT_PREFIX } from '../../types/values.js';
 import { validateField } from './field.js';
 import { validateFormulas } from './formulas.js';
 import { validateIndexes } from './indexes.js';
@@ -27,6 +27,8 @@ export interface ValidateOptions {
   allowedFieldTypes?: readonly string[];
   /** effective field-type registry (built-ins + user registrations) */
   fieldTypes?: FieldTypeRegistry;
+  /** internal: allow the reserved engine prefix (used only for built-in system objects) */
+  allowReservedName?: boolean;
 }
 
 /**
@@ -43,6 +45,9 @@ export function validateObject(raw: unknown, options?: ValidateOptions): ObjectD
   if (name === undefined) fail(vc, 'object.name.required');
   vc.object = name;
   if (!SNAKE_CASE.test(name)) fail(vc, 'object.name.snake', { name });
+  if (name.startsWith(RESERVED_OBJECT_PREFIX) && options?.allowReservedName !== true) {
+    fail(vc, 'object.name.reserved', { name });
+  }
   if (options?.nameHint !== undefined && options.nameHint !== name) {
     fail(vc, 'object.nameHint.mismatch', { dir: options.nameHint, name });
   }

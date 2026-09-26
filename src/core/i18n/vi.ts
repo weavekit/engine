@@ -34,6 +34,7 @@ export const vi: Record<MessageKey, string> = {
   'mcp.approval.notFound': 'phê duyệt "{approvalKey}" không tồn tại hoặc đã được xử lý',
   'object.notObject': 'định nghĩa đối tượng phải là một đối tượng JSON',
   'object.name.required': 'đối tượng "{object}": tên là bắt buộc',
+  'object.name.reserved': 'tên đối tượng "{name}" được dành riêng cho engine (tiền tố "weavekit_")',
   'object.name.snake': 'đối tượng "{object}": tên phải ở dạng snake_case',
   'object.nameHint.mismatch': 'tên thư mục "{dir}" không khớp với tên đối tượng "{name}"',
   'object.fields.required': 'đối tượng "{object}" phải khai báo ít nhất một trường',

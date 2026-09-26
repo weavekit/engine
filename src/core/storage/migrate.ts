@@ -1,4 +1,5 @@
 import type { ObjectRegistry } from '../object/index.js';
+import { systemObjects } from '../object/index.js';
 import { FIELD_TYPES } from '../types/index.js';
 import { SchemaError, primaryKeyOf } from '../types/index.js';
 import { applyStatements } from './apply.js';
@@ -84,7 +85,7 @@ export async function migrate(registry: ObjectRegistry, options: MigrateOptions 
 
   const pool = createPool(url);
   try {
-    const defs = new Map(registry.list().map((d) => [d.name, d]));
+    const defs = new Map([...systemObjects(), ...registry.list()].map((d) => [d.name, d]));
     const actual = await inspectSchema(pool);
 
     if (options.rls !== undefined && !RLS_ROLE_RE.test(options.rls.role)) {

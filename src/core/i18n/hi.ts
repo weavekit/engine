@@ -34,6 +34,7 @@ export const hi: Record<MessageKey, string> = {
   'mcp.approval.notFound': 'अनुमोदन "{approvalKey}" नहीं मिला या पहले ही हल हो चुका है',
   'object.notObject': 'ऑब्जेक्ट परिभाषा एक JSON ऑब्जेक्ट होनी चाहिए',
   'object.name.required': 'ऑब्जेक्ट "{object}": नाम आवश्यक है',
+  'object.name.reserved': 'ऑब्जेक्ट नाम "{name}" इंजन द्वारा आरक्षित है ("weavekit_" उपसर्ग)',
   'object.name.snake': 'ऑब्जेक्ट "{object}": नाम snake_case होना चाहिए',
   'object.nameHint.mismatch': 'फ़ोल्डर नाम "{dir}" ऑब्जेक्ट नाम "{name}" से मेल नहीं खाता',
   'object.fields.required': 'ऑब्जेक्ट "{object}" को कम से कम एक फ़ील्ड घोषित करना चाहिए',

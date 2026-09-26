@@ -14,7 +14,7 @@ const maybe = url !== undefined ? describe : describe.skip;
 
 maybe('record metadata side table E2E (local PG)', () => {
   it('creates a sparse side table and round-trips metadata', async () => {
-    const object = 'weavekit_test_meta_obj';
+    const object = 'wk_test_meta_obj';
     const table = recordMetaTableName(object);
     const pool = createPool(url!);
     try {
@@ -30,6 +30,10 @@ maybe('record metadata side table E2E (local PG)', () => {
       const actual = await inspectSchema(pool);
       expect(actual.has(table)).toBe(true);
       expect(actual.has(object)).toBe(true);
+      // built-in identity objects (and their side tables) are engine-managed
+      expect(actual.has('weavekit_user')).toBe(true);
+      expect(actual.has('weavekit_department')).toBe(true);
+      expect(actual.has(recordMetaTableName('weavekit_user'))).toBe(true);
 
       // re-migration is idempotent for both the object and its side table
       const again = await migrate(reg, { databaseUrl: url! });

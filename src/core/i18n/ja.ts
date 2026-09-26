@@ -34,6 +34,7 @@ export const ja: Record<MessageKey, string> = {
   'mcp.approval.notFound': '承認 "{approvalKey}" が見つからないか、すでに解決されています',
   'object.notObject': 'オブジェクト定義は JSON オブジェクトでなければなりません',
   'object.name.required': 'オブジェクト「{object}」：name は必須です',
+  'object.name.reserved': 'オブジェクト名 "{name}" はエンジンによって予約されています（"weavekit_" プレフィックス）',
   'object.name.snake': 'オブジェクト「{object}」：名前は snake_case でなければなりません',
   'object.nameHint.mismatch': 'ディレクトリ名「{dir}」がオブジェクト名「{name}」と一致しません',
   'object.fields.required': 'オブジェクト「{object}」は少なくとも 1 つのフィールドを宣言する必要があります',

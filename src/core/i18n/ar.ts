@@ -34,6 +34,7 @@ export const ar: Record<MessageKey, string> = {
   'mcp.approval.notFound': 'الموافقة "{approvalKey}" غير موجودة أو تمت معالجتها بالفعل',
   'object.notObject': 'يجب أن يكون تعريف الكائن كائن JSON',
   'object.name.required': 'الكائن "{object}": الاسم مطلوب',
+  'object.name.reserved': 'اسم الكائن "{name}" محجوز بواسطة المحرك (البادئة "weavekit_")',
   'object.name.snake': 'الكائن "{object}": يجب أن يكون الاسم snake_case',
   'object.nameHint.mismatch': 'اسم المجلد "{dir}" لا يطابق اسم الكائن "{name}"',
   'object.fields.required': 'الكائن "{object}" يجب أن يعلن عن حقل واحد على الأقل',

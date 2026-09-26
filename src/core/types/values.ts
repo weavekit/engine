@@ -95,6 +95,9 @@ export const ROW_SCOPE_MARKERS = {
 } as const;
 export type RowScopeMarker = typeof ROW_SCOPE_MARKERS[keyof typeof ROW_SCOPE_MARKERS];
 
+/** object names reserved by the engine (system objects + engine-managed tables) */
+export const RESERVED_OBJECT_PREFIX = 'weavekit_';
+
 /** index access method */
 export const INDEX_TYPES = {
   BTREE: 'btree',

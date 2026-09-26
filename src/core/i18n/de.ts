@@ -34,6 +34,7 @@ export const de: Record<MessageKey, string> = {
   'mcp.approval.notFound': 'Genehmigung "{approvalKey}" nicht gefunden oder bereits erledigt',
   'object.notObject': 'die Objektdefinition muss ein JSON-Objekt sein',
   'object.name.required': 'Objekt "{object}": Name ist erforderlich',
+  'object.name.reserved': 'der objektname "{name}" ist vom engine reserviert (präfix "weavekit_")',
   'object.name.snake': 'Objekt "{object}": Name muss snake_case sein',
   'object.nameHint.mismatch': 'Verzeichnisname "{dir}" stimmt nicht mit Objektname "{name}" überein',
   'object.fields.required': 'Objekt "{object}" muss mindestens ein Feld deklarieren',

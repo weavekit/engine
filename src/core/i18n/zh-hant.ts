@@ -34,6 +34,7 @@ export const zhHant: Record<MessageKey, string> = {
   'mcp.approval.notFound': '審批 "{approvalKey}" 不存在或已處理',
   'object.notObject': '物件定義必須是 JSON 物件',
   'object.name.required': '物件「{object}」：name 必填',
+  'object.name.reserved': '物件名稱 "{name}" 為引擎保留（"weavekit_" 前置字元）',
   'object.name.snake': '物件「{object}」：名稱必須為 snake_case',
   'object.nameHint.mismatch': '目錄名稱「{dir}」與物件名稱「{name}」不一致',
   'object.fields.required': '物件「{object}」必須宣告至少一個欄位',

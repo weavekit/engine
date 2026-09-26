@@ -33,6 +33,7 @@ export const zh: Record<MessageKey, string> = {
   'mcp.approval.notFound': '审批 "{approvalKey}" 不存在或已处理',
   'object.notObject': '对象定义必须是 JSON 对象',
   'object.name.required': '对象 "{object}"：name 必填',
+  'object.name.reserved': '对象名 "{name}" 为引擎保留（"weavekit_" 前缀）',
   'object.name.snake': '对象 "{object}"：名称必须为 snake_case',
   'object.nameHint.mismatch': '目录名 "{dir}" 与对象名 "{name}" 不一致',
   'object.fields.required': '对象 "{object}" 必须声明至少一个字段',

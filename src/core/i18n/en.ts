@@ -12,6 +12,7 @@ export const en = {
   'object.notObject': 'object definition must be a JSON object',
   'object.name.required': 'object "{object}": name is required',
   'object.name.snake': 'object "{object}": name must be snake_case',
+  'object.name.reserved': 'object name "{name}" is reserved by the engine (the "weavekit_" prefix)',
   'object.nameHint.mismatch': 'directory name "{dir}" does not match object name "{name}"',
   'object.fields.required': 'object "{object}" must declare at least one field',
   'object.field.duplicate': 'object "{object}" has duplicate field "{field}"',

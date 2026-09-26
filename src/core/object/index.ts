@@ -13,6 +13,7 @@ export {
   type MigratedWorkflow,
 } from './workflow-migrations.js';
 export { buildGraph, RelationGraph, type BuildGraphOptions } from './graph.js';
+export { systemObjects, SYSTEM_OBJECT_NAMES, type SystemObjectName } from './system-objects.js';
 export {
   encodeRecordKey,
   decodeRecordKey,
