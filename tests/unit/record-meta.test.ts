@@ -40,7 +40,7 @@ describe('record metadata side table', () => {
     expect(status?.default).toBe(`'${RECORD_META_DEFAULT_STATUS}'`);
 
     expect(byName.get(RECORD_META_COLUMNS.CREATED_TIME)?.type).toBe('TIMESTAMPTZ');
-    expect(byName.get(RECORD_META_COLUMNS.OWNER_ID)?.type).toBe('UUID');
+    expect(byName.get(RECORD_META_COLUMNS.OWNER_ID)?.type).toBe('TEXT');
 
     // owner/status indexes for the RBAC + workflow filters
     expect(t.indexes.map((i) => i.name)).toEqual([

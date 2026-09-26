@@ -1,5 +1,6 @@
 import { describe, it, expect } from '../helpers/test.js';
 import { createPool, inspectSchema, migrate, ObjectRegistry } from '../../src/core/index.js';
+import { createDataAccess } from '../../src/index.js';
 import { recordMetaTableName } from '../../src/core/storage/record-meta.js';
 import { encodeRecordKey } from '../../src/core/object/record-key.js';
 import {
@@ -68,6 +69,49 @@ maybe('record metadata side table E2E (local PG)', () => {
 
       // delete
       await deleteRecordMeta(pool, object, key);
+      expect(await getRecordMeta(pool, object, key)).toBeNull();
+    } finally {
+      await pool.query(`DROP TABLE IF EXISTS "${table}" CASCADE`);
+      await pool.query(`DROP TABLE IF EXISTS "${object}" CASCADE`);
+      await pool.end();
+    }
+  });
+
+  it('data-access writes sparse metadata rows on create/update/delete', async () => {
+    const object = 'wk_test_meta_da';
+    const table = recordMetaTableName(object);
+    const pool = createPool(url!);
+    try {
+      await pool.query(`DROP TABLE IF EXISTS "${table}" CASCADE`);
+      await pool.query(`DROP TABLE IF EXISTS "${object}" CASCADE`);
+
+      const reg = new ObjectRegistry();
+      reg.register({
+        name: object,
+        fields: [
+          { name: 'id', type: 'string', primary: true },
+          { name: 'name', type: 'string' },
+        ],
+      });
+      await migrate(reg, { databaseUrl: url! });
+      const dataAccess = createDataAccess();
+      const ctx = { pool, registry: reg };
+      const key = encodeRecordKey(['A1']);
+
+      await dataAccess.create(object, { id: 'A1', name: 'x' }, ctx);
+      let meta = await getRecordMeta(pool, object, key);
+      expect(meta?.status).toBe('draft');
+      expect(meta?.createdBy).toBe('system');
+      expect(meta?.modifiedBy).toBe('system');
+      const firstModified = meta?.modifiedTime ?? null;
+
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      await dataAccess.update(object, 'A1', { name: 'y' }, ctx);
+      meta = await getRecordMeta(pool, object, key);
+      expect(meta?.modifiedBy).toBe('system');
+      expect((meta?.modifiedTime as Date).getTime()).toBeGreaterThan((firstModified as Date).getTime());
+
+      await dataAccess.delete(object, 'A1', ctx);
       expect(await getRecordMeta(pool, object, key)).toBeNull();
     } finally {
       await pool.query(`DROP TABLE IF EXISTS "${table}" CASCADE`);

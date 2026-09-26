@@ -1,6 +1,6 @@
 import type { PoolClient } from 'pg';
 import type { ObjectDefinition, ObjectRegistry } from '../../core/index.js';
-import { SchemaError, primaryKeyOf, type Locale } from '../../core/index.js';
+import { SchemaError, primaryKeyOf, primaryFieldsOf, encodeRecordKey, canonicalizePrimaryValue, type Locale } from '../../core/index.js';
 import { DETAILS_COLUMNS, FIELD_TYPES } from '../../core/index.js';
 import type { AuditEvent, AuditSink } from '../../core/audit/index.js';
 import { AUDIT_ACTOR_TYPES, DATA_ACTIONS } from '../../core/audit/index.js';
@@ -14,6 +14,7 @@ import { ensureSeqTable, generateSeqNo } from './seqno.js';
 import type { DataAccessContext, FindOptions, FindResult, ObjectDataAccess } from './types.js';
 import { validateRecord } from './validate.js';
 import { WRITE_MODES } from './values.js';
+import { upsertRecordMeta, deleteRecordMeta } from '../record-meta/index.js';
 
 const q = (id: string) => `"${id}"`;
 
@@ -136,6 +137,11 @@ function requireDef(ctx: DataAccessContext, objectName: string): ObjectDefinitio
 
 function bctx(ctx: DataAccessContext, objectName: string): BuildContext {
   return { object: objectName, locale: ctx.locale, allowParentCols: isDetailsChild(ctx.registry, objectName) };
+}
+
+/** the record_key of a row, from its declared primary fields (declaration order) */
+function recordKeyOfRow(def: ObjectDefinition, record: Record<string, unknown>): string {
+  return encodeRecordKey(primaryFieldsOf(def).map((f) => canonicalizePrimaryValue(record[f.name])));
 }
 
 /**
@@ -436,6 +442,7 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
         );
       }
 
+      await this.writeRecordMeta(client, def, record, ctx, now, true);
       if (owned) await client.query('COMMIT');
       auditWrite(this.audit, ctx, DATA_ACTIONS.CREATE, objectName, String(record[pk] ?? ''), record);
       this.events?.publishRecordChange('created', objectName, String(record[pk] ?? ''));
@@ -536,6 +543,7 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
         );
       }
 
+      await this.writeRecordMeta(client, def, record, ctx, now, false);
       if (owned) await client.query('COMMIT');
       auditWrite(this.audit, ctx, DATA_ACTIONS.UPDATE, objectName, id, payload, undefined, this.replay ? existing : undefined, this.replay ? record : undefined);
       this.events?.publishRecordChange('updated', objectName, id);
@@ -700,6 +708,7 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
         );
       }
 
+      await this.writeRecordMeta(client, def, record, ctx, now, false);
       if (owned) await client.query('COMMIT');
       const updated = record;
       auditWrite(
@@ -755,6 +764,30 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
     }
   }
 
+  /**
+   * Upsert a record's sparse metadata side-table row (status/owner/timestamps)
+   * inside the caller's transaction. `created` also stamps the creation facts.
+   */
+  private async writeRecordMeta(
+    client: PoolClient,
+    def: ObjectDefinition,
+    record: Record<string, unknown>,
+    ctx: DataAccessContext,
+    now: Date,
+    created: boolean,
+  ): Promise<void> {
+    const key = recordKeyOfRow(def, record);
+    const actor = ctx.subject?.id ?? 'system';
+    await upsertRecordMeta(
+      client,
+      def.name,
+      key,
+      created
+        ? { createdBy: actor, modifiedBy: actor, createdTime: now, modifiedTime: now }
+        : { modifiedBy: actor, modifiedTime: now },
+    );
+  }
+
   async delete(objectName: string, id: string, ctx: DataAccessContext): Promise<void> {
     const def = requireDef(ctx, objectName);
     const pk = primaryKeyOf(def);
@@ -790,6 +823,7 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
         ctx.locale,
       );
       if (res.rowCount === 0) throw new SchemaError('data.recordNotFound', { object: objectName, id }, ctx.locale);
+      await deleteRecordMeta(client, def.name, recordKeyOfRow(def, existing));
       if (owned) await client.query('COMMIT');
       auditWrite(this.audit, ctx, DATA_ACTIONS.DELETE, objectName, id, undefined, undefined, this.replay ? existing : undefined);
       this.events?.publishRecordChange('deleted', objectName, id);

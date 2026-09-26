@@ -49,7 +49,7 @@ export function isRecordMetaTable(name: string): boolean {
  */
 export function buildRecordMetaTable(object: string): ExpectedTable {
   const name = recordMetaTableName(object);
-  const uuid = { type: 'UUID', notNull: false, primary: false, unique: false } as const;
+  const text = { type: 'TEXT', notNull: false, primary: false, unique: false } as const;
   const ts = { type: 'TIMESTAMPTZ', notNull: false, primary: false, unique: false } as const;
   return {
     name,
@@ -63,9 +63,9 @@ export function buildRecordMetaTable(object: string): ExpectedTable {
         primary: false,
         unique: false,
       },
-      { name: RECORD_META_COLUMNS.OWNER_ID, ...uuid },
-      { name: RECORD_META_COLUMNS.CREATED_BY, ...uuid },
-      { name: RECORD_META_COLUMNS.MODIFIED_BY, ...uuid },
+      { name: RECORD_META_COLUMNS.OWNER_ID, ...text },
+      { name: RECORD_META_COLUMNS.CREATED_BY, ...text },
+      { name: RECORD_META_COLUMNS.MODIFIED_BY, ...text },
       { name: RECORD_META_COLUMNS.CREATED_TIME, ...ts },
       { name: RECORD_META_COLUMNS.MODIFIED_TIME, ...ts },
       { name: RECORD_META_COLUMNS.WORKFLOW_ID, type: 'TEXT', notNull: false, primary: false, unique: false },
