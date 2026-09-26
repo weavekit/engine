@@ -7,6 +7,7 @@ import type { ExpectedTable } from './diff.js';
 import { inspectSchema } from './inspect.js';
 import { ensureMetaTable, setMeta } from './meta.js';
 import { createPool } from './pool.js';
+import { buildRecordMetaTable } from './record-meta.js';
 
 export interface MigrateOptions {
   /** postgres connection string; falls back to process.env.DATABASE_URL */
@@ -99,6 +100,12 @@ export async function migrate(registry: ObjectRegistry, options: MigrateOptions 
 
     const statements = diffAll(expected, actual);
 
+    // engine-owned per-object record metadata side tables: one per object (R1),
+    // created idempotently for every object regardless of `alter`/ownership —
+    // they never touch the customer's own table
+    const metaTables = [...defs.keys()].map((name) => buildRecordMetaTable(name));
+    const metaStatements = diffAll(metaTables, actual);
+
     // existing tables are read-only unless the object opted in (`alter: true`):
     // verify every declared field is a live column (prevents REST/MCP pointing
     // at ghost columns). With `alter: true`, missing fields become ADD COLUMN
@@ -151,7 +158,7 @@ export async function migrate(registry: ObjectRegistry, options: MigrateOptions 
       }
     }
 
-    const allStatements = [...statements, ...rlsStatements];
+    const allStatements = [...statements, ...metaStatements, ...rlsStatements];
 
     if (!dryRun && allStatements.length > 0) {
       await ensureMetaTable(pool);

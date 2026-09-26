@@ -16,6 +16,14 @@ export type {
   ExpectedTable,
 } from './diff.js';
 export { pgType, defaultExpr, onDeleteClause, pgTypeMatches } from './map.js';
+export {
+  RECORD_META_COLUMNS,
+  RECORD_META_DEFAULT_STATUS,
+  RECORD_META_TABLE_PREFIX,
+  buildRecordMetaTable,
+  isRecordMetaTable,
+  recordMetaTableName,
+} from './record-meta.js';
 export { buildMappingReport } from './report.js';
 export type {
   MappingColumn,
