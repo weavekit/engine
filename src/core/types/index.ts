@@ -13,6 +13,7 @@ export type {
   TimestampField,
   TimestamptzField,
   IntervalField,
+  UuidField,
   JsonField,
   EnumField,
   EnumOptions,

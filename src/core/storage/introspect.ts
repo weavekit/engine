@@ -78,7 +78,7 @@ const PG_TO_FIELD: Record<string, FieldType> = {
   interval: FIELD_TYPES.INTERVAL,
   json: FIELD_TYPES.JSON,
   jsonb: FIELD_TYPES.JSON,
-  uuid: FIELD_TYPES.STRING,
+  uuid: FIELD_TYPES.UUID,
 };
 
 /** readable on-delete action (from `inspect.ts`) → engine `ON_DELETE_ACTIONS` (restrict is the default and omitted) */
@@ -123,6 +123,7 @@ function normalizeDefault(raw: string, type: FieldType): DefaultResult {
     case FIELD_TYPES.DATE:
     case FIELD_TYPES.TIME:
     case FIELD_TYPES.TIMETZ:
+    case FIELD_TYPES.UUID:
     case FIELD_TYPES.STRING:
     case FIELD_TYPES.TEXT:
     case FIELD_TYPES.ENUM:
@@ -208,7 +209,6 @@ function mapColumn(
   }
 
   if (col.dataType === 'bigint') warnings.push(`column "${table.name}.${col.name}": bigint mapped to number`);
-  if (col.dataType === 'uuid') warnings.push(`column "${table.name}.${col.name}": uuid mapped to string (no engine uuid type)`);
 
   const field: Record<string, unknown> = { ...base, type: resolvedType };
   if (required === true) field.required = true;

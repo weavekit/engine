@@ -86,6 +86,9 @@ export function fieldSchema(
   } else if (base === FIELD_TYPES.INTERVAL) {
     out.type = 'string';
     out.format = 'duration';
+  } else if (base === FIELD_TYPES.UUID) {
+    out.type = 'string';
+    out.format = 'uuid';
   } else if (base === FIELD_TYPES.JSON) {
     // free-form: leave unconstrained
   } else if (base === FIELD_TYPES.ENUM) {

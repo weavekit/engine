@@ -226,6 +226,7 @@ export function typeCompatible(fieldType: string, exprType: FormulaType): boolea
   switch (fieldType) {
     case FIELD_TYPES.STRING:
     case FIELD_TYPES.TEXT:
+    case FIELD_TYPES.UUID:
       return exprType === FORMULA_TYPES.STRING;
     case FIELD_TYPES.BOOLEAN:
       return exprType === FORMULA_TYPES.BOOLEAN;

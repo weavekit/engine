@@ -53,6 +53,7 @@ const EXTRA_KEYS: Record<FieldType, readonly string[]> = {
   timestamp: ['required', 'unique', 'default'],
   timestamptz: ['required', 'unique', 'default'],
   interval: ['required'],
+  uuid: ['required', 'unique', 'default'],
   json: ['required', 'default'],
   enum: ['options', 'multiple', 'required', 'unique', 'default'],
   relation: ['target', 'required', 'unique', 'onDelete'],
@@ -86,6 +87,7 @@ function validateDefault(value: unknown, type: FieldType, vc: Vc, options?: stri
     case FIELD_TYPES.LAST_NAME:
     case FIELD_TYPES.EMAIL:
     case FIELD_TYPES.PHONE:
+    case FIELD_TYPES.UUID:
       if (typeof value !== 'string') fail(vc, 'field.default.string');
       break;
     case FIELD_TYPES.IMAGE:
@@ -353,6 +355,15 @@ export function validateField(raw: unknown, vc: Vc, options: FieldValidateOption
     case FIELD_TYPES.INTERVAL:
       validateDefault(raw.default, type, vc);
       return { ...base, type: FIELD_TYPES.INTERVAL, required, unique };
+    case FIELD_TYPES.UUID:
+      validateDefault(raw.default, type, vc);
+      return {
+        ...base,
+        type: FIELD_TYPES.UUID,
+        required,
+        unique,
+        default: raw.default as string | undefined,
+      };
     case FIELD_TYPES.JSON:
       validateDefault(raw.default, type, vc);
       return { ...base, type: FIELD_TYPES.JSON, required, default: raw.default };

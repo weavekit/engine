@@ -32,6 +32,7 @@ define({ name: FIELD_TYPES.TIMETZ, scalar: true });
 define({ name: FIELD_TYPES.TIMESTAMP, scalar: true });
 define({ name: FIELD_TYPES.TIMESTAMPTZ, scalar: true });
 define({ name: FIELD_TYPES.INTERVAL, scalar: true });
+define({ name: FIELD_TYPES.UUID, scalar: true });
 define({ name: FIELD_TYPES.JSON, scalar: true });
 define({ name: FIELD_TYPES.ENUM, scalar: true });
 define({ name: FIELD_TYPES.RELATION, relationLike: true });
@@ -111,6 +112,7 @@ export const PRIMITIVE_FIELD_TYPES: readonly FieldType[] = [
   FIELD_TYPES.TIMESTAMP,
   FIELD_TYPES.TIMESTAMPTZ,
   FIELD_TYPES.INTERVAL,
+  FIELD_TYPES.UUID,
   FIELD_TYPES.JSON,
   FIELD_TYPES.ENUM,
   FIELD_TYPES.RELATION,

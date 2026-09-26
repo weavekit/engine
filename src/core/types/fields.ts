@@ -133,6 +133,14 @@ export interface IntervalField extends FieldBase {
   unique?: boolean;
 }
 
+/** PostgreSQL uuid scalar (application-generated; maps to a UUID column) */
+export interface UuidField extends FieldBase {
+  type: typeof FIELD_TYPES.UUID;
+  required?: boolean;
+  unique?: boolean;
+  default?: string;
+}
+
 export interface JsonField extends FieldBase {
   type: typeof FIELD_TYPES.JSON;
   required?: boolean;
@@ -270,6 +278,7 @@ export type FieldDefinition =
   | TimestampField
   | TimestamptzField
   | IntervalField
+  | UuidField
   | JsonField
   | EnumField
   | RelationField

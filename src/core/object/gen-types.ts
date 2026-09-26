@@ -60,6 +60,7 @@ function tsTypeOf(
     case FIELD_TYPES.TIMESTAMP:
     case FIELD_TYPES.TIMESTAMPTZ:
     case FIELD_TYPES.INTERVAL:
+    case FIELD_TYPES.UUID:
     case FIELD_TYPES.SEQ_NO:
       return 'string';
     case FIELD_TYPES.INTEGER:

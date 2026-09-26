@@ -140,6 +140,11 @@ async function checkValue(field: FieldDefinition, value: unknown, vc: Vc): Promi
     return;
   }
 
+  if (base === FIELD_TYPES.UUID) {
+    if (typeof value !== 'string') fail(vc, 'data.field.type', { field: f.name, type: 'uuid' });
+    return;
+  }
+
   if (base === FIELD_TYPES.JSON) {
     // any JSON value accepted
     return;

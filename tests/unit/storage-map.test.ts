@@ -17,6 +17,7 @@ describe('pgType — type mapping', () => {
     expect(pgType(f({ name: 'a', type: 'time' }), undefined)).toBe('TIME');
     expect(pgType(f({ name: 'a', type: 'timetz' }), undefined)).toBe('TIMETZ');
     expect(pgType(f({ name: 'a', type: 'interval' }), undefined)).toBe('INTERVAL');
+    expect(pgType(f({ name: 'a', type: 'uuid' }), undefined)).toBe('UUID');
     expect(pgType(f({ name: 'a', type: 'json' }), undefined)).toBe('JSONB');
     expect(pgType(f({ name: 'a', type: 'number' }), undefined)).toBe('NUMERIC');
     expect(pgType(f({ name: 'a', type: 'number', precision: 10 }), undefined)).toBe('NUMERIC(10)');

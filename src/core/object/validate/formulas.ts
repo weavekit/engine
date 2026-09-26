@@ -29,6 +29,7 @@ export function validateFormulas(fields: FieldDefinition[], vc: Vc): void {
     switch (f.type) {
       case FIELD_TYPES.STRING:
       case FIELD_TYPES.TEXT:
+      case FIELD_TYPES.UUID:
         return FORMULA_TYPES.STRING;
       case FIELD_TYPES.INTEGER:
       case FIELD_TYPES.NUMBER:

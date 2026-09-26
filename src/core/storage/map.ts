@@ -102,6 +102,8 @@ export function pgType(
       return 'TIMESTAMPTZ';
     case FIELD_TYPES.INTERVAL:
       return 'INTERVAL';
+    case FIELD_TYPES.UUID:
+      return 'UUID';
     case FIELD_TYPES.JSON:
       return 'JSONB';
     case FIELD_TYPES.ENUM:
@@ -143,6 +145,7 @@ export function defaultExpr(
       if (field.type === FIELD_TYPES.IMAGE && (field as { multiple?: boolean }).multiple === true) return undefined;
       return `'${String(raw.default)}'`;
     case FIELD_TYPES.TEXT:
+    case FIELD_TYPES.UUID:
       return `'${String(raw.default)}'`;
     case FIELD_TYPES.BOOLEAN:
       return String(raw.default);
