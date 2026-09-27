@@ -27,6 +27,7 @@ export {
   isRecordMetaVirtualField,
   recordMetaTableName,
 } from './record-meta.js';
+export { pkValueTextSql, recordKeySql } from './record-key-sql.js';
 export { buildMappingReport } from './report.js';
 export type {
   MappingColumn,
