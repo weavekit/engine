@@ -77,16 +77,23 @@ export function decodeRecordKey(key: string): string[] {
  * Canonicalize a scalar primary-key value so the same record always yields the
  * same key. Temporal values must already be in canonical form — the data-access
  * layer reads them via `to_char` (session-independent, microsecond precision) to
- * avoid millisecond truncation and timezone drift; this helper only normalizes
- * plain JS scalars and is a no-op for strings.
+ * avoid millisecond truncation and timezone drift; a JS `Date` is normalized to
+ * the same `…Z` form at millisecond precision. This helper is a no-op for
+ * strings.
  */
 export function canonicalizePrimaryValue(value: unknown): string {
   if (typeof value === 'string') return value;
   if (typeof value === 'boolean') return value ? 'true' : 'false';
   if (typeof value === 'number') return String(value);
   if (typeof value === 'bigint') return value.toString();
-  if (value instanceof Date) return value.toISOString();
+  if (value instanceof Date) return canonicalUtcIso(value);
   invalid(String(value));
+}
+
+/** `YYYY-MM-DDTHH:mm:ss.ffffffZ` (UTC, 6-digit microseconds) from a JS Date */
+function canonicalUtcIso(date: Date): string {
+  const micros = `${String(date.getUTCMilliseconds()).padStart(3, '0')}000`;
+  return `${date.toISOString().slice(0, 19)}.${micros}Z`;
 }
 
 /**

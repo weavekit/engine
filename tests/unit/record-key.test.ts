@@ -68,8 +68,11 @@ describe('canonicalizePrimaryValue', () => {
     expect(canonicalizePrimaryValue(false)).toBe('false');
     expect(canonicalizePrimaryValue(42)).toBe('42');
     expect(canonicalizePrimaryValue(10n)).toBe('10');
-    expect(canonicalizePrimaryValue(new Date('2026-09-26T10:30:00.000Z'))).toBe(
-      '2026-09-26T10:30:00.000Z',
+    expect(canonicalizePrimaryValue(new Date('2026-09-26T10:30:00Z'))).toBe(
+      '2026-09-26T10:30:00.000000Z',
+    );
+    expect(canonicalizePrimaryValue(new Date('2026-09-26T10:30:00.123Z'))).toBe(
+      '2026-09-26T10:30:00.123000Z',
     );
   });
 });
