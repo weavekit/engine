@@ -1,4 +1,5 @@
 import { describe, it, expect } from '../helpers/test.js';
+import { encodeRecordKey } from '../../src/core/object/record-key.js';
 import {
   buildEngineFromRegistry,
   createDataAccess,
@@ -63,23 +64,23 @@ maybe('Workflow E2E (local PG): transitions, RBAC and state-field immutability',
       await dataAccess.create('wf_ticket', { id: 'T1', title: 'first' }, base);
 
       const get = (key: string) =>
-        app.inject({ method: 'GET', url: '/api/objects/wf_ticket/T1/workflow', headers: bearer(key) });
+        app.inject({ method: 'GET', url: '/api/objects/wf_ticket/' + encodeRecordKey(['T1']) + '/workflow', headers: bearer(key) });
       const post = (action: string, key: string) =>
         app.inject({
           method: 'POST',
-          url: `/api/objects/wf_ticket/T1/transitions/${action}`,
+          url: `/api/objects/wf_ticket/${encodeRecordKey(['T1'])}/transitions/${action}`,
           headers: bearer(key),
         });
       const patch = (body: unknown, key: string) =>
         app.inject({
           method: 'PATCH',
-          url: '/api/objects/wf_ticket/T1',
+          url: '/api/objects/wf_ticket/' + encodeRecordKey(['T1']),
           headers: bearer(key),
           payload: body as never,
         });
 
       // new record starts in the declared initial state
-      const created = await dataAccess.findOne<Record<string, unknown>>('wf_ticket', 'T1', base);
+      const created = await dataAccess.findOne<Record<string, unknown>>('wf_ticket', encodeRecordKey(['T1']), base);
       expect(created?.status).toBe('draft');
 
       // GET: current state + only the transitions allowed from it
@@ -145,7 +146,7 @@ maybe('Workflow E2E (local PG): transitions, RBAC and state-field immutability',
         },
       });
       const hookBypass = await guarded
-        .update('wf_ticket', 'T3', { title: 'changed' }, base)
+        .update('wf_ticket', encodeRecordKey(['T3']), { title: 'changed' }, base)
         .then(() => undefined)
         .catch((error: unknown) => (error instanceof SchemaError ? error.code : 'other'));
       expect(hookBypass).toBe('workflow.transition.required');
@@ -179,7 +180,7 @@ maybe('Workflow E2E (local PG): transitions, RBAC and state-field immutability',
       decide: async (c) => {
         if (!c.action.endsWith('.reject')) return { allow: true };
         // exercise the injected data-access surface (pool/registry come from the engine)
-        const row = await c.dataAccess.findOne('wf_gated', 'G1', { subject: c.subject });
+        const row = await c.dataAccess.findOne('wf_gated', encodeRecordKey(['G1']), { subject: c.subject });
         return { allow: false, reason: row === null ? 'record missing' : 'reject is not allowed here' };
       },
     };
@@ -199,7 +200,7 @@ maybe('Workflow E2E (local PG): transitions, RBAC and state-field immutability',
       const post = (action: string) =>
         app.inject({
           method: 'POST',
-          url: `/api/objects/wf_gated/G1/transitions/${action}`,
+          url: `/api/objects/wf_gated/${encodeRecordKey(['G1'])}/transitions/${action}`,
           headers: { authorization: 'Bearer key-admin' },
         });
 
@@ -264,7 +265,7 @@ maybe('Workflow E2E (local PG): transitions, RBAC and state-field immutability',
       await dataAccess.create('wf_gated', { id: 'G2' }, { pool, registry });
       const res = await app.inject({
         method: 'POST',
-        url: '/api/objects/wf_gated/G2/transitions/submit',
+        url: '/api/objects/wf_gated/' + encodeRecordKey(['G2']) + '/transitions/submit',
         headers: { authorization: 'Bearer key-admin' },
       });
       expect(res.statusCode).toBe(500);

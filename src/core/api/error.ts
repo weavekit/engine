@@ -29,7 +29,7 @@ const CONFLICT = new Set<MessageKey>(['data.unique', 'http.conflict', 'source.ve
 const RATE_LIMITED = new Set<MessageKey>(['http.rateLimited', 'quota.exceeded']);
 
 /** message keys that map to 400 Bad Request */
-const BAD_REQUEST = new Set<MessageKey>(['script.abort', 'schema.version.unsupported', 'workflow.transition.required']);
+const BAD_REQUEST = new Set<MessageKey>(['script.abort', 'schema.version.unsupported', 'workflow.transition.required', 'recordKey.invalid']);
 
 function errorBody(code: MessageKey, message: string, params: Record<string, unknown>): ApiErrorBody {
   return { error: { code, message, params } };

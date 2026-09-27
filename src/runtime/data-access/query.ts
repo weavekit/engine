@@ -1,7 +1,7 @@
 import type { PoolClient } from 'pg';
 import type { ObjectDefinition, ObjectRegistry } from '../../core/index.js';
 import { SchemaError, primaryFieldsOf, encodeRecordKey, decodeRecordKey, canonicalizePrimaryValue, type Locale } from '../../core/index.js';
-import { DETAILS_COLUMNS, FIELD_TYPES, isRecordMetaVirtualField, recordKeySql, recordMetaTableName } from '../../core/index.js';
+import { DETAILS_COLUMNS, FIELD_TYPES, isSideTableVirtualField, RECORD_META_ID_FIELD, recordKeySql, recordMetaTableName } from '../../core/index.js';
 import type { AuditEvent, AuditSink } from '../../core/audit/index.js';
 import { AUDIT_ACTOR_TYPES, DATA_ACTIONS } from '../../core/audit/index.js';
 import type { EventPublisher } from '../../core/provider/event/index.js';
@@ -157,13 +157,17 @@ function primaryNames(def: ObjectDefinition): string[] {
   return primaryFieldsOf(def).map((f) => f.name);
 }
 
-/** decode an external id into primary values: raw (single PK) or record_key (composite) */
+/** decode an external id (the record_key, for single and composite keys alike) into primary values */
 function pkValuesOf(def: ObjectDefinition, id: string, ctx: DataAccessContext): string[] {
   const names = primaryNames(def);
-  if (names.length <= 1) return [id];
-  const values = decodeRecordKey(id);
+  let values: string[];
+  try {
+    values = decodeRecordKey(id);
+  } catch {
+    throw new SchemaError('recordKey.invalid', { key: id }, ctx.locale);
+  }
   if (values.length !== names.length) {
-    throw new SchemaError('data.recordNotFound', { object: def.name, id }, ctx.locale);
+    throw new SchemaError('recordKey.invalid', { key: id }, ctx.locale);
   }
   return values;
 }
@@ -184,17 +188,15 @@ function pkWhereSql(def: ObjectDefinition, startIndex: number): string {
     .join(' AND ');
 }
 
-/** the external id of a row: raw primary value (single) or its record_key (composite) */
+/** the external id of a record: always its record_key (single and composite keys alike) */
 function externalIdOf(def: ObjectDefinition, record: Record<string, unknown>): string {
-  const names = primaryNames(def);
-  if (names.length <= 1) return String(record[names[0] ?? ''] ?? '');
   return recordKeyOfRow(def, record);
 }
 
-/** true when the query references any record-metadata virtual field (`weave_*`) */
-function usesVirtualFields(opts: FindOptions): boolean {
-  if ((opts.fields ?? []).some((f) => isRecordMetaVirtualField(f))) return true;
-  if ((opts.sort ?? []).some((s) => isRecordMetaVirtualField(s.field))) return true;
+/** true when the query references a side-table virtual field (`weave_*` minus the derived `weave_id`) */
+function needsSideTable(opts: FindOptions): boolean {
+  if ((opts.fields ?? []).some((f) => isSideTableVirtualField(f))) return true;
+  if ((opts.sort ?? []).some((s) => isSideTableVirtualField(s.field))) return true;
   const filter = opts.filter;
   if (filter !== undefined) {
     for (const [key, value] of Object.entries(filter)) {
@@ -205,12 +207,12 @@ function usesVirtualFields(opts: FindOptions): boolean {
             (group) =>
               group !== null &&
               typeof group === 'object' &&
-              Object.keys(group).some((k) => isRecordMetaVirtualField(k)),
+              Object.keys(group).some((k) => isSideTableVirtualField(k)),
           )
         ) {
           return true;
         }
-      } else if (isRecordMetaVirtualField(key)) {
+      } else if (isSideTableVirtualField(key)) {
         return true;
       }
     }
@@ -395,7 +397,7 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
 
     // `weave_*` virtual fields live in the engine side table; when referenced,
     // LEFT JOIN it and select/filter/sort them in SQL (never customer columns)
-    const meta = usesVirtualFields(opts) ? { table: recordMetaTableName(def.name) } : undefined;
+    const meta = needsSideTable(opts) ? { table: recordMetaTableName(def.name) } : undefined;
     const buildCtx = { ...bctx(ctx, objectName), ...(meta === undefined ? {} : { meta }) };
 
     const { sql, params } = buildFindSql(def, opts, buildCtx, ctx.rowScope, opts.exclude);
@@ -415,9 +417,13 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
     if (primaryNames(def).length === 0) {
       throw new SchemaError('data.recordNotFound', { object: objectName, id }, ctx.locale);
     }
+    // project every declared column plus the derived `weave_id` (the record's
+    // external id) so a fetched record is self-identifying
+    const cols = def.fields.filter((f) => f.type !== FIELD_TYPES.DETAILS).map((f) => f.name);
+    if (isDetailsChild(ctx.registry, objectName)) cols.push(...PARENT_COLUMNS);
     const result = await this.find<T>(
       objectName,
-      { filter: pkFilter(def, pkValuesOf(def, id, ctx)), limit: 1 },
+      { filter: pkFilter(def, pkValuesOf(def, id, ctx)), limit: 1, fields: [...cols, RECORD_META_ID_FIELD] },
       ctx,
     );
     return result.rows[0] ?? null;
@@ -510,13 +516,13 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
         ctx.locale,
       );
       const metaKey = String((insertRes.rows[0] as Record<string, unknown> | undefined)?.[META_KEY_COL] ?? '');
-      const externalId =
-        primaryNames(def).length <= 1 ? String(record[primaryNames(def)[0]!] ?? '') : metaKey;
+      const externalId = metaKey;
+      record[RECORD_META_ID_FIELD] = externalId;
 
       await insertDetails(client, def, externalId, payload, ctx.registry, ctx.locale);
 
       // compute formula fields AFTER children exist (aggregates see them), then persist
-      await computeFormulas(def, record, client, ctx.registry, now);
+      await computeFormulas(def, record, client, ctx.registry, now, externalId);
       const formulaCols = def.fields
         .filter((f) => (f as { formula?: string }).formula !== undefined)
         .map((f) => f.name);
@@ -610,7 +616,8 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
 
       const now = new Date();
       const record = { ...existing, ...payload };
-      await computeFormulas(def, record, client, ctx.registry, now);
+      record[RECORD_META_ID_FIELD] = metaKey;
+      await computeFormulas(def, record, client, ctx.registry, now, metaKey);
 
       const settable = new Set<string>();
       for (const key of Object.keys(payload)) {
@@ -776,7 +783,8 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
 
       const now = new Date();
       const record = { ...existing, ...payload };
-      await computeFormulas(def, record, client, ctx.registry, now);
+      record[RECORD_META_ID_FIELD] = metaKey;
+      await computeFormulas(def, record, client, ctx.registry, now, metaKey);
 
       const settable = new Set<string>();
       for (const key of Object.keys(payload)) {

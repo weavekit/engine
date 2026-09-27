@@ -1,4 +1,6 @@
-import { describe, it, expect } from '../helpers/test.js';import { AUDIT_ACTOR_TYPES, createAudit, DATA_ACTIONS } from '../../src/subsystems/audit/index.js';
+import { describe, it, expect } from '../helpers/test.js';
+import { encodeRecordKey } from '../../src/core/object/record-key.js';
+import { AUDIT_ACTOR_TYPES, createAudit, DATA_ACTIONS } from '../../src/subsystems/audit/index.js';
 import { ObjectRegistry, ROW_SCOPE_MARKERS, SchemaError, buildEngineFromRegistry, createDataAccess, createPool, migrate, withRbac } from '../../src/index.js';
 import type { ObjectDefinition } from '../../src/index.js';
 
@@ -38,14 +40,14 @@ maybe('Audit subsystem E2E (local PG)', () => {
       const sctx = { ...base, subject };
 
       await dataAccess.create('lead', { id: 'L1', title: 't', name: 'n', owner_id: 'u100', secret: 's' }, sctx);
-      await dataAccess.update('lead', 'L1', { name: 'n2' }, sctx);
+      await dataAccess.update('lead', encodeRecordKey(['L1']), { name: 'n2' }, sctx);
       await dataAccess.create('lead', { id: 'L2', title: 't2', name: 'n', owner_id: 'u100' }, sctx);
-      await dataAccess.delete('lead', 'L2', sctx);
+      await dataAccess.delete('lead', encodeRecordKey(['L2']), sctx);
 
       // denied field → rbac.denied.field (isError audit)
       let deniedCode: string | undefined;
       try {
-        await dataAccess.update('lead', 'L1', { secret: 'x' }, sctx);
+        await dataAccess.update('lead', encodeRecordKey(['L1']), { secret: 'x' }, sctx);
       } catch (error) {
         deniedCode = error instanceof SchemaError ? error.code : undefined;
       }
@@ -67,7 +69,7 @@ maybe('Audit subsystem E2E (local PG)', () => {
       // the assertions run after the DELETE event has landed
       let res = await audit.query({ object: 'lead' });
       for (let i = 0; i < 200; i += 1) {
-        if (res.rows.some((r) => r.action === DATA_ACTIONS.DELETE && r.objectId === 'L2')) break;
+        if (res.rows.some((r) => r.action === DATA_ACTIONS.DELETE && r.objectId === encodeRecordKey(['L2']))) break;
         await new Promise((resolve) => setTimeout(resolve, 10));
         res = await audit.query({ object: 'lead' });
       }
@@ -75,21 +77,21 @@ maybe('Audit subsystem E2E (local PG)', () => {
       const actionOf = (action: string, id?: string): ReturnType<typeof rows.filter> =>
         rows.filter((r) => r.action === action && (id === undefined || r.objectId === id));
 
-      expect(actionOf(DATA_ACTIONS.CREATE, 'L1').length).toBe(1);
-      const created = actionOf(DATA_ACTIONS.CREATE, 'L1')[0]!;
+      expect(actionOf(DATA_ACTIONS.CREATE, encodeRecordKey(['L1'])).length).toBe(1);
+      const created = actionOf(DATA_ACTIONS.CREATE, encodeRecordKey(['L1']))[0]!;
       expect(created.isError).toBe(false);
       expect(created.actorType).toBe(AUDIT_ACTOR_TYPES.USER);
       expect(created.actorId).toBe('u100');
 
-      expect(actionOf(DATA_ACTIONS.UPDATE, 'L1').length).toBe(2); // success + denied rejection
-      expect(actionOf(DATA_ACTIONS.UPDATE, 'L1').some((r) => r.isError && r.errorCode === 'rbac.denied.field')).toBe(true);
+      expect(actionOf(DATA_ACTIONS.UPDATE, encodeRecordKey(['L1'])).length).toBe(2); // success + denied rejection
+      expect(actionOf(DATA_ACTIONS.UPDATE, encodeRecordKey(['L1'])).some((r) => r.isError && r.errorCode === 'rbac.denied.field')).toBe(true);
 
-      expect(actionOf(DATA_ACTIONS.DELETE, 'L2').length).toBe(1);
+      expect(actionOf(DATA_ACTIONS.DELETE, encodeRecordKey(['L2'])).length).toBe(1);
 
-      expect(actionOf(DATA_ACTIONS.CREATE, 'L3')[0]!.isError).toBe(true);
-      expect(actionOf(DATA_ACTIONS.CREATE, 'L3')[0]!.errorCode).toBe('data.field.required');
+      expect(actionOf(DATA_ACTIONS.CREATE, encodeRecordKey(['L3']))[0]!.isError).toBe(true);
+      expect(actionOf(DATA_ACTIONS.CREATE, encodeRecordKey(['L3']))[0]!.errorCode).toBe('data.field.required');
 
-      const sys = actionOf(DATA_ACTIONS.CREATE, 'L4')[0]!;
+      const sys = actionOf(DATA_ACTIONS.CREATE, encodeRecordKey(['L4']))[0]!;
       expect(sys.actorType).toBe(AUDIT_ACTOR_TYPES.SYSTEM);
       expect(sys.actorId).toBe('system');
     } finally {

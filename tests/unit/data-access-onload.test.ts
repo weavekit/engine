@@ -1,5 +1,5 @@
 import { describe, it, expect } from '../helpers/test.js';
-import { ObjectRegistry, SCRIPT_HOOKS, SchemaError } from '../../src/core/index.js';
+import { ObjectRegistry, SCRIPT_HOOKS, SchemaError, encodeRecordKey } from '../../src/core/index.js';
 import type { ScriptDispatchArgs, ScriptDispatchResult, ScriptDispatcher } from '../../src/core/index.js';
 import { createDataAccess } from '../../src/runtime/data-access/index.js';
 import type { DataAccessContext } from '../../src/runtime/data-access/index.js';
@@ -116,7 +116,7 @@ describe('onLoad read hook — find/findOne/create/update', () => {
       dispatch: async (_o, _h, args) => ({ records: (args.records ?? []).map((r) => ({ ...r, loaded: true })), warnings: [] }),
     });
     const da = createDataAccess({ script: fake.dispatcher });
-    const found = await da.findOne('lead', 'L1', ctx(fakePool(rows), reg));
+    const found = await da.findOne('lead', encodeRecordKey(['L1']), ctx(fakePool(rows), reg));
     expect(fake.calls).toHaveLength(1);
     expect(fake.calls[0]!.args.records).toHaveLength(1);
     expect(found).toEqual({ id: 'L1', title: 'a', loaded: true });
@@ -157,7 +157,7 @@ describe('onLoad read hook — find/findOne/create/update', () => {
       dispatch: async (_o, _h, args) => ({ records: (args.records ?? []).map((r) => ({ ...r, updated: true })), warnings: [] }),
     });
     const da = createDataAccess({ script: fake.dispatcher });
-    const updated = await da.update('lead', 'L1', { title: 'b' }, ctx(fakePool(rows), reg));
+    const updated = await da.update('lead', encodeRecordKey(['L1']), { title: 'b' }, ctx(fakePool(rows), reg));
     expect(fake.calls).toHaveLength(1);
     expect(fake.calls[0]!.hook).toBe(SCRIPT_HOOKS.ON_LOAD);
     expect(updated).toEqual(expect.objectContaining({ id: 'L1', title: 'b', amount: 1, updated: true }));

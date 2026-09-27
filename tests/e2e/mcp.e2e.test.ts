@@ -1,4 +1,6 @@
-import { describe, it, expect } from '../helpers/test.js';import { buildEngineFromRegistry, migrate, ObjectRegistry, ROW_SCOPE_MARKERS, type ObjectDefinition } from '../../src/index.js';
+import { describe, it, expect } from '../helpers/test.js';
+import { encodeRecordKey } from '../../src/core/object/record-key.js';
+import { buildEngineFromRegistry, migrate, ObjectRegistry, ROW_SCOPE_MARKERS, type ObjectDefinition } from '../../src/index.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 
@@ -202,7 +204,7 @@ maybe('MCP E2E (SDK Client + streamable HTTP + local PG): auth + session identit
       expect('secret' in parsed.rows[0]).toBe(false);
 
       // get_ denied row → isError (row outside own, does not leak existence)
-      const scopedOut = await alice.client.callTool({ name: 'get_record', arguments: { object: 'lead', id: 'L2' } });
+      const scopedOut = await alice.client.callTool({ name: 'get_record', arguments: { object: 'lead', id: encodeRecordKey(['L2']) } });
       expect(scopedOut.isError).toBe(true);
 
       // unknown object → isError (data.objectUnknown), not a protocol error
@@ -218,7 +220,7 @@ maybe('MCP E2E (SDK Client + streamable HTTP + local PG): auth + session identit
       // ── 4. update_ denied: finance tool surface lacks update_record → manual call rejected (call enforced)
       let deniedUpdate: Error | undefined;
       try {
-        await emma.client.callTool({ name: 'update_record', arguments: { object: 'lead', id: 'L1', changes: { name: 'x' } } });
+        await emma.client.callTool({ name: 'update_record', arguments: { object: 'lead', id: encodeRecordKey(['L1']), changes: { name: 'x' } } });
       } catch (e) {
         deniedUpdate = e as Error;
       }
@@ -228,7 +230,7 @@ maybe('MCP E2E (SDK Client + streamable HTTP + local PG): auth + session identit
       // sales legal update (within whitelist)
       const okUpdate = await alice.client.callTool({
         name: 'update_record',
-        arguments: { object: 'lead', id: 'L1', changes: { name: 'Acme2' } },
+        arguments: { object: 'lead', id: encodeRecordKey(['L1']), changes: { name: 'Acme2' } },
       });
       expect(okUpdate.isError).toBe(false);
       expect(JSON.parse(textOf(okUpdate) || '{}').name).toBe('Acme2');
@@ -236,14 +238,14 @@ maybe('MCP E2E (SDK Client + streamable HTTP + local PG): auth + session identit
       // sales update outside the whitelist → call-level RBAC denial (isError), not a protocol error
       const badField = await alice.client.callTool({
         name: 'update_record',
-        arguments: { object: 'lead', id: 'L1', changes: { secret: 'x' } },
+        arguments: { object: 'lead', id: encodeRecordKey(['L1']), changes: { secret: 'x' } },
       });
       expect(badField.isError).toBe(true);
 
       // ── 4b. workflow_transition: the agent fires a declared transition
       const transitioned = await alice.client.callTool({
         name: 'workflow_transition',
-        arguments: { object: 'ticket', id: 'T1', action: 'open' },
+        arguments: { object: 'ticket', id: encodeRecordKey(['T1']), action: 'open' },
       });
       expect(transitioned.isError).toBe(false);
       expect(JSON.parse(textOf(transitioned)).status).toBe('open');
@@ -251,7 +253,7 @@ maybe('MCP E2E (SDK Client + streamable HTTP + local PG): auth + session identit
       // an unknown/disallowed transition → isError (call-level), not a protocol error
       const badTransition = await alice.client.callTool({
         name: 'workflow_transition',
-        arguments: { object: 'ticket', id: 'T1', action: 'ghost' },
+        arguments: { object: 'ticket', id: encodeRecordKey(['T1']), action: 'ghost' },
       });
       expect(badTransition.isError).toBe(true);
 

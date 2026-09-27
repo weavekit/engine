@@ -1,6 +1,7 @@
 import {
   DEFAULT_FIELD_TYPE_REGISTRY,
   FIELD_TYPES,
+  RECORD_META_VIRTUAL_FIELD_SPECS,
   fieldBase,
   fieldOpenApiFormat,
   type FieldDefinition,
@@ -176,5 +177,18 @@ export function objectSchemas(
 
   if (recordRequired.length > 0) record.required = recordRequired;
   if (createRequired.length > 0) create.required = createRequired;
+
+  // virtual system fields (engine-managed, read-only): `weave_id` (the record id)
+  // plus the side-table metadata fields — part of every record's shape
+  for (const spec of RECORD_META_VIRTUAL_FIELD_SPECS) {
+    const schema: Json = { readOnly: true, type: 'string' };
+    if (spec.type === FIELD_TYPES.ENUM && spec.options !== undefined) {
+      schema.enum = [...spec.options];
+    } else if (spec.type === FIELD_TYPES.TIMESTAMPTZ) {
+      schema.format = 'date-time';
+    }
+    recordProps[spec.name] = schema;
+  }
+
   return { record, create, update };
 }

@@ -137,4 +137,47 @@ describe('schemaChange — field-level diff + commit message', () => {
   it('no changes → default message', async () => {
     expect(buildCommitMessage([])).toBe('chore(metadata): sync schema objects');
   });
+
+  it('diffMetadata: composite-key change reports a field.updated on the `primary` attr', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'weavekit-schema-'));
+    try {
+      await initRepo(root);
+      await writeObject(
+        root,
+        'orders',
+        JSON.stringify({
+          name: 'orders',
+          fields: [
+            { name: 'id', type: 'string', primary: true },
+            { name: 'line_no', type: 'integer' },
+          ],
+        }),
+      );
+      await git(root, ['add', '.']);
+      await git(root, ['commit', '-m', 'init']);
+
+      // promote `line_no` to a second primary field → composite key
+      await writeObject(
+        root,
+        'orders',
+        JSON.stringify({
+          name: 'orders',
+          fields: [
+            { name: 'id', type: 'string', primary: true },
+            { name: 'line_no', type: 'integer', primary: true },
+          ],
+        }),
+      );
+
+      const { files } = await loadSchemaDir(root);
+      const changes = await diffMetadata(root, files);
+      expect(
+        changes.some(
+          (c) => c.kind === 'field.updated' && c.field === 'line_no' && c.attr === 'primary' && c.after === true,
+        ),
+      ).toBe(true);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
 });

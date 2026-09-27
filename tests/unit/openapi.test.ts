@@ -91,10 +91,22 @@ describe('buildOpenApiDocument', () => {
     expect(record.properties.status!.enum).toEqual(['open', 'won']);
     expect(record.properties.supplier_id).toEqual({ type: 'string' });
 
+    // virtual system fields are part of the record shape (read-only); `weave_id`
+    // is the record id clients use in `/{id}`
+    expect(record.properties.weave_id).toMatchObject({ type: 'string', readOnly: true });
+    expect((record.properties.weave_status as { enum: string[] }).enum).toEqual([
+      'draft',
+      'running',
+      'effective',
+      'canceled',
+    ]);
+    expect(record.properties.weave_created_time).toMatchObject({ type: 'string', format: 'date-time', readOnly: true });
+
     const update = doc.components.schemas['leadUpdate'] as { properties: Record<string, unknown> };
     expect('id' in update.properties).toBe(false);
     expect('created_at' in update.properties).toBe(false);
     expect('title' in update.properties).toBe(true);
+    expect('weave_id' in update.properties).toBe(false);
 
     const create = doc.components.schemas['leadCreate'] as { required: string[]; properties: Record<string, unknown> };
     expect(create.required).toContain('title');

@@ -106,12 +106,12 @@ maybe('record metadata side table E2E (local PG)', () => {
       const firstModified = meta?.modifiedTime ?? null;
 
       await new Promise((resolve) => setTimeout(resolve, 5));
-      await dataAccess.update(object, 'A1', { name: 'y' }, ctx);
+      await dataAccess.update(object, encodeRecordKey(['A1']), { name: 'y' }, ctx);
       meta = await getRecordMeta(pool, object, key);
       expect(meta?.modifiedBy).toBe('system');
       expect((meta?.modifiedTime as Date).getTime()).toBeGreaterThan((firstModified as Date).getTime());
 
-      await dataAccess.delete(object, 'A1', ctx);
+      await dataAccess.delete(object, encodeRecordKey(['A1']), ctx);
       expect(await getRecordMeta(pool, object, key)).toBeNull();
     } finally {
       await pool.query(`DROP TABLE IF EXISTS "${table}" CASCADE`);
@@ -139,7 +139,9 @@ maybe('record metadata side table E2E (local PG)', () => {
       await migrate(reg, { databaseUrl: url! });
       const dataAccess = createDataAccess();
       const ctx = { pool, registry: reg };
-      await dataAccess.create(object, { id: 'A1', name: 'x' }, ctx);
+      const created = await dataAccess.create<Record<string, unknown>>(object, { id: 'A1', name: 'x' }, ctx);
+      // create returns weave_id (the external id) so a client can address the new record
+      expect(created.weave_id).toBe(encodeRecordKey(['A1']));
 
       // not requested → absent
       const plain = await dataAccess.find<Record<string, unknown>>(object, {}, ctx);
@@ -158,6 +160,14 @@ maybe('record metadata side table E2E (local PG)', () => {
         weave_created_by: 'system',
       });
       expect(withVirtual.rows[0]!.weave_modified_time).toBeInstanceOf(Date);
+
+      // weave_id is the record_key (external id); derived without the side table
+      const withId = await dataAccess.find<Record<string, unknown>>(object, { fields: ['id', 'weave_id'] }, ctx);
+      expect(withId.rows[0]).toEqual({ id: 'A1', weave_id: encodeRecordKey(['A1']) });
+
+      // single-record reads include weave_id too
+      const one = await dataAccess.findOne<Record<string, unknown>>(object, encodeRecordKey(['A1']), ctx);
+      expect(one?.weave_id).toBe(encodeRecordKey(['A1']));
 
       // only a virtual field requested → the projection is honored (no leaked pk)
       const onlyVirtual = await dataAccess.find<Record<string, unknown>>(object, { fields: ['weave_status'] }, ctx);

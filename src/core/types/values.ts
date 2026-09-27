@@ -148,6 +148,19 @@ export const DETAILS_COLUMNS = {
 } as const;
 export type DetailsColumn = typeof DETAILS_COLUMNS[keyof typeof DETAILS_COLUMNS];
 
+/**
+ * Engine-managed record instance status (`weave_status`). The workflow runtime
+ * drives transitions between these; a record with no engine metadata defaults
+ * to `draft`.
+ */
+export const WEAVE_STATUS = {
+  DRAFT: 'draft',
+  RUNNING: 'running',
+  EFFECTIVE: 'effective',
+  CANCELED: 'canceled',
+} as const;
+export type WeaveStatus = typeof WEAVE_STATUS[keyof typeof WEAVE_STATUS];
+
 /** relation edge kinds in the normalized RelationGraph */
 export const RELATION_KINDS = {
   BELONGS_TO: 'belongsTo',

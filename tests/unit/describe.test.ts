@@ -124,6 +124,37 @@ describe('listObjectPermissions — effective permissions per object (accessCont
   });
 });
 
+describe('describeObject — virtual system fields (weave_*), read-only + typed', () => {
+  it('appends weave_id + side-table metadata fields (virtual, read-only) after declared fields', () => {
+    const desc = describeObject(registry, 'lead', sales, DEFAULT_LOCALE);
+    const names = desc.fields.map((f) => f.name);
+    // declared fields come first, virtual fields are appended
+    expect(names.indexOf('weave_id')).toBeGreaterThan(names.indexOf('name'));
+
+    const byName = new Map(desc.fields.map((f) => [f.name, f]));
+    expect(byName.get('weave_id')).toMatchObject({ name: 'weave_id', type: 'string', virtual: true, readOnly: true });
+    expect(byName.get('weave_status')).toMatchObject({
+      name: 'weave_status',
+      type: 'enum',
+      virtual: true,
+      readOnly: true,
+      options: ['draft', 'running', 'effective', 'canceled'],
+    });
+    expect(byName.get('weave_created_time')).toMatchObject({ type: 'timestamptz', virtual: true, readOnly: true });
+    // virtual fields order is stable and starts with weave_id
+    expect(desc.fields.filter((f) => f.virtual === true).map((f) => f.name)).toEqual([
+      'weave_id',
+      'weave_status',
+      'weave_owner_id',
+      'weave_created_by',
+      'weave_modified_by',
+      'weave_created_time',
+      'weave_modified_time',
+      'weave_workflow_id',
+    ]);
+  });
+});
+
 describe('describeObject — person/image/department new-type metadata', () => {
   it('person exposes target and counts in relations; image exposes multiple; department counts in relations; person.department exposed', () => {
     const reg = new ObjectRegistry();

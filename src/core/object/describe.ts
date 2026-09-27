@@ -1,5 +1,6 @@
 import type { Locale } from '../i18n/index.js';
 import { resolvePermission, type ResolvedPermission } from '../rbac/index.js';
+import { RECORD_META_VIRTUAL_FIELD_SPECS, type RecordMetaVirtualFieldSpec } from '../storage/record-meta.js';
 import { SchemaError } from '../types/errors.js';
 import {
   FIELD_TYPES,
@@ -50,6 +51,13 @@ export interface MetadataField {
   department?: string;
   /** true when this field is the object's primary key (the CRUD id field for frontends) */
   primary?: boolean;
+  /**
+   * true for engine-managed virtual system fields (`weave_*`): never stored in
+   * the customer table. `weave_id` is the record's external id (its `record_key`);
+   * the rest live in the engine side table (requested explicitly, never returned
+   * by default). Virtual fields are always read-only.
+   */
+  virtual?: boolean;
   /** true for engine-managed read-only fields (system / formula); `seq_no` is derivable from its type */
   readOnly?: boolean;
   /**
@@ -167,6 +175,14 @@ function fieldDescription(field: FieldDefinition, objects: ObjectRegistry): Meta
   return out;
 }
 
+/** descriptive entry for one virtual system field (`weave_*`), marked virtual + read-only */
+function virtualFieldDescription(spec: RecordMetaVirtualFieldSpec): MetadataField {
+  const out: MetadataField = { name: spec.name, type: spec.type, virtual: true, readOnly: true };
+  if (spec.options !== undefined) out.options = [...spec.options];
+  if (spec.multiple === true) out.multiple = true;
+  return out;
+}
+
 function permissionsOf(perm: ResolvedPermission): MetadataPermissions {
   return {
     read: perm.read,
@@ -206,6 +222,11 @@ export function describeObject(
   const excluded = new Set(perm.exclude);
   const fieldTypes = registry.fieldTypes;
   const fields = def.fields.filter((f) => !excluded.has(f.name)).map((f) => fieldDescription(f, registry));
+  // virtual system fields are engine-managed; expose them (read-only) so clients
+  // and agents know `weave_id` and the metadata fields, and can request them
+  const virtual = RECORD_META_VIRTUAL_FIELD_SPECS
+    .filter((s) => !excluded.has(s.name))
+    .map(virtualFieldDescription);
   const relations = def.fields
     .filter((f) => isRelationLike(fieldTypes, f.type))
     .map((f) => ({ field: f.name, type: f.type, target: (f as { target?: string }).target }));
@@ -214,7 +235,7 @@ export function describeObject(
     labels: def.labels,
     description: def.description,
     titleTemplate: def.titleTemplate,
-    fields,
+    fields: [...fields, ...virtual],
     relations,
     permissions: permissionsOf(perm),
     ...(def.workflowEnabled === undefined ? {} : { workflowEnabled: def.workflowEnabled }),

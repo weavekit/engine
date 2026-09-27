@@ -1,4 +1,5 @@
 import { describe, it, expect } from '../helpers/test.js';
+import { encodeRecordKey } from '../../src/core/object/record-key.js';
 import {
   buildEngineFromRegistry,
   createPool,
@@ -158,20 +159,20 @@ maybe('realtime channel E2E (SSE + subscription filtering + replay, local PG + r
       await dataAccess.create('lead', { id: 'E1', name: 'n', owner_id: 'u100' }, sctx);
       const created = await readUntil(sales, 'record.created');
       expect(created.target).not.toBeNull();
-      expect(JSON.parse(created.target!.data!).payload).toEqual({ object: 'lead', id: 'E1' });
+      expect(JSON.parse(created.target!.data!).payload).toEqual({ object: 'lead', id: encodeRecordKey(['E1']) });
 
-      await dataAccess.update('lead', 'E1', { name: 'n2' }, sctx);
+      await dataAccess.update('lead', encodeRecordKey(['E1']), { name: 'n2' }, sctx);
       const updated = await readUntil(sales, 'record.updated');
       expect(updated.target).not.toBeNull();
 
-      await dataAccess.delete('lead', 'E1', sctx);
+      await dataAccess.delete('lead', encodeRecordKey(['E1']), sctx);
       const deleted = await readUntil(sales, 'record.deleted');
       expect(deleted.target).not.toBeNull();
 
       // ── 2b. workflow transition → record.transitioned (from/to/action) ──
       await dataAccess.create('ticket', { id: 'T1' }, sctx);
       await readUntil(sales, 'record.created');
-      await dataAccess.transition('ticket', 'T1', 'open', sctx);
+      await dataAccess.transition('ticket', encodeRecordKey(['T1']), 'open', sctx);
       const transitioned = await readUntil(sales, 'record.transitioned');
       expect(transitioned.target).not.toBeNull();
       const transitionPayload = JSON.parse(transitioned.target!.data!).payload as {
@@ -183,7 +184,7 @@ maybe('realtime channel E2E (SSE + subscription filtering + replay, local PG + r
         workflowHash?: string;
       };
       expect(transitionPayload.object).toBe('ticket');
-      expect(transitionPayload.id).toBe('T1');
+      expect(transitionPayload.id).toBe(encodeRecordKey(['T1']));
       expect(transitionPayload.from).toBe('draft');
       expect(transitionPayload.to).toBe('open');
       expect(transitionPayload.action).toBe('open');

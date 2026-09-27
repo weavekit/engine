@@ -1,4 +1,6 @@
-import { describe, it, expect } from '../helpers/test.js';import {
+import { describe, it, expect } from '../helpers/test.js';
+import { encodeRecordKey } from '../../src/core/object/record-key.js';
+import {
   createDataAccess,
   createPool,
   migrate,
@@ -63,7 +65,7 @@ maybe('RBAC E2E (local PG): row-level/field-level/operation-level enforcement', 
       expect(aliceOpen.rows.map((r) => r.id)).toEqual(['L1']);
 
       // findOne denied = null (does not leak existence)
-      expect(await rbac.findOne('lead', 'L2', alice)).toBeNull();
+      expect(await rbac.findOne('lead', encodeRecordKey(['L2']), alice)).toBeNull();
 
       // team row filtering
       const sarahLeads = await rbac.find('lead', {}, sarah);
@@ -87,26 +89,26 @@ maybe('RBAC E2E (local PG): row-level/field-level/operation-level enforcement', 
       }
 
       // update: field whitelist + row scope
-      await rbac.update('lead', 'L1', { name: 'Acme2' }, alice);
-      expect((await rbac.findOne('lead', 'L1', alice))?.name).toBe('Acme2');
+      await rbac.update('lead', encodeRecordKey(['L1']), { name: 'Acme2' }, alice);
+      expect((await rbac.findOne('lead', encodeRecordKey(['L1']), alice))?.name).toBe('Acme2');
       try {
-        await rbac.update('lead', 'L1', { secret: 'x' }, alice);
+        await rbac.update('lead', encodeRecordKey(['L1']), { secret: 'x' }, alice);
         throw new Error('expected field deny');
       } catch (e) {
         expect((e as Error).message).toMatch(/field "secret"/);
       }
       try {
-        await rbac.update('lead', 'L2', { name: 'x' }, alice);
+        await rbac.update('lead', encodeRecordKey(['L2']), { name: 'x' }, alice);
         throw new Error('expected recordNotFound');
       } catch (e) {
         expect((e as Error).message).toMatch(/not found/);
       }
 
       // delete: own row deletable, denied row does not leak
-      await rbac.delete('lead', 'L3', alice);
+      await rbac.delete('lead', encodeRecordKey(['L3']), alice);
       expect((await rbac.find('lead', {}, alice)).total).toBe(2);
       try {
-        await rbac.delete('lead', 'L2', alice);
+        await rbac.delete('lead', encodeRecordKey(['L2']), alice);
         throw new Error('expected recordNotFound');
       } catch (e) {
         expect((e as Error).message).toMatch(/not found/);
@@ -168,13 +170,13 @@ maybe('RBAC E2E (local PG): row-level/field-level/operation-level enforcement', 
       await rbac.create('note', { id: 'n3', title: 'ok', status: 'draft', owner_id: 'u1' }, editor);
 
       // self-created row: status (whitelist) updatable…
-      await rbac.update('note', 'n3', { status: 'done' }, editor);
-      expect((await rbac.findOne('note', 'n3', editor))?.status).toBe('done');
+      await rbac.update('note', encodeRecordKey(['n3']), { status: 'done' }, editor);
+      expect((await rbac.findOne('note', encodeRecordKey(['n3']), editor))?.status).toBe('done');
 
       // …but title (not in update whitelist) is still denied — creator gets no field exemption
       let titleDenied = false;
       try {
-        await rbac.update('note', 'n3', { title: 'renamed' }, editor);
+        await rbac.update('note', encodeRecordKey(['n3']), { title: 'renamed' }, editor);
       } catch (e) {
         titleDenied = e instanceof SchemaError && e.code === 'rbac.denied.field';
       }
@@ -184,7 +186,7 @@ maybe('RBAC E2E (local PG): row-level/field-level/operation-level enforcement', 
       const writer = { ...base, subject: { id: 'w1', roles: ['writer'] } as RbacSubject };
       let updateDenied = false;
       try {
-        await rbac.update('note', 'n1', { status: 'done' }, writer);
+        await rbac.update('note', encodeRecordKey(['n1']), { status: 'done' }, writer);
       } catch (e) {
         updateDenied = e instanceof SchemaError && e.code === 'rbac.denied.update';
       }

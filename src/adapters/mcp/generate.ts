@@ -104,7 +104,7 @@ function registryTools(engine: McpEngine, subject: RbacSubject): CompiledTool[] 
           description: 'Fetch one record of an object by its primary key (not found → error)',
           inputSchema: {
             type: 'object',
-            properties: { object: OBJECT_ARG, id: { type: 'string', description: 'primary key' } },
+            properties: { object: OBJECT_ARG, id: { type: 'string', description: 'record id (the record_key; see describe_object -> weave_id)' } },
             required: ['object', 'id'],
           },
           handler: (args: Record<string, unknown>, ctx: ToolExecContext) => getRecordHandler(args, ctx),
@@ -142,7 +142,7 @@ function registryTools(engine: McpEngine, subject: RbacSubject): CompiledTool[] 
           type: 'object',
           properties: {
             object: OBJECT_ARG,
-            id: { type: 'string', description: 'primary key' },
+            id: { type: 'string', description: 'record id (the record_key; see describe_object -> weave_id)' },
             changes: { type: 'object', description: 'fields to change', additionalProperties: true },
           },
           required: ['object', 'id', 'changes'],
@@ -160,7 +160,7 @@ function registryTools(engine: McpEngine, subject: RbacSubject): CompiledTool[] 
         description: 'Delete a record of an object by its primary key',
         inputSchema: {
           type: 'object',
-          properties: { object: OBJECT_ARG, id: { type: 'string', description: 'primary key' } },
+          properties: { object: OBJECT_ARG, id: { type: 'string', description: 'record id (the record_key; see describe_object -> weave_id)' } },
           required: ['object', 'id'],
         },
         handler: (args: Record<string, unknown>, ctx: ToolExecContext) => deleteRecordHandler(args, ctx),
@@ -179,7 +179,7 @@ function registryTools(engine: McpEngine, subject: RbacSubject): CompiledTool[] 
           type: 'object',
           properties: {
             object: OBJECT_ARG,
-            id: { type: 'string', description: 'primary key' },
+            id: { type: 'string', description: 'record id (the record_key; see describe_object -> weave_id)' },
             action: { type: 'string', description: 'workflow transition action name (see describe_object)' },
           },
           required: ['object', 'id', 'action'],

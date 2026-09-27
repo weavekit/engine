@@ -68,7 +68,7 @@ function errors(...statuses: string[]): Json {
 
 const P = {
   name: { name: 'name', in: 'path', required: true, schema: { type: 'string' }, description: 'Object name from `objects/<name>/schema.json`.' },
-  id: { name: 'id', in: 'path', required: true, schema: { type: 'string' }, description: 'Record primary key.' },
+  id: { name: 'id', in: 'path', required: true, schema: { type: 'string' }, description: 'Record id — the `record_key` encoding of the (possibly composite) primary key; returned as `weave_id`.' },
   limit: { name: 'limit', in: 'query', schema: { type: 'integer', minimum: 1 }, description: 'Page size.' },
   offset: { name: 'offset', in: 'query', schema: { type: 'integer', minimum: 0 }, description: 'Rows to skip.' },
   filter: { name: 'filter', in: 'query', schema: { type: 'string' }, description: 'URL-encoded JSON object of field filters.', example: '{"status":"open"}' },

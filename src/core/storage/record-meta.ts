@@ -1,4 +1,5 @@
 import type { ExpectedTable } from './diff.js';
+import { FIELD_TYPES, WEAVE_STATUS } from '../types/index.js';
 
 /**
  * Engine-owned per-object record metadata ("side table").
@@ -29,23 +30,54 @@ export const RECORD_META_COLUMNS = {
 } as const;
 
 /** default `status` for a record with a metadata row */
-export const RECORD_META_DEFAULT_STATUS = 'draft';
+export const RECORD_META_DEFAULT_STATUS = WEAVE_STATUS.DRAFT;
 
 /** reserved prefix for record-metadata virtual fields exposed on reads */
 export const RECORD_META_VIRTUAL_PREFIX = 'weave_';
 
 /**
- * Virtual system field names exposed on reads (derived from the side-table
- * columns, minus the internal `record_key`). Reserved so they never collide
+ * the identity virtual field: every record's external id — its `record_key`.
+ * Derived from the customer primary key (never a stored column), so clients and
+ * agents can round-trip a row back into `REST /:id` / MCP `id`.
+ */
+export const RECORD_META_ID_FIELD = `${RECORD_META_VIRTUAL_PREFIX}id`;
+
+/** one virtual system field exposed on reads / `describe` (type semantics only) */
+export interface RecordMetaVirtualFieldSpec {
+  name: string;
+  type: string;
+  options?: readonly string[];
+  multiple?: boolean;
+}
+
+/**
+ * Virtual system fields exposed on reads and in `describe`, in stable order
+ * (`weave_id` first). `weave_id` is computed from the customer primary key;
+ * the rest live in the side table. Names are reserved so they never collide
  * with a customer's business fields.
  */
-export const RECORD_META_VIRTUAL_FIELDS: readonly string[] = Object.values(RECORD_META_COLUMNS)
-  .filter((column) => column !== RECORD_META_COLUMNS.RECORD_KEY)
-  .map((column) => `${RECORD_META_VIRTUAL_PREFIX}${column}`);
+export const RECORD_META_VIRTUAL_FIELD_SPECS: readonly RecordMetaVirtualFieldSpec[] = [
+  { name: RECORD_META_ID_FIELD, type: FIELD_TYPES.STRING },
+  { name: `${RECORD_META_VIRTUAL_PREFIX}${RECORD_META_COLUMNS.STATUS}`, type: FIELD_TYPES.ENUM, options: Object.values(WEAVE_STATUS) },
+  { name: `${RECORD_META_VIRTUAL_PREFIX}${RECORD_META_COLUMNS.OWNER_ID}`, type: FIELD_TYPES.STRING },
+  { name: `${RECORD_META_VIRTUAL_PREFIX}${RECORD_META_COLUMNS.CREATED_BY}`, type: FIELD_TYPES.STRING },
+  { name: `${RECORD_META_VIRTUAL_PREFIX}${RECORD_META_COLUMNS.MODIFIED_BY}`, type: FIELD_TYPES.STRING },
+  { name: `${RECORD_META_VIRTUAL_PREFIX}${RECORD_META_COLUMNS.CREATED_TIME}`, type: FIELD_TYPES.TIMESTAMPTZ },
+  { name: `${RECORD_META_VIRTUAL_PREFIX}${RECORD_META_COLUMNS.MODIFIED_TIME}`, type: FIELD_TYPES.TIMESTAMPTZ },
+  { name: `${RECORD_META_VIRTUAL_PREFIX}${RECORD_META_COLUMNS.WORKFLOW_ID}`, type: FIELD_TYPES.STRING },
+];
+
+/** virtual system field names (derived from the specs — single source) */
+export const RECORD_META_VIRTUAL_FIELDS: readonly string[] = RECORD_META_VIRTUAL_FIELD_SPECS.map((s) => s.name);
 
 /** true when a requested field name is a record-metadata virtual field */
 export function isRecordMetaVirtualField(name: string): boolean {
   return RECORD_META_VIRTUAL_FIELDS.includes(name);
+}
+
+/** true when a virtual field is backed by the side table (all but the derived `weave_id`) */
+export function isSideTableVirtualField(name: string): boolean {
+  return isRecordMetaVirtualField(name) && name !== RECORD_META_ID_FIELD;
 }
 
 /** side-table name for an object */

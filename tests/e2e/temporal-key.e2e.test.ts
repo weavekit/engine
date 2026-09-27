@@ -43,8 +43,8 @@ maybe('Lossless temporal primary key E2E (local PG)', () => {
       expect(await getRecordMeta(pool, object, keyA)).not.toBeNull();
       expect(await getRecordMeta(pool, object, keyB)).not.toBeNull();
 
-      // read back by the raw external id (single PK = raw value)
-      const found = await da.findOne<{ name: string }>(object, a, ctx);
+      // read back by the external id (the record_key; single PK is length-prefixed too)
+      const found = await da.findOne<{ name: string }>(object, encodeRecordKey([a]), ctx);
       expect(found?.name).toBe('a');
     } finally {
       await pool.query(`DROP TABLE IF EXISTS "${table}" CASCADE`);

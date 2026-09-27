@@ -1,4 +1,5 @@
 import { describe, it, expect } from '../helpers/test.js';
+import { encodeRecordKey } from '../../src/core/object/record-key.js';
 import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -69,11 +70,11 @@ maybe('Script onLoad read hook E2E (real sandbox + real PG)', () => {
       );
 
       // findOne inherits (1-element batch)
-      const one = await scripted.findOne('scr_lead', 'L1', ctx);
+      const one = await scripted.findOne('scr_lead', encodeRecordKey(['L1']), ctx);
       expect(one).toEqual(expect.objectContaining({ id: 'L1', decorated: true, label: 'HELLO' }));
 
       // update returned record goes through onLoad
-      const updated = await scripted.update('scr_lead', 'L1', { title: 'HELLO2' }, ctx);
+      const updated = await scripted.update('scr_lead', encodeRecordKey(['L1']), { title: 'HELLO2' }, ctx);
       expect(updated).toEqual(expect.objectContaining({ id: 'L1', decorated: true, label: 'HELLO2' }));
 
       await dispatcher.close();

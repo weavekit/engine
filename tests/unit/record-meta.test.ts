@@ -56,8 +56,9 @@ describe('record metadata side table', () => {
     expect(buildRecordMetaTable('a').name).not.toBe(buildRecordMetaTable('b').name);
   });
 
-  it('derives the reserved weave_* virtual field names', () => {
+  it('derives the reserved weave_* virtual field names (weave_id first)', () => {
     expect(RECORD_META_VIRTUAL_FIELDS).toEqual([
+      'weave_id',
       'weave_status',
       'weave_owner_id',
       'weave_created_by',
@@ -66,6 +67,7 @@ describe('record metadata side table', () => {
       'weave_modified_time',
       'weave_workflow_id',
     ]);
+    expect(isRecordMetaVirtualField('weave_id')).toBe(true);
     expect(isRecordMetaVirtualField('weave_status')).toBe(true);
     expect(isRecordMetaVirtualField('status')).toBe(false);
   });

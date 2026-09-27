@@ -1,4 +1,5 @@
 import { describe, it, expect } from '../helpers/test.js';
+import { encodeRecordKey } from '../../src/core/object/record-key.js';
 import { buildEngineFromRegistry, migrate, ObjectRegistry, type ObjectDefinition } from '../../src/index.js';
 
 const url = process.env.DATABASE_URL;
@@ -33,9 +34,9 @@ maybe('audit diff replay E2E (update before/after, delete before, replay off zer
 
       await migrate(registry, { databaseUrl: url! });
       await dataAccess.create('lead', { id: 'L1', name: 'Acme', status: 'open' }, base);
-      await dataAccess.update('lead', 'L1', { name: 'Acme2', status: 'won' }, base);
+      await dataAccess.update('lead', encodeRecordKey(['L1']), { name: 'Acme2', status: 'won' }, base);
       await dataAccess.create('lead', { id: 'L2', name: 'Globex', status: 'open' }, base);
-      await dataAccess.delete('lead', 'L2', base);
+      await dataAccess.delete('lead', encodeRecordKey(['L2']), base);
 
       await engine.close();
       engine = undefined;
@@ -66,7 +67,7 @@ maybe('audit diff replay E2E (update before/after, delete before, replay off zer
         subsystems: { audit: { enabled: true } },
       });
       const { pool: ep2, registry: reg2, dataAccess: da2 } = engine;
-      await da2.update('lead', 'L1', { name: 'NoReplay' }, { pool: ep2, registry: reg2 });
+      await da2.update('lead', encodeRecordKey(['L1']), { name: 'NoReplay' }, { pool: ep2, registry: reg2 });
       await engine.close();
       engine = undefined;
 

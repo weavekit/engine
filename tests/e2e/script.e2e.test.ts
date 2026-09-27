@@ -1,7 +1,9 @@
 import { mkdtemp, rm, mkdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { describe, it, expect } from '../helpers/test.js';import { createPool, migrate, ObjectRegistry, FIELD_TYPES, SchemaError } from '../../src/index.js';
+import { describe, it, expect } from '../helpers/test.js';
+import { encodeRecordKey } from '../../src/core/object/record-key.js';
+import { createPool, migrate, ObjectRegistry, FIELD_TYPES, SchemaError } from '../../src/index.js';
 import { createDataAccess } from '../../src/runtime/data-access/index.js';
 import { createScriptDispatcher } from '../../src/subsystems/script/index.js';
 
@@ -71,7 +73,7 @@ export function beforeDelete() {
 
       // 1. beforeUpdate rewrites payload
       await dataAccess.create('scr_lead', { id: 'L1', title: 'hello', status: 'open' }, ctx);
-      expect((await dataAccess.findOne('scr_lead', 'L1', ctx))?.title).toBe('HELLO');
+      expect((await dataAccess.findOne('scr_lead', encodeRecordKey(['L1']), ctx))?.title).toBe('HELLO');
 
       // 2. validate aborts create → no record
       try {
@@ -81,25 +83,25 @@ export function beforeDelete() {
         expect(e).toBeInstanceOf(SchemaError);
         expect((e as SchemaError).message).toContain('cannot create rejected');
       }
-      expect(await dataAccess.findOne('scr_lead', 'L2', ctx)).toBeNull();
+      expect(await dataAccess.findOne('scr_lead', encodeRecordKey(['L2']), ctx)).toBeNull();
 
       // 3. validate aborts update (closed not modifiable) → status unchanged
       await dataAccess.create('scr_lead', { id: 'L3', title: 'keep', status: 'open' }, ctx);
-      await dataAccess.update('scr_lead', 'L3', { status: 'closed' }, ctx);
+      await dataAccess.update('scr_lead', encodeRecordKey(['L3']), { status: 'closed' }, ctx);
       try {
-        await dataAccess.update('scr_lead', 'L3', { title: 'X' }, ctx);
+        await dataAccess.update('scr_lead', encodeRecordKey(['L3']), { title: 'X' }, ctx);
         throw new Error('expected validate abort on closed');
       } catch (e) {
         expect((e as SchemaError).message).toContain('closed records cannot be updated');
       }
-      expect((await dataAccess.findOne('scr_lead', 'L3', ctx))?.title).toBe('KEEP');
-      expect((await dataAccess.findOne('scr_lead', 'L3', ctx))?.status).toBe('closed');
+      expect((await dataAccess.findOne('scr_lead', encodeRecordKey(['L3']), ctx))?.title).toBe('KEEP');
+      expect((await dataAccess.findOne('scr_lead', encodeRecordKey(['L3']), ctx))?.status).toBe('closed');
 
       // 4. afterUpdate throws → write committed + warnings callback + audit isError
       const warnings: string[] = [];
       const updateCtx = { pool, registry, onWarnings: (ws: string[]) => warnings.push(...ws) };
-      await dataAccess.update('scr_lead', 'L1', { status: 'approved' }, updateCtx);
-      expect((await dataAccess.findOne('scr_lead', 'L1', ctx))?.status).toBe('approved');
+      await dataAccess.update('scr_lead', encodeRecordKey(['L1']), { status: 'approved' }, updateCtx);
+      expect((await dataAccess.findOne('scr_lead', encodeRecordKey(['L1']), ctx))?.status).toBe('approved');
       expect(warnings).toEqual(['notification failed']);
       await auditSink.flush();
       const events = await audit.query({ object: 'scr_lead' });
@@ -107,17 +109,17 @@ export function beforeDelete() {
 
       // 5. beforeDelete aborts approved → record remains
       try {
-        await dataAccess.delete('scr_lead', 'L1', ctx);
+        await dataAccess.delete('scr_lead', encodeRecordKey(['L1']), ctx);
         throw new Error('expected beforeDelete abort');
       } catch (e) {
         expect((e as SchemaError).message).toContain('approved records cannot be deleted');
       }
-      expect(await dataAccess.findOne('scr_lead', 'L1', ctx)).not.toBeNull();
+      expect(await dataAccess.findOne('scr_lead', encodeRecordKey(['L1']), ctx)).not.toBeNull();
 
       // 6. normal delete
-      await dataAccess.update('scr_lead', 'L1', { status: 'open' }, ctx);
-      await dataAccess.delete('scr_lead', 'L1', ctx);
-      expect(await dataAccess.findOne('scr_lead', 'L1', ctx)).toBeNull();
+      await dataAccess.update('scr_lead', encodeRecordKey(['L1']), { status: 'open' }, ctx);
+      await dataAccess.delete('scr_lead', encodeRecordKey(['L1']), ctx);
+      expect(await dataAccess.findOne('scr_lead', encodeRecordKey(['L1']), ctx)).toBeNull();
 
       await dispatcher.close();
       await auditSink.flush();

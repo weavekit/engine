@@ -1,4 +1,5 @@
 import { describe, it, expect } from "../helpers/test.js";
+import { encodeRecordKey } from '../../src/core/object/record-key.js';
 import type { LightMyRequestResponse } from "fastify";
 import {
   buildEngineFromRegistry,
@@ -136,12 +137,12 @@ maybe("REST API E2E (local PG + fastify inject): auth + RBAC full path", () => {
       expect(aliceOpenBody.rows[0].id).toBe("L1");
 
       // 5. GET /:id denied (row outside own) → 404, does not leak existence
-      const scopedOut = await get("/api/objects/lead/L2", "key-sales-rep");
+      const scopedOut = await get("/api/objects/lead/" + encodeRecordKey(["L2"]), "key-sales-rep");
       expect(scopedOut.statusCode).toBe(404);
       expect(scopedOut.json().error.code).toBe("data.recordNotFound");
 
       // 6. GET unknown object → 404 data.objectUnknown
-      const unknownObj = await get("/api/objects/nope/L2", "key-sales-rep");
+      const unknownObj = await get("/api/objects/nope/" + encodeRecordKey(["L2"]), "key-sales-rep");
       expect(unknownObj.statusCode).toBe(404);
       expect(unknownObj.json().error.code).toBe("data.objectUnknown");
 
@@ -171,7 +172,7 @@ maybe("REST API E2E (local PG + fastify inject): auth + RBAC full path", () => {
       // 9. PATCH forbidden field → 403 rbac.denied.field
       const patchSecret = await app.inject({
         method: "PATCH",
-        url: "/api/objects/lead/L1",
+        url: "/api/objects/lead/" + encodeRecordKey(["L1"]),
         headers: bearer("key-sales-rep"),
         payload: { secret: "x" },
       });
@@ -181,7 +182,7 @@ maybe("REST API E2E (local PG + fastify inject): auth + RBAC full path", () => {
       // 10. PATCH legal field (within whitelist)
       const patchName = await app.inject({
         method: "PATCH",
-        url: "/api/objects/lead/L1",
+        url: "/api/objects/lead/" + encodeRecordKey(["L1"]),
         headers: bearer("key-sales-rep"),
         payload: { name: "Acme2" },
       });
@@ -191,7 +192,7 @@ maybe("REST API E2E (local PG + fastify inject): auth + RBAC full path", () => {
       // 11. DELETE denied row → 404 (does not leak existence)
       const delScoped = await app.inject({
         method: "DELETE",
-        url: "/api/objects/lead/L2",
+        url: "/api/objects/lead/" + encodeRecordKey(["L2"]),
         headers: bearer("key-sales-rep"),
       });
       expect(delScoped.statusCode).toBe(404);
@@ -199,7 +200,7 @@ maybe("REST API E2E (local PG + fastify inject): auth + RBAC full path", () => {
       // 12. DELETE own row → 204
       const delOwn = await app.inject({
         method: "DELETE",
-        url: "/api/objects/lead/L4",
+        url: "/api/objects/lead/" + encodeRecordKey(["L4"]),
         headers: bearer("key-sales-rep"),
       });
       expect(delOwn.statusCode).toBe(204);

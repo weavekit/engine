@@ -1,4 +1,5 @@
 import { describe, it, expect } from '../helpers/test.js';
+import { encodeRecordKey } from '../../src/core/object/record-key.js';
 import {
   buildEngineFromRegistry,
   createPool,
@@ -56,7 +57,7 @@ maybe('Workflow timers E2E (local PG): schedule on entry, fire onTimeout, cancel
       // entering a state with onTimeout arms a timer
       await dataAccess.create('wf_timed', { id: 'T1' }, base);
       const armed = await pool.query(
-        `SELECT state FROM weavekit_workflow_timers WHERE object = 'wf_timed' AND id = 'T1'`,
+        `SELECT state FROM weavekit_workflow_timers WHERE object = 'wf_timed' AND id = '${encodeRecordKey(['T1'])}'`,
       );
       expect(armed.rows).toHaveLength(1);
       expect(armed.rows[0].state).toBe('draft');
@@ -66,30 +67,30 @@ maybe('Workflow timers E2E (local PG): schedule on entry, fire onTimeout, cancel
 
       // force due → the scheduler fires the declared auto-transition
       await pool.query(
-        `UPDATE weavekit_workflow_timers SET due_at = now() - interval '1 minute' WHERE object = 'wf_timed' AND id = 'T1'`,
+        `UPDATE weavekit_workflow_timers SET due_at = now() - interval '1 minute' WHERE object = 'wf_timed' AND id = '${encodeRecordKey(['T1'])}'`,
       );
       expect(await engine.workflow!.runOnce()).toBe(1);
-      const after = await dataAccess.findOne<{ status: string }>('wf_timed', 'T1', base);
+      const after = await dataAccess.findOne<{ status: string }>('wf_timed', encodeRecordKey(['T1']), base);
       expect(after?.status).toBe('expired');
       // the target state has no onTimeout → the timer is cleared
       const cleared = await pool.query(
-        `SELECT 1 FROM weavekit_workflow_timers WHERE object = 'wf_timed' AND id = 'T1'`,
+        `SELECT 1 FROM weavekit_workflow_timers WHERE object = 'wf_timed' AND id = '${encodeRecordKey(['T1'])}'`,
       );
       expect(cleared.rows).toHaveLength(0);
 
       // leaving a timed state via a normal transition cancels the timer
       await dataAccess.create('wf_timed', { id: 'T2' }, base);
-      await dataAccess.transition('wf_timed', 'T2', 'expire', base);
+      await dataAccess.transition('wf_timed', encodeRecordKey(['T2']), 'expire', base);
       const t2 = await pool.query(
-        `SELECT 1 FROM weavekit_workflow_timers WHERE object = 'wf_timed' AND id = 'T2'`,
+        `SELECT 1 FROM weavekit_workflow_timers WHERE object = 'wf_timed' AND id = '${encodeRecordKey(['T2'])}'`,
       );
       expect(t2.rows).toHaveLength(0);
 
       // delete cancels the timer
       await dataAccess.create('wf_timed', { id: 'T3' }, base);
-      await dataAccess.delete('wf_timed', 'T3', base);
+      await dataAccess.delete('wf_timed', encodeRecordKey(['T3']), base);
       const t3 = await pool.query(
-        `SELECT 1 FROM weavekit_workflow_timers WHERE object = 'wf_timed' AND id = 'T3'`,
+        `SELECT 1 FROM weavekit_workflow_timers WHERE object = 'wf_timed' AND id = '${encodeRecordKey(['T3'])}'`,
       );
       expect(t3.rows).toHaveLength(0);
     } finally {

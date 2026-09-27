@@ -42,6 +42,7 @@ const FIELD_ATTRS = [
   'type',
   'default',
   'required',
+  'primary',
   'unique',
   'options',
   'multiple',
@@ -54,6 +55,7 @@ const FIELD_ATTRS = [
 type FieldLike = FieldDefinition & {
   default?: unknown;
   required?: boolean;
+  primary?: boolean;
   unique?: boolean;
   options?: string[];
   multiple?: boolean;

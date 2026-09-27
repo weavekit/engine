@@ -54,6 +54,7 @@ async function resolveAggregateValue(
   record: Record<string, unknown>,
   db: Queryable,
   registry: ObjectRegistry,
+  recordKey?: string,
 ): Promise<unknown[]> {
   const parentField = object.fields.find((f) => f.name === parent);
   if (parentField === undefined || parentField.type !== FIELD_TYPES.DETAILS) return [];
@@ -61,11 +62,10 @@ async function resolveAggregateValue(
   if (child === undefined) return [];
   const pks = primaryFieldsOf(object);
   if (pks.length === 0) return [];
-  const pkVal =
-    pks.length === 1
-      ? record[pks[0]!.name]
-      : encodeRecordKey(pks.map((f) => canonicalizePrimaryValue(record[f.name])));
-  if (pkVal === null || pkVal === undefined) return [];
+  // details children are keyed by the parent's record_key (the external id); use
+  // the lossless SQL-computed key when the caller has it, else derive it
+  const pkVal = recordKey ?? encodeRecordKey(pks.map((f) => canonicalizePrimaryValue(record[f.name])));
+  if (pkVal === '') return [];
   const table = child.name;
   const res = await db.query(
     `SELECT ${name === null ? '1' : q(name)} AS v FROM ${q(table)}
@@ -83,6 +83,7 @@ async function evalWithResolvers(
   db: Queryable,
   registry: ObjectRegistry,
   now: Date,
+  recordKey?: string,
 ): Promise<unknown> {
   const { fields: refs, aggregates } = extractRefs(ast);
 
@@ -98,7 +99,7 @@ async function evalWithResolvers(
   for (const agg of aggregates) {
     const key = `${agg.parent}.${agg.name ?? ''}`;
     if (aggValues.has(key)) continue;
-    aggValues.set(key, await resolveAggregateValue(object, agg.parent, agg.name, record, db, registry));
+    aggValues.set(key, await resolveAggregateValue(object, agg.parent, agg.name, record, db, registry, recordKey));
   }
 
   return evaluate(ast, {
@@ -137,13 +138,14 @@ export async function computeFormulas(
   db: Queryable,
   registry: ObjectRegistry,
   now: Date,
+  recordKey?: string,
 ): Promise<void> {
   const formulaFields = object.fields.filter((f) => (f as { formula?: string }).formula !== undefined);
   if (formulaFields.length === 0) return;
   for (const field of formulaFields) {
     const formula = (field as { formula: string }).formula;
     const ast = parseFormula(formula);
-    const value = await evalWithResolvers(ast, object, record, db, registry, now);
+    const value = await evalWithResolvers(ast, object, record, db, registry, now, recordKey);
     record[field.name] = coerce(value, field.type);
   }
 }

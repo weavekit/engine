@@ -5,6 +5,7 @@ import { FIELD_TYPES } from "../../core/index.js";
 import {
   RECORD_META_COLUMNS,
   RECORD_META_DEFAULT_STATUS,
+  RECORD_META_ID_FIELD,
   RECORD_META_VIRTUAL_PREFIX,
   isRecordMetaVirtualField,
   recordKeySql,
@@ -54,12 +55,15 @@ function colRef(ctx: BuildContext, name: string): string {
 }
 
 /**
- * SQL expression for a reserved record-metadata virtual field (`weave_*`) read
- * from the joined side table, or `undefined` when no side table is joined / the
- * name is not virtual.
+ * SQL expression for a reserved record-metadata virtual field (`weave_*`), or
+ * `undefined` when the name is not virtual / the side table is not joined.
+ * `weave_id` is the record_key computed from the customer primary key, so it
+ * needs no side table; the rest read from the joined side table.
  */
-function virtualRef(ctx: BuildContext, name: string): string | undefined {
-  if (ctx.meta === undefined || !isRecordMetaVirtualField(name)) return undefined;
+function virtualRef(object: ObjectDefinition, ctx: BuildContext, name: string): string | undefined {
+  if (!isRecordMetaVirtualField(name)) return undefined;
+  if (name === RECORD_META_ID_FIELD) return recordKeySql(object, (col) => colRef(ctx, col));
+  if (ctx.meta === undefined) return undefined;
   const column = name.slice(RECORD_META_VIRTUAL_PREFIX.length);
   if (column === RECORD_META_COLUMNS.STATUS) {
     return `COALESCE(${M}.${q(column)}, '${RECORD_META_DEFAULT_STATUS}')`;
@@ -119,7 +123,7 @@ function isKnown(
   ctx: BuildContext,
   name: string,
 ): boolean {
-  if (virtualRef(ctx, name) !== undefined) return true;
+  if (virtualRef(object, ctx, name) !== undefined) return true;
   const field = fieldOf(object, name);
   if (field !== undefined && field.type !== FIELD_TYPES.DETAILS) return true;
   return ctx.allowParentCols === true && PARENT_COLUMNS.has(name);
@@ -168,7 +172,7 @@ function buildFieldClause(
 ): string {
   if (!isKnown(object, ctx, name)) fail(ctx, name);
   const field = fieldOf(object, name);
-  const colExpr = virtualRef(ctx, name) ?? colRef(ctx, name);
+  const colExpr = virtualRef(object, ctx, name) ?? colRef(ctx, name);
   // parent_* columns and virtual fields have no field definition; treat as plain string columns
   const effective: ObjectDefinition["fields"][number] =
     field ??
@@ -252,7 +256,7 @@ export function buildOrderBy(
   const parts: string[] = [];
   for (const s of sort) {
     if (!isKnown(object, ctx, s.field)) fail(ctx, s.field);
-    const expr = virtualRef(ctx, s.field) ?? colRef(ctx, s.field);
+    const expr = virtualRef(object, ctx, s.field) ?? colRef(ctx, s.field);
     parts.push(`${expr} ${s.dir.toUpperCase()}`);
   }
   return ` ORDER BY ${parts.join(", ")}`;
@@ -282,7 +286,7 @@ export function buildColumns(
   }
   const parts: string[] = [];
   for (const name of fields) {
-    const vref = virtualRef(ctx, name);
+    const vref = virtualRef(object, ctx, name);
     if (vref !== undefined) {
       parts.push(`${vref} AS ${q(name)}`);
       continue;
