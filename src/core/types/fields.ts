@@ -218,6 +218,12 @@ export interface EnumField extends FieldBase {
   /** inline options, or a data-driven `{ from: { object, column? } }` source */
   options: EnumOptions;
   multiple?: boolean;
+  /**
+   * native PostgreSQL enum type name backing a static (inline-options) enum.
+   * Derived (`<object>_<field>`) for engine-created tables; captured by
+   * introspect for adopted tables. Absent for data-driven enums (VARCHAR/TEXT[]).
+   */
+  enumType?: string;
   required?: boolean;
   unique?: boolean;
   default?: string | string[];

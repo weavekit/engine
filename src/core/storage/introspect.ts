@@ -172,6 +172,7 @@ function mapColumn(
   // user-defined enum (labels come from the detail inspect)
   if (col.enumLabels !== undefined && col.enumLabels.length > 0) {
     const field: Record<string, unknown> = { ...base, type: FIELD_TYPES.ENUM, options: [...col.enumLabels] };
+    if (col.udtName !== undefined) field.enumType = col.udtName;
     if (required === true) field.required = true;
     if (unique) field.unique = true;
     if (col.columnDefault !== null) {

@@ -77,9 +77,17 @@ export function validateObject(raw: unknown, options?: ValidateOptions): ObjectD
   const rawFields = raw.fields;
   if (!Array.isArray(rawFields) || rawFields.length === 0) fail(vc, 'object.fields.required');
 
-  const fields = rawFields.map((f) =>
+  let fields = rawFields.map((f) =>
     validateField(f, vc, { allowedFieldTypes: options?.allowedFieldTypes, fieldTypes: options?.fieldTypes }),
   );
+  // a static (inline-options) enum gets a native PG enum type name; derived
+  // `<object>_<field>` when the schema does not declare one explicitly
+  fields = fields.map((f) => {
+    if (f.type !== FIELD_TYPES.ENUM) return f;
+    const e = f as { name: string; options?: unknown; enumType?: string };
+    if (e.enumType !== undefined || !Array.isArray(e.options)) return f;
+    return { ...e, enumType: `${name}_${e.name}` } as typeof f;
+  });
   const seen = new Set<string>();
   for (const field of fields) {
     if (seen.has(field.name)) fail(vc, 'object.field.duplicate', { field: field.name });

@@ -1,5 +1,6 @@
 import type { ObjectRegistry } from '../object/index.js';
 import { systemObjects } from '../object/index.js';
+import type { ObjectDefinition } from '../types/index.js';
 import { FIELD_TYPES } from '../types/index.js';
 import { SchemaError, primaryKeyOf } from '../types/index.js';
 import { applyStatements } from './apply.js';
@@ -37,6 +38,59 @@ export interface MigrationResult {
 }
 
 const RLS_ROLE_RE = /^[a-z_][a-z0-9_]*$/;
+
+const q = (id: string) => `"${id}"`;
+const lit = (s: string) => `'${s.replace(/'/g, "''")}'`;
+
+/**
+ * DDL to ensure the native enum types referenced by managed objects exist.
+ * `CREATE TYPE` when the type is missing; `ALTER TYPE … ADD VALUE IF NOT EXISTS`
+ * only for managed (created / `alter: true`) objects — never for adopted,
+ * read-only tables (the engine must not ALTER a customer's type).
+ */
+async function buildEnumStatements(
+  pool: import('pg').Pool,
+  defs: Map<string, ObjectDefinition>,
+  managed: ReadonlySet<string>,
+): Promise<string[]> {
+  const declared = new Map<string, Set<string>>();
+  for (const def of defs.values()) {
+    if (!managed.has(def.name)) continue;
+    for (const field of def.fields) {
+      const e = field as { type: string; options?: unknown; enumType?: string };
+      if (e.type !== FIELD_TYPES.ENUM || e.enumType === undefined || !Array.isArray(e.options)) continue;
+      const set = declared.get(e.enumType) ?? new Set<string>();
+      for (const option of e.options) set.add(String(option));
+      declared.set(e.enumType, set);
+    }
+  }
+  if (declared.size === 0) return [];
+
+  const res = await pool.query(
+    `SELECT t.typname AS name, e.enumlabel AS label
+       FROM pg_type t JOIN pg_enum e ON e.enumtypid = t.oid
+      WHERE t.typtype = 'e'`,
+  );
+  const existing = new Map<string, Set<string>>();
+  for (const row of res.rows as { name: string; label: string }[]) {
+    const set = existing.get(row.name) ?? new Set<string>();
+    set.add(row.label);
+    existing.set(row.name, set);
+  }
+
+  const statements: string[] = [];
+  for (const [name, options] of declared) {
+    const labels = existing.get(name);
+    if (labels === undefined) {
+      statements.push(`CREATE TYPE ${q(name)} AS ENUM (${[...options].map(lit).join(', ')})`);
+    } else {
+      for (const option of options) {
+        if (!labels.has(option)) statements.push(`ALTER TYPE ${q(name)} ADD VALUE IF NOT EXISTS ${lit(option)}`);
+      }
+    }
+  }
+  return statements;
+}
 
 /**
  * Best-effort provisioning of the restricted-SQL role: `CREATE ROLE` (needs
@@ -101,6 +155,9 @@ export async function migrate(registry: ObjectRegistry, options: MigrateOptions 
 
     const statements = diffAll(expected, actual);
 
+    // native enum types must exist before the tables that reference them
+    const enumStatements = await buildEnumStatements(pool, defs, new Set(expected.map((t) => t.name)));
+
     // engine-owned per-object record metadata side tables: one per object (R1),
     // created idempotently for every object regardless of `alter`/ownership —
     // they never touch the customer's own table
@@ -145,7 +202,7 @@ export async function migrate(registry: ObjectRegistry, options: MigrateOptions 
       if (roleReady) {
         const { rows } = await pool.query('SELECT current_user AS u');
         const currentUser = String((rows[0] as { u: string }).u);
-        for (const def of defs.values()) {
+        for (const def of registry.list()) {
           const actualTable = actual.get(def.name);
           const applies = actualTable === undefined || (def.alter === true && actualTable.owner === currentUser);
           if (!applies) {
@@ -159,7 +216,7 @@ export async function migrate(registry: ObjectRegistry, options: MigrateOptions 
       }
     }
 
-    const allStatements = [...statements, ...metaStatements, ...rlsStatements];
+    const allStatements = [...enumStatements, ...statements, ...metaStatements, ...rlsStatements];
 
     if (!dryRun && allStatements.length > 0) {
       await ensureMetaTable(pool);

@@ -61,7 +61,7 @@ const EXTRA_KEYS: Record<FieldType, readonly string[]> = {
   uuid: ['required', 'unique', 'default'],
   json: ['required', 'default'],
   jsonb: ['required', 'default'],
-  enum: ['options', 'multiple', 'required', 'unique', 'default'],
+  enum: ['options', 'multiple', 'enumType', 'required', 'unique', 'default'],
   relation: ['target', 'required', 'unique', 'onDelete'],
   details: ['target'],
   multiRelation: ['target', 'required'],
@@ -472,6 +472,7 @@ export function validateField(raw: unknown, vc: Vc, options: FieldValidateOption
     case FIELD_TYPES.ENUM: {
       const rawOptions = raw.options;
       const multiple = expectBoolean(raw, 'multiple', vc);
+      const enumType = expectString(raw, 'enumType', vc);
       if (multiple === true && primary === true) fail(vc, 'field.enum.multiple.primary');
       if (multiple === true && unique === true) fail(vc, 'field.enum.multiple.unique');
 
@@ -502,6 +503,7 @@ export function validateField(raw: unknown, vc: Vc, options: FieldValidateOption
           type: FIELD_TYPES.ENUM,
           options,
           multiple,
+          enumType,
           required,
           unique,
           default: multiple === true ? (raw.default as string[] | undefined) : (raw.default as string | undefined),

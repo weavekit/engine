@@ -63,7 +63,14 @@ maybe('Audit subsystem E2E (local PG)', () => {
       // no subject → actorType system
       await dataAccess.create('lead', { id: 'L4', title: 't4', name: 'n', owner_id: 'sys' }, base);
 
-      const res = await audit.query({ object: 'lead' });
+      // audit writes are fire-and-forget (`void sink.record`) — poll briefly so
+      // the assertions run after the DELETE event has landed
+      let res = await audit.query({ object: 'lead' });
+      for (let i = 0; i < 200; i += 1) {
+        if (res.rows.some((r) => r.action === DATA_ACTIONS.DELETE && r.objectId === 'L2')) break;
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        res = await audit.query({ object: 'lead' });
+      }
       const rows = res.rows;
       const actionOf = (action: string, id?: string): ReturnType<typeof rows.filter> =>
         rows.filter((r) => r.action === action && (id === undefined || r.objectId === id));

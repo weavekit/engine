@@ -120,8 +120,12 @@ export function pgType(
       return 'JSON';
     case FIELD_TYPES.JSONB:
       return 'JSONB';
-    case FIELD_TYPES.ENUM:
-      return (field as { multiple?: boolean }).multiple ? 'TEXT[]' : 'VARCHAR(255)';
+    case FIELD_TYPES.ENUM: {
+      const enumType = (field as { enumType?: string }).enumType;
+      const multiple = (field as { multiple?: boolean }).multiple === true;
+      if (enumType !== undefined) return multiple ? `${enumType}[]` : enumType;
+      return multiple ? 'TEXT[]' : 'VARCHAR(255)';
+    }
     case FIELD_TYPES.RELATION:
       return targetPkType ?? 'VARCHAR(255)';
     case FIELD_TYPES.MULTI_RELATION:
@@ -228,7 +232,7 @@ export function pgTypeMatches(
   },
 ): boolean {
   const exp = expected.trim().toUpperCase();
-  const match = /^([A-Z][A-Z ]*?)(?:\(([^)]*)\))?(\[\])?$/.exec(exp);
+  const match = /^([A-Z][A-Z0-9_ ]*?)(?:\(([^)]*)\))?(\[\])?$/.exec(exp);
   if (match === null) return false;
   const base = match[1]!.trim();
   const args = match[2];
@@ -238,7 +242,10 @@ export function pgTypeMatches(
     const liveIsArray = actual.dataType.toUpperCase() === 'ARRAY' || actual.udtName?.startsWith('_') === true;
     if (!liveIsArray) return false;
     const udt = actual.udtName?.replace(/^_/, '').toLowerCase();
-    return ARRAY_ELEMENT_UDT[base] === udt;
+    const mapped = ARRAY_ELEMENT_UDT[base];
+    if (mapped !== undefined) return mapped === udt;
+    // a user-defined element type (e.g. a native enum): compare the type name
+    return base.toLowerCase() === udt;
   }
 
   const actualBase = actual.dataType.toUpperCase();
@@ -303,7 +310,8 @@ export function pgTypeMatches(
       return true;
     }
     default:
-      return false;
+      // user-defined type (e.g. a native enum): compare to the live udt_name
+      return actual.udtName !== undefined && base.toLowerCase() === actual.udtName.toLowerCase();
   }
 }
 

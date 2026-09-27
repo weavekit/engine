@@ -807,7 +807,7 @@ maybe("CLI weave E2E (spawn + local PG + .tmp/weavekit-project)", () => {
       const alterJson = JSON.parse(alter.stdout) as { statements: string[] };
       expect(
         alterJson.statements.some((s) =>
-          s.includes('ADD COLUMN "priority" VARCHAR(255)'),
+          s.includes('ADD COLUMN "priority" leads_priority'),
         ),
       ).toBe(true);
 

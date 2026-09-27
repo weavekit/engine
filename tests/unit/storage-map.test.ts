@@ -36,6 +36,13 @@ describe('pgType — type mapping', () => {
     expect(pgType(f({ name: 'a', type: 'enum', options: ['x'], multiple: true }), undefined)).toBe('TEXT[]');
   });
 
+  it('enum with a native PG type name', () => {
+    expect(pgType(f({ name: 'a', type: 'enum', options: ['x'], enumType: 'lead_status' }), undefined)).toBe('lead_status');
+    expect(
+      pgType(f({ name: 'a', type: 'enum', options: ['x'], enumType: 'lead_status', multiple: true }), undefined),
+    ).toBe('lead_status[]');
+  });
+
   it('relation uses target primary key type', () => {
     expect(pgType(f({ name: 'oid', type: 'relation', target: 'order' }), 'INTEGER')).toBe('INTEGER');
     expect(pgType(f({ name: 'oid', type: 'relation', target: 'order' }), undefined)).toBe('VARCHAR(255)');
@@ -109,5 +116,11 @@ describe('pgTypeMatches — custom-storage vocabulary (no false drift)', () => {
     expect(pgTypeMatches('UUID', col('text'))).toBe(false);
     expect(pgTypeMatches('NUMERIC(12,2)', col('numeric', { numericPrecision: 10, numericScale: 2 }))).toBe(false);
     expect(pgTypeMatches('NUMERIC(12,2)', col('numeric', { numericPrecision: 12, numericScale: 2 }))).toBe(true);
+  });
+
+  it('matches a native enum type by its udt_name', () => {
+    expect(pgTypeMatches('lead_status', col('USER-DEFINED', { udtName: 'lead_status' }))).toBe(true);
+    expect(pgTypeMatches('lead_status', col('USER-DEFINED', { udtName: 'other_status' }))).toBe(false);
+    expect(pgTypeMatches('lead_tags[]', col('ARRAY', { udtName: '_lead_tags' }))).toBe(true);
   });
 });

@@ -148,7 +148,7 @@ function conditionSql(
     case FILTER_OPS.IN:
       return { sql: `${col} = ANY(${p})`, params: [value] };
     case FILTER_OPS.CONTAINS:
-      return { sql: `${col} @> ${p}::text[]`, params: [value] };
+      return { sql: `${col}::text[] @> ${p}::text[]`, params: [value] };
     case FILTER_OPS.LIKE:
       return { sql: `${col} ILIKE ${p}`, params: [`%${value}%`] };
   }

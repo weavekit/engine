@@ -45,7 +45,7 @@ describe("buildWhere — filter → SQL", () => {
       { tags: { contains: ["a", "b"] } },
       ctx,
     );
-    expect(sql).toBe('WHERE "tags" @> $1::text[]');
+    expect(sql).toBe('WHERE "tags"::text[] @> $1::text[]');
     expect(params).toEqual([["a", "b"]]);
   });
 
@@ -78,7 +78,7 @@ describe("buildWhere — filter → SQL", () => {
       ctx,
     );
     expect(sql).toBe(
-      'WHERE (("status" = $1 AND "amount" > $2) OR ("tags" @> $3::text[])) AND "status" = $4',
+      'WHERE (("status" = $1 AND "amount" > $2) OR ("tags"::text[] @> $3::text[])) AND "status" = $4',
     );
   });
 
