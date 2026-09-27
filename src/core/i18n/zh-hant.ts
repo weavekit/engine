@@ -44,7 +44,7 @@ export const zhHant: Record<MessageKey, string> = {
   'data.schemaDrift': 'schema/DB 漂移：物件「{object}」宣告了欄位「{field}」，但表格缺少該欄——執行 "weave migrate"，或在 objects/{object}/schema.json 中設定 "alter": true',
   'object.primary.many': '物件 "{object}" 只能有一個主鍵欄位',
   'object.primary.notAllowed': '物件 "{object}"：型別為 "{type}" 的欄位 "{field}" 不能作為主鍵',
-  'object.primary.mutable': '物件 \"{object}\"：主鍵欄位 \"{field}\" 不可修改',
+  'object.primary.mutable': '物件 "{object}"：主鍵欄位 "{field}" 不可修改',
   'recordKey.invalid': '無效的記錄鍵 "{key}"',
   'object.primary.scalarOnly': 'primary 僅允許純量欄位，不能是「{type}」',
   'object.primary.columnMissing': '物件 "{object}"：主鍵欄位 "{column}" 不存在於既有資料表 "{table}"',

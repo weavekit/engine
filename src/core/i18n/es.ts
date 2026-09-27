@@ -44,7 +44,7 @@ export const es: Record<MessageKey, string> = {
   'data.schemaDrift': 'deriva de schema/DB: el objeto "{object}" declara el campo "{field}" pero falta la columna — ejecute "weave migrate" o establezca "alter": true en objects/{object}/schema.json',
   'object.primary.many': 'el objeto "{object}" solo puede tener un campo de clave primaria',
   'object.primary.notAllowed': 'objeto "{object}": el campo "{field}" de tipo "{type}" no puede ser clave primaria',
-  'object.primary.mutable': 'objeto \"{object}\": el campo de clave primaria \"{field}\" es inmutable y no se puede actualizar',
+  'object.primary.mutable': 'objeto "{object}": el campo de clave primaria "{field}" es inmutable y no se puede actualizar',
   'recordKey.invalid': 'clave de registro no válida "{key}"',
   'object.primary.scalarOnly': 'primary solo admite tipos escalares, no "{type}"',
   'object.primary.columnMissing': 'objeto "{object}": la columna de clave primaria "{column}" no existe en la tabla existente "{table}"',
