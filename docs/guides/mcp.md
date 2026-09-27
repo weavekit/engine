@@ -60,13 +60,16 @@ argument:
 | Tool | Purpose | Key args |
 | --- | --- | --- |
 | `search_records` | list an object's records (row scope applied) | `object`, `filter`, `sort`, `limit` (≤1000), `offset`, `fields` |
-| `get_record` | fetch one record by primary key | `object`, `id` |
+| `get_record` | fetch one record by record id (`weave_id`) | `object`, `id` |
 | `create_record` | create (writable fields only) | `object`, `data` |
 | `update_record` | update (RBAC `update` whitelist only) | `object`, `id`, `changes` |
 | `delete_record` | delete (row scope applied) | `object`, `id` |
 | `workflow_transition` | fire a declared [workflow](workflow.md) transition (present when the identity can update an object with a workflow) | `object`, `id`, `action` |
 
-`object` is the object name and `id` is its primary key. The generic schemas deliberately do **not**
+`object` is the object name and `id` is the record's **external id** — its `record_key`, the
+length-prefixed encoding of the (possibly composite) primary key returned as the `weave_id` field.
+Read it from a result (or `describe_object`) rather than composing it by hand; a `find` only returns
+`weave_id` when you ask for it in `fields`. The generic schemas deliberately do **not**
 enumerate per-object fields — that is what keeps the surface small — so an agent should call
 `describe_object` first to learn an object's fields, relations and its own permissions. For a workflow
 object, `describe_object` also returns its `workflow` (states + transitions), which `workflow_transition`

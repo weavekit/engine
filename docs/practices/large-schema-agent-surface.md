@@ -132,8 +132,8 @@ objects or four hundred. An `admin` sees all seven.
 - **Discovery is a step, not free** — the generic schemas intentionally do not enumerate per-object
   fields, so a well-behaved agent calls `describe_object` before acting. Prompts and system messages
   should tell it to.
-- **The primary key argument is `id`** — a string, whatever the underlying column type; the
-  data-access layer validates and coerces it.
+- **The record id argument is `id`** — always a string: the record's `record_key` (also returned as
+  the `weave_id` field, via `fields` on `search_records`). Do not compose it by hand; read it from a result.
 - **No per-field parameter hints** — you cannot pin an enum's options into the `search_records`
   schema. Field semantics live in `describe_object`; see
   [Designing an agent-friendly schema](agent-friendly-schema.md) to make that description good.

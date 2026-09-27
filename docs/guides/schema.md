@@ -66,7 +66,9 @@ doesn't ship (`money`, `address`, …), you can register your own — see
 
 ## Common field attributes
 
-- `primary: true` — exactly one per object, scalar types only. The object name is the table name.
+- `primary: true` — one or more per object; must be a scalar, allowed-type field. Several `primary`
+  fields form a **composite key** (the declaration order is the key order). Primary-key fields are
+  immutable — updating one is rejected. The object name is the table name.
 - `required: true` — NOT NULL; required on create.
 - `unique: true` — unique constraint.
 - `default` — default value (typed per field; `datetime` supports `"now"`).
@@ -74,6 +76,36 @@ doesn't ship (`money`, `address`, …), you can register your own — see
   resolves the requested locale, then `en`, then the first entry, then the field name.
 - `system: true` — user-declared reserved marker (the engine never recognizes fields by name).
 - `ownership: true` / `team: true` — RBAC row-scope markers (string fields, at most one each).
+
+## Record ids and system fields
+
+Every record's external id is its **`record_key`** — a single, URL-safe, decodable string that encodes
+the ordered primary-key tuple (length-prefixed, so a value may itself contain any character):
+
+```
+encodeRecordKey(['O-1001'])       === '6:O-1001'
+encodeRecordKey(['O-1001', '3'])  === '6:O-10011:3'
+```
+
+REST uses it in `/{id}`, MCP in `id`, and batch operations in `ids[]`; the engine returns it as the
+read-only virtual field **`weave_id`**. Do not compose it by hand — read it from a result (or request it
+in `fields`) and pass it back.
+
+The engine also manages system metadata **without touching your table** (zero DDL): status, ownership,
+actor and timestamps live in an engine-owned side table keyed by the `record_key`. They are exposed as
+**virtual fields** — never returned by default, requested explicitly — and always read-only:
+
+| Virtual field | Meaning |
+| --- | --- |
+| `weave_id` | the record's `record_key` (its external id) |
+| `weave_status` | instance status: `draft` / `running` / `effective` / `canceled` (default `draft`) |
+| `weave_owner_id` | owning subject (row-scope source) |
+| `weave_created_by` / `weave_modified_by` | actor ids |
+| `weave_created_time` / `weave_modified_time` | `timestamptz` |
+| `weave_workflow_id` | bound workflow instance, or null |
+
+`describe_object` (and `GET /api/metadata?object=<name>`) lists them with `"virtual": true`. Pass them
+in `fields` to read them; they can also be used in `filter` / `sort`.
 
 ## Relations
 
@@ -97,7 +129,7 @@ A real FK column, typed like the target's primary key. `onDelete` defaults to `r
 
 Child rows live in their own table with automatic `parent_id` / `parent_type` / `parent_idx` columns.
 Deleting a parent cascades to its children, and children are managed through their own object's CRUD.
-The parent's primary key must be a string.
+`parent_id` stores the parent's `record_key` (a string), so a parent may use any primary-key type.
 
 ### `multiRelation` — multi-select reference
 

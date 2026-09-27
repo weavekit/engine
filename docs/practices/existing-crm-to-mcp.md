@@ -249,6 +249,7 @@ SELECT ts, actor_id, action, object, is_error FROM weavekit_audit WHERE action L
 
 - **Identity directory is hardcoded** in config (`alice → sales`) and is independent of the CRM's own user table. Role changes require a config edit + restart. Fine for a small, stable user set; for a dynamic user base you need an `IdentityResolver` backed by the customer's user store.
 - **Bypasses the CRM business layer**: MCP tools write the tables directly, so application-level validation/orchestration in the CRM is skipped (DB triggers still fire).
-- **Table-shape requirements**: one single-column scalar primary key, snake_case column names, no composite keys, or schema validation rejects the object.
-- **Relation values must be strings**: the data-access validator types relation writes as record ids (`validate.ts`), so use string primary keys (UUID is the natural fit) — an integer primary key would need string-typed writes.
+- **Table-shape requirements**: snake_case column names, and at least one scalar `primary` column of an allowed type (string / integer / number / boolean / `enum` / date-time). Composite primary keys are supported — declare several fields `primary: true` (their declaration order is the key order).
+- **Relation values**: a relation to a single-key target stores that target's primary value in a real, typed FK column; a relation to a composite-key target stores the target's `record_key`. Integer primary keys need string-typed relation writes.
+- **External record id**: every record's id is its `record_key` (a length-prefixed encoding of the primary-key tuple), surfaced as the `weave_id` field and used in REST `/{id}`, MCP `id`, and batch `ids[]`.
 - **PG RLS is not activated by the engine**: row-level safety comes from the RBAC layer's generated `WHERE` clauses, not from `row_security`.

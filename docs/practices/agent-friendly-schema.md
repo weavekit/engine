@@ -22,9 +22,10 @@ that description. Treat it as the API documentation your most literal consumer w
 
 ## Names and labels
 
-- **Name in `snake_case`, one scalar primary key.** Names are the agent's vocabulary; `shipped_at`
-  beats `shipdate`. The primary key can be any scalar type, but a single string column (a UUID or a
-  human-readable code like `doc_no`) keeps relation arguments simple.
+- **Name in `snake_case`, and declare a primary key.** Names are the agent's vocabulary; `shipped_at`
+  beats `shipdate`. A single scalar `primary` column is simplest — a string column (a UUID or a
+  human-readable code like `doc_no`) keeps relation arguments simple; composite keys (several
+  `primary: true` fields) are supported too.
 - **Add `labels` for display, keep `name` for identity.** `labels` (per locale) give the agent a
   human phrase to show ("Order"), while `name` stays the stable machine handle.
 - **Write a `description` on every field the agent must not misread.** A one-line `description` is
@@ -45,7 +46,7 @@ that description. Treat it as the API documentation your most literal consumer w
       "description": "Lifecycle state; only pending → paid/cancelled is valid"
     },
     { "name": "amount", "type": "currency" },
-    { "name": "created_at", "type": "datetime" }
+    { "name": "created_at", "type": "timestamptz" }
   ]
 }
 ```
@@ -71,7 +72,8 @@ Field types carry meaning the agent can use — prefer the most specific type th
 
 Relations are how the agent navigates the domain, so get the targets and cardinality right:
 
-- **`relation`** — a reference to another object's primary key; the agent passes the target's id.
+- **`relation`** — a reference to another object's primary value (single-key target) or its
+  `record_key` (composite-key target).
 - **`details`** — strong 1:N ownership managed through the child object's own CRUD, not nested
   writes.
 - **`multiRelation`** — a multi-select of references (stored as an array).
