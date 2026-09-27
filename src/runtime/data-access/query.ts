@@ -1,7 +1,7 @@
 import type { Pool, PoolClient } from 'pg';
 import type { ObjectDefinition, ObjectRegistry } from '../../core/index.js';
 import { SchemaError, primaryFieldsOf, encodeRecordKey, decodeRecordKey, canonicalizePrimaryValue, type Locale } from '../../core/index.js';
-import { DETAILS_COLUMNS, FIELD_TYPES, RECORD_META_COLUMNS, RECORD_META_DEFAULT_STATUS, RECORD_META_VIRTUAL_PREFIX, isRecordMetaVirtualField } from '../../core/index.js';
+import { DETAILS_COLUMNS, FIELD_TYPES, RECORD_META_COLUMNS, RECORD_META_DEFAULT_STATUS, RECORD_META_VIRTUAL_PREFIX, isRecordMetaVirtualField, recordKeySql } from '../../core/index.js';
 import type { AuditEvent, AuditSink } from '../../core/audit/index.js';
 import { AUDIT_ACTOR_TYPES, DATA_ACTIONS } from '../../core/audit/index.js';
 import type { EventPublisher } from '../../core/provider/event/index.js';
@@ -137,6 +137,14 @@ function requireDef(ctx: DataAccessContext, objectName: string): ObjectDefinitio
 
 function bctx(ctx: DataAccessContext, objectName: string): BuildContext {
   return { object: objectName, locale: ctx.locale, allowParentCols: isDetailsChild(ctx.registry, objectName) };
+}
+
+/** hidden select column carrying the SQL-computed record_key for a fetched row */
+const META_KEY_COL = '__weave_record_key';
+
+/** select expression for the SQL-computed record_key (lossless for temporal keys) */
+function recordKeySelect(def: ObjectDefinition): string {
+  return `${recordKeySql(def, (name) => q(name))} AS ${q(META_KEY_COL)}`;
 }
 
 /** the record_key of a row, from its declared primary fields (declaration order) */
@@ -540,15 +548,18 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
       const fieldByName = new Map(def.fields.map((f) => [f.name, f]));
       const values = cols.map((c) => dbJsonValue(fieldByName.get(c), record[c] ?? null));
       const placeholders = cols.map((_, i) => `$${i + 1}`).join(', ');
-      await runTableQuery(
+      const insertRes = await runTableQuery(
         client,
         def.name,
-        `INSERT INTO ${q(def.name)} (${cols.map(q).join(', ')}) VALUES (${placeholders})`,
+        `INSERT INTO ${q(def.name)} (${cols.map(q).join(', ')}) VALUES (${placeholders}) RETURNING ${recordKeySql(def, q)} AS ${q(META_KEY_COL)}`,
         values,
         ctx.locale,
       );
+      const metaKey = String((insertRes.rows[0] as Record<string, unknown> | undefined)?.[META_KEY_COL] ?? '');
+      const externalId =
+        primaryNames(def).length <= 1 ? String(record[primaryNames(def)[0]!] ?? '') : metaKey;
 
-      await insertDetails(client, def, externalIdOf(def, record), payload, ctx.registry, ctx.locale);
+      await insertDetails(client, def, externalId, payload, ctx.registry, ctx.locale);
 
       // compute formula fields AFTER children exist (aggregates see them), then persist
       await computeFormulas(def, record, client, ctx.registry, now);
@@ -558,7 +569,7 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
       if (formulaCols.length > 0) {
         const setSql = formulaCols.map((c, i) => `${q(c)} = $${i + 1}`).join(', ');
         const formulaValues = formulaCols.map((c) => record[c] ?? null);
-        const pkValues = pkValuesOf(def, externalIdOf(def, record), ctx);
+        const pkValues = pkValuesOf(def, externalId, ctx);
         await runTableQuery(
           client,
           def.name,
@@ -568,17 +579,17 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
         );
       }
 
-      await this.writeRecordMeta(client, def, record, ctx, now, true);
+      await this.writeRecordMeta(client, def, metaKey, ctx, now, true);
       if (owned) await client.query('COMMIT');
-      auditWrite(this.audit, ctx, DATA_ACTIONS.CREATE, objectName, externalIdOf(def, record), record);
-      this.events?.publishRecordChange('created', objectName, externalIdOf(def, record));
+      auditWrite(this.audit, ctx, DATA_ACTIONS.CREATE, objectName, externalId, record);
+      this.events?.publishRecordChange('created', objectName, externalId);
       if (def.workflow !== undefined) {
         const createdState = record[def.workflow.stateField];
         await this.workflowTimers
-          ?.sync(objectName, externalIdOf(def, record), typeof createdState === 'string' ? createdState : def.workflow.initial)
+          ?.sync(objectName, externalId, typeof createdState === 'string' ? createdState : def.workflow.initial)
           .catch(() => {});
       }
-      await this.runAfterHook(SCRIPT_HOOKS.AFTER_UPDATE, DATA_ACTIONS.CREATE, objectName, record, payload, ctx, warnings, externalIdOf(def, record));
+      await this.runAfterHook(SCRIPT_HOOKS.AFTER_UPDATE, DATA_ACTIONS.CREATE, objectName, record, payload, ctx, warnings, externalId);
       if (warnings.length > 0) ctx.onWarnings?.(warnings);
       const loaded = await this.runOnLoad(objectName, [record], ctx);
       return loaded[0] as T;
@@ -618,12 +629,15 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
       if (owned) await client.query('BEGIN');
       await validateRecord(def, changes, WRITE_MODES.UPDATE, { pool: client, registry: ctx.registry, locale: ctx.locale });
 
-      const { sql, params } = buildFindSql(def, { filter: pkFilter(def, pkValues), limit: 1 }, bctx(ctx, objectName), ctx.rowScope);
+      const { sql, params } = buildFindSql(def, { filter: pkFilter(def, pkValues), limit: 1 }, bctx(ctx, objectName), ctx.rowScope, undefined, [recordKeySelect(def)]);
       const { rows } = await runTableQuery(client, objectName, sql, params, ctx.locale);
-      const existing = rows[0] as Record<string, unknown> | undefined;
-      if (existing === undefined) {
+      const raw = rows[0] as Record<string, unknown> | undefined;
+      if (raw === undefined) {
         throw new SchemaError('data.recordNotFound', { object: objectName, id }, ctx.locale);
       }
+      const metaKey = String(raw[META_KEY_COL] ?? '');
+      const existing = { ...raw };
+      delete existing[META_KEY_COL];
 
       // validate → beforeUpdate; hooks see the pre-update record and may rewrite changes
       await this.runBeforeHook(SCRIPT_HOOKS.VALIDATE, objectName, existing, changes, ctx);
@@ -672,7 +686,7 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
         );
       }
 
-      await this.writeRecordMeta(client, def, record, ctx, now, false);
+      await this.writeRecordMeta(client, def, metaKey, ctx, now, false);
       if (owned) await client.query('COMMIT');
       auditWrite(this.audit, ctx, DATA_ACTIONS.UPDATE, objectName, id, payload, undefined, this.replay ? existing : undefined, this.replay ? record : undefined);
       this.events?.publishRecordChange('updated', objectName, id);
@@ -722,12 +736,15 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
     const warnings: string[] = [];
     try {
       if (owned) await client.query('BEGIN');
-      const { sql, params } = buildFindSql(def, { filter: pkFilter(def, pkValues), limit: 1 }, bctx(ctx, objectName), ctx.rowScope);
+      const { sql, params } = buildFindSql(def, { filter: pkFilter(def, pkValues), limit: 1 }, bctx(ctx, objectName), ctx.rowScope, undefined, [recordKeySelect(def)]);
       const { rows } = await runTableQuery(client, objectName, sql, params, ctx.locale);
-      const existing = rows[0] as Record<string, unknown> | undefined;
-      if (existing === undefined) {
+      const raw = rows[0] as Record<string, unknown> | undefined;
+      if (raw === undefined) {
         throw new SchemaError('data.recordNotFound', { object: objectName, id }, ctx.locale);
       }
+      const metaKey = String(raw[META_KEY_COL] ?? '');
+      const existing = { ...raw };
+      delete existing[META_KEY_COL];
 
       const rawState = existing[wf.stateField];
       const currentState = typeof rawState === 'string' ? rawState : String(rawState ?? '');
@@ -838,7 +855,7 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
         );
       }
 
-      await this.writeRecordMeta(client, def, record, ctx, now, false);
+      await this.writeRecordMeta(client, def, metaKey, ctx, now, false);
       if (owned) await client.query('COMMIT');
       const updated = record;
       auditWrite(
@@ -901,12 +918,11 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
   private async writeRecordMeta(
     client: PoolClient,
     def: ObjectDefinition,
-    record: Record<string, unknown>,
+    key: string,
     ctx: DataAccessContext,
     now: Date,
     created: boolean,
   ): Promise<void> {
-    const key = recordKeyOfRow(def, record);
     const actor = ctx.subject?.id ?? 'system';
     await upsertRecordMeta(
       client,
@@ -935,12 +951,15 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
     const warnings: string[] = [];
     try {
       if (owned) await client.query('BEGIN');
-      const { sql, params } = buildFindSql(def, { filter: pkFilter(def, pkValues), limit: 1 }, bctx(ctx, objectName), ctx.rowScope);
+      const { sql, params } = buildFindSql(def, { filter: pkFilter(def, pkValues), limit: 1 }, bctx(ctx, objectName), ctx.rowScope, undefined, [recordKeySelect(def)]);
       const { rows } = await runTableQuery(client, objectName, sql, params, ctx.locale);
-      const existing = rows[0] as Record<string, unknown> | undefined;
-      if (existing === undefined) {
+      const raw = rows[0] as Record<string, unknown> | undefined;
+      if (raw === undefined) {
         throw new SchemaError('data.recordNotFound', { object: objectName, id }, ctx.locale);
       }
+      const metaKey = String(raw[META_KEY_COL] ?? '');
+      const existing = { ...raw };
+      delete existing[META_KEY_COL];
 
       await this.runBeforeHook(SCRIPT_HOOKS.BEFORE_DELETE, objectName, existing, {}, ctx);
       await deleteDetailsChildren(client, def, id, ctx.registry);
@@ -953,7 +972,7 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
         ctx.locale,
       );
       if (res.rowCount === 0) throw new SchemaError('data.recordNotFound', { object: objectName, id }, ctx.locale);
-      await deleteRecordMeta(client, def.name, recordKeyOfRow(def, existing));
+      await deleteRecordMeta(client, def.name, metaKey);
       if (owned) await client.query('COMMIT');
       auditWrite(this.audit, ctx, DATA_ACTIONS.DELETE, objectName, id, undefined, undefined, this.replay ? existing : undefined);
       this.events?.publishRecordChange('deleted', objectName, id);

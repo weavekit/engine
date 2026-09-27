@@ -260,20 +260,22 @@ export function resolvePagination(opts: FindOptions): {
   return { limit, offset };
 }
 
-/** full SELECT query */
+/** full SELECT query; `extraSelect` appends raw SQL select expressions (e.g. a computed record_key) */
 export function buildFindSql(
   object: ObjectDefinition,
   opts: FindOptions,
   ctx: BuildContext,
   rowScope?: RowScope,
   exclude?: readonly string[],
+  extraSelect?: readonly string[],
 ): BuiltQuery {
   const table = q(object.name);
   const cols = buildColumns(object, opts.fields, ctx, exclude);
+  const select = [cols, ...(extraSelect ?? [])].filter((s) => s.length > 0).join(", ");
   const { sql: where, params } = buildWhere(object, opts.filter, ctx, rowScope);
   const orderBy = buildOrderBy(object, opts.sort, ctx);
   const { limit, offset } = resolvePagination(opts);
-  const sql = `SELECT ${cols} FROM ${table} ${where}${orderBy} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+  const sql = `SELECT ${select} FROM ${table} ${where}${orderBy} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
   return { sql, params: [...params, limit, offset] };
 }
 
