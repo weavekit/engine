@@ -1,5 +1,5 @@
 import type { Locale, MessageKey, ObjectDefinition, ObjectRegistry } from '../../core/index.js';
-import { SchemaError, fieldBase, primaryFieldOf, primaryKeyOf } from '../../core/index.js';
+import { SchemaError, fieldBase, primaryFieldOf, primaryFieldsOf, primaryKeyOf, decodeRecordKey } from '../../core/index.js';
 import { DETAILS_COLUMNS, DEFAULT_FIELD_TYPE_REGISTRY, FIELD_TYPES } from '../../core/index.js';
 import type { FieldDefinition, FieldTypeRegistry, RegisteredField } from '../../core/index.js';
 import type { Queryable } from './types.js';
@@ -201,10 +201,21 @@ async function checkValue(field: FieldDefinition, value: unknown, vc: Vc): Promi
   if (base === FIELD_TYPES.RELATION) {
     const target = await targetDef(vc, (f as { target: string }).target);
     if (target === undefined) return; // schema-level error already handled elsewhere
-    const pkField = primaryFieldOf(target);
-    const pk = pkField?.name ?? primaryKeyOf(target)!; // targets always declare a primary
-    checkReferenceKind(fieldTypes, pkField, f.name, value, vc);
-    const res = await vc.pool.query(`SELECT 1 FROM "${target.name}" WHERE "${pk}" = $1`, [value]);
+    const pks = primaryFieldsOf(target);
+    if (pks.length <= 1) {
+      const pkField = primaryFieldOf(target);
+      const pk = pkField?.name ?? primaryKeyOf(target)!; // targets always declare a primary
+      checkReferenceKind(fieldTypes, pkField, f.name, value, vc);
+      const res = await vc.pool.query(`SELECT 1 FROM "${target.name}" WHERE "${pk}" = $1`, [value]);
+      if (res.rowCount === 0) fail(vc, 'data.field.relationMissing', { field: f.name, value });
+      return;
+    }
+    // composite target: the value is the target's record_key
+    if (typeof value !== 'string') fail(vc, 'data.field.type', { field: f.name, type: 'record key' });
+    const values = decodeRecordKey(value);
+    if (values.length !== pks.length) fail(vc, 'data.field.relationMissing', { field: f.name, value });
+    const where = pks.map((p, i) => `"${p.name}" = $${i + 1}`).join(' AND ');
+    const res = await vc.pool.query(`SELECT 1 FROM "${target.name}" WHERE ${where} LIMIT 1`, values);
     if (res.rowCount === 0) fail(vc, 'data.field.relationMissing', { field: f.name, value });
     return;
   }
@@ -214,11 +225,29 @@ async function checkValue(field: FieldDefinition, value: unknown, vc: Vc): Promi
     if (value.length === 0) return;
     const target = await targetDef(vc, (f as { target: string }).target);
     if (target === undefined) return;
-    const pkField = primaryFieldOf(target);
-    const pk = pkField?.name ?? primaryKeyOf(target)!; // targets always declare a primary
-    for (const item of value) checkReferenceKind(fieldTypes, pkField, f.name, item, vc);
-    const res = await vc.pool.query(`SELECT 1 FROM "${target.name}" WHERE "${pk}" = ANY($1)`, [value]);
-    if ((res.rowCount ?? 0) !== value.length) {
+    const pks = primaryFieldsOf(target);
+    if (pks.length <= 1) {
+      const pkField = primaryFieldOf(target);
+      const pk = pkField?.name ?? primaryKeyOf(target)!; // targets always declare a primary
+      for (const item of value) checkReferenceKind(fieldTypes, pkField, f.name, item, vc);
+      const res = await vc.pool.query(`SELECT 1 FROM "${target.name}" WHERE "${pk}" = ANY($1)`, [value]);
+      if ((res.rowCount ?? 0) !== value.length) {
+        fail(vc, 'data.field.multiRelationMissing', { field: f.name });
+      }
+      return;
+    }
+    // composite target: each item is the target's record_key
+    const params: unknown[] = [];
+    const clauses: string[] = [];
+    for (const item of value as unknown[]) {
+      if (typeof item !== 'string') fail(vc, 'data.field.type', { field: f.name, type: 'record key array' });
+      const tuple = decodeRecordKey(item);
+      if (tuple.length !== pks.length) fail(vc, 'data.field.multiRelationMissing', { field: f.name });
+      clauses.push(`(${pks.map((p, i) => `"${p.name}" = $${params.length + i + 1}`).join(' AND ')})`);
+      params.push(...tuple);
+    }
+    const res = await vc.pool.query(`SELECT 1 FROM "${target.name}" WHERE ${clauses.join(' OR ')}`, params);
+    if ((res.rowCount ?? 0) !== (value as unknown[]).length) {
       fail(vc, 'data.field.multiRelationMissing', { field: f.name });
     }
     return;

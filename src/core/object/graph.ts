@@ -15,7 +15,7 @@ import {
   RELATION_KINDS,
   SCALAR_FIELD_TYPES,
 } from '../types/values.js';
-import { DEFAULT_FIELD_TYPE_REGISTRY, fieldBase, primaryFieldOf, primaryKeyOf } from '../types/index.js';
+import { DEFAULT_FIELD_TYPE_REGISTRY, fieldBase, primaryFieldsOf, primaryKeyOf } from '../types/index.js';
 
 const SCALAR_TYPE_VALUES: readonly string[] = Object.values(SCALAR_FIELD_TYPES);
 
@@ -149,8 +149,10 @@ export function buildGraph(
             target: field.target,
           });
         }
-        const primaryType = childFieldsPrimaryType(def);
-        if (primaryType !== undefined && primaryType !== FIELD_TYPES.STRING) {
+        const parentPks = primaryFieldsOf(def);
+        // parent_id is the parent's record_key (text); only a *single* parent PK
+        // must itself be a string (a composite parent is always keyed by text)
+        if (parentPks.length === 1 && parentPks[0]!.type !== FIELD_TYPES.STRING) {
           graphError(locale, 'graph.details.parentPkString', { object: def.name });
         }
         for (const reserved of Object.values(DETAILS_COLUMNS)) {
@@ -350,8 +352,4 @@ function validateFormulaCrossObject(
   if (cycle) {
     graphError(locale, 'formula.cycle', { chain: cycle.join(' -> ') });
   }
-}
-
-function childFieldsPrimaryType(def: ObjectDefinition): string | undefined {
-  return primaryFieldOf(def)?.type;
 }

@@ -1,5 +1,5 @@
 import type { ObjectDefinition } from '../types/index.js';
-import { CONSTRAINT_TYPES, DEFAULT_FIELD_TYPE_REGISTRY, DETAILS_COLUMNS, FIELD_TYPES, primaryFieldOf, primaryKeyOf } from '../types/index.js';
+import { CONSTRAINT_TYPES, DEFAULT_FIELD_TYPE_REGISTRY, DETAILS_COLUMNS, FIELD_TYPES, primaryFieldsOf } from '../types/index.js';
 import type { FieldTypeRegistry } from '../types/index.js';
 import { SchemaError } from '../types/index.js';
 import type { Locale } from '../i18n/index.js';
@@ -45,10 +45,10 @@ export interface ExpectedTable {
   uniques: ExpectedUnique[];
 }
 
-/** mapped PK type of an object (for relation FK columns), or undefined */
+/** mapped PK column type for a relation FK; undefined for a composite target (referenced by record_key text) */
 function targetPkType(def: ObjectDefinition, registry: FieldTypeRegistry): string | undefined {
-  const pkField = primaryFieldOf(def);
-  return pkField === undefined ? undefined : pgType(pkField, undefined, registry);
+  const pks = primaryFieldsOf(def);
+  return pks.length === 1 ? pgType(pks[0]!, undefined, registry) : undefined;
 }
 
 /**
@@ -87,12 +87,13 @@ export function buildExpectedTable(
 
     if (field.type === FIELD_TYPES.RELATION || field.type === FIELD_TYPES.PERSON || field.type === FIELD_TYPES.DEPARTMENT) {
       const targetDef = defs.get(field.target);
-      const refColumn = targetDef === undefined ? undefined : primaryKeyOf(targetDef);
-      if (refColumn !== undefined && targetDef !== undefined) {
+      const targetPks = targetDef === undefined ? [] : primaryFieldsOf(targetDef);
+      // a composite target is referenced by its record_key (text) — no real FK
+      if (targetDef !== undefined && targetPks.length === 1) {
         fks.push({
           column: field.name,
           refTable: targetDef.name,
-          refColumn,
+          refColumn: targetPks[0]!.name,
           onDelete: field.onDelete ?? 'restrict',
         });
       }

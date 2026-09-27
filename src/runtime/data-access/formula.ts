@@ -1,5 +1,5 @@
 import type { ObjectDefinition, ObjectRegistry } from '../../core/index.js';
-import { DETAILS_COLUMNS, FIELD_TYPES, primaryKeyOf } from '../../core/index.js';
+import { DETAILS_COLUMNS, FIELD_TYPES, primaryFieldsOf, decodeRecordKey, encodeRecordKey, canonicalizePrimaryValue } from '../../core/index.js';
 import { evaluate, extractRefs, parseFormula } from '../../core/index.js';
 import type { FormulaExpr } from '../../core/index.js';
 import type { Queryable } from './types.js';
@@ -22,12 +22,26 @@ async function resolveRefValue(
   const target = registry.get(parentField.target);
   if (target === undefined) return null;
   const table = target.name;
-  const pk = primaryKeyOf(target);
-  if (pk === undefined) return null;
-  const res = await db.query(
-    `SELECT ${q(name)} FROM ${q(table)} WHERE ${q(pk)} = $1`,
-    [fk],
-  );
+  const pks = primaryFieldsOf(target);
+  if (pks.length === 0) return null;
+  let sql: string;
+  let params: unknown[];
+  if (pks.length === 1) {
+    sql = `SELECT ${q(name)} FROM ${q(table)} WHERE ${q(pks[0]!.name)} = $1`;
+    params = [fk];
+  } else {
+    let values: string[];
+    try {
+      values = decodeRecordKey(String(fk));
+    } catch {
+      return null;
+    }
+    if (values.length !== pks.length) return null;
+    const where = pks.map((p, i) => `${q(p.name)} = $${i + 1}`).join(' AND ');
+    sql = `SELECT ${q(name)} FROM ${q(table)} WHERE ${where} LIMIT 1`;
+    params = values;
+  }
+  const res = await db.query(sql, params);
   const row = res.rows[0];
   return row === undefined ? null : (row[name as keyof typeof row] ?? null);
 }
@@ -45,9 +59,12 @@ async function resolveAggregateValue(
   if (parentField === undefined || parentField.type !== FIELD_TYPES.DETAILS) return [];
   const child = registry.get(parentField.target);
   if (child === undefined) return [];
-  const pk = primaryKeyOf(object);
-  if (pk === undefined) return [];
-  const pkVal = record[pk];
+  const pks = primaryFieldsOf(object);
+  if (pks.length === 0) return [];
+  const pkVal =
+    pks.length === 1
+      ? record[pks[0]!.name]
+      : encodeRecordKey(pks.map((f) => canonicalizePrimaryValue(record[f.name])));
   if (pkVal === null || pkVal === undefined) return [];
   const table = child.name;
   const res = await db.query(
