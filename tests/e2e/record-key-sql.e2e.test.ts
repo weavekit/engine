@@ -74,4 +74,25 @@ maybe('record_key SQL⇄JS contract E2E (local PG)', () => {
       await pool.end();
     }
   });
+
+  it('renders the same record_key for one instant written in different offsets', async () => {
+    const pool = createPool(url!);
+    try {
+      await pool.query('DROP TABLE IF EXISTS wk_rk_tz CASCADE');
+      await pool.query('CREATE TABLE wk_rk_tz (id integer, ts timestamptz)');
+      await pool.query(
+        `INSERT INTO wk_rk_tz VALUES
+           (1, '2026-09-26T10:30:00.123456+08:00'),
+           (2, '2026-09-26T02:30:00.123456Z')`,
+      );
+      const def = defineObject({ name: 'fixture', fields: [{ name: 'ts', type: 'timestamptz', primary: true }] });
+      const res = await pool.query(`SELECT ${recordKeySql(def, (n) => q(n))} AS k FROM wk_rk_tz ORDER BY id`);
+      // same instant, different offsets → identical (UTC-normalized) key
+      expect(res.rows[0]!.k).toBe(res.rows[1]!.k);
+      expect(res.rows[0]!.k).toBe(encodeRecordKey(['2026-09-26T02:30:00.123456Z']));
+    } finally {
+      await pool.query('DROP TABLE IF EXISTS wk_rk_tz CASCADE');
+      await pool.end();
+    }
+  });
 });

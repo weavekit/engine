@@ -48,6 +48,16 @@ maybe('Composite primary key E2E (local PG)', () => {
       await dataAccess.update(object, key, { name: 'm' }, ctx);
       expect((await dataAccess.findOne<{ name: string }>(object, key, ctx))?.name).toBe('m');
 
+      // primary keys are immutable — changing one is rejected
+      let mutable: unknown;
+      try {
+        await dataAccess.update(object, key, { a: 'y' }, ctx);
+      } catch (e) {
+        mutable = e;
+      }
+      expect(mutable).toBeInstanceOf(SchemaError);
+      expect((mutable as SchemaError).code).toBe('object.primary.mutable');
+
       // side-table row is keyed by the same record_key
       expect((await getRecordMeta(pool, object, key))?.status).toBe('draft');
 

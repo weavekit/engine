@@ -118,7 +118,8 @@ export async function inspectSchema(pool: Pool, options: InspectOptions = {}): P
        FROM information_schema.table_constraints tc
        JOIN information_schema.key_column_usage kcu
          ON tc.constraint_name = kcu.constraint_name AND tc.constraint_schema = kcu.constraint_schema
-      WHERE tc.constraint_type = 'PRIMARY KEY' AND tc.table_schema = current_schema()`,
+      WHERE tc.constraint_type = 'PRIMARY KEY' AND tc.table_schema = current_schema()
+      ORDER BY tc.table_name, kcu.ordinal_position`,
   );
   for (const row of pkRows.rows as { table_name: string; column_name: string }[]) {
     tables.get(row.table_name)?.pk.push(row.column_name);

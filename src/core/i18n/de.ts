@@ -44,6 +44,7 @@ export const de: Record<MessageKey, string> = {
   'data.schemaDrift': 'Schema/DB-Abweichung: Objekt "{object}" deklariert Feld "{field}", aber die Spalte fehlt — führen Sie "weave migrate" aus oder setzen Sie "alter": true in objects/{object}/schema.json',
   'object.primary.many': 'Objekt "{object}" darf nur ein Primärschlüsselfeld haben',
   'object.primary.notAllowed': 'objekt "{object}": feld "{field}" vom typ "{type}" kann kein primärschlüssel sein',
+  'object.primary.mutable': 'Objekt \"{object}\": Primärschlüsselfeld \"{field}\" ist unveränderlich und kann nicht aktualisiert werden',
   'recordKey.invalid': 'ungültiger recordschlüssel "{key}"',
   'object.primary.scalarOnly': 'primary erlaubt nur skalare Typen, nicht "{type}"',
   'object.primary.columnMissing': 'Objekt "{object}": die Primärschlüsselspalte "{column}" wurde in der vorhandenen Tabelle "{table}" nicht gefunden',

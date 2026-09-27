@@ -46,14 +46,25 @@ If a file declares a version **newer** than the engine supports, the engine reje
 | --- | --- | --- |
 | `string` | VARCHAR(255) | `minLength`/`maxLength`/`regex` |
 | `text` | TEXT | long text |
+| `char` | CHAR(n) | fixed length (`length`, default 1) |
+| `smallint` | SMALLINT | `min`/`max` |
 | `integer` | INTEGER | `min`/`max` |
-| `number` | NUMERIC | `min`/`max`/`precision` |
+| `bigint` | BIGINT | returned as a string (precision-safe) |
+| `number` | NUMERIC | `min`/`max`/`precision`/`scale` |
+| `real` | REAL | 4-byte float |
+| `double` | DOUBLE PRECISION | 8-byte float |
 | `currency` | NUMERIC(12,2) | money |
 | `boolean` | BOOLEAN | |
-| `datetime` | TIMESTAMPTZ | default `"now"` |
-| `date` | DATE | |
-| `json` | JSONB | free-form object |
-| `enum` | VARCHAR + validation | inline `options` or `{ from }` (data-driven); `multiple: true` → TEXT[] |
+| `date` | DATE | canonical `YYYY-MM-DD` |
+| `time` | TIME | wall-clock time (no zone) |
+| `timetz` | TIMETZ | time with offset |
+| `timestamp` | TIMESTAMP | wall-clock timestamp (no zone) |
+| `timestamptz` | TIMESTAMPTZ | absolute instant (UTC); `datetime` is a **deprecated alias** |
+| `interval` | INTERVAL | ISO-8601 duration |
+| `uuid` | UUID | |
+| `json` | JSON | free-form JSON |
+| `jsonb` | JSONB | binary JSON (indexable) |
+| `enum` | native enum / VARCHAR | inline `options` → native PG enum type; `{ from }` (data-driven) → VARCHAR; `multiple: true` → `<type>[]` |
 | `seq_no` | VARCHAR | formatted sequence number |
 | `relation` | target PK column + FK | weak reference (belongsTo) |
 | `details` | child table | strong 1:N ownership |
@@ -71,7 +82,7 @@ doesn't ship (`money`, `address`, …), you can register your own — see
   immutable — updating one is rejected. The object name is the table name.
 - `required: true` — NOT NULL; required on create.
 - `unique: true` — unique constraint.
-- `default` — default value (typed per field; `datetime` supports `"now"`).
+- `default` — default value (typed per field; `date`/`timestamp`/`timestamptz` support `"now"`).
 - `labels` — display names keyed by locale, e.g. `{ "en": "Lead", "zh": "线索" }`. The engine
   resolves the requested locale, then `en`, then the first entry, then the field name.
 - `system: true` — user-declared reserved marker (the engine never recognizes fields by name).

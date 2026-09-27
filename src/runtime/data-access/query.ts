@@ -605,6 +605,13 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
       const before = await this.runBeforeHook(SCRIPT_HOOKS.BEFORE_UPDATE, objectName, existing, changes, ctx);
       if (before !== undefined) payload = before;
 
+      // primary keys are immutable: reject any attempt to change them (drift-free record_key)
+      for (const name of primaryNames(def)) {
+        if (payload[name] !== undefined) {
+          throw new SchemaError('object.primary.mutable', { object: objectName, field: name }, ctx.locale);
+        }
+      }
+
       // the workflow state is transition-only: a beforeUpdate hook may not move it
       if (
         def.workflow !== undefined &&

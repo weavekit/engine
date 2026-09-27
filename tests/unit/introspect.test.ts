@@ -67,21 +67,18 @@ describe('mapToSchema — DB reverse modeling', () => {
         }),
       ],
       [
-        'bad_composite',
+        'bad_pk_type',
         table({
-          name: 'bad_composite',
-          pk: ['a', 'b'],
-          columns: [
-            { name: 'a', dataType: 'integer', isNullable: false, columnDefault: null },
-            { name: 'b', dataType: 'integer', isNullable: false, columnDefault: null },
-          ],
+          name: 'bad_pk_type',
+          pk: ['a'],
+          columns: [{ name: 'a', dataType: 'jsonb', isNullable: false, columnDefault: null, udtName: 'jsonb' }],
         }),
       ],
     ]);
 
     const report = mapToSchema(tables);
     expect(report.objects.map((o) => o.name)).toEqual(['customers', 'orders']);
-    expect(report.skipped.map((s) => s.table)).toContain('bad_composite');
+    expect(report.skipped.map((s) => s.table)).toContain('bad_pk_type');
 
     const orders = report.objects.find((o) => o.name === 'orders')!;
     const rel = orders.schema.fields.find((f) => f.name === 'customer_id') as unknown as {
@@ -158,6 +155,52 @@ describe('mapToSchema — DB reverse modeling', () => {
     const report = mapToSchema(
       new Map<string, ActualTable>([
         ['no_pk', table({ name: 'no_pk', pk: [], columns: [{ name: 'x', dataType: 'integer', isNullable: true, columnDefault: null }] })],
+      ]),
+    );
+    expect(report.objects).toHaveLength(0);
+    expect(report.skipped[0]?.reason).toContain('primary key');
+  });
+
+  it('reverse-models a composite primary key as several primary fields in key order', () => {
+    const report = mapToSchema(
+      new Map<string, ActualTable>([
+        [
+          'order_lines',
+          table({
+            name: 'order_lines',
+            pk: ['order_id', 'line_no'],
+            columns: [
+              // live column order differs from the PK order on purpose
+              { name: 'qty', dataType: 'integer', isNullable: false, columnDefault: null, udtName: 'int4' },
+              { name: 'line_no', dataType: 'integer', isNullable: false, columnDefault: null, udtName: 'int4' },
+              { name: 'order_id', dataType: 'character varying', isNullable: false, columnDefault: null, udtName: 'varchar' },
+            ],
+          }),
+        ],
+      ]),
+    );
+    expect(report.skipped).toHaveLength(0);
+    const obj = report.objects.find((o) => o.name === 'order_lines')!;
+    const primaries = obj.schema.fields.filter((f) => f.primary === true).map((f) => f.name);
+    expect(primaries).toEqual(['order_id', 'line_no']);
+    expect(obj.schema.fields.find((f) => f.name === 'qty')?.primary).toBeUndefined();
+  });
+
+  it('skips a composite key with an unsupported PK type', () => {
+    const report = mapToSchema(
+      new Map<string, ActualTable>([
+        [
+          'bad_comp',
+          table({
+            name: 'bad_comp',
+            pk: ['a', 'b'],
+            columns: [
+              { name: 'a', dataType: 'character varying', isNullable: false, columnDefault: null, udtName: 'varchar' },
+              // jsonb is not a valid primary-key type
+              { name: 'b', dataType: 'jsonb', isNullable: false, columnDefault: null, udtName: 'jsonb' },
+            ],
+          }),
+        ],
       ]),
     );
     expect(report.objects).toHaveLength(0);

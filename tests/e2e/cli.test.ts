@@ -348,7 +348,7 @@ maybe("CLI weave E2E (spawn + local PG + .tmp/weavekit-project)", () => {
       );
       expect(show).toContain("export function onLoad()");
       expect(show).toContain("export async function onValidate(action)");
-      expect(show).toContain("this.api.objects('supplier').findOne");
+      expect(show).toContain("this.api.objects('supplier').find({");
       const list = await readFile(
         join(PROJECT_DIR, "pages", "purchase_order", "list.client.js"),
         "utf8",

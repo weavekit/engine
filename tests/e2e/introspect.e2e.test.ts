@@ -80,4 +80,27 @@ maybe('introspect E2E (real PG)', () => {
       await pool.end();
     }
   });
+
+  it('reverse-models a composite primary key in live key order', async () => {
+    const LINE = 'wk_introspect_e2e_line';
+    const pool = createPool(url!);
+    try {
+      await pool.query(`DROP TABLE IF EXISTS ${LINE} CASCADE`);
+      await pool.query(`CREATE TABLE ${LINE} (
+        qty integer,
+        line_no integer,
+        order_id integer,
+        PRIMARY KEY (order_id, line_no)
+      )`);
+
+      const report = mapToSchema(await inspectSchema(pool, { detail: true }), { include: [LINE] });
+      expect(report.skipped).toHaveLength(0);
+      const obj = report.objects.find((o) => o.name === LINE)!;
+      expect(obj.schema.fields.filter((f) => f.primary === true).map((f) => f.name)).toEqual(['order_id', 'line_no']);
+      expect(obj.schema.fields.find((f) => f.name === 'qty')?.primary).toBeUndefined();
+    } finally {
+      await pool.query(`DROP TABLE IF EXISTS ${LINE} CASCADE`);
+      await pool.end();
+    }
+  });
 });

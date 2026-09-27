@@ -270,8 +270,9 @@ function mapColumn(
 /**
  * Reverse-model live PostgreSQL tables into engine object drafts. Pure (no I/O):
  * feed it an `inspectSchema(pool, { detail: true })` map. Objects that fail
- * validation (composite/missing PK, non-snake_case names, unsupported PK type)
- * are reported in `skipped`, never silently dropped.
+ * validation (missing PK, non-snake_case names, unsupported PK type) are
+ * reported in `skipped`, never silently dropped. Composite primary keys are
+ * reverse-modeled as several `primary: true` fields, in live key order.
  */
 export function mapToSchema(tables: Map<string, ActualTable>, options: IntrospectMapOptions = {}): IntrospectReport {
   const include = options.include === undefined ? undefined : new Set(options.include);
@@ -293,23 +294,13 @@ export function mapToSchema(tables: Map<string, ActualTable>, options: Introspec
       skipped.push({ table: name, reason: 'table name is not snake_case (object name must match ^[a-z][a-z0-9_]*$)' });
       continue;
     }
-    if (table.pk.length !== 1) {
-      skipped.push({
-        table: name,
-        reason: table.pk.length === 0 ? 'missing primary key' : 'composite primary key not supported',
-      });
-      continue;
-    }
-    const pkName = table.pk[0]!;
-    const pkCol = table.columns.find((c) => c.name === pkName);
-    if (pkCol === undefined) {
-      skipped.push({ table: name, reason: `primary key column "${pkName}" not found` });
+    if (table.pk.length === 0) {
+      skipped.push({ table: name, reason: 'missing primary key' });
       continue;
     }
 
     let badColumn: string | undefined;
     for (const col of table.columns) {
-      if (col.name === pkName) continue;
       if (!SNAKE_CASE.test(col.name)) {
         badColumn = col.name;
         break;
@@ -320,16 +311,32 @@ export function mapToSchema(tables: Map<string, ActualTable>, options: Introspec
       continue;
     }
 
-    const pkField = mapColumn(pkCol, table, warnings, matchers, options.textArraySamples);
-    if (pkField === undefined) {
-      skipped.push({ table: name, reason: `primary key column "${pkName}" type not supported` });
+    // primary fields first, in the live primary-key order (single or composite)
+    const pkFields: FieldDefinition[] = [];
+    let pkBad: string | undefined;
+    for (const pkName of table.pk) {
+      const pkCol = table.columns.find((c) => c.name === pkName);
+      if (pkCol === undefined) {
+        pkBad = `primary key column "${pkName}" not found`;
+        break;
+      }
+      const mapped = mapColumn(pkCol, table, warnings, matchers, options.textArraySamples);
+      if (mapped === undefined) {
+        pkBad = `primary key column "${pkName}" type not supported`;
+        break;
+      }
+      (mapped as unknown as Record<string, unknown>).primary = true;
+      pkFields.push(mapped);
+    }
+    if (pkBad !== undefined) {
+      skipped.push({ table: name, reason: pkBad });
       continue;
     }
-    (pkField as unknown as Record<string, unknown>).primary = true;
 
-    const fields: FieldDefinition[] = [pkField];
+    const pkSet = new Set(table.pk);
+    const fields: FieldDefinition[] = [...pkFields];
     for (const col of table.columns) {
-      if (col.name === pkName) continue;
+      if (pkSet.has(col.name)) continue;
       const mapped = mapColumn(col, table, warnings, matchers, options.textArraySamples);
       if (mapped !== undefined) fields.push(mapped);
     }

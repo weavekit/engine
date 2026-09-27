@@ -1,5 +1,5 @@
 import type { ObjectDefinition } from '../../core/index.js';
-import { SchemaError, primaryKeyOf } from '../../core/index.js';
+import { SchemaError, primaryFieldsOf } from '../../core/index.js';
 import {
   assertCanCreate,
   assertCanDelete,
@@ -120,10 +120,11 @@ export function withRbac(inner: ObjectDataAccess, options: { audit?: AuditSink }
       // (no fields.create declared); otherwise only the whitelist is accepted
       let payload = data;
       const allowed = p?.createFields ?? null;
+      const primaryKeys = new Set(primaryFieldsOf(def).map((f) => f.name));
       if (allowed !== null) {
         const filtered: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(data)) {
-          if (key === primaryKeyOf(def)) {
+          if (primaryKeys.has(key)) {
             filtered[key] = value;
             continue;
           }
@@ -165,9 +166,14 @@ export function withRbac(inner: ObjectDataAccess, options: { audit?: AuditSink }
       // `p.update === null` means "all fields updatable" (open mode / update: true) —
       // keep the null sentinel; `?? []` would collapse it and deny every field
       const allowed = p.update;
+      const primaryNames = new Set(primaryFieldsOf(def).map((f) => f.name));
       const filtered: Record<string, unknown> = {};
       for (const [key, value] of Object.entries(changes)) {
-        if (key === primaryKeyOf(def)) continue;
+        if (primaryNames.has(key)) {
+          const err = new SchemaError('object.primary.mutable', { object: objectName, field: key }, ctx.locale);
+          denied(audit, ctx, DATA_ACTIONS.UPDATE, objectName, id, err);
+          throw err;
+        }
         if (allowed !== null && !allowed.includes(key)) {
           const err = new SchemaError('rbac.denied.field', { object: objectName, role: ctx.subject.roles.join(','), field: key }, ctx.locale);
           denied(audit, ctx, DATA_ACTIONS.UPDATE, objectName, id, err);

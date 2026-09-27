@@ -22,6 +22,7 @@ export const en = {
   'object.primary.many': 'object "{object}" may only have one primary field',
   'object.primary.scalarOnly': 'primary only allows scalar field types, not "{type}"',
   'object.primary.notAllowed': 'object "{object}": field "{field}" of type "{type}" cannot be a primary key',
+  'object.primary.mutable': 'object \"{object}\": primary field \"{field}\" is immutable - primary keys cannot be updated',
   'recordKey.invalid': 'invalid record key "{key}"',
   'object.primary.columnMissing': 'object "{object}": primary column "{column}" not found in existing table "{table}"',
   'object.field.columnMissing': 'object "{object}": field "{field}" does not exist as a column in existing table "{table}"',

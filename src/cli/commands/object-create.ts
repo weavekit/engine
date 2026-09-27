@@ -81,10 +81,12 @@ export function onLoad() {
 // this.form.setValue trigger onFieldChange again, enabling explicit cascades.
 export async function onFieldChange(fieldName) {
   //   if (fieldName === 'supplier_id') {
-  //     const supplier = await this.api.objects('supplier').findOne(
-  //       this.form.getValue('supplier_id')
-  //     );
-  //     this.form.setValue('tax_rate', supplier.default_tax_rate);
+  //     // relation values are the target's primary value (or record_key for a
+  //     // composite target) — filter on the target's primary field
+  //     const found = await this.api.objects('supplier').find({
+  //       filter: { id: this.form.getValue('supplier_id') },
+  //     });
+  //     this.form.setValue('tax_rate', found.rows[0]?.default_tax_rate);
   //   }
 }
 

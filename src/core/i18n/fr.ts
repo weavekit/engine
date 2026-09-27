@@ -44,6 +44,7 @@ export const fr: Record<MessageKey, string> = {
   'data.schemaDrift': 'dérive schéma/BD : l\'objet "{object}" déclare le champ "{field}" mais la colonne manque — exécutez « weave migrate » ou définissez « alter » : true dans objects/{object}/schema.json',
   'object.primary.many': 'l\'objet "{object}" ne peut avoir qu\'un seul champ de clé primaire',
   'object.primary.notAllowed': 'objet "{object}" : le champ "{field}" de type "{type}" ne peut pas être une clé primaire',
+  'object.primary.mutable': 'objet \"{object}\" : le champ de cle primaire \"{field}\" est immuable et ne peut pas etre mis a jour',
   'recordKey.invalid': 'clé d\'enregistrement invalide "{key}"',
   'object.primary.scalarOnly': 'primary n\'autorise que les types scalaires, pas "{type}"',
   'object.primary.columnMissing': 'objet "{object}" : la colonne de clé primaire "{column}" est introuvable dans la table existante "{table}"',
