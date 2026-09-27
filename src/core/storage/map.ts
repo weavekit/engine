@@ -80,12 +80,24 @@ export function pgType(
       return 'VARCHAR(255)';
     case FIELD_TYPES.TEXT:
       return 'TEXT';
+    case FIELD_TYPES.CHAR:
+      return `CHAR(${(field as { length?: number }).length ?? 1})`;
+    case FIELD_TYPES.SMALLINT:
+      return 'SMALLINT';
     case FIELD_TYPES.INTEGER:
       return 'INTEGER';
-    case FIELD_TYPES.NUMBER:
-      return (field as { precision?: number }).precision
-        ? `NUMERIC(${(field as { precision?: number }).precision})`
-        : 'NUMERIC';
+    case FIELD_TYPES.BIGINT:
+      return 'BIGINT';
+    case FIELD_TYPES.NUMBER: {
+      const precision = (field as { precision?: number }).precision;
+      const scale = (field as { scale?: number }).scale;
+      if (!precision) return 'NUMERIC';
+      return scale ? `NUMERIC(${precision},${scale})` : `NUMERIC(${precision})`;
+    }
+    case FIELD_TYPES.REAL:
+      return 'REAL';
+    case FIELD_TYPES.DOUBLE:
+      return 'DOUBLE PRECISION';
     case FIELD_TYPES.CURRENCY:
       return 'NUMERIC(12,2)';
     case FIELD_TYPES.BOOLEAN:
@@ -145,12 +157,17 @@ export function defaultExpr(
       if (field.type === FIELD_TYPES.IMAGE && (field as { multiple?: boolean }).multiple === true) return undefined;
       return `'${String(raw.default)}'`;
     case FIELD_TYPES.TEXT:
+    case FIELD_TYPES.CHAR:
     case FIELD_TYPES.UUID:
       return `'${String(raw.default)}'`;
     case FIELD_TYPES.BOOLEAN:
       return String(raw.default);
+    case FIELD_TYPES.SMALLINT:
     case FIELD_TYPES.INTEGER:
+    case FIELD_TYPES.BIGINT:
     case FIELD_TYPES.NUMBER:
+    case FIELD_TYPES.REAL:
+    case FIELD_TYPES.DOUBLE:
     case FIELD_TYPES.CURRENCY:
       return String(raw.default);
     default:

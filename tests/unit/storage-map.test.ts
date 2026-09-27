@@ -21,6 +21,13 @@ describe('pgType — type mapping', () => {
     expect(pgType(f({ name: 'a', type: 'json' }), undefined)).toBe('JSONB');
     expect(pgType(f({ name: 'a', type: 'number' }), undefined)).toBe('NUMERIC');
     expect(pgType(f({ name: 'a', type: 'number', precision: 10 }), undefined)).toBe('NUMERIC(10)');
+    expect(pgType(f({ name: 'a', type: 'number', precision: 12, scale: 2 }), undefined)).toBe('NUMERIC(12,2)');
+    expect(pgType(f({ name: 'a', type: 'smallint' }), undefined)).toBe('SMALLINT');
+    expect(pgType(f({ name: 'a', type: 'bigint' }), undefined)).toBe('BIGINT');
+    expect(pgType(f({ name: 'a', type: 'real' }), undefined)).toBe('REAL');
+    expect(pgType(f({ name: 'a', type: 'double' }), undefined)).toBe('DOUBLE PRECISION');
+    expect(pgType(f({ name: 'a', type: 'char' }), undefined)).toBe('CHAR(1)');
+    expect(pgType(f({ name: 'a', type: 'char', length: 5 }), undefined)).toBe('CHAR(5)');
   });
 
   it('enum single vs multiple', () => {

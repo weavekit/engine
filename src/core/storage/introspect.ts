@@ -58,16 +58,16 @@ const SNAKE_CASE = /^[a-z][a-z0-9_]*$/;
 /** PostgreSQL `information_schema.columns.data_type` → engine field type (primitives only) */
 const PG_TO_FIELD: Record<string, FieldType> = {
   'character varying': FIELD_TYPES.STRING,
-  character: FIELD_TYPES.STRING,
-  bpchar: FIELD_TYPES.STRING,
+  character: FIELD_TYPES.CHAR,
+  bpchar: FIELD_TYPES.CHAR,
   text: FIELD_TYPES.TEXT,
   integer: FIELD_TYPES.INTEGER,
-  smallint: FIELD_TYPES.INTEGER,
-  bigint: FIELD_TYPES.NUMBER,
+  smallint: FIELD_TYPES.SMALLINT,
+  bigint: FIELD_TYPES.BIGINT,
   numeric: FIELD_TYPES.NUMBER,
   decimal: FIELD_TYPES.NUMBER,
-  real: FIELD_TYPES.NUMBER,
-  'double precision': FIELD_TYPES.NUMBER,
+  real: FIELD_TYPES.REAL,
+  'double precision': FIELD_TYPES.DOUBLE,
   boolean: FIELD_TYPES.BOOLEAN,
   'timestamp with time zone': FIELD_TYPES.TIMESTAMPTZ,
   'timestamp without time zone': FIELD_TYPES.TIMESTAMP,
@@ -112,8 +112,11 @@ function normalizeDefault(raw: string, type: FieldType): DefaultResult {
       if (literal === 'true') return { value: true };
       if (literal === 'false') return { value: false };
       return { unsupported: true };
+    case FIELD_TYPES.SMALLINT:
     case FIELD_TYPES.INTEGER:
     case FIELD_TYPES.NUMBER:
+    case FIELD_TYPES.REAL:
+    case FIELD_TYPES.DOUBLE:
     case FIELD_TYPES.CURRENCY: {
       const n = Number(literal);
       return Number.isFinite(n) ? { value: n } : { unsupported: true };
@@ -124,8 +127,10 @@ function normalizeDefault(raw: string, type: FieldType): DefaultResult {
     case FIELD_TYPES.TIME:
     case FIELD_TYPES.TIMETZ:
     case FIELD_TYPES.UUID:
+    case FIELD_TYPES.BIGINT:
     case FIELD_TYPES.STRING:
     case FIELD_TYPES.TEXT:
+    case FIELD_TYPES.CHAR:
     case FIELD_TYPES.ENUM:
     case FIELD_TYPES.FIRST_NAME:
     case FIELD_TYPES.LAST_NAME:
@@ -208,13 +213,17 @@ function mapColumn(
     );
   }
 
-  if (col.dataType === 'bigint') warnings.push(`column "${table.name}.${col.name}": bigint mapped to number`);
+  if (col.dataType === 'bigint') warnings.push(`column "${table.name}.${col.name}": bigint value is returned as a string`);
 
   const field: Record<string, unknown> = { ...base, type: resolvedType };
   if (required === true) field.required = true;
   if (unique) field.unique = true;
   if (resolvedType === FIELD_TYPES.NUMBER && col.numericPrecision !== undefined && col.numericPrecision !== null) {
     field.precision = col.numericPrecision;
+    if (col.numericScale !== undefined && col.numericScale !== null) field.scale = col.numericScale;
+  }
+  if (resolvedType === FIELD_TYPES.CHAR && col.characterMaximumLength !== undefined && col.characterMaximumLength !== null) {
+    field.length = col.characterMaximumLength;
   }
   if (col.columnDefault !== null) {
     const def = normalizeDefault(col.columnDefault, fieldType);

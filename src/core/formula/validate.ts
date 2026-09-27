@@ -226,12 +226,17 @@ export function typeCompatible(fieldType: string, exprType: FormulaType): boolea
   switch (fieldType) {
     case FIELD_TYPES.STRING:
     case FIELD_TYPES.TEXT:
+    case FIELD_TYPES.CHAR:
     case FIELD_TYPES.UUID:
+    case FIELD_TYPES.BIGINT:
       return exprType === FORMULA_TYPES.STRING;
     case FIELD_TYPES.BOOLEAN:
       return exprType === FORMULA_TYPES.BOOLEAN;
+    case FIELD_TYPES.SMALLINT:
     case FIELD_TYPES.INTEGER:
     case FIELD_TYPES.NUMBER:
+    case FIELD_TYPES.REAL:
+    case FIELD_TYPES.DOUBLE:
     case FIELD_TYPES.CURRENCY:
       return exprType === FORMULA_TYPES.NUMBER || exprType === FORMULA_TYPES.INTEGER;
     default:

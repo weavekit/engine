@@ -68,10 +68,19 @@ export function fieldSchema(
   if (multipleImage) {
     out.type = 'array';
     out.items = { type: 'string', format: 'uri' };
-  } else if (base === FIELD_TYPES.INTEGER) {
+  } else if (base === FIELD_TYPES.SMALLINT || base === FIELD_TYPES.INTEGER) {
     out.type = 'integer';
+  } else if (base === FIELD_TYPES.BIGINT) {
+    // serialized as a string (precision-safe; pg returns int8 as text)
+    out.type = 'string';
   } else if (base === FIELD_TYPES.NUMBER || base === FIELD_TYPES.CURRENCY) {
     out.type = 'number';
+  } else if (base === FIELD_TYPES.REAL) {
+    out.type = 'number';
+    out.format = 'float';
+  } else if (base === FIELD_TYPES.DOUBLE) {
+    out.type = 'number';
+    out.format = 'double';
   } else if (base === FIELD_TYPES.BOOLEAN) {
     out.type = 'boolean';
   } else if (base === FIELD_TYPES.TIMESTAMPTZ || base === FIELD_TYPES.TIMESTAMP) {

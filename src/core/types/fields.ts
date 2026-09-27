@@ -75,6 +75,59 @@ export interface NumberField extends FieldBase {
   min?: number;
   max?: number;
   precision?: number;
+  /** numeric scale (`NUMERIC(p,s)`); only meaningful with `precision` */
+  scale?: number;
+  required?: boolean;
+  unique?: boolean;
+  default?: number;
+  formula?: string;
+}
+
+/** fixed-length character (`CHAR(n)` / `BPCHAR(n)`) */
+export interface CharField extends FieldBase {
+  type: typeof FIELD_TYPES.CHAR;
+  length?: number;
+  required?: boolean;
+  unique?: boolean;
+  default?: string;
+  formula?: string;
+}
+
+export interface SmallIntField extends FieldBase {
+  type: typeof FIELD_TYPES.SMALLINT;
+  min?: number;
+  max?: number;
+  required?: boolean;
+  unique?: boolean;
+  default?: number;
+  formula?: string;
+}
+
+/** 64-bit integer; the generated TS type is `string` (precision-safe) */
+export interface BigIntField extends FieldBase {
+  type: typeof FIELD_TYPES.BIGINT;
+  min?: number;
+  max?: number;
+  required?: boolean;
+  unique?: boolean;
+  default?: string;
+  formula?: string;
+}
+
+export interface RealField extends FieldBase {
+  type: typeof FIELD_TYPES.REAL;
+  min?: number;
+  max?: number;
+  required?: boolean;
+  unique?: boolean;
+  default?: number;
+  formula?: string;
+}
+
+export interface DoubleField extends FieldBase {
+  type: typeof FIELD_TYPES.DOUBLE;
+  min?: number;
+  max?: number;
   required?: boolean;
   unique?: boolean;
   default?: number;
@@ -268,8 +321,13 @@ export interface RegisteredField extends Omit<FieldBase, 'type'> {
 export type FieldDefinition =
   | StringField
   | TextField
+  | CharField
+  | SmallIntField
   | IntegerField
+  | BigIntField
   | NumberField
+  | RealField
+  | DoubleField
   | CurrencyField
   | BooleanField
   | DateField

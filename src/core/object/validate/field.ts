@@ -43,8 +43,13 @@ const DEPRECATED_DATETIME_ALIAS = 'datetime';
 const EXTRA_KEYS: Record<FieldType, readonly string[]> = {
   string: ['minLength', 'maxLength', 'regex', 'required', 'unique', 'default', 'formula', ROW_SCOPE_MARKERS.OWNERSHIP, ROW_SCOPE_MARKERS.TEAM],
   text: ['maxLength', 'required', 'unique', 'default', 'formula'],
+  char: ['length', 'required', 'unique', 'default', 'formula'],
+  smallint: ['min', 'max', 'required', 'unique', 'default', 'formula'],
   integer: ['min', 'max', 'required', 'unique', 'default', 'formula'],
-  number: ['min', 'max', 'precision', 'required', 'unique', 'default', 'formula'],
+  bigint: ['min', 'max', 'required', 'unique', 'default', 'formula'],
+  number: ['min', 'max', 'precision', 'scale', 'required', 'unique', 'default', 'formula'],
+  real: ['min', 'max', 'required', 'unique', 'default', 'formula'],
+  double: ['min', 'max', 'required', 'unique', 'default', 'formula'],
   currency: ['min', 'max', 'required', 'unique', 'default', 'formula'],
   boolean: ['required', 'unique', 'default', 'formula'],
   date: ['required', 'unique', 'default'],
@@ -83,6 +88,7 @@ function validateDefault(value: unknown, type: FieldType, vc: Vc, options?: stri
   switch (type) {
     case FIELD_TYPES.STRING:
     case FIELD_TYPES.TEXT:
+    case FIELD_TYPES.CHAR:
     case FIELD_TYPES.FIRST_NAME:
     case FIELD_TYPES.LAST_NAME:
     case FIELD_TYPES.EMAIL:
@@ -93,10 +99,18 @@ function validateDefault(value: unknown, type: FieldType, vc: Vc, options?: stri
     case FIELD_TYPES.IMAGE:
       if (typeof value !== 'string' && !Array.isArray(value)) fail(vc, 'field.default.string');
       break;
+    case FIELD_TYPES.SMALLINT:
     case FIELD_TYPES.INTEGER:
       if (typeof value !== 'number' || !Number.isInteger(value)) fail(vc, 'field.default.integer');
       break;
+    case FIELD_TYPES.BIGINT:
+      if (typeof value !== 'string' && (typeof value !== 'number' || !Number.isInteger(value))) {
+        fail(vc, 'field.default.integer');
+      }
+      break;
     case FIELD_TYPES.NUMBER:
+    case FIELD_TYPES.REAL:
+    case FIELD_TYPES.DOUBLE:
     case FIELD_TYPES.CURRENCY:
       if (typeof value !== 'number') fail(vc, 'field.default.number');
       break;
@@ -245,6 +259,19 @@ export function validateField(raw: unknown, vc: Vc, options: FieldValidateOption
         default: raw.default as string | undefined,
       };
     }
+    case FIELD_TYPES.CHAR: {
+      const length = expectPositiveInt(raw, 'length', vc);
+      validateDefault(raw.default, type, vc);
+      return {
+        ...base,
+        type: FIELD_TYPES.CHAR,
+        formula,
+        length,
+        required,
+        unique,
+        default: raw.default as string | undefined,
+      };
+    }
     case FIELD_TYPES.INTEGER: {
       const min = expectNumber(raw, 'min', vc);
       const max = expectNumber(raw, 'max', vc);
@@ -263,10 +290,47 @@ export function validateField(raw: unknown, vc: Vc, options: FieldValidateOption
         default: raw.default as number | undefined,
       };
     }
+    case FIELD_TYPES.SMALLINT: {
+      const min = expectNumber(raw, 'min', vc);
+      const max = expectNumber(raw, 'max', vc);
+      if (min !== undefined && !Number.isInteger(min)) fail(vc, 'field.min.integer');
+      if (max !== undefined && !Number.isInteger(max)) fail(vc, 'field.max.integer');
+      if (min !== undefined && max !== undefined && min > max) fail(vc, 'field.minGtMax');
+      validateDefault(raw.default, type, vc);
+      return {
+        ...base,
+        type: FIELD_TYPES.SMALLINT,
+        formula,
+        min,
+        max,
+        required,
+        unique,
+        default: raw.default as number | undefined,
+      };
+    }
+    case FIELD_TYPES.BIGINT: {
+      const min = expectNumber(raw, 'min', vc);
+      const max = expectNumber(raw, 'max', vc);
+      if (min !== undefined && !Number.isInteger(min)) fail(vc, 'field.min.integer');
+      if (max !== undefined && !Number.isInteger(max)) fail(vc, 'field.max.integer');
+      if (min !== undefined && max !== undefined && min > max) fail(vc, 'field.minGtMax');
+      validateDefault(raw.default, type, vc);
+      return {
+        ...base,
+        type: FIELD_TYPES.BIGINT,
+        formula,
+        min,
+        max,
+        required,
+        unique,
+        default: raw.default as string | undefined,
+      };
+    }
     case FIELD_TYPES.NUMBER: {
       const min = expectNumber(raw, 'min', vc);
       const max = expectNumber(raw, 'max', vc);
       const precision = expectPositiveInt(raw, 'precision', vc);
+      const scale = expectPositiveInt(raw, 'scale', vc);
       if (min !== undefined && max !== undefined && min > max) fail(vc, 'field.minGtMax');
       validateDefault(raw.default, type, vc);
       return {
@@ -276,6 +340,39 @@ export function validateField(raw: unknown, vc: Vc, options: FieldValidateOption
         min,
         max,
         precision,
+        scale,
+        required,
+        unique,
+        default: raw.default as number | undefined,
+      };
+    }
+    case FIELD_TYPES.REAL: {
+      const min = expectNumber(raw, 'min', vc);
+      const max = expectNumber(raw, 'max', vc);
+      if (min !== undefined && max !== undefined && min > max) fail(vc, 'field.minGtMax');
+      validateDefault(raw.default, type, vc);
+      return {
+        ...base,
+        type: FIELD_TYPES.REAL,
+        formula,
+        min,
+        max,
+        required,
+        unique,
+        default: raw.default as number | undefined,
+      };
+    }
+    case FIELD_TYPES.DOUBLE: {
+      const min = expectNumber(raw, 'min', vc);
+      const max = expectNumber(raw, 'max', vc);
+      if (min !== undefined && max !== undefined && min > max) fail(vc, 'field.minGtMax');
+      validateDefault(raw.default, type, vc);
+      return {
+        ...base,
+        type: FIELD_TYPES.DOUBLE,
+        formula,
+        min,
+        max,
         required,
         unique,
         default: raw.default as number | undefined,

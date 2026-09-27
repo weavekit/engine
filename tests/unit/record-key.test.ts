@@ -102,8 +102,9 @@ describe('temporal / primary-key validation', () => {
     }
   });
 
-  it('rejects json and interval primary keys', () => {
-    expect(() => parseSchema(objWithPrimary('json'))).toThrow();
-    expect(() => parseSchema(objWithPrimary('interval'))).toThrow();
+  it('rejects json/interval/real/double primary keys', () => {
+    for (const type of ['json', 'interval', 'real', 'double']) {
+      expect(() => parseSchema(objWithPrimary(type))).toThrow();
+    }
   });
 });

@@ -93,7 +93,12 @@ export function validateObject(raw: unknown, options?: ValidateOptions): ObjectD
     if (!isScalarFieldType(registry, primaryField.type)) {
       fail(vc, 'object.primary.scalarOnly', { type: primaryField.type });
     }
-    if (primaryField.type === FIELD_TYPES.JSON || primaryField.type === FIELD_TYPES.INTERVAL) {
+    if (
+      primaryField.type === FIELD_TYPES.JSON ||
+      primaryField.type === FIELD_TYPES.INTERVAL ||
+      primaryField.type === FIELD_TYPES.REAL ||
+      primaryField.type === FIELD_TYPES.DOUBLE
+    ) {
       fail(vc, 'object.primary.notAllowed', { field: primaryField.name, type: primaryField.type });
     }
     if ((primaryField as { formula?: string }).formula !== undefined) {

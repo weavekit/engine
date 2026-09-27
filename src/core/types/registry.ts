@@ -22,8 +22,13 @@ function define(descriptor: FieldTypeRegistration): void {
 // ---- primitives ----
 define({ name: FIELD_TYPES.STRING, scalar: true });
 define({ name: FIELD_TYPES.TEXT, scalar: true });
+define({ name: FIELD_TYPES.CHAR, scalar: true });
+define({ name: FIELD_TYPES.SMALLINT, scalar: true });
 define({ name: FIELD_TYPES.INTEGER, scalar: true });
+define({ name: FIELD_TYPES.BIGINT, scalar: true });
 define({ name: FIELD_TYPES.NUMBER, scalar: true });
+define({ name: FIELD_TYPES.REAL, scalar: true });
+define({ name: FIELD_TYPES.DOUBLE, scalar: true });
 define({ name: FIELD_TYPES.CURRENCY, scalar: true });
 define({ name: FIELD_TYPES.BOOLEAN, scalar: true });
 define({ name: FIELD_TYPES.DATE, scalar: true });
@@ -102,8 +107,13 @@ export function describeFieldType(registry: FieldTypeRegistry, type: FieldType):
 export const PRIMITIVE_FIELD_TYPES: readonly FieldType[] = [
   FIELD_TYPES.STRING,
   FIELD_TYPES.TEXT,
+  FIELD_TYPES.CHAR,
+  FIELD_TYPES.SMALLINT,
   FIELD_TYPES.INTEGER,
+  FIELD_TYPES.BIGINT,
   FIELD_TYPES.NUMBER,
+  FIELD_TYPES.REAL,
+  FIELD_TYPES.DOUBLE,
   FIELD_TYPES.CURRENCY,
   FIELD_TYPES.BOOLEAN,
   FIELD_TYPES.DATE,

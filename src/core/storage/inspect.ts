@@ -11,6 +11,8 @@ export interface ActualColumn {
   numericPrecision?: number | null;
   /** numeric scale (numeric/decimal); null when not numeric */
   numericScale?: number | null;
+  /** declared length for char/varchar columns; null when not applicable */
+  characterMaximumLength?: number | null;
   /** enum labels when the column is a user-defined enum (detail only) */
   enumLabels?: string[];
   /** column comment (detail only) */
@@ -70,7 +72,7 @@ export async function inspectSchema(pool: Pool, options: InspectOptions = {}): P
 
   const cols = await pool.query(
     `SELECT table_name, column_name, data_type, is_nullable, column_default,
-            udt_name, numeric_precision, numeric_scale
+            udt_name, numeric_precision, numeric_scale, character_maximum_length
        FROM information_schema.columns
       WHERE table_schema = current_schema()`,
   );
@@ -83,6 +85,7 @@ export async function inspectSchema(pool: Pool, options: InspectOptions = {}): P
     udt_name: string | null;
     numeric_precision: number | null;
     numeric_scale: number | null;
+    character_maximum_length: number | null;
   }[]) {
     const t = tables.get(row.table_name) ?? {
       name: row.table_name,
@@ -103,6 +106,7 @@ export async function inspectSchema(pool: Pool, options: InspectOptions = {}): P
       udtName: row.udt_name ?? undefined,
       numericPrecision: row.numeric_precision,
       numericScale: row.numeric_scale,
+      characterMaximumLength: row.character_maximum_length ?? null,
     });
     tables.set(row.table_name, t);
   }

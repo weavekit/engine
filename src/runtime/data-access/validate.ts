@@ -100,7 +100,7 @@ async function checkValue(field: FieldDefinition, value: unknown, vc: Vc): Promi
     return;
   }
 
-  if (base === FIELD_TYPES.STRING || base === FIELD_TYPES.TEXT) {
+  if (base === FIELD_TYPES.STRING || base === FIELD_TYPES.TEXT || base === FIELD_TYPES.CHAR) {
     if (typeof value !== 'string') fail(vc, 'data.field.type', { field: f.name, type: 'string' });
     const str = value as string;
     const s = f as { minLength?: number; maxLength?: number; regex?: string };
@@ -110,10 +110,32 @@ async function checkValue(field: FieldDefinition, value: unknown, vc: Vc): Promi
     return;
   }
 
-  if (base === FIELD_TYPES.INTEGER || base === FIELD_TYPES.NUMBER || base === FIELD_TYPES.CURRENCY) {
+  if (base === FIELD_TYPES.BIGINT) {
+    // precision-safe: accepts a decimal string or an integer number
+    const ok =
+      typeof value === 'string'
+        ? /^-?\d+$/.test(value)
+        : typeof value === 'number' && Number.isInteger(value);
+    if (!ok) fail(vc, 'data.field.type', { field: f.name, type: 'integer' });
+    return;
+  }
+
+  if (
+    base === FIELD_TYPES.SMALLINT ||
+    base === FIELD_TYPES.INTEGER ||
+    base === FIELD_TYPES.NUMBER ||
+    base === FIELD_TYPES.REAL ||
+    base === FIELD_TYPES.DOUBLE ||
+    base === FIELD_TYPES.CURRENCY
+  ) {
     const n = f as { min?: number; max?: number };
     if (typeof value !== 'number' || Number.isNaN(value)) fail(vc, 'data.field.type', { field: f.name, type: 'number' });
-    if (base === FIELD_TYPES.INTEGER && !Number.isInteger(value)) fail(vc, 'data.field.type', { field: f.name, type: 'integer' });
+    if (
+      (base === FIELD_TYPES.SMALLINT || base === FIELD_TYPES.INTEGER) &&
+      !Number.isInteger(value)
+    ) {
+      fail(vc, 'data.field.type', { field: f.name, type: 'integer' });
+    }
     if (n.min !== undefined && (value as number) < n.min) fail(vc, 'data.field.min', { field: f.name, min: n.min });
     if (n.max !== undefined && (value as number) > n.max) fail(vc, 'data.field.max', { field: f.name, max: n.max });
     return;

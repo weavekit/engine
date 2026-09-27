@@ -54,6 +54,7 @@ function tsTypeOf(
   switch (base) {
     case FIELD_TYPES.STRING:
     case FIELD_TYPES.TEXT:
+    case FIELD_TYPES.CHAR:
     case FIELD_TYPES.DATE:
     case FIELD_TYPES.TIME:
     case FIELD_TYPES.TIMETZ:
@@ -61,10 +62,14 @@ function tsTypeOf(
     case FIELD_TYPES.TIMESTAMPTZ:
     case FIELD_TYPES.INTERVAL:
     case FIELD_TYPES.UUID:
+    case FIELD_TYPES.BIGINT:
     case FIELD_TYPES.SEQ_NO:
       return 'string';
+    case FIELD_TYPES.SMALLINT:
     case FIELD_TYPES.INTEGER:
     case FIELD_TYPES.NUMBER:
+    case FIELD_TYPES.REAL:
+    case FIELD_TYPES.DOUBLE:
     case FIELD_TYPES.CURRENCY:
       return 'number';
     case FIELD_TYPES.BOOLEAN:
