@@ -168,4 +168,61 @@ maybe('record metadata side table E2E (local PG)', () => {
       await pool.end();
     }
   });
+
+  it('filters and sorts by weave_* virtual fields (SQL JOIN)', async () => {
+    const object = 'wk_test_meta_filter';
+    const table = recordMetaTableName(object);
+    const pool = createPool(url!);
+    try {
+      await pool.query(`DROP TABLE IF EXISTS "${table}" CASCADE`);
+      await pool.query(`DROP TABLE IF EXISTS "${object}" CASCADE`);
+
+      const reg = new ObjectRegistry();
+      reg.register({
+        name: object,
+        fields: [
+          { name: 'id', type: 'string', primary: true },
+          { name: 'name', type: 'string' },
+        ],
+      });
+      await migrate(reg, { databaseUrl: url! });
+      const dataAccess = createDataAccess();
+      const ctx = { pool, registry: reg };
+      await dataAccess.create(object, { id: 'A1', name: 'a' }, ctx);
+      await dataAccess.create(object, { id: 'A2', name: 'b' }, ctx);
+      await dataAccess.create(object, { id: 'A3', name: 'c' }, ctx);
+      await upsertRecordMeta(pool, object, encodeRecordKey(['A1']), { status: 'running' });
+      await upsertRecordMeta(pool, object, encodeRecordKey(['A2']), { status: 'effective' });
+
+      // filter by a virtual field
+      const running = await dataAccess.find<Record<string, unknown>>(object, { filter: { weave_status: 'running' } }, ctx);
+      expect(running.total).toBe(1);
+      expect(running.rows[0]!.id).toBe('A1');
+
+      // sparse row → status defaults to 'draft'
+      const draft = await dataAccess.find<Record<string, unknown>>(
+        object,
+        { filter: { weave_status: 'draft' }, fields: ['id', 'weave_status'] },
+        ctx,
+      );
+      expect(draft.total).toBe(1);
+      expect(draft.rows[0]).toEqual({ id: 'A3', weave_status: 'draft' });
+
+      // filter by another virtual field
+      const byActor = await dataAccess.find<Record<string, unknown>>(object, { filter: { weave_created_by: 'system' } }, ctx);
+      expect(byActor.total).toBe(3);
+
+      // sort by a virtual field
+      const sorted = await dataAccess.find<Record<string, unknown>>(
+        object,
+        { sort: [{ field: 'weave_status', dir: 'asc' }], fields: ['id', 'weave_status'] },
+        ctx,
+      );
+      expect(sorted.rows.map((r) => r.weave_status)).toEqual(['draft', 'effective', 'running']);
+    } finally {
+      await pool.query(`DROP TABLE IF EXISTS "${table}" CASCADE`);
+      await pool.query(`DROP TABLE IF EXISTS "${object}" CASCADE`);
+      await pool.end();
+    }
+  });
 });

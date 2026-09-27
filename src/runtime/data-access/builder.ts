@@ -2,11 +2,23 @@ import type { Locale, ObjectDefinition } from "../../core/index.js";
 import { SchemaError } from "../../core/index.js";
 import { DETAILS_COLUMNS } from "../../core/index.js";
 import { FIELD_TYPES } from "../../core/index.js";
+import {
+  RECORD_META_COLUMNS,
+  RECORD_META_DEFAULT_STATUS,
+  RECORD_META_VIRTUAL_PREFIX,
+  isRecordMetaVirtualField,
+  recordKeySql,
+} from "../../core/index.js";
 import type { Filter, FindOptions, FilterValue, Sort } from "./types.js";
 import type { FilterOp } from "./values.js";
 import { FILTER_OPS, PAGINATION } from "./values.js";
 
 const q = (id: string) => `"${id}"`;
+
+/** the join alias of the customer table when a side table is joined */
+const T = "t";
+/** the join alias of the record-metadata side table */
+const M = "m";
 
 const PARENT_COLUMNS = new Set<string>(Object.values(DETAILS_COLUMNS));
 
@@ -32,6 +44,34 @@ export interface BuildContext {
   locale?: Locale;
   /** allow the engine-managed parent_id/parent_type/parent_idx columns (details child objects) */
   allowParentCols?: boolean;
+  /** when present, LEFT JOIN the record-metadata side table and expose `weave_*` fields */
+  meta?: { table: string };
+}
+
+/** qualified reference to a customer-model column (alias `t` when a side table is joined) */
+function colRef(ctx: BuildContext, name: string): string {
+  return ctx.meta === undefined ? q(name) : `${T}.${q(name)}`;
+}
+
+/**
+ * SQL expression for a reserved record-metadata virtual field (`weave_*`) read
+ * from the joined side table, or `undefined` when no side table is joined / the
+ * name is not virtual.
+ */
+function virtualRef(ctx: BuildContext, name: string): string | undefined {
+  if (ctx.meta === undefined || !isRecordMetaVirtualField(name)) return undefined;
+  const column = name.slice(RECORD_META_VIRTUAL_PREFIX.length);
+  if (column === RECORD_META_COLUMNS.STATUS) {
+    return `COALESCE(${M}.${q(column)}, '${RECORD_META_DEFAULT_STATUS}')`;
+  }
+  return `${M}.${q(column)}`;
+}
+
+/** the FROM clause (with the optional record-metadata LEFT JOIN) */
+function fromClause(object: ObjectDefinition, ctx: BuildContext): string {
+  if (ctx.meta === undefined) return q(object.name);
+  const onKey = recordKeySql(object, (name) => `${T}.${q(name)}`);
+  return `${q(object.name)} ${T} LEFT JOIN ${q(ctx.meta.table)} ${M} ON ${M}.${q(RECORD_META_COLUMNS.RECORD_KEY)} = ${onKey}`;
 }
 
 export interface RowScope {
@@ -79,18 +119,18 @@ function isKnown(
   ctx: BuildContext,
   name: string,
 ): boolean {
+  if (virtualRef(ctx, name) !== undefined) return true;
   const field = fieldOf(object, name);
   if (field !== undefined && field.type !== FIELD_TYPES.DETAILS) return true;
   return ctx.allowParentCols === true && PARENT_COLUMNS.has(name);
 }
 
 function conditionSql(
-  field: ObjectDefinition["fields"][number],
+  col: string,
   op: FilterOp,
   value: unknown,
   idx: number,
 ): { sql: string; params: unknown[] } {
-  const col = q(field.name);
   const p = `$${idx}`;
   switch (op) {
     case FILTER_OPS.EQ:
@@ -128,7 +168,8 @@ function buildFieldClause(
 ): string {
   if (!isKnown(object, ctx, name)) fail(ctx, name);
   const field = fieldOf(object, name);
-  // parent_* columns have no field definition; treat as plain string columns
+  const colExpr = virtualRef(ctx, name) ?? colRef(ctx, name);
+  // parent_* columns and virtual fields have no field definition; treat as plain string columns
   const effective: ObjectDefinition["fields"][number] =
     field ??
     ({ name, type: FIELD_TYPES.STRING } as ObjectDefinition["fields"][number]);
@@ -149,7 +190,7 @@ function buildFieldClause(
   const baseIdx = params.length + 1;
   const pieces: string[] = [];
   for (const [op, value] of ops) {
-    const { sql, params: p } = conditionSql(effective, op, value, baseIdx + pieces.length);
+    const { sql, params: p } = conditionSql(colExpr, op, value, baseIdx + pieces.length);
     pieces.push(sql);
     params.push(...p);
   }
@@ -211,7 +252,8 @@ export function buildOrderBy(
   const parts: string[] = [];
   for (const s of sort) {
     if (!isKnown(object, ctx, s.field)) fail(ctx, s.field);
-    parts.push(`${q(s.field)} ${s.dir.toUpperCase()}`);
+    const expr = virtualRef(ctx, s.field) ?? colRef(ctx, s.field);
+    parts.push(`${expr} ${s.dir.toUpperCase()}`);
   }
   return ` ORDER BY ${parts.join(", ")}`;
 }
@@ -235,16 +277,21 @@ export function buildColumns(
   if (fields === undefined) {
     return allCols
       .filter((c) => !isExcluded(c))
-      .map(q)
+      .map((c) => colRef(ctx, c))
       .join(", ");
   }
+  const parts: string[] = [];
   for (const name of fields) {
+    const vref = virtualRef(ctx, name);
+    if (vref !== undefined) {
+      parts.push(`${vref} AS ${q(name)}`);
+      continue;
+    }
     if (!allCols.includes(name)) fail(ctx, name);
+    if (isExcluded(name)) continue;
+    parts.push(colRef(ctx, name));
   }
-  return fields
-    .filter((c) => !isExcluded(c))
-    .map(q)
-    .join(", ");
+  return parts.join(", ");
 }
 
 /** resolve pagination with defaults/caps */
@@ -269,7 +316,7 @@ export function buildFindSql(
   exclude?: readonly string[],
   extraSelect?: readonly string[],
 ): BuiltQuery {
-  const table = q(object.name);
+  const table = fromClause(object, ctx);
   const cols = buildColumns(object, opts.fields, ctx, exclude);
   const select = [cols, ...(extraSelect ?? [])].filter((s) => s.length > 0).join(", ");
   const { sql: where, params } = buildWhere(object, opts.filter, ctx, rowScope);
@@ -286,7 +333,7 @@ export function buildCountSql(
   ctx: BuildContext,
   rowScope?: RowScope,
 ): BuiltQuery {
-  const table = q(object.name);
+  const table = fromClause(object, ctx);
   const { sql: where, params } = buildWhere(object, opts.filter, ctx, rowScope);
   return {
     sql: `SELECT COUNT(*)::int AS total FROM ${table} ${where}`,
