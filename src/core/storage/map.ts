@@ -117,6 +117,8 @@ export function pgType(
     case FIELD_TYPES.UUID:
       return 'UUID';
     case FIELD_TYPES.JSON:
+      return 'JSON';
+    case FIELD_TYPES.JSONB:
       return 'JSONB';
     case FIELD_TYPES.ENUM:
       return (field as { multiple?: boolean }).multiple ? 'TEXT[]' : 'VARCHAR(255)';

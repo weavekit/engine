@@ -22,6 +22,8 @@ maybe('Scalar type fidelity E2E (local PG)', () => {
           { name: 'd', type: 'double' },
           { name: 'c', type: 'char', length: 5 },
           { name: 'n', type: 'number', precision: 12, scale: 2 },
+          { name: 'j', type: 'json' },
+          { name: 'jb', type: 'jsonb' },
         ],
       });
       await migrate(reg, { databaseUrl: url! });
@@ -36,6 +38,8 @@ maybe('Scalar type fidelity E2E (local PG)', () => {
       expect(cols.get('c')?.characterMaximumLength).toBe(5);
       expect(cols.get('n')?.numericPrecision).toBe(12);
       expect(cols.get('n')?.numericScale).toBe(2);
+      expect(cols.get('j')?.dataType).toBe('json');
+      expect(cols.get('jb')?.dataType).toBe('jsonb');
 
       // reverse-modeling recovers the exact engine types (round-trip closed)
       const report = mapToSchema(actual, { include: [object] });
@@ -49,6 +53,8 @@ maybe('Scalar type fidelity E2E (local PG)', () => {
       expect(fields.get('n')?.type).toBe('number');
       expect((fields.get('n') as { precision?: number }).precision).toBe(12);
       expect((fields.get('n') as { scale?: number }).scale).toBe(2);
+      expect(fields.get('j')?.type).toBe('json');
+      expect(fields.get('jb')?.type).toBe('jsonb');
     } finally {
       await pool.query(`DROP TABLE IF EXISTS "${object}", "weavekit_record__${object}" CASCADE`);
       await pool.end();

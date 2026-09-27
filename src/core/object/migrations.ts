@@ -32,6 +32,20 @@ function migrateAddConstraintSupport(raw: RawObject): RawObject {
 }
 
 /**
+ * v3 → v4: the `json` field type now maps to PostgreSQL `json`. Previously `json`
+ * mapped to `jsonb`, so rewrite existing `json` fields to the explicit `jsonb`
+ * type (semantics preserved; `json` is now free to mean PG `json`).
+ */
+function migrateJsonToJsonb(raw: RawObject): RawObject {
+  const fields = Array.isArray(raw.fields)
+    ? raw.fields.map((field) =>
+        isRecord(field) && field.type === 'json' ? { ...field, type: 'jsonb' } : field,
+      )
+    : raw.fields;
+  return { ...raw, fields, schemaVersion: 4 };
+}
+
+/**
  * On-disk format migrations: `from`-version → a transform producing version+1.
  * Append a step here whenever {@link SCHEMA_FORMAT_VERSION} is bumped. Steps
  * must be pure (they may not read files or the database).
@@ -43,6 +57,8 @@ const MIGRATIONS: Record<number, (raw: RawObject) => RawObject> = {
   1: migrateLabelsToMap,
   // v2 → v3: stamp the version; `constraints` is optional and needs no rewrite.
   2: migrateAddConstraintSupport,
+  // v3 → v4: `json` now maps to PG `json`; rewrite former `json` (== JSONB) to `jsonb`.
+  3: migrateJsonToJsonb,
 };
 
 /**

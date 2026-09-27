@@ -167,7 +167,7 @@ async function checkValue(field: FieldDefinition, value: unknown, vc: Vc): Promi
     return;
   }
 
-  if (base === FIELD_TYPES.JSON) {
+  if (base === FIELD_TYPES.JSON || base === FIELD_TYPES.JSONB) {
     // any JSON value accepted
     return;
   }

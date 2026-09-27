@@ -75,6 +75,7 @@ function tsTypeOf(
     case FIELD_TYPES.BOOLEAN:
       return 'boolean';
     case FIELD_TYPES.JSON:
+    case FIELD_TYPES.JSONB:
       return 'Record<string, unknown>';
     case FIELD_TYPES.ENUM:
       return enumType(field as EnumField);

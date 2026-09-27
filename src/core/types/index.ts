@@ -20,6 +20,7 @@ export type {
   IntervalField,
   UuidField,
   JsonField,
+  JsonbField,
   EnumField,
   EnumOptions,
   RelationField,

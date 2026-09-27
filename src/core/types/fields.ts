@@ -200,6 +200,12 @@ export interface JsonField extends FieldBase {
   default?: unknown;
 }
 
+export interface JsonbField extends FieldBase {
+  type: typeof FIELD_TYPES.JSONB;
+  required?: boolean;
+  default?: unknown;
+}
+
 /**
  * Enum option source: an inline list of strings, or a data-driven source
  * (`{ from: { object, column? } }`) whose allowed values are the distinct
@@ -338,6 +344,7 @@ export type FieldDefinition =
   | IntervalField
   | UuidField
   | JsonField
+  | JsonbField
   | EnumField
   | RelationField
   | DetailsField

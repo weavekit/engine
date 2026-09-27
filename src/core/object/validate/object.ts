@@ -95,6 +95,7 @@ export function validateObject(raw: unknown, options?: ValidateOptions): ObjectD
     }
     if (
       primaryField.type === FIELD_TYPES.JSON ||
+      primaryField.type === FIELD_TYPES.JSONB ||
       primaryField.type === FIELD_TYPES.INTERVAL ||
       primaryField.type === FIELD_TYPES.REAL ||
       primaryField.type === FIELD_TYPES.DOUBLE

@@ -18,7 +18,8 @@ describe('pgType — type mapping', () => {
     expect(pgType(f({ name: 'a', type: 'timetz' }), undefined)).toBe('TIMETZ');
     expect(pgType(f({ name: 'a', type: 'interval' }), undefined)).toBe('INTERVAL');
     expect(pgType(f({ name: 'a', type: 'uuid' }), undefined)).toBe('UUID');
-    expect(pgType(f({ name: 'a', type: 'json' }), undefined)).toBe('JSONB');
+    expect(pgType(f({ name: 'a', type: 'json' }), undefined)).toBe('JSON');
+    expect(pgType(f({ name: 'a', type: 'jsonb' }), undefined)).toBe('JSONB');
     expect(pgType(f({ name: 'a', type: 'number' }), undefined)).toBe('NUMERIC');
     expect(pgType(f({ name: 'a', type: 'number', precision: 10 }), undefined)).toBe('NUMERIC(10)');
     expect(pgType(f({ name: 'a', type: 'number', precision: 12, scale: 2 }), undefined)).toBe('NUMERIC(12,2)');

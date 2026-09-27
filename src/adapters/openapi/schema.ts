@@ -98,7 +98,7 @@ export function fieldSchema(
   } else if (base === FIELD_TYPES.UUID) {
     out.type = 'string';
     out.format = 'uuid';
-  } else if (base === FIELD_TYPES.JSON) {
+  } else if (base === FIELD_TYPES.JSON || base === FIELD_TYPES.JSONB) {
     // free-form: leave unconstrained
   } else if (base === FIELD_TYPES.ENUM) {
     const opts = f.options as string[] | { from: { object: string; column?: string } };

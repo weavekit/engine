@@ -77,7 +77,7 @@ const PG_TO_FIELD: Record<string, FieldType> = {
   'time with time zone': FIELD_TYPES.TIMETZ,
   interval: FIELD_TYPES.INTERVAL,
   json: FIELD_TYPES.JSON,
-  jsonb: FIELD_TYPES.JSON,
+  jsonb: FIELD_TYPES.JSONB,
   uuid: FIELD_TYPES.UUID,
 };
 

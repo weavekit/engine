@@ -82,4 +82,32 @@ describe('schema format version', () => {
   it('schemaVersionOf reports legacy 0 for unversioned input', () => {
     expect(schemaVersionOf({ ...base })).toBe(0);
   });
+
+  it('migrates a v3 `json` field to `jsonb` (json now means PG json)', () => {
+    const migrated = migrateSchemaObject({
+      name: 'lead',
+      schemaVersion: 3,
+      fields: [
+        { name: 'id', type: 'string', primary: true },
+        { name: 'meta', type: 'json' },
+      ],
+    });
+    expect(migrated.object.schemaVersion).toBe(SCHEMA_FORMAT_VERSION);
+    const fields = migrated.object.fields as Array<{ name: string; type: string }>;
+    expect(fields.find((f) => f.name === 'meta')?.type).toBe('jsonb');
+  });
+
+  it('keeps an explicit v4 `json` field as json', () => {
+    const parsed = parseSchema(
+      JSON.stringify({
+        ...base,
+        schemaVersion: SCHEMA_FORMAT_VERSION,
+        fields: [
+          { name: 'id', type: 'string', primary: true },
+          { name: 'meta', type: 'json' },
+        ],
+      }),
+    );
+    expect(parsed.fields.find((f) => f.name === 'meta')?.type).toBe('json');
+  });
 });

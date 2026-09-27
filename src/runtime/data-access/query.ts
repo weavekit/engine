@@ -241,7 +241,12 @@ function toolDataAccessOver(inner: ObjectDataAccess, base: DataAccessContext): T
  * (arrays/objects/numbers/booleans) to valid JSON text. `null` stays SQL NULL.
  */
 function dbJsonValue(field: { type?: string } | undefined, value: unknown): unknown {
-  if (field !== undefined && field.type === FIELD_TYPES.JSON && value !== null && typeof value !== 'string') {
+  if (
+    field !== undefined &&
+    (field.type === FIELD_TYPES.JSON || field.type === FIELD_TYPES.JSONB) &&
+    value !== null &&
+    typeof value !== 'string'
+  ) {
     return JSON.stringify(value);
   }
   return value;
