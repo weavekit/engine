@@ -53,6 +53,12 @@ maybe('Native enum E2E (local PG)', () => {
       expect(st.type).toBe('enum');
       expect(st.enumType).toBe(statusType);
       expect(st.options).toEqual(['open', 'closed']);
+
+      const tg = fields.get('tags') as { type: string; multiple?: boolean; enumType?: string; options?: string[] };
+      expect(tg.type).toBe('enum');
+      expect(tg.multiple).toBe(true);
+      expect(tg.enumType).toBe(tagsType);
+      expect(tg.options).toEqual(['a', 'b']);
     } finally {
       await pool.query(`DROP TABLE IF EXISTS "${object}", "weavekit_record__${object}" CASCADE`);
       await pool.query(`DROP TYPE IF EXISTS "${statusType}", "${tagsType}" CASCADE`);

@@ -34,8 +34,14 @@ export interface IntrospectMapOptions {
   include?: string[];
   /** never convert these tables (table names) */
   exclude?: string[];
-  /** effective field-type registry; registrations with a `reverse` hint are matched back */
-  fieldTypes?: FieldTypeRegistry;
+    /** effective field-type registry; registrations with a `reverse` hint are matched back */
+    fieldTypes?: FieldTypeRegistry;
+    /**
+     * sampled distinct values for text-like array columns (`<table>.<column>`),
+     * used to scaffold `enum multiple` (`weave introspect` fills these by
+     * querying the live DB; pure callers omit them).
+     */
+    textArraySamples?: ReadonlyMap<string, string[]>;
 }
 
 /** a registered type a live column can be reverse-mapped to */
@@ -149,6 +155,7 @@ function mapColumn(
   table: ActualTable,
   warnings: string[],
   matchers: readonly ReverseMatcher[] = [],
+  textArraySamples?: ReadonlyMap<string, string[]>,
 ): FieldDefinition | undefined {
   const base: Record<string, unknown> = { name: col.name };
   if (col.comment !== undefined) base.labels = { [DEFAULT_LOCALE]: col.comment };
@@ -184,7 +191,33 @@ function mapColumn(
   }
 
   if (col.udtName?.startsWith('_') === true || col.dataType === 'ARRAY') {
-    warnings.push(`column "${table.name}.${col.name}": array type not supported — skipped`);
+    // array of a native enum → static enum multiple (exact)
+    if (col.arrayEnum !== undefined) {
+      const field: Record<string, unknown> = {
+        ...base,
+        type: FIELD_TYPES.ENUM,
+        multiple: true,
+        enumType: col.arrayEnum.type,
+        options: [...col.arrayEnum.labels],
+      };
+      if (required === true) field.required = true;
+      return field as unknown as FieldDefinition;
+    }
+    // text-like array → enum multiple scaffolded from sampled values
+    const elem = col.udtName?.replace(/^_/, '');
+    const textLike = elem === 'text' || elem === 'varchar' || elem === 'bpchar';
+    const samples = textLike ? textArraySamples?.get(`${table.name}.${col.name}`) : undefined;
+    if (samples !== undefined && samples.length > 0) {
+      const field: Record<string, unknown> = { ...base, type: FIELD_TYPES.ENUM, multiple: true, options: [...samples] };
+      if (required === true) field.required = true;
+      warnings.push(
+        `column "${table.name}.${col.name}": text[] reverse-modeled as enum multiple from sampled values — review (may be multiRelation/image/plain array)`,
+      );
+      return field as unknown as FieldDefinition;
+    }
+    warnings.push(
+      `column "${table.name}.${col.name}": array "${col.dataType}" not modelable — define by hand (enum multiple / multiRelation)`,
+    );
     return undefined;
   }
 
@@ -287,7 +320,7 @@ export function mapToSchema(tables: Map<string, ActualTable>, options: Introspec
       continue;
     }
 
-    const pkField = mapColumn(pkCol, table, warnings, matchers);
+    const pkField = mapColumn(pkCol, table, warnings, matchers, options.textArraySamples);
     if (pkField === undefined) {
       skipped.push({ table: name, reason: `primary key column "${pkName}" type not supported` });
       continue;
@@ -297,7 +330,7 @@ export function mapToSchema(tables: Map<string, ActualTable>, options: Introspec
     const fields: FieldDefinition[] = [pkField];
     for (const col of table.columns) {
       if (col.name === pkName) continue;
-      const mapped = mapColumn(col, table, warnings, matchers);
+      const mapped = mapColumn(col, table, warnings, matchers, options.textArraySamples);
       if (mapped !== undefined) fields.push(mapped);
     }
 

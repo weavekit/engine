@@ -1,6 +1,6 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { createPool, inspectSchema, mapToSchema, SCHEMA_FORMAT_VERSION } from '../../core/index.js';
+import { createPool, inspectSchema, mapToSchema, SCHEMA_FORMAT_VERSION, type ActualTable } from '../../core/index.js';
 import { autoCommit, type AutoCommitResult } from '../../runtime/git/index.js';
 import { loadConfig } from '../load-config.js';
 import { resolveProjectFieldTypes } from '../resolve-field-types.js';
@@ -11,6 +11,31 @@ function splitCsv(value?: string): string[] | undefined {
   if (value === undefined) return undefined;
   const list = value.split(',').map((s) => s.trim()).filter((s) => s.length > 0);
   return list.length > 0 ? list : undefined;
+}
+
+/**
+ * Sample distinct values (bounded) for text-like array columns so `text[]` can
+ * be scaffolded as `enum multiple` (the column is not lost; the user refines the
+ * intended meaning). Pure `mapToSchema` callers omit this.
+ */
+async function sampleTextArrays(
+  pool: import('pg').Pool,
+  actual: Map<string, ActualTable>,
+): Promise<Map<string, string[]>> {
+  const out = new Map<string, string[]>();
+  for (const table of actual.values()) {
+    for (const col of table.columns) {
+      if (col.arrayEnum !== undefined) continue;
+      const elem = col.udtName?.replace(/^_/, '');
+      if (elem !== 'text' && elem !== 'varchar' && elem !== 'bpchar') continue;
+      const res = await pool.query(
+        `SELECT DISTINCT unnest("${col.name}") AS v FROM "${table.name}" WHERE "${col.name}" IS NOT NULL LIMIT 20`,
+      );
+      const values = (res.rows as { v: unknown }[]).map((r) => String(r.v));
+      if (values.length > 0) out.set(`${table.name}.${col.name}`, values);
+    }
+  }
+  return out;
 }
 
 /**
@@ -37,6 +62,7 @@ export async function introspect(cwd: string, options: IntrospectOptions): Promi
       include: splitCsv(options.include),
       exclude: splitCsv(options.exclude),
       fieldTypes: await resolveProjectFieldTypes(cwd, config),
+      textArraySamples: await sampleTextArrays(pool, actual),
     });
 
     const rows: string[][] = [['object', 'table', 'fields']];

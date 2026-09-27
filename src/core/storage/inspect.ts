@@ -15,6 +15,8 @@ export interface ActualColumn {
   characterMaximumLength?: number | null;
   /** enum labels when the column is a user-defined enum (detail only) */
   enumLabels?: string[];
+  /** when the column is an array of a user-defined enum: element type name + labels (detail only) */
+  arrayEnum?: { type: string; labels: string[] };
   /** column comment (detail only) */
   comment?: string;
 }
@@ -216,6 +218,30 @@ async function loadDetail(pool: Pool, tables: Map<string, ActualTable>): Promise
   for (const row of enumRows.rows as { table_name: string; column_name: string; label: string }[]) {
     const col = tables.get(row.table_name)?.columns.find((c) => c.name === row.column_name);
     if (col !== undefined) (col.enumLabels ??= []).push(row.label);
+  }
+
+  // arrays of a user-defined enum: element type name + labels (join via typelem)
+  const arrayEnumRows = await pool.query(
+    `SELECT c.relname AS table_name, a.attname AS column_name, et.typname AS elem_type, e.enumlabel AS label
+       FROM pg_attribute a
+       JOIN pg_class c ON a.attrelid = c.oid
+       JOIN pg_namespace n ON c.relnamespace = n.oid
+       JOIN pg_type at ON a.atttypid = at.oid
+       JOIN pg_type et ON at.typelem = et.oid
+       JOIN pg_enum e ON e.enumtypid = et.oid
+      WHERE n.nspname = current_schema() AND a.attnum > 0 AND NOT a.attisdropped
+      ORDER BY c.relname, a.attnum, e.enumsortorder`,
+  );
+  for (const row of arrayEnumRows.rows as {
+    table_name: string;
+    column_name: string;
+    elem_type: string;
+    label: string;
+  }[]) {
+    const col = tables.get(row.table_name)?.columns.find((c) => c.name === row.column_name);
+    if (col === undefined) continue;
+    col.arrayEnum ??= { type: row.elem_type, labels: [] };
+    col.arrayEnum.labels.push(row.label);
   }
 
   const tableComments = await pool.query(

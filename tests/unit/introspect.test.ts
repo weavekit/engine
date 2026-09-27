@@ -148,7 +148,7 @@ describe('mapToSchema — DB reverse modeling', () => {
       ],
     ]);
     const report = mapToSchema(tables);
-    expect(report.warnings.some((w) => w.includes('array type'))).toBe(true);
+    expect(report.warnings.some((w) => w.includes('not modelable'))).toBe(true);
     expect(report.warnings.some((w) => w.includes('not representable'))).toBe(true);
     const t = report.objects.find((o) => o.name === 't')!;
     expect(t.schema.fields.map((f) => f.name)).not.toContain('tags');
@@ -205,5 +205,85 @@ describe('mapToSchema — registered-type reverse hook', () => {
     const report = mapToSchema(invoices(), { fieldTypes: buildFieldTypeRegistry([]) });
     const obj = report.objects.find((o) => o.name === 'invoices')!;
     expect(obj.schema.fields.find((f) => f.name === 'amount')?.type).toBe('number');
+  });
+});
+
+describe('mapToSchema — array columns', () => {
+  it('scaffolds text[] as enum multiple from sampled values', () => {
+    const tables = new Map<string, ActualTable>([
+      [
+        't',
+        table({
+          name: 't',
+          pk: ['id'],
+          columns: [
+            { name: 'id', dataType: 'integer', isNullable: false, columnDefault: null },
+            { name: 'tags', dataType: 'ARRAY', isNullable: true, columnDefault: null, udtName: '_text' },
+          ],
+        }),
+      ],
+    ]);
+    const report = mapToSchema(tables, { textArraySamples: new Map([['t.tags', ['a', 'b', 'c']]]) });
+    const tags = report.objects[0]!.schema.fields.find((f) => f.name === 'tags') as unknown as {
+      type: string;
+      multiple?: boolean;
+      options?: string[];
+    };
+    expect(tags.type).toBe('enum');
+    expect(tags.multiple).toBe(true);
+    expect(tags.options).toEqual(['a', 'b', 'c']);
+    expect(report.warnings.some((w) => w.includes('text[] reverse-modeled'))).toBe(true);
+  });
+
+  it('reverse-models an enum[] from arrayEnum metadata', () => {
+    const tables = new Map<string, ActualTable>([
+      [
+        't2',
+        table({
+          name: 't2',
+          pk: ['id'],
+          columns: [
+            { name: 'id', dataType: 'integer', isNullable: false, columnDefault: null },
+            {
+              name: 'tags',
+              dataType: 'ARRAY',
+              isNullable: true,
+              columnDefault: null,
+              udtName: '_t2_tags',
+              arrayEnum: { type: 't2_tags', labels: ['x', 'y'] },
+            },
+          ],
+        }),
+      ],
+    ]);
+    const report = mapToSchema(tables);
+    const tags = report.objects[0]!.schema.fields.find((f) => f.name === 'tags') as unknown as {
+      type: string;
+      multiple?: boolean;
+      enumType?: string;
+      options?: string[];
+    };
+    expect(tags.type).toBe('enum');
+    expect(tags.multiple).toBe(true);
+    expect(tags.enumType).toBe('t2_tags');
+    expect(tags.options).toEqual(['x', 'y']);
+  });
+
+  it('skips a non-text array with a warning', () => {
+    const tables = new Map<string, ActualTable>([
+      [
+        't3',
+        table({
+          name: 't3',
+          pk: ['id'],
+          columns: [
+            { name: 'id', dataType: 'integer', isNullable: false, columnDefault: null },
+            { name: 'nums', dataType: 'ARRAY', isNullable: true, columnDefault: null, udtName: '_int4' },
+          ],
+        }),
+      ],
+    ]);
+    const report = mapToSchema(tables);
+    expect(report.warnings.some((w) => w.includes('not modelable'))).toBe(true);
   });
 });
