@@ -1,7 +1,7 @@
-import type { PoolClient } from 'pg';
+import type { Pool, PoolClient } from 'pg';
 import type { ObjectDefinition, ObjectRegistry } from '../../core/index.js';
 import { SchemaError, primaryFieldsOf, encodeRecordKey, decodeRecordKey, canonicalizePrimaryValue, type Locale } from '../../core/index.js';
-import { DETAILS_COLUMNS, FIELD_TYPES } from '../../core/index.js';
+import { DETAILS_COLUMNS, FIELD_TYPES, RECORD_META_COLUMNS, RECORD_META_DEFAULT_STATUS, RECORD_META_VIRTUAL_PREFIX, isRecordMetaVirtualField } from '../../core/index.js';
 import type { AuditEvent, AuditSink } from '../../core/audit/index.js';
 import { AUDIT_ACTOR_TYPES, DATA_ACTIONS } from '../../core/audit/index.js';
 import type { EventPublisher } from '../../core/provider/event/index.js';
@@ -14,7 +14,7 @@ import { ensureSeqTable, generateSeqNo } from './seqno.js';
 import type { DataAccessContext, FindOptions, FindResult, ObjectDataAccess } from './types.js';
 import { validateRecord } from './validate.js';
 import { WRITE_MODES } from './values.js';
-import { upsertRecordMeta, deleteRecordMeta } from '../record-meta/index.js';
+import { upsertRecordMeta, deleteRecordMeta, listRecordMeta, type RecordMeta } from '../record-meta/index.js';
 
 const q = (id: string) => `"${id}"`;
 
@@ -183,6 +183,34 @@ function externalIdOf(def: ObjectDefinition, record: Record<string, unknown>): s
   return recordKeyOfRow(def, record);
 }
 
+/** every model column name (details fields have no column) */
+function defaultModelColumns(def: ObjectDefinition): string[] {
+  return def.fields.filter((f) => f.type !== FIELD_TYPES.DETAILS).map((f) => f.name);
+}
+
+/** value of a record-metadata virtual field (from the side-table row, or the sparse default) */
+function virtualFieldValue(name: string, meta: RecordMeta | null): unknown {
+  const column = name.slice(RECORD_META_VIRTUAL_PREFIX.length);
+  switch (column) {
+    case RECORD_META_COLUMNS.STATUS:
+      return meta?.status ?? RECORD_META_DEFAULT_STATUS;
+    case RECORD_META_COLUMNS.OWNER_ID:
+      return meta?.ownerId ?? null;
+    case RECORD_META_COLUMNS.CREATED_BY:
+      return meta?.createdBy ?? null;
+    case RECORD_META_COLUMNS.MODIFIED_BY:
+      return meta?.modifiedBy ?? null;
+    case RECORD_META_COLUMNS.CREATED_TIME:
+      return meta?.createdTime ?? null;
+    case RECORD_META_COLUMNS.MODIFIED_TIME:
+      return meta?.modifiedTime ?? null;
+    case RECORD_META_COLUMNS.WORKFLOW_ID:
+      return meta?.workflowId ?? null;
+    default:
+      return null;
+  }
+}
+
 /**
  * Narrow `ToolDataAccess` over this data-access for guardrail policies: a policy
  * calls `ctx.dataAccess.find(obj, opts, { subject? })` with no pool/registry, so
@@ -345,6 +373,33 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
     }
   }
 
+  /**
+   * Merge record-metadata virtual fields (`weave_*`) onto fetched rows. Reads
+   * the engine side table by the rows' record keys (one extra query) — never
+   * selected from the customer table. `addedPk` columns that were only selected
+   * to compute the key (not requested) are stripped again.
+   */
+  private async mergeVirtualFields(
+    def: ObjectDefinition,
+    rows: Record<string, unknown>[],
+    virtuals: readonly string[],
+    ctx: DataAccessContext,
+    q: Pool | PoolClient,
+    addedPk: readonly string[],
+  ): Promise<Record<string, unknown>[]> {
+    if (rows.length === 0) return rows;
+    const keys = rows.map((r) => recordKeyOfRow(def, r));
+    const metas = await listRecordMeta(q, def.name, keys);
+    const byKey = new Map(metas.map((m) => [m.recordKey, m]));
+    return rows.map((row, i) => {
+      const out: Record<string, unknown> = { ...row };
+      const meta = byKey.get(keys[i]!) ?? null;
+      for (const name of virtuals) out[name] = virtualFieldValue(name, meta);
+      for (const name of addedPk) delete out[name];
+      return out;
+    });
+  }
+
   async find<T = Record<string, unknown>>(
     objectName: string,
     opts: FindOptions,
@@ -352,11 +407,40 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
   ): Promise<FindResult<T>> {
     const def = requireDef(ctx, objectName);
     const q = ctx.client ?? ctx.pool;
-    const { sql, params } = buildFindSql(def, opts, bctx(ctx, objectName), ctx.rowScope, opts.exclude);
+
+    // `weave_*` virtual fields are merged after the main query (they live in the
+    // engine side table); they are never columns of the customer table
+    const virtuals = (opts.fields ?? []).filter((f) => isRecordMetaVirtualField(f));
+    const explicit = opts.fields !== undefined;
+    const modelRequested = explicit
+      ? [...(opts.fields as string[])].filter((f) => !isRecordMetaVirtualField(f))
+      : undefined;
+    const pkNames = primaryNames(def);
+    const queryFields =
+      virtuals.length > 0
+        ? [...new Set([...(modelRequested ?? defaultModelColumns(def)), ...pkNames])]
+        : modelRequested;
+    const addedPk =
+      virtuals.length > 0 && modelRequested !== undefined
+        ? pkNames.filter((n) => !modelRequested.includes(n))
+        : [];
+
+    const { sql, params } = buildFindSql(
+      def,
+      { ...opts, fields: queryFields },
+      bctx(ctx, objectName),
+      ctx.rowScope,
+      opts.exclude,
+    );
     const { rows } = await runTableQuery(q, objectName, sql, params, ctx.locale);
     const { sql: countSql, params: countParams } = buildCountSql(def, opts, bctx(ctx, objectName), ctx.rowScope);
     const { rows: countRows } = await runTableQuery(q, objectName, countSql, countParams, ctx.locale);
-    const loaded = await this.runOnLoad(objectName, rows as Record<string, unknown>[], ctx);
+
+    let result = rows as Record<string, unknown>[];
+    if (virtuals.length > 0) {
+      result = await this.mergeVirtualFields(def, result, virtuals, ctx, q, addedPk);
+    }
+    const loaded = await this.runOnLoad(objectName, result, ctx);
     return { rows: loaded as T[], total: (countRows[0] as { total: number }).total };
   }
 

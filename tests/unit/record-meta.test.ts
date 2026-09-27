@@ -3,9 +3,11 @@ import {
   buildRecordMetaTable,
   isRecordMetaTable,
   recordMetaTableName,
+  isRecordMetaVirtualField,
   RECORD_META_COLUMNS,
   RECORD_META_DEFAULT_STATUS,
   RECORD_META_TABLE_PREFIX,
+  RECORD_META_VIRTUAL_FIELDS,
 } from '../../src/core/storage/record-meta.js';
 
 describe('record metadata side table', () => {
@@ -52,5 +54,19 @@ describe('record metadata side table', () => {
 
   it('creates a distinct table per object', () => {
     expect(buildRecordMetaTable('a').name).not.toBe(buildRecordMetaTable('b').name);
+  });
+
+  it('derives the reserved weave_* virtual field names', () => {
+    expect(RECORD_META_VIRTUAL_FIELDS).toEqual([
+      'weave_status',
+      'weave_owner_id',
+      'weave_created_by',
+      'weave_modified_by',
+      'weave_created_time',
+      'weave_modified_time',
+      'weave_workflow_id',
+    ]);
+    expect(isRecordMetaVirtualField('weave_status')).toBe(true);
+    expect(isRecordMetaVirtualField('status')).toBe(false);
   });
 });

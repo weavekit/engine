@@ -119,4 +119,53 @@ maybe('record metadata side table E2E (local PG)', () => {
       await pool.end();
     }
   });
+
+  it('exposes weave_* virtual fields on demand (never by default)', async () => {
+    const object = 'wk_test_meta_virtual';
+    const table = recordMetaTableName(object);
+    const pool = createPool(url!);
+    try {
+      await pool.query(`DROP TABLE IF EXISTS "${table}" CASCADE`);
+      await pool.query(`DROP TABLE IF EXISTS "${object}" CASCADE`);
+
+      const reg = new ObjectRegistry();
+      reg.register({
+        name: object,
+        fields: [
+          { name: 'id', type: 'string', primary: true },
+          { name: 'name', type: 'string' },
+        ],
+      });
+      await migrate(reg, { databaseUrl: url! });
+      const dataAccess = createDataAccess();
+      const ctx = { pool, registry: reg };
+      await dataAccess.create(object, { id: 'A1', name: 'x' }, ctx);
+
+      // not requested → absent
+      const plain = await dataAccess.find<Record<string, unknown>>(object, {}, ctx);
+      expect('weave_status' in plain.rows[0]!).toBe(false);
+
+      // requested → merged from the side table
+      const withVirtual = await dataAccess.find<Record<string, unknown>>(
+        object,
+        { fields: ['id', 'name', 'weave_status', 'weave_created_by', 'weave_modified_time'] },
+        ctx,
+      );
+      expect(withVirtual.rows[0]).toMatchObject({
+        id: 'A1',
+        name: 'x',
+        weave_status: 'draft',
+        weave_created_by: 'system',
+      });
+      expect(withVirtual.rows[0]!.weave_modified_time).toBeInstanceOf(Date);
+
+      // only a virtual field requested → the projection is honored (no leaked pk)
+      const onlyVirtual = await dataAccess.find<Record<string, unknown>>(object, { fields: ['weave_status'] }, ctx);
+      expect(onlyVirtual.rows[0]).toEqual({ weave_status: 'draft' });
+    } finally {
+      await pool.query(`DROP TABLE IF EXISTS "${table}" CASCADE`);
+      await pool.query(`DROP TABLE IF EXISTS "${object}" CASCADE`);
+      await pool.end();
+    }
+  });
 });

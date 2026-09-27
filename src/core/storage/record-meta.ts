@@ -31,6 +31,23 @@ export const RECORD_META_COLUMNS = {
 /** default `status` for a record with a metadata row */
 export const RECORD_META_DEFAULT_STATUS = 'draft';
 
+/** reserved prefix for record-metadata virtual fields exposed on reads */
+export const RECORD_META_VIRTUAL_PREFIX = 'weave_';
+
+/**
+ * Virtual system field names exposed on reads (derived from the side-table
+ * columns, minus the internal `record_key`). Reserved so they never collide
+ * with a customer's business fields.
+ */
+export const RECORD_META_VIRTUAL_FIELDS: readonly string[] = Object.values(RECORD_META_COLUMNS)
+  .filter((column) => column !== RECORD_META_COLUMNS.RECORD_KEY)
+  .map((column) => `${RECORD_META_VIRTUAL_PREFIX}${column}`);
+
+/** true when a requested field name is a record-metadata virtual field */
+export function isRecordMetaVirtualField(name: string): boolean {
+  return RECORD_META_VIRTUAL_FIELDS.includes(name);
+}
+
 /** side-table name for an object */
 export function recordMetaTableName(object: string): string {
   return `${RECORD_META_TABLE_PREFIX}${object}`;

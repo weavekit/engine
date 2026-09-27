@@ -20,8 +20,11 @@ export {
   RECORD_META_COLUMNS,
   RECORD_META_DEFAULT_STATUS,
   RECORD_META_TABLE_PREFIX,
+  RECORD_META_VIRTUAL_FIELDS,
+  RECORD_META_VIRTUAL_PREFIX,
   buildRecordMetaTable,
   isRecordMetaTable,
+  isRecordMetaVirtualField,
   recordMetaTableName,
 } from './record-meta.js';
 export { buildMappingReport } from './report.js';
