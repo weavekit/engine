@@ -256,6 +256,33 @@ maybe('Migration E2E (local PG)', () => {
     expect(caught!.message).toContain('primary column "id" not found in existing table "alter_pk"');
   });
 
+  it('system identity tables: additive ALTER lands identity columns on an existing weavekit_user', async () => {
+    const pool = createPool(url!);
+    try {
+      await pool.query('DROP TABLE IF EXISTS weavekit_user, weavekit_department CASCADE');
+      // simulate an A′-era weavekit_user: only the id column
+      await pool.query('CREATE TABLE weavekit_user (id uuid PRIMARY KEY)');
+    } finally {
+      await pool.end();
+    }
+    const result = await migrate(new ObjectRegistry(), { databaseUrl: url });
+    expect(result.statements.some((s) => s.includes('ALTER TABLE "weavekit_user" ADD COLUMN "external_source"'))).toBe(true);
+    expect(result.statements.some((s) => s.includes('ALTER TABLE "weavekit_user" ADD COLUMN "roles" JSONB'))).toBe(true);
+    expect(result.statements.some((s) => s.includes('weavekit_user_external_source_external_id_key'))).toBe(true);
+
+    const pool2 = createPool(url!);
+    try {
+      const actual = await inspectSchema(pool2);
+      const cols = actual.get('weavekit_user')!.columns.map((c) => c.name);
+      expect(cols).toEqual(expect.arrayContaining(['external_source', 'external_id', 'roles']));
+      // re-running is idempotent (the composite UNIQUE is seen by pg_indexes)
+      const again = await migrate(new ObjectRegistry(), { databaseUrl: url });
+      expect(again.statements).toEqual([]);
+    } finally {
+      await pool2.end();
+    }
+  });
+
   it('clean up test tables', async () => {
     const pool = createPool(url!);
     try {

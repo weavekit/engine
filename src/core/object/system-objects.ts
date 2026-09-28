@@ -17,8 +17,15 @@ export type SystemObjectName = typeof SYSTEM_OBJECT_NAMES[number];
 const USER: unknown = {
   name: 'weavekit_user',
   labels: { en: 'User', zh: '用户' },
+  // engine-owned table: additive ALTER is allowed (the zero-DDL rule protects
+  // only customer tables), so the identity columns below can land on existing DBs
+  alter: true,
+  constraints: [{ type: 'unique', fields: ['external_source', 'external_id'] }],
   fields: [
     { name: 'id', type: 'uuid', primary: true, required: true },
+    { name: 'external_source', type: 'string' },
+    { name: 'external_id', type: 'string' },
+    { name: 'roles', type: 'jsonb' },
     { name: 'name', type: 'string' },
     { name: 'mobile', type: 'string' },
     { name: 'email', type: 'string' },
@@ -42,8 +49,12 @@ const USER: unknown = {
 const DEPARTMENT: unknown = {
   name: 'weavekit_department',
   labels: { en: 'Department', zh: '部门' },
+  alter: true,
+  constraints: [{ type: 'unique', fields: ['external_source', 'external_id'] }],
   fields: [
     { name: 'id', type: 'uuid', primary: true, required: true },
+    { name: 'external_source', type: 'string' },
+    { name: 'external_id', type: 'string' },
     { name: 'name', type: 'string' },
     { name: 'code', type: 'string' },
     { name: 'parent_id', type: 'relation', target: 'weavekit_department' },
