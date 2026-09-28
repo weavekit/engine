@@ -18,7 +18,7 @@ export interface RpcRequest {
   method: string;
   /** arguments after the object name (for 'objects': [objectName, method, ...args]) */
   args: unknown[];
-  /** the script author (this.user) driving the call — rebuilt as an RbacSubject */
+  /** the script author (this.user) driving the call — rebuilt as an IdentitySubject */
   user: { id: string; name?: string; roles: string[]; teamId?: string };
 }
 

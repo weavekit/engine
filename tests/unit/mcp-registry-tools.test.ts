@@ -10,7 +10,7 @@ import {
 } from '../../src/adapters/mcp/tools.js';
 import { REGISTRY_TOOLS, WORKFLOW_TOOLS } from '../../src/core/index.js';
 import type { McpEngine, ToolExecContext } from '../../src/adapters/mcp/types.js';
-import type { ObjectDefinition, RbacSubject } from '../../src/core/index.js';
+import type { ObjectDefinition, IdentitySubject } from '../../src/core/index.js';
 import type { AuditEvent } from '../../src/core/audit/index.js';
 
 const LEAD: ObjectDefinition = {
@@ -84,7 +84,7 @@ function harness(options: { rateOk?: boolean } = {}): Harness {
   };
 
   const engine: McpEngine = { registry, pool: {} as never, dataAccess: dataAccess as never, locale: 'en' };
-  const user: RbacSubject = { id: 'u1', roles: ['sales'] };
+  const user: IdentitySubject = { id: 'u1', roles: ['sales'] };
   const ctx: ToolExecContext = {
     engine,
     session: {

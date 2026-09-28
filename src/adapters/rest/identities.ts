@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import type { Locale, RbacSubject } from '../../core/index.js';
+import type { Locale, IdentitySubject } from '../../core/index.js';
 import type { Authenticator } from '../auth/index.js';
 import { authenticateRequest, checkRateLimit, requireAdmin } from './common.js';
 import type { RestOptions } from './plugin.js';
@@ -8,7 +8,7 @@ export interface IdentitiesRouteDeps {
   authenticator: Authenticator;
   locale: Locale;
   /** the MCP on-behalf-of identity directory (static `ref → subject`); a function resolver has no introspectable surface */
-  identities?: Record<string, RbacSubject>;
+  identities?: Record<string, IdentitySubject>;
 }
 
 /**

@@ -1,7 +1,7 @@
 import type { Pool, PoolClient } from "pg";
 import type { Locale } from "../../core/index.js";
 import type { ObjectRegistry } from "../../core/index.js";
-import type { RbacSubject } from "../../core/index.js";
+import type { IdentitySubject } from "../../core/index.js";
 import type { FilterOp, SortDir } from "./values.js";
 
 /** pool or pooled client — anything that can run parameterized queries */
@@ -59,7 +59,7 @@ export interface DataAccessContext {
   /** extra WHERE fragment (AND'd), injected by the RBAC layer for own/team/all scope */
   rowScope?: { sql: string; params: unknown[] };
   /** authenticated identity for RBAC decisions; absent = no enforcement */
-  subject?: RbacSubject;
+  subject?: IdentitySubject;
   locale?: Locale;
   /** outer transaction connection; present inside `withTx` (skips nested BEGIN/COMMIT/release) */
   client?: PoolClient;

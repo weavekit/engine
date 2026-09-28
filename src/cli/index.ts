@@ -8,6 +8,7 @@ import { connect } from './commands/connect.js';
 import { dev } from './commands/dev.js';
 import { fieldAdd } from './commands/field-add.js';
 import { fieldTypeCheck, fieldTypeList } from './commands/field-types.js';
+import { identitySync } from './commands/identity.js';
 import { introspect } from './commands/introspect.js';
 import { mcpConfig } from './commands/mcp-config.js';
 import { migrate } from './commands/migrate.js';
@@ -113,6 +114,14 @@ program
         printer: printer(),
       }),
     );
+  });
+
+program
+  .command(WEAVE_COMMANDS.SYNC_IDENTITY)
+  .description('provision the engine identity directory from the configured source (weavekit_user/department)')
+  .option('--dry-run', 'pull + diff without writing')
+  .action(async (opts: { dryRun?: boolean }) => {
+    await runAction(() => identitySync(process.cwd(), { dryRun: opts.dryRun, printer: printer() }));
   });
 
 program

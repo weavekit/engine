@@ -43,7 +43,7 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
 /**
  * The main-process executor for sandbox RPCs. Receives a call posted by the
  * worker and runs it against the real engine resources, always with the
- * script author's identity rebuilt as an `RbacSubject` so `withRbac` enforces
+ * script author's identity rebuilt as an `IdentitySubject` so `withRbac` enforces
  * permissions on every `this.db.objects` call.
  */
 export function createScriptRpcExecutor(options: ScriptBridgeOptions): RpcExecutor {

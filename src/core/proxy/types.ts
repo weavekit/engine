@@ -1,4 +1,4 @@
-import type { RbacSubject } from '../rbac/types.js';
+import type { IdentitySubject } from '../rbac/types.js';
 
 /**
  * Single source of truth for the engine generic proxy vocabulary. This module is
@@ -95,9 +95,9 @@ export interface ProxyResponse {
  */
 export interface ProxyTargetResolver {
   /** Resolve a target by instance; `null` when unregistered (→ 404). Whoever can access which connection is the app's call. */
-  resolve(instance: string, subject: RbacSubject): Promise<ProxyTarget | null>;
+  resolve(instance: string, subject: IdentitySubject): Promise<ProxyTarget | null>;
   /** Optional: list targets the subject may reach (for `GET /api/proxy`). */
-  list?(subject: RbacSubject): Promise<ProxyTarget[]>;
+  list?(subject: IdentitySubject): Promise<ProxyTarget[]>;
 }
 
 /** Normalize + validate a path into segments; `null` when unsafe (traversal/absolute/dup-slash). */

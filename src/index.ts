@@ -19,6 +19,7 @@ import { resolve } from 'node:path';
 export * from './core/index.js';
 export * from './core/api/index.js';
 export * from './runtime/data-access/index.js';
+export * from './runtime/identity/index.js';
 export * from './runtime/git/index.js';
 export * from './runtime/tools/index.js';
 export * from './runtime/proxy/index.js';

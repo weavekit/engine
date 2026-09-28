@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import type { Locale, RbacSubject, ToolDefinition } from '../../core/index.js';
+import type { Locale, IdentitySubject, ToolDefinition } from '../../core/index.js';
 import type { AuditSink } from '../../core/audit/index.js';
 import type { AlertSink } from '../../core/provider/alerts/index.js';
 import type { IdentityResolver } from '../../core/provider/identity/index.js';
@@ -40,7 +40,7 @@ export interface EngineMcpConfig {
    * custom resolver. A resolver may be async and load the user (and their
    * roles/team) from the customer's own database.
    */
-  identities?: Record<string, RbacSubject> | IdentityResolver;
+  identities?: Record<string, IdentitySubject> | IdentityResolver;
 }
 
 export interface McpRegisterDeps {
@@ -79,7 +79,7 @@ export function registerMcp(app: FastifyInstance, deps: McpRegisterDeps): McpSer
     typeof mcp?.identities === 'function'
       ? mcp.identities
       : (ref: string) => {
-          const subject = (mcp?.identities ?? {}) as Record<string, RbacSubject>;
+          const subject = (mcp?.identities ?? {}) as Record<string, IdentitySubject>;
           return subject[ref] ?? null;
         };
 

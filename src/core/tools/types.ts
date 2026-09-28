@@ -1,4 +1,4 @@
-import type { RbacSubject } from '../rbac/index.js';
+import type { IdentitySubject } from '../rbac/index.js';
 import type { Locale } from '../i18n/index.js';
 import type { AuditSink } from '../audit/index.js';
 import type { ApprovalStatus } from './values.js';
@@ -37,7 +37,7 @@ export interface ToolFindResult<T = Record<string, unknown>> {
   total: number;
 }
 export interface ToolDataAccessContext {
-  subject?: RbacSubject;
+  subject?: IdentitySubject;
   locale?: Locale;
 }
 export interface ToolDataAccess {
@@ -133,7 +133,7 @@ export interface ToolResult {
 /** everything a custom tool handler may use — no raw pool/SQL/network */
 export interface ToolCallContext {
   dataAccess: ToolDataAccess;
-  subject: RbacSubject;
+  subject: IdentitySubject;
   actor: ToolActor;
   /** caller-supplied arguments of this invocation */
   args: Record<string, unknown>;
@@ -165,7 +165,7 @@ export type GuardrailDecision =
 /** guardrail policy decision context (protocol-agnostic; `action` = tool name or workflow transition) */
 export interface GuardrailContext {
   actor: ToolActor;
-  subject: RbacSubject;
+  subject: IdentitySubject;
   action: string;
   args: Record<string, unknown>;
   /** amount-threshold style policies read business data through the same narrow surface */

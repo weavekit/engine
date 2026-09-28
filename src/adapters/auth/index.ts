@@ -1,6 +1,6 @@
 import type { Locale } from '../../core/index.js';
 import { SchemaError } from '../../core/index.js';
-import type { RbacSubject } from '../../core/index.js';
+import type { IdentitySubject } from '../../core/index.js';
 import { createAuth, type AuthConfig, type Authenticator } from './source.js';
 
 export type { Authenticator, AuthConfig, AuthResolver, AuthSource } from './source.js';
@@ -15,7 +15,7 @@ export async function authenticate(
   authenticator: Authenticator,
   header: string | undefined,
   locale: Locale,
-): Promise<RbacSubject> {
+): Promise<IdentitySubject> {
   const subject = await authenticator.resolve(header);
   if (subject !== null) return subject;
   if (header === undefined) throw new SchemaError('auth.missingKey', {}, locale);

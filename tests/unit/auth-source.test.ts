@@ -1,8 +1,8 @@
 import { describe, it, expect } from '../helpers/test.js';import { authenticate, buildAuthenticator, createAuth } from '../../src/adapters/auth/index.js';
-import type { RbacSubject } from '../../src/core/rbac/index.js';
+import type { IdentitySubject } from '../../src/core/rbac/index.js';
 import { DEFAULT_LOCALE } from '../../src/core/index.js';
 
-const admin: RbacSubject = { id: 'admin', roles: ['admin'] };
+const admin: IdentitySubject = { id: 'admin', roles: ['admin'] };
 
 describe('auth source — static map', () => {
   it('Bearer key → subject', async () => {

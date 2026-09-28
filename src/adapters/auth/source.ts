@@ -1,8 +1,8 @@
-import type { RbacSubject } from '../../core/index.js';
+import type { IdentitySubject } from '../../core/index.js';
 
 /** resolves an Authorization header into an authenticated identity (null = unauthenticated) */
 export interface Authenticator {
-  resolve(header: string | undefined): RbacSubject | null | Promise<RbacSubject | null>;
+  resolve(header: string | undefined): IdentitySubject | null | Promise<IdentitySubject | null>;
 }
 
 /**
@@ -11,13 +11,13 @@ export interface Authenticator {
  * the user from the customer's own database / verify a JWT. Returning null
  * means unauthenticated (401).
  */
-export type AuthResolver = (header: string | undefined) => RbacSubject | null | Promise<RbacSubject | null>;
+export type AuthResolver = (header: string | undefined) => IdentitySubject | null | Promise<IdentitySubject | null>;
 
 /**
  * The authentication source: either a static key map or a resolver function.
  * `source` is required whenever `auth` is configured (fail fast otherwise).
  */
-export type AuthSource = Record<string, RbacSubject> | AuthResolver;
+export type AuthSource = Record<string, IdentitySubject> | AuthResolver;
 
 /** authentication config — the single source of truth is `source` */
 export interface AuthConfig {
@@ -32,7 +32,7 @@ export function createAuth(config: AuthConfig): Authenticator {
   }
   const keys = source;
   return {
-    resolve(header: string | undefined): RbacSubject | null {
+    resolve(header: string | undefined): IdentitySubject | null {
       if (header === undefined) return null;
       const match = /^Bearer\s+(\S+)$/i.exec(header.trim());
       if (match === null) return null;

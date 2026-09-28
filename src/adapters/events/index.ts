@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { EVENT_TYPES, listObjectDescriptors } from '../../core/index.js';
-import type { Locale, ObjectRegistry, RbacSubject } from '../../core/index.js';
+import type { Locale, ObjectRegistry, IdentitySubject } from '../../core/index.js';
 import type {
   AuditEventPayload,
   EngineEvent,
@@ -49,7 +49,7 @@ export interface EventsOptions {
   corsOrigin?: string | string[] | boolean;
 }
 
-function passesFilter(event: EngineEvent, subject: RbacSubject, readable: Set<string>, isAdmin: boolean): boolean {
+function passesFilter(event: EngineEvent, subject: IdentitySubject, readable: Set<string>, isAdmin: boolean): boolean {
   switch (event.type) {
     case EVENT_TYPES.RECORD_CREATED:
     case EVENT_TYPES.RECORD_UPDATED:

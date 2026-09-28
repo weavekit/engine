@@ -2,9 +2,9 @@ import { describe, it, expect } from '../helpers/test.js';
 import { evaluatePolicies } from '../../src/core/index.js';
 import { applyMask, evaluateCall, evaluateTransition } from '../../src/runtime/tools/policies.js';
 import type { ApprovalStatus, GuardrailContext, GuardrailDecision, GuardrailPolicy, ToolResult } from '../../src/core/index.js';
-import type { RbacSubject, ToolActor } from '../../src/core/index.js';
+import type { IdentitySubject, ToolActor } from '../../src/core/index.js';
 
-const subject: RbacSubject = { id: 'u1', roles: ['agent'] };
+const subject: IdentitySubject = { id: 'u1', roles: ['agent'] };
 const actor: ToolActor = { key: 'k1', label: 'a1', onBehalfOf: 'alice' };
 const ctx: GuardrailContext = {
   actor,

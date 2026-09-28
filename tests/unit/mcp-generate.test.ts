@@ -3,7 +3,7 @@ import { ObjectRegistry } from '../../src/core/object/registry.js';
 import { compileToolsFor } from '../../src/adapters/mcp/generate.js';
 import { INTROSPECTION_TOOLS, REGISTRY_TOOLS, WORKFLOW_TOOLS } from '../../src/core/index.js';
 import type { McpEngine } from '../../src/adapters/mcp/types.js';
-import type { ObjectDefinition, RbacSubject } from '../../src/core/index.js';
+import type { ObjectDefinition, IdentitySubject } from '../../src/core/index.js';
 
 const SUPPLIER: ObjectDefinition = {
   name: 'supplier',
@@ -58,7 +58,7 @@ const TICKET: ObjectDefinition = {
   },
 };
 
-function engineFor(defs: ObjectDefinition[], subject: RbacSubject): { engine: McpEngine; names: string[] } {
+function engineFor(defs: ObjectDefinition[], subject: IdentitySubject): { engine: McpEngine; names: string[] } {
   const registry = new ObjectRegistry();
   for (const def of defs) registry.register(def);
   registry.buildGraph();

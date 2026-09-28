@@ -1,4 +1,4 @@
-import type { ObjectDefinition, RbacSubject } from '../../core/index.js';
+import type { ObjectDefinition, IdentitySubject } from '../../core/index.js';
 import { REGISTRY_TOOLS, SchemaError, WORKFLOW_TOOLS } from '../../core/index.js';
 import type { DataAccessContext } from '../../runtime/data-access/index.js';
 import type { FindOptions } from '../../runtime/data-access/index.js';
@@ -19,12 +19,12 @@ import type { McpToolResult, ToolExecContext } from './types.js';
 
 const ON_BEHALF_OF = 'onBehalfOf';
 
-function ctxWithSubject(ctx: ToolExecContext, subject: RbacSubject): DataAccessContext {
+function ctxWithSubject(ctx: ToolExecContext, subject: IdentitySubject): DataAccessContext {
   return { pool: ctx.engine.pool, registry: ctx.engine.registry, subject, locale: ctx.engine.locale };
 }
 
 /** call-level `onBehalfOf` override: resolve a different identity for this call */
-async function effectiveSubject(args: Record<string, unknown>, ctx: ToolExecContext): Promise<RbacSubject> {
+async function effectiveSubject(args: Record<string, unknown>, ctx: ToolExecContext): Promise<IdentitySubject> {
   const override = args[ON_BEHALF_OF];
   if (override === undefined) return ctx.session.user;
   const resolved = await ctx.resolveIdentity(String(override));
@@ -54,7 +54,7 @@ function auditToolCall(
   ctx: ToolExecContext,
   tool: string,
   objectName: string | undefined,
-  subject: RbacSubject,
+  subject: IdentitySubject,
   args: Record<string, unknown>,
   isError: boolean,
   errorCode: string | undefined,
@@ -104,7 +104,7 @@ async function callProtected(
   tool: string,
   objectName: string | undefined,
   args: Record<string, unknown>,
-  subject: RbacSubject,
+  subject: IdentitySubject,
   run: () => Promise<McpToolResult>,
 ): Promise<McpToolResult> {
   if (!ctx.guardrails.checkRateLimit(ctx.session.agentKey)) {

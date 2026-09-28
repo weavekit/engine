@@ -1,4 +1,4 @@
-import type { RbacSubject } from '../../core/index.js';
+import type { IdentitySubject } from '../../core/index.js';
 
 /**
  * Session model for the MCP adapter. A session is established at the first
@@ -13,9 +13,9 @@ export interface McpSession {
   /** the agent's API key */
   agentKey: string;
   /** agent subject from the Bearer key (authenticator.resolve) */
-  agentSubject: RbacSubject;
+  agentSubject: IdentitySubject;
   /** proxied user identity the agent acts on behalf of (RBAC decisions use this) */
-  user: RbacSubject;
+  user: IdentitySubject;
   /** the on-behalf-of reference this session was bound with */
   onBehalfOf: string;
   createdAt: Date;
@@ -24,8 +24,8 @@ export interface McpSession {
 
 export interface SessionInput {
   agentKey: string;
-  agentSubject: RbacSubject;
-  user: RbacSubject;
+  agentSubject: IdentitySubject;
+  user: IdentitySubject;
   onBehalfOf: string;
 }
 

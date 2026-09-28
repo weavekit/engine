@@ -21,6 +21,13 @@ export interface BuildOptions {
   printer: CliPrinter;
 }
 
+/** `weave sync:identity` options */
+export interface IdentitySyncOptions {
+  /** pull + diff without touching weavekit_user/department */
+  dryRun?: boolean;
+  printer: CliPrinter;
+}
+
 /** `weave test` options */
 export interface TestOptions {
   /** extra arguments forwarded to `bun test` */

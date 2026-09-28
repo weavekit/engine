@@ -1,9 +1,9 @@
 import { describe, it, expect } from '../helpers/test.js';
 import { approvalKeyFor, createApprovals, createToolExecutor } from '../../src/runtime/tools/index.js';
-import type { AuditSink, AuditEvent, RbacSubject, ToolActor, ToolDefinition, ToolResult } from '../../src/core/index.js';
+import type { AuditSink, AuditEvent, IdentitySubject, ToolActor, ToolDefinition, ToolResult } from '../../src/core/index.js';
 
-const subject: RbacSubject = { id: 'u-alice', roles: ['agent', 'admin'] };
-const agent: RbacSubject = { id: 'u-bob', roles: ['agent'] };
+const subject: IdentitySubject = { id: 'u-alice', roles: ['agent', 'admin'] };
+const agent: IdentitySubject = { id: 'u-bob', roles: ['agent'] };
 const actor: ToolActor = { key: 'key-1', label: 'agent-1', onBehalfOf: 'alice' };
 
 function makeDataAccess(calls: string[]) {
@@ -65,8 +65,8 @@ const ticker: ToolDefinition = {
 describe('ToolExecutor.surface — roles whitelist filtering + surface cache', () => {
   it('roles hit or missing → visible; unlisted role → invisible', () => {
     const { executor } = makeExecutor();
-    const customer: RbacSubject = { id: 'u-eve', roles: ['customer'] };
-    const visible = (s: RbacSubject) => executor.surface(s, [ticker]).map((t) => t.name);
+    const customer: IdentitySubject = { id: 'u-eve', roles: ['customer'] };
+    const visible = (s: IdentitySubject) => executor.surface(s, [ticker]).map((t) => t.name);
     expect(visible(subject)).toEqual(['reassign_ticket']);
     expect(visible(agent)).toEqual(['reassign_ticket']);
     expect(visible(customer)).toEqual([]);

@@ -1,7 +1,7 @@
 import type { Pool } from 'pg';
 import { NOOP_AUDIT_SINK, createMemoryApprovalsBackend } from '../../core/index.js';
 import { AUDIT_ACTOR_TYPES } from '../../core/index.js';
-import type { AuditSink, RbacSubject, Locale, ObjectRegistry, ToolActor, ToolApprovals, ApprovalsBackend, ApprovalListFilter, ToolCallContext, ToolDataAccess, ToolDefinition, ToolGuardrails, ToolJsonSchema, ToolResult, ApprovalStatus, PendingApproval, GuardrailContext, GuardrailPolicy } from '../../core/index.js';
+import type { AuditSink, IdentitySubject, Locale, ObjectRegistry, ToolActor, ToolApprovals, ApprovalsBackend, ApprovalListFilter, ToolCallContext, ToolDataAccess, ToolDefinition, ToolGuardrails, ToolJsonSchema, ToolResult, ApprovalStatus, PendingApproval, GuardrailContext, GuardrailPolicy } from '../../core/index.js';
 import type { ObjectDataAccess, DataAccessContext, FindOptions } from '../data-access/index.js';
 import { withTx as dataAccessWithTx } from '../data-access/index.js';
 import { applyMask, evaluateCall } from './policies.js';
@@ -112,7 +112,7 @@ export interface ToolExecutorOptions {
 }
 
 export interface CustomToolExecuteRequest {
-  subject: RbacSubject;
+  subject: IdentitySubject;
   actor: ToolActor;
   /** audit action, e.g. `mcp.tool.<name>` (protocol binding decides the prefix) */
   action: string;
@@ -130,14 +130,14 @@ export interface CustomToolSurfaceEntry {
 
 export interface ToolExecutor {
   /** roles-filtered custom-tool surface for a subject (per-subject cached) */
-  surface(subject: RbacSubject, customTools: ToolDefinition[]): CustomToolSurfaceEntry[];
+  surface(subject: IdentitySubject, customTools: ToolDefinition[]): CustomToolSurfaceEntry[];
   /** execute a custom tool with a controlled ctx + auto-audit (+ guardrail policies) */
   execute(def: ToolDefinition, args: Record<string, unknown>, req: CustomToolExecuteRequest): Promise<ToolResult>;
   /** approval queue handle (also exposed as `engine.tools.approvals`) */
   approvals: ToolApprovals;
 }
 
-function rolesKey(subject: RbacSubject): string {
+function rolesKey(subject: IdentitySubject): string {
   return `${subject.id}:${[...subject.roles].sort().join(',')}`;
 }
 

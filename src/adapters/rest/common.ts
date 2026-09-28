@@ -1,5 +1,5 @@
 import { SchemaError } from '../../core/index.js';
-import type { Locale, RbacSubject } from '../../core/index.js';
+import type { Locale, IdentitySubject } from '../../core/index.js';
 import type { SlidingWindow } from '../../core/limiter/index.js';
 import { authenticate, type Authenticator } from '../auth/index.js';
 
@@ -28,7 +28,7 @@ export async function authenticateRequest(
   authenticator: Authenticator,
   request: { headers: { authorization?: string } },
   locale: Locale,
-): Promise<RbacSubject> {
+): Promise<IdentitySubject> {
   return authenticate(authenticator, request.headers.authorization, locale);
 }
 

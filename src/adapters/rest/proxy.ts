@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
-import type { RbacSubject } from '../../core/index.js';
+import type { IdentitySubject } from '../../core/index.js';
 import {
   AUDIT_ACTOR_TYPES,
   isAllowedProxyPath,
@@ -112,7 +112,7 @@ export function registerProxyRoutes(
   const EMPTY_ALLOW: ProxyAllow = { read: [], write: [] };
   const proxyPath = `${prefix}/proxy/:instance/*`;
 
-  async function resolveTarget(request: FastifyRequest): Promise<{ subject: RbacSubject; target: ProxyTarget; instance: string; path: string }> {
+  async function resolveTarget(request: FastifyRequest): Promise<{ subject: IdentitySubject; target: ProxyTarget; instance: string; path: string }> {
     checkRateLimit(limiter, request, locale);
     const subject = await authenticateRequest(authenticator, request, locale);
     const { instance } = request.params as ProxyParams;

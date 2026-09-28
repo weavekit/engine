@@ -1,5 +1,5 @@
 import { describe, it, expect } from '../helpers/test.js';import Fastify from 'fastify';
-import type { RbacSubject } from '../../src/core/rbac/index.js';
+import type { IdentitySubject } from '../../src/core/rbac/index.js';
 import { ObjectRegistry } from '../../src/core/index.js';
 import type { ObjectDefinition } from '../../src/core/index.js';
 import { registerMcp } from '../../src/adapters/mcp/index.js';
@@ -7,8 +7,8 @@ import { createAuth } from '../../src/adapters/auth/index.js';
 import { setErrorHandlers } from '../../src/adapters/rest/index.js';
 import type { ObjectDataAccess } from '../../src/runtime/data-access/index.js';
 
-const alice: RbacSubject = { id: 'u-alice', roles: ['sales'] };
-const emma: RbacSubject = { id: 'u-emma', roles: ['finance'], teamId: 't1' };
+const alice: IdentitySubject = { id: 'u-alice', roles: ['sales'] };
+const emma: IdentitySubject = { id: 'u-emma', roles: ['finance'], teamId: 't1' };
 
 const LEAD: ObjectDefinition = {
   name: 'lead',
@@ -28,7 +28,7 @@ const noopDataAccess: ObjectDataAccess = {
   delete: async () => undefined,
 };
 
-type IdentitySource = Record<string, RbacSubject> | ((ref: string) => RbacSubject | null | Promise<RbacSubject | null>);
+type IdentitySource = Record<string, IdentitySubject> | ((ref: string) => IdentitySubject | null | Promise<IdentitySubject | null>);
 
 async function newApp(identities: IdentitySource, endpoint?: string) {
   const app = Fastify();

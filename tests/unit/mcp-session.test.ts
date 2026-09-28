@@ -1,7 +1,7 @@
 import { describe, it, expect } from '../helpers/test.js';import { McpSessionStore } from '../../src/adapters/mcp/session.js';
-import type { RbacSubject } from '../../src/core/index.js';
+import type { IdentitySubject } from '../../src/core/index.js';
 
-const alice: RbacSubject = { id: 'u-alice', roles: ['sales'] };
+const alice: IdentitySubject = { id: 'u-alice', roles: ['sales'] };
 const base = { agentKey: 'key-1', agentSubject: { id: 'a1', roles: ['agent'] }, user: alice, onBehalfOf: 'alice' };
 
 describe('McpSessionStore', () => {

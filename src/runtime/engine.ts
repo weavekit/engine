@@ -20,7 +20,7 @@ import {
   type GuardrailPolicy,
   type Locale,
   type ProxyTargetResolver,
-  type RbacSubject,
+  type IdentitySubject,
   type ScriptDispatcher,
   type ToolDefinition,
   type WorkflowTimerSync,
@@ -34,6 +34,8 @@ import { resolvePolicies } from './tools/policies.js';
 import type { ToolExecutor } from './tools/index.js';
 import type { ProxyForwarder } from './proxy/index.js';
 import { buildAuthenticator, type AuthSource, type Authenticator } from '../adapters/auth/index.js';
+import type { IdentitySource, IdentityStore } from '../core/provider/identity/index.js';
+import type { PgIdentitySourceConfig } from './identity/sources/pg.js';
 import {
   registerAuditRoutes,
   registerApprovalsRoutes,
@@ -173,6 +175,26 @@ export interface EngineService {
   start(engine: WeaveKitEngine): Promise<EngineServiceHandle> | EngineServiceHandle;
 }
 
+/** identity directory wiring (see `core/provider/identity`) */
+export interface EngineIdentityConfig {
+  /**
+   * provisioning source: an `IdentitySource` instance (has `pull`) or a
+   * declarative `PgIdentitySourceConfig`. Absent → greenfield (the engine owns
+   * `weavekit_user`/`weavekit_department` directly).
+   */
+  source?: IdentitySource | PgIdentitySourceConfig;
+  /** replaceable local directory store; defaults to PG over `weavekit_*` */
+  store?: IdentityStore;
+  /** reject subjects with no local identity for scoped access (default false) */
+  required?: boolean;
+  sync?: {
+    /** run the source sync on engine start (fail-closed) */
+    onStart?: boolean;
+    /** soft-disable local rows absent from the source snapshot */
+    deactivateMissing?: boolean;
+  };
+}
+
 export interface EngineConfig {
   /** postgres connection string; defaults to process.env.DATABASE_URL */
   databaseUrl?: string;
@@ -243,6 +265,13 @@ export interface EngineConfig {
    * registry passed through validation + consumers (no mutable global).
    */
   fieldTypes?: { dir?: string; entries?: FieldTypeRegistration[] };
+  /**
+   * engine-owned identity directory (see `core/provider/identity`). `source`
+   * imports an external user/department directory (a `pg` descriptor or an
+   * `IdentitySource`); `weave sync:identity` provisions it into `weavekit_user`
+   * / `weavekit_department` before the engine serves scoped access.
+   */
+  identity?: EngineIdentityConfig;
   /**
    * host-level background services (e.g. an instance-liveness monitor). Started
    * after the engine is assembled and stopped in `close()`, so both `weave dev`
@@ -551,7 +580,7 @@ export async function buildEngineFromRegistry(
       {
         authenticator,
         locale,
-        identities: typeof mcpCfg?.identities === 'object' ? (mcpCfg.identities as Record<string, RbacSubject>) : undefined,
+        identities: typeof mcpCfg?.identities === 'object' ? (mcpCfg.identities as Record<string, IdentitySubject>) : undefined,
       },
       restOptions,
     );

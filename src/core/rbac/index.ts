@@ -1,4 +1,4 @@
-export type { RbacSubject } from './types.js';
+export type { IdentitySubject } from './types.js';
 export type { ResolvedPermission } from './resolve.js';
 export type { RowScopeFragment } from './rowScope.js';
 export { resolvePermission } from './resolve.js';

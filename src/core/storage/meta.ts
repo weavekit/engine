@@ -17,3 +17,10 @@ export async function setMeta(pool: Pool, key: string, value: string): Promise<v
     [key, value],
   );
 }
+
+/** read a meta value (null when the table or key is absent) */
+export async function getMeta(pool: Pool, key: string): Promise<string | null> {
+  await ensureMetaTable(pool);
+  const res = await pool.query(`SELECT value FROM ${META_TABLE} WHERE key = $1`, [key]);
+  return (res.rows[0] as { value: string } | undefined)?.value ?? null;
+}

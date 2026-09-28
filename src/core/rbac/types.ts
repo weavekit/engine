@@ -1,7 +1,6 @@
-/** the authenticated identity that RBAC decisions are made for (constructed by the authentication layer) */
-export interface RbacSubject {
-  id: string;
-  roles: string[];
-  /** team identifier for read:team scope; a subject currently has a single team */
-  teamId?: string;
-}
+/**
+ * RBAC runs against the engine's internal identity subject; the contract lives
+ * with the identity provider (`core/provider/identity`) and is re-exported here
+ * for RBAC's own consumers.
+ */
+export type { IdentitySubject } from '../provider/identity/types.js';

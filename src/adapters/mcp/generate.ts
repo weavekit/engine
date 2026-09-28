@@ -1,4 +1,4 @@
-import type { ObjectRegistry, RbacSubject, ToolDefinition } from '../../core/index.js';
+import type { ObjectRegistry, IdentitySubject, ToolDefinition } from '../../core/index.js';
 import { INTROSPECTION_TOOLS, REGISTRY_TOOLS, WORKFLOW_TOOLS, resolvePermission } from '../../core/index.js';
 import type { ResolvedPermission } from '../../core/index.js';
 import { ACTION_PREFIXES } from '../../core/audit/index.js';
@@ -35,7 +35,7 @@ export interface CompiledTool {
 /** capabilities the subject holds on at least one object (drives which generic ops appear) */
 function capabilities(
   registry: ObjectRegistry,
-  subject: RbacSubject,
+  subject: IdentitySubject,
 ): { read: boolean; create: boolean; update: boolean; delete: boolean; transition: boolean } {
   const caps = { read: false, create: false, update: false, delete: false, transition: false };
   for (const def of registry.list()) {
@@ -59,7 +59,7 @@ const OBJECT_ARG: JsonSchema = {
 };
 
 /** the generic CRUD tools for the capabilities the subject holds on any object */
-function registryTools(engine: McpEngine, subject: RbacSubject): CompiledTool[] {
+function registryTools(engine: McpEngine, subject: IdentitySubject): CompiledTool[] {
   const caps = capabilities(engine.registry, subject);
   const tools: CompiledTool[] = [];
 
@@ -195,7 +195,7 @@ function registryTools(engine: McpEngine, subject: RbacSubject): CompiledTool[] 
 /** custom-tool surface merged into the session tool surface (roles filtered by the executor, cached per subject) */
 function customToolTools(
   engine: McpEngine,
-  subject: RbacSubject,
+  subject: IdentitySubject,
   custom: { defs: ToolDefinition[]; executor: ToolExecutor },
 ): CompiledTool[] {
   return custom.executor.surface(subject, custom.defs).map((entry) => {
@@ -238,7 +238,7 @@ function customToolTools(
  */
 export function compileToolsFor(
   engine: McpEngine,
-  subject: RbacSubject,
+  subject: IdentitySubject,
   custom?: { defs: ToolDefinition[]; executor: ToolExecutor },
 ): CompiledTool[] {
   const tools: CompiledTool[] = [...registryTools(engine, subject)];

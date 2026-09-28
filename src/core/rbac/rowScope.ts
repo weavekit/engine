@@ -2,7 +2,7 @@ import type { ObjectDefinition, ReadScope, RowScopeMarker } from '../types/index
 import { READ_SCOPES, ROW_SCOPE_MARKERS } from '../types/index.js';
 import type { Locale } from '../i18n/index.js';
 import { SchemaError } from '../types/errors.js';
-import type { RbacSubject } from './types.js';
+import type { IdentitySubject } from './types.js';
 
 export interface RowScopeFragment {
   sql: string;
@@ -26,7 +26,7 @@ function ownershipField(def: ObjectDefinition, role: string, locale: Locale | un
 export function buildRowScope(
   def: ObjectDefinition,
   read: ReadScope | undefined,
-  subject: RbacSubject,
+  subject: IdentitySubject,
   roles: readonly string[],
   locale?: Locale,
 ): RowScopeFragment | undefined {
