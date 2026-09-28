@@ -36,7 +36,7 @@ export default [
 | --- | --- |
 | `namespace` | prefix auto-applied to `name` (`acme` + `money` → `acme_money`) |
 | `name` | the type name (without the namespace, or already prefixed) |
-| `base` | **required**; the value primitive to inherit from |
+| `base` | **required**; the built-in primitive to inherit from (a value primitive, or `relation`) |
 | `scalar` | can be a primary key (defaults from `base`) |
 | `relationLike` | carries a `target` (defaults from `base`) |
 | `ui` | frontend hint, e.g. `{ visual: 'image' }` (never a widget — the engine is headless) |
@@ -78,7 +78,7 @@ Once registered, a type is just a type:
 ```json
 // objects/invoice/schema.json
 {
-  "schemaVersion": 2,
+  "schemaVersion": 5,
   "name": "invoice",
   "fields": [
     { "name": "id", "type": "string", "primary": true },
@@ -169,7 +169,8 @@ you give a registration a `reverse` hint.
   (`options.from`), or custom tools.
 - `storage` maps the **column type** only; there is no custom SQL `DEFAULT` (the base `default` is
   used) and no custom type-change migration (additive-only).
-- Registered types are **scalar** (a base value primitive); there is no `multiple`/array form — model
-  a related object or use a built-in multi-value type instead.
+- Registered types have a **single-column** shape: a value base is scalar (PK-eligible), a `relation`
+  base is relation-like (carries a `target`). There is no `multiple`/array form — model a related
+  object or use a built-in multi-value type instead.
 - Reverse inference (`introspect`) requires an explicit `reverse` hint; without one, registered types
   are forward-authoring only.
