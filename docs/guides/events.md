@@ -35,7 +35,7 @@ Each event is one SSE block; the sequence number is the event id:
 ```
 id: 42
 event: record.updated
-data: {"seq":42,"ts":"2026-09-22T10:00:00.000Z","type":"record.updated","payload":{"object":"lead","id":"e1"}}
+data: {"seq":42,"ts":"2026-09-22T10:00:00.000Z","type":"record.updated","payload":{"object":"lead","id":"2:e1"}}
 ```
 
 A `: ping` comment is sent every 30s as a keep-alive (`events.heartbeatMs` to change it).

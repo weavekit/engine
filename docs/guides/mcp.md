@@ -26,7 +26,7 @@ export default {
       // endpoint: '/mcp/agent',   // optional: mount on a different path (default /mcp)
       identities: {
         alice: { id: 'u-alice', roles: ['sales'] },
-        emma: { id: 'u-emma', roles: ['finance'], teamId: 't1' },
+        emma: { id: 'u-emma', roles: ['finance'], departmentId: 'd-east' },
       },
       guardrails: {
         rateLimit: { windowMs: 60_000, max: 100 },   // optional; defaults shown
@@ -38,7 +38,7 @@ export default {
 ```
 
 - `endpoint` — path to mount on (default `/mcp`). Change it if `/mcp` collides with another route in your deployment; client URLs must match.
-- `identities` — the static **on-behalf-of directory** (`ref → RbacSubject`). A session's proxied user must resolve here; a missing or unknown ref is rejected at session establishment.
+- `identities` — the static **on-behalf-of directory** (`ref → IdentitySubject`). A session's proxied user must resolve here; a missing or unknown ref is rejected at session establishment. When unset, the engine resolves on-behalf-of refs through its own identity directory (`weavekit_user`, see [Identity](identity.md)).
 - `guardrails.alerts` — any `infrastructure/alerts` factory config (webhook/slack channels reuse `url`/`webhookUrl`, and so on).
 - `enabled: false` turns the endpoint off entirely.
 
@@ -110,9 +110,9 @@ await engine.app.listen({ port: 3000 });
 ```
 
 You inject the sinks at assembly: audit (a buffered subsystem sink, or a no-op when audit is
-disabled), alerts (`createAlerts`), and identity (`mcp.identities` — a static directory or your own
-`IdentityResolver`). The MCP adapter itself depends only on core contracts; adapters never import
-subsystems or infrastructure.
+disabled), alerts (`createAlerts`), and identity (`mcp.identities` — a static directory, your own
+`IdentityResolver`, or the engine directory by default). The MCP adapter itself depends only on core
+contracts; adapters never import subsystems or infrastructure.
 
 For a full end-to-end walkthrough — a customer with an existing CRM (`customers` / `orders` tables)
 bringing agents in through the static identity directory — see the
@@ -126,11 +126,12 @@ does and doesn't change. (Greenfield and business projects can set `migrate.auto
 ## Plugging in your own user store
 
 Both `auth.source` and `mcp.identities` accept either a **static map** (the defaults above) or a
-**resolver function**. That lets you drive authentication and on-behalf-of identity from your own
-users, roles, and teams instead of hardcoded config.
+**resolver function** — so you can drive authentication and on-behalf-of identity from your own
+directory. (For a database-backed directory, prefer the engine's own identity sync — see
+[Identity](identity.md) — instead of hand-writing a resolver.)
 
-- `auth.source` — `Record<string, RbacSubject> | AuthResolver`, where `AuthResolver = (header) => subject | null | Promise<...>`. The resolver receives the full `Authorization` header (including the `Bearer ` prefix) and may verify a JWT or look up the user asynchronously. Return `null` for unauthenticated (401).
-- `mcp.identities` — `Record<string, RbacSubject> | IdentityResolver`, where `IdentityResolver = (ref) => subject | null | Promise<...>`. The resolver may query your user table and return the subject with its roles and team. Return `null` for an unknown ref (the session is rejected with 400).
+- `auth.source` — `Record<string, IdentitySubject> | AuthResolver`, where `AuthResolver = (header) => subject | null | Promise<...>`. The resolver receives the full `Authorization` header (including the `Bearer ` prefix) and may verify a JWT or look up the user asynchronously. Return `null` for unauthenticated (401). When an `identity.verifier` is configured, `auth.source` may be omitted (the verifier + engine directory authenticate instead).
+- `mcp.identities` — `Record<string, IdentitySubject> | IdentityResolver`, where `IdentityResolver = (ref) => subject | null | Promise<...>`. The resolver may query your user table and return the subject with its roles and department. Return `null` for an unknown ref (the session is rejected with 400).
 
 ```ts
 // weavekit.config.ts — auth + identities driven by the customer's user table
@@ -146,10 +147,10 @@ export default {
     mcp: {
       identities: async (ref) => {                          // query the customer's user table
         const row = await pool.query(
-          `SELECT id, role, team_id FROM crm_users WHERE id = $1`, [ref]);
+          `SELECT id, role, dept_id FROM crm_users WHERE id = $1`, [ref]);
         if (row.rows.length === 0) return null;
-        const { id, role, team_id } = row.rows[0];
-        return { id, roles: [role], ...(team_id ? { teamId: team_id } : {}) };
+        const { id, role, dept_id } = row.rows[0];
+        return { id, roles: [role], ...(dept_id ? { departmentId: dept_id } : {}) };
       },
     },
   },
@@ -160,8 +161,8 @@ A resolver wins over the static map when both are provided for the same field. E
 surface is compiled per identity and RBAC is re-enforced at call time — the double layer never
 changes.
 
-For the full runnable case (a customer `crm_users` table, JWT auth source, and MCP end to end), see
-the [user-table identity practice](../practices/bring-your-own-user-store.md).
+For the runnable case — a customer user table and a JWT auth source — see the
+[user-store practice](../practices/bring-your-own-user-store.md).
 
 ## Architecture (src/adapters/mcp)
 

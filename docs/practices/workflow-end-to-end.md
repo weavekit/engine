@@ -98,7 +98,7 @@ directly writable. Edit `objects/orders/schema.json`:
     { "name": "amount", "type": "currency" },
     { "name": "status", "type": "enum", "options": ["pending", "paid", "fulfilled", "cancelled"] },
     { "name": "owner_id", "type": "string", "ownership": true },
-    { "name": "created_at", "type": "datetime" }
+    { "name": "created_at", "type": "timestamptz" }
   ],
   "permissions": {
     "sales":   { "read": "own", "create": true, "update": ["amount"], "delete": false },
@@ -185,7 +185,7 @@ Inspect a record — `actions` lists only the transitions fireable from its curr
 
 ```sh
 curl -H "Authorization: Bearer sk-admin" \
-  http://localhost:3000/api/objects/orders/O-1001/workflow
+  http://localhost:3000/api/objects/orders/6:O-1001/workflow
 # { "state": "pending", "initial": "pending",
 #   "actions": [{ "action": "pay", "to": "paid", "labels": { "en": "Record payment" } },
 #               { "action": "cancel", "to": "cancelled", "labels": { "en": "Cancel" } }] }
@@ -195,7 +195,7 @@ Fire one — the response is the updated record:
 
 ```sh
 curl -X POST -H "Authorization: Bearer sk-admin" \
-  http://localhost:3000/api/objects/orders/O-1001/transitions/pay
+  http://localhost:3000/api/objects/orders/6:O-1001/transitions/pay
 ```
 
 Now exercise the gates:
@@ -203,7 +203,7 @@ Now exercise the gates:
 - `transitions/fulfill` as `alice` (sales) → `403 workflow.transition.denied`;
 - `transitions/refund` → `409 workflow.transition.pending` with an `approvalKey`; approve it through the
   [approval queue](../guides/approvals.md), then retry the same call;
-- `PATCH /api/objects/orders/O-1001` with `{ "status": "fulfilled" }` →
+- `PATCH /api/objects/orders/6:O-1001` with `{ "status": "fulfilled" }` →
   `400 workflow.transition.required`.
 
 ## 7. From an agent (MCP)
@@ -213,7 +213,7 @@ The agent uses the same rules. A `workflow_transition` tool appears for objects 
 
 ```jsonc
 { "name": "workflow_transition",
-  "arguments": { "object": "orders", "id": "O-1001", "action": "fulfill" } }
+  "arguments": { "object": "orders", "id": "6:O-1001", "action": "fulfill" } }
 ```
 
 `describe_object` surfaces the object's workflow so the agent can pick a valid action for the current
@@ -227,8 +227,8 @@ import { createClient } from '@weave-kit/client';
 
 const client = createClient({ baseUrl: 'http://localhost:3000', apiKey: 'sk-admin' });
 
-const { state, actions } = await client.workflow.get('orders', 'O-1001');
-await client.workflow.transition('orders', 'O-1001', 'pay');
+const { state, actions } = await client.workflow.get('orders', '6:O-1001');
+await client.workflow.transition('orders', '6:O-1001', 'pay');
 
 client.subscribe({ object: 'orders' }, (event) => {
   if (event.type === 'record.transitioned') {

@@ -98,6 +98,9 @@ handler: async (ctx) => {
 },
 ```
 
+> The id argument to `dataAccess` (`findOne` / `update` / `delete`) is the record's **`record_key`**
+> (the `weave_id` field), not the raw primary-key value.
+
 ### Naming rules
 
 Tool names must match `^[a-z][a-z0-9_]*$` and must **not** collide with the built-in surface: the

@@ -46,9 +46,10 @@ export default [
 | `validate` | pure, synchronous write-time check `(field, value) => string \| undefined` (non-relation bases only) |
 | `reverse` | optional introspect hint: `{ pgType: 'NUMERIC(12,2)' }` maps a matching live column back to this type |
 
-**Allowed bases**: `string`, `text`, `integer`, `number`, `currency`, `boolean`, `datetime`, `date`,
-`json`, `relation`. The structural types (`enum`, `details`, `multiRelation`, `seq_no`) and the
-semantic types (`image`, `person`, `department`) are **not** valid bases.
+**Allowed bases**: `string`, `text`, `char`, `smallint`, `integer`, `bigint`, `number`, `real`,
+`double`, `currency`, `boolean`, `date`, `time`, `timetz`, `timestamp`, `timestamptz`, `interval`,
+`uuid`, `json`, `jsonb`, `relation`. The structural types (`enum`, `details`, `multiRelation`,
+`seq_no`) and the semantic types (`image`, `person`, `department`) are **not** valid bases.
 
 ## Enabling registrations
 

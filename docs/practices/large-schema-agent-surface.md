@@ -122,7 +122,7 @@ objects or four hundred. An `admin` sees all seven.
   target object: a role that may read one object but not another gets a denial `isError` on the
   second, and the attempt is audited.
 - **Field & row scope** — `fields.exclude` columns are stripped from results and rejected on write;
-  `read: own | team | all` scopes the rows.
+  `read`/`manage` scopes (`own | department | all`) scope rows.
 - **Limits** — `search_records` caps `limit` at 1000; the per-agent-key sliding window (default
   100 calls / 60s) and alerts apply as usual. Every call writes `mcp.tool.<name>` to
   `weavekit_audit`.

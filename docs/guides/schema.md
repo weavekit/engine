@@ -26,16 +26,18 @@ people may use it. Objects live in `objects/<name>/`, and the folder name must m
 The on-disk format is versioned, and new files carry a top-level `schemaVersion`:
 
 ```json
-{ "schemaVersion": 2, "name": "lead", "labels": { "en": "Lead" }, "fields": [ /* … */ ] }
+{ "schemaVersion": 4, "name": "lead", "labels": { "en": "Lead" }, "fields": [ /* … */ ] }
 ```
 
 Files written before versioning existed are treated as legacy version `0`. The engine migrates older
 files in memory while loading, so they keep working; run `weave schema:upgrade` to stamp every file to
 the current version (the change is auto-committed).
 
-**Version 2** replaced the scalar `label` with the per-locale `labels` map. The loader folds a legacy
-`label` into `labels` for the default locale while loading; writing `label` in a v2 file is rejected
-with `object.label.removed`.
+- **v2** replaced the scalar `label` with the per-locale `labels` map (writing `label` in a v2 file is
+  rejected with `object.label.removed`).
+- **v3** added object-level `constraints` (composite/scoped `UNIQUE`); additive, no rewrite.
+- **v4** made `json` map to PostgreSQL `json` (it previously mapped to `jsonb`); `weave schema:upgrade`
+  rewrites former `json` fields to `jsonb`, and `json` is now free to mean PG `json`.
 
 If a file declares a version **newer** than the engine supports, the engine rejects it with
 `schema.version.unsupported`. It fails closed rather than risk misreading a future format.
@@ -86,7 +88,9 @@ doesn't ship (`money`, `address`, …), you can register your own — see
 - `labels` — display names keyed by locale, e.g. `{ "en": "Lead", "zh": "线索" }`. The engine
   resolves the requested locale, then `en`, then the first entry, then the field name.
 - `system: true` — user-declared reserved marker (the engine never recognizes fields by name).
-- `ownership: true` / `team: true` — RBAC row-scope markers (string fields, at most one each).
+- `ownership: true` / `department: true` — row-scope markers (string fields, at most one each). The
+  `own`/`department` scopes filter on these columns; mark a column's ids `internal` (engine ids,
+  default) or `external` (customer ids) with `ownershipSource` / `departmentSource`. See [RBAC](rbac.md).
 
 ## Record ids and system fields
 
@@ -224,11 +228,13 @@ See [Formulas](formulas.md).
 ## Validation rules (summary)
 
 - Object and field names must be `snake_case`.
-- Every object declares exactly one `primary` scalar field. The object name is the table name.
+- Every object declares at least one `primary` scalar field (several = a composite key). The object
+  name is the table name.
 - `relation` / `details` / `multiRelation` targets must exist. The check runs across the whole set (`buildGraph`).
 - Details children cannot declare the reserved `parent_*` columns.
 - Formula fields cannot be `required` / `unique` / `primary`, and cannot have constraints.
-- `read: own` requires an `ownership` field; `read: team` requires a `team` field.
+- `read`/`manage: own` requires an `ownership` field; `department` requires a `department` or
+  `ownership` field (see [RBAC](rbac.md)).
 
 ## How migration handles existing tables
 

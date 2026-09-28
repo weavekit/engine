@@ -143,7 +143,7 @@ Any MCP client library works — `@modelcontextprotocol/sdk` `StreamableHTTPClie
 | Symptom | Cause | Fix |
 | --- | --- | --- |
 | `401` | missing/wrong `Authorization` | use a key present in `auth.source` |
-| `400` on connect | unknown on-behalf-of ref | add the ref to `adapters.mcp.identities` |
+| `400` on connect | unknown on-behalf-of ref | add the ref to `adapters.mcp.identities`, or sync it into the engine directory (`weave sync:identity`) |
 | server connects but **no tools** | identity's roles match nothing in `schema.json` permissions | align `roles` with the object's `permissions` keys |
 | works from curl, not from the client | a proxy stripped/rewrote the two headers | see the [reverse proxy practice](../operations/reverse-proxy.md) |
 | `/mcp` not found | MCP disabled or mounted elsewhere | check `adapters.mcp` (`enabled`, `endpoint`) |
@@ -152,6 +152,7 @@ Any MCP client library works — `@modelcontextprotocol/sdk` `StreamableHTTPClie
 
 - `sk-admin` is the **scaffold placeholder** — replace it with real keys before anything leaves your machine.
 - Give each human their own `on-behalf-of` ref; one agent key can open many sessions, each bound to a different identity (they never share a tool surface).
+- **`own`/`department` row scopes need identity** — a static `on-behalf-of` subject is enough for `own` (the ownership column matches the subject's `id`), but `department` (subtree) scopes require syncing the customer's directory (`weave sync:identity`) so the engine has the internal ids. See [Identity](../guides/identity.md) and [the user-store practice](bring-your-own-user-store.md).
 - The dev endpoint binds `0.0.0.0` by default; for a shared host, front it with TLS and a proxy ([Docker](../operations/docker-deploy.md) / [reverse proxy](../operations/reverse-proxy.md)).
 
 ## Next

@@ -21,10 +21,12 @@ packages (the client SDK) and external integrators code against.
 (`pg` / `fastify` / `isolated-vm`) so it can be bundled anywhere, including the browser.
 
 The stable entry covers engine assembly (`createEngine`, `buildEngineFromRegistry`), the core
-contracts (`core/*`), data access, [Git metadata sync](../guides/git-versioned-metadata.md), custom
-tools, the generic proxy, the protocol adapters (auth/rest/mcp/events), the OpenAPI document
-generator (`buildOpenApiDocument`), the audit/script contract types, and the scaffolder
-(`scaffoldProject`, `PROJECT_TYPES`).
+contracts (`core/*`), data access, identity (the `core/provider/identity` contracts; `runIdentitySync`,
+`createPgIdentitySource`, `createFunctionIdentitySource`, `PgIdentityStore`, `PgIdentityDirectory`,
+`IdentityAdmin`, `createDirectoryAuthenticator`, `enforceSyncedIdentity`), [Git metadata
+sync](../guides/git-versioned-metadata.md), custom tools, the generic proxy, the protocol adapters
+(auth/rest/mcp/events), the OpenAPI document generator (`buildOpenApiDocument`), the audit/script
+contract types, and the scaffolder (`scaffoldProject`, `PROJECT_TYPES`).
 
 The experimental entry covers the moving parts that aren't worth freezing yet: the
 `infrastructure/*` provider implementations, the metadata cache, the tunnel transport, and the ops
@@ -38,7 +40,11 @@ The experimental entry covers the moving parts that aren't worth freezing yet: t
 
 The stable surface exists so you can extend the engine without patching internal paths:
 
-- **Auth / identity** — `auth.source` and `mcp.identities` accept resolvers.
+- **Auth / identity** — `auth.source` and `mcp.identities` accept resolvers, or configure
+  `identity.verifier` + the engine directory. Identity sources implement the `core/provider/identity`
+  contracts (`IdentitySource` / `AuthVerifier` / `IdentityDirectory` / `IdentityStore`) and are
+  **config-injected** (no global registry); the engine ships the `pg` and `function` sources (see
+  [Identity](../guides/identity.md)).
 - **Providers** — implement the `core/provider/*` contracts (alerts, identity, event) and inject them; implementations live outside `core`.
 - **Subsystems** — enabled through `weavekit.config.ts` and dynamically loaded.
 - **Custom tools & guardrail policies** — `core/tools` + `runtime/tools`.

@@ -26,6 +26,10 @@ accepts `--json` for machine-readable output.
 | `weave workflow:close <object>` | Disable the object workflow (keeps workflow.json) |
 | `weave workflow:migrate <object>` | Apply workflow state-remap migrations to existing records |
 | `weave workflow:upgrade` | Upgrade `objects/*/workflow.json` to the current format version |
+| `weave sync:identity [--dry-run]` | Provision the engine identity directory from the configured `identity.source` |
+| `weave identity:list` | List engine-owned identities (greenfield admin) |
+| `weave identity:create <name>` | Create an engine-owned identity (greenfield admin) |
+| `weave identity:enable <id>` / `weave identity:disable <id>` | Enable / disable an identity |
 
 ## `create-weavekit-app` — project scaffolding
 
@@ -252,3 +256,19 @@ states (a value not declared in `states` and not covered by a remap), and writes
 Brings every `objects/<name>/workflow.json` up to the current on-disk format version and auto-commits
 (independent of `weave schema:upgrade`, which never touches `workflow.json`). Unversioned files are
 stamped; future/unsupported versions abort.
+
+## `weave sync:identity [--dry-run]`
+
+Provisions the engine identity directory (`weavekit_user` / `weavekit_department`) from the
+`identity.source` in `weavekit.config.ts` (a `pg` descriptor or a function source). It is **read-only
+against the source tables** and idempotent (upsert on `(source, external_id)`), with department-cycle
+detection and optional soft-disable of rows missing from the snapshot. See [Identity](identity.md).
+
+- `--dry-run` — pull + diff the counts without writing.
+
+## `weave identity:list` / `identity:create <name>` / `identity:enable|disable <id>`
+
+Greenfield administration of engine-owned identities (for projects with no external source): list,
+create (`--email`, `--roles a,b`, `--disabled`), and enable/disable. The same data is exposed by the
+admin REST surface `GET` / `POST /api/identity/users` and `PATCH /api/identity/users/:id`
+(gated by `adapters.rest.adminRoles`).

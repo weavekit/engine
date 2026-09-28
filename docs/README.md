@@ -16,6 +16,7 @@ the [repository README](../README.md).
 - [Git-versioned metadata](guides/git-versioned-metadata.md) — your data model as reviewable Git commits
 - [Schema guide](guides/schema.md) — fields, relations, computed fields and validation
 - [RBAC](guides/rbac.md) — roles, permissions and row scopes
+- [Identity](guides/identity.md) — the engine identity directory and source sync
 - [Formulas](guides/formulas.md) — operators, functions, aggregations and null semantics
 - [Audit](guides/audit.md) — the immutable event log and diff replay
 - [CLI reference](guides/cli.md) — every `weave` command

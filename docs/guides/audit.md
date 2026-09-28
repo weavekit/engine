@@ -48,7 +48,7 @@ interface AuditEvent {
   actorId: string;          // subject.id, or 'system', or agent key
   action: string;           // DATA_ACTIONS (create/update/delete/read) or '<prefix>.<detail>'
   objectName?: string;      // object name
-  objectId?: string;        // record id
+  objectId?: string;        // record_key (external id)
   changes?: unknown;        // write payload / change summary
   isError?: boolean;
   errorCode?: string;       // engine SchemaError code, e.g. 'rbac.denied.field'
@@ -123,7 +123,7 @@ import { createAudit, createBufferedAuditSink } from '@weave-kit/engine';
 
 const store = await createAudit(pool);                                   // storage
 const sink = createBufferedAuditSink(store, { batchSize: 50, flushMs: 100 });  // L1 buffer
-await sink.record({ actorType: AUDIT_ACTOR_TYPES.SYSTEM, actorId: 'system', action: DATA_ACTIONS.CREATE, objectName: 'lead', objectId: 'L1', timestamp: new Date() });
+await sink.record({ actorType: AUDIT_ACTOR_TYPES.SYSTEM, actorId: 'system', action: DATA_ACTIONS.CREATE, objectName: 'lead', objectId: '2:L1', timestamp: new Date() });
 await sink.flush();
 ```
 

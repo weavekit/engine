@@ -104,7 +104,7 @@ Field names must match real column names. The object name equals the table name.
     { "name": "name", "type": "string", "required": true },
     { "name": "email", "type": "string" },
     { "name": "owner_id", "type": "string", "ownership": true },
-    { "name": "created_at", "type": "datetime" }
+    { "name": "created_at", "type": "timestamptz" }
   ],
   "permissions": {
     "sales":   { "read": "own", "create": true, "update": ["name", "email"], "delete": false },
@@ -124,7 +124,7 @@ Field names must match real column names. The object name equals the table name.
     { "name": "amount", "type": "currency" },
     { "name": "status", "type": "enum", "options": ["pending", "paid", "cancelled"] },
     { "name": "owner_id", "type": "string", "ownership": true },
-    { "name": "created_at", "type": "datetime" }
+    { "name": "created_at", "type": "timestamptz" }
   ],
   "permissions": {
     "sales":   { "read": "own", "create": true, "update": ["amount", "status"], "delete": false },
@@ -187,7 +187,31 @@ export default {
 } satisfies EngineConfig;
 ```
 
-`mcp.identities` is the static directory: the ref in the `X-Weavekit-On-Behalf-Of` header resolves here, and the resulting `RbacSubject` decides the whole tool surface. Missing/unknown refs are rejected at session establishment.
+`mcp.identities` is the static directory: the ref in the `X-Weavekit-On-Behalf-Of` header resolves here, and the resulting `IdentitySubject` decides the whole tool surface. Missing/unknown refs are rejected at session establishment.
+
+### Scoping rows by owner / department
+
+The static directory above is enough for `own` (the ownership column matches the subject's `id`). For
+**`department`** scopes — and to keep audit actors and workflow assignees on one internal id space —
+sync the customer's user/department tables into the engine directory instead:
+
+```ts
+identity: {
+  source: {
+    name: 'crm',
+    users:       { table: 'crm_users', id: 'id', roles: 'role', department: 'dept_id' },
+    departments: { table: 'crm_dept',  id: 'id', parent: 'parent_id' },
+  },
+  required: true,
+},
+```
+
+```sh
+weave sync:identity          # read-only; run before the engine serves scoped access
+```
+
+The on-behalf-of ref then resolves through the engine directory (no `mcp.identities` needed). See
+[Identity](../guides/identity.md) and [the user-store practice](bring-your-own-user-store.md).
 
 ## 7. Start the engine
 

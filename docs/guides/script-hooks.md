@@ -133,8 +133,8 @@ A controlled escape hatch for queries the object builder cannot express. Every c
 - **Single statement** — a `;` beyond one trailing is rejected.
 - **Row cap** — the query is wrapped in a subquery and the outer `LIMIT` is clamped to 1000.
 - **Timeout** — runs on a dedicated client with `statement_timeout = queryTimeout`.
-- **RBAC gates** (`script.query.denied`, 403) — the subject must have read permission on every referenced object table. `team`-read objects require `subject.teamId`. **Column-level `exclude`** is enforced per column: a query referencing an excluded field (or `*` over a field-restricted object) is rejected. `count(*)` is allowed (no column values leak).
-- **Row-level security (PostgreSQL RLS)** — with the script subsystem enabled, `db.query` runs in a transaction under `SET LOCAL ROLE weavekit_query` with `weavekit.actor_id/roles/team_id` session GUCs, so the table's RLS policy scopes the returned rows exactly like `db.objects` (parity is tested). `weave migrate` provisions the role and emits `ENABLE ROW LEVEL SECURITY` + the policy + `GRANT SELECT` automatically.
+- **RBAC gates** (`script.query.denied`, 403) — the subject must have read permission on every referenced object table. `department`-read objects require `subject.departmentId`. **Column-level `exclude`** is enforced per column: a query referencing an excluded field (or `*` over a field-restricted object) is rejected. `count(*)` is allowed (no column values leak).
+- **Row-level security (PostgreSQL RLS)** — with the script subsystem enabled, `db.query` runs in a transaction under `SET LOCAL ROLE weavekit_query` with `weavekit.actor_id/roles/department_id` session GUCs, so the table's RLS policy scopes the returned rows like `db.objects` (parity is tested). RLS predicates are **flat equality on internal ids** — they do not expand the department subtree or translate external scope columns; use `db.objects` for those. `weave migrate` provisions the role and emits `ENABLE ROW LEVEL SECURITY` + the policy + `GRANT SELECT` automatically.
 
 Field-level `exclude` hiding is **not** bypassable via raw SQL: a query that touches a restricted
 column is rejected rather than stripped.
@@ -152,7 +152,7 @@ column is rejected rather than stripped.
 
 - **Validate hook order** — the engine runs `RBAC → declarative validation → validate hook → beforeUpdate hook → write → afterUpdate hook`. Running validation after RBAC is strictly safer and keeps a single decorator-free data-access path.
 - **`beforeUpdate` writes** — `this.changes` is structured-cloned into the sandbox, so mutation alone does not propagate. The hook must **return** the (possibly modified) changes object to persist them.
-- **`db.objects` RBAC** — script calls rebuild the caller's identity as an `RbacSubject` (id + roles; teamId is not carried, so team-scoped reads inside scripts are not available).
+- **`db.objects` RBAC** — script calls rebuild the caller's identity as an `IdentitySubject` (id + roles; departmentId is not carried, so department-scoped reads inside scripts are not available).
 
 ## Programmatic use
 

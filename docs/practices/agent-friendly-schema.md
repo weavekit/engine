@@ -88,8 +88,9 @@ time. Design them so "what the agent sees" and "what it may do" agree:
 
 - **Start from the role's job.** Give `viewer` only a `read` scope; give writing roles an explicit
   `update` allowlist rather than `true`.
-- **Scope reads by rows.** `read: "own"` (with an `ownership: true` field) or `read: "team"` (with a
-  team marker) keeps an agent inside one person's data.
+- **Scope reads by rows.** `read: "own"` (with an `ownership: true` field) or `read: "department"`
+  (with a `department` field, or derived from the owner) keeps an agent inside one person's data —
+  `department` includes the subtree, so a manager sees their team's rows.
 - **Hide what must not be read.** `fields.exclude: ["secret"]` removes the column from
   `describe_object`, from search results, and from writes — the agent cannot reference what it cannot
   see.

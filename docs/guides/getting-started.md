@@ -107,11 +107,15 @@ import type { Leads } from './generated/types';
 const client = createClient({ baseUrl: 'http://localhost:3000', apiKey: 'sk-admin' });
 const leads = client.objects<Leads>('leads');
 
-const { rows, total } = await leads.find({ filter: { status: 'active' } });
-const one = await leads.findOne('e1');       // null on 404
-await leads.update('e1', { title: 'Renamed' });
-await leads.delete('e1');
+const { rows, total } = await leads.find({ filter: { status: 'active' }, fields: ['id', 'weave_id'] });
+const id = String(rows[0]!.weave_id);        // the record_key (e.g. '2:e1') — the external id
+const one = await leads.findOne(id);         // null on 404
+await leads.update(id, { title: 'Renamed' });
+await leads.delete(id);
 ```
+
+> The external id is the `record_key` (returned as the read-only `weave_id` field), not the raw
+> primary-key value — request `weave_id` in `fields` and pass it back (see [Schema](schema.md#record-ids-and-system-fields)).
 
 ## Programmatic assembly
 
