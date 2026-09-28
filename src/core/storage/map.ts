@@ -3,37 +3,44 @@ import { DEFAULT_FIELD_TYPE_REGISTRY, fieldBase, type FieldTypeRegistry } from '
 import { SchemaError } from '../types/errors.js';
 import { FIELD_TYPES, ON_DELETE_ACTIONS } from '../types/values.js';
 
+/**
+ * PG type-name vocabulary → canonical array element `udt_name` (without the
+ * leading underscore). The single source for both the safe-type whitelist a
+ * registered `storage.pgType` may return and array-element comparison.
+ */
+const PG_TYPE_BASE: Record<string, string> = {
+  VARCHAR: 'varchar',
+  'CHARACTER VARYING': 'varchar',
+  CHAR: 'bpchar',
+  BPCHAR: 'bpchar',
+  TEXT: 'text',
+  SMALLINT: 'int2',
+  INT2: 'int2',
+  INTEGER: 'int4',
+  INT: 'int4',
+  INT4: 'int4',
+  BIGINT: 'int8',
+  INT8: 'int8',
+  NUMERIC: 'numeric',
+  DECIMAL: 'numeric',
+  REAL: 'float4',
+  'DOUBLE PRECISION': 'float8',
+  BOOLEAN: 'bool',
+  DATE: 'date',
+  TIME: 'time',
+  TIMETZ: 'timetz',
+  TIMESTAMP: 'timestamp',
+  'TIMESTAMP WITHOUT TIME ZONE': 'timestamp',
+  TIMESTAMPTZ: 'timestamptz',
+  'TIMESTAMP WITH TIME ZONE': 'timestamptz',
+  JSON: 'json',
+  JSONB: 'jsonb',
+  UUID: 'uuid',
+  MONEY: 'money',
+};
+
 /** base PostgreSQL type names a registered `storage.pgType` may return */
-const SAFE_PG_BASE: ReadonlySet<string> = new Set([
-  'VARCHAR',
-  'CHARACTER VARYING',
-  'CHAR',
-  'BPCHAR',
-  'TEXT',
-  'SMALLINT',
-  'INTEGER',
-  'INT',
-  'INT2',
-  'INT4',
-  'INT8',
-  'BIGINT',
-  'NUMERIC',
-  'DECIMAL',
-  'REAL',
-  'DOUBLE PRECISION',
-  'BOOLEAN',
-  'DATE',
-  'TIME',
-  'TIMETZ',
-  'TIMESTAMP',
-  'TIMESTAMPTZ',
-  'TIMESTAMP WITH TIME ZONE',
-  'TIMESTAMP WITHOUT TIME ZONE',
-  'JSON',
-  'JSONB',
-  'UUID',
-  'MONEY',
-]);
+const SAFE_PG_BASE: ReadonlySet<string> = new Set(Object.keys(PG_TYPE_BASE));
 
 const SAFE_PG_RE = /^([A-Z][A-Z0-9_ ]*?)(\(\d+(?:\s*,\s*\d+)?\))?(\[\])?$/;
 
@@ -181,38 +188,6 @@ export function defaultExpr(
   }
 }
 
-/** element `udt_name` (without the leading underscore) for engine array columns */
-const ARRAY_ELEMENT_UDT: Record<string, string> = {
-  TEXT: 'text',
-  VARCHAR: 'varchar',
-  'CHARACTER VARYING': 'varchar',
-  CHAR: 'bpchar',
-  BPCHAR: 'bpchar',
-  SMALLINT: 'int2',
-  INT2: 'int2',
-  INTEGER: 'int4',
-  INT: 'int4',
-  INT4: 'int4',
-  BIGINT: 'int8',
-  INT8: 'int8',
-  NUMERIC: 'numeric',
-  DECIMAL: 'numeric',
-  REAL: 'float4',
-  'DOUBLE PRECISION': 'float8',
-  BOOLEAN: 'bool',
-  DATE: 'date',
-  TIME: 'time',
-  TIMETZ: 'timetz',
-  TIMESTAMP: 'timestamp',
-  TIMESTAMPTZ: 'timestamptz',
-  'TIMESTAMP WITH TIME ZONE': 'timestamptz',
-  'TIMESTAMP WITHOUT TIME ZONE': 'timestamp',
-  JSON: 'json',
-  JSONB: 'jsonb',
-  UUID: 'uuid',
-  MONEY: 'money',
-};
-
 /**
  * Compare a declared column type (`pgType()` output, e.g. `VARCHAR(255)`,
  * `NUMERIC(12,2)`, `TEXT[]`, or a custom `storage.pgType` value) against a live
@@ -242,7 +217,7 @@ export function pgTypeMatches(
     const liveIsArray = actual.dataType.toUpperCase() === 'ARRAY' || actual.udtName?.startsWith('_') === true;
     if (!liveIsArray) return false;
     const udt = actual.udtName?.replace(/^_/, '').toLowerCase();
-    const mapped = ARRAY_ELEMENT_UDT[base];
+    const mapped = PG_TYPE_BASE[base];
     if (mapped !== undefined) return mapped === udt;
     // a user-defined element type (e.g. a native enum): compare the type name
     return base.toLowerCase() === udt;

@@ -4,7 +4,6 @@ import {
   FIELD_TYPES,
   INDEX_TYPES,
   ON_DELETE_ACTIONS,
-  SCALAR_FIELD_TYPES,
   SEQUENCE_CYCLES,
   SEQUENCE_TOKENS,
 } from '../../types/values.js';
@@ -69,7 +68,6 @@ export const LOCALE_TAG = /^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$/;
 export const FIELD_TYPE_VALUES: readonly string[] = Object.values(FIELD_TYPES);
 export const ON_DELETE_ACTION_VALUES: readonly string[] = Object.values(ON_DELETE_ACTIONS);
 export const INDEX_TYPE_VALUES: readonly string[] = Object.values(INDEX_TYPES);
-export const SCALAR_TYPE_VALUES: readonly string[] = Object.values(SCALAR_FIELD_TYPES);
 export const SEQUENCE_TOKEN_VALUES: readonly string[] = Object.values(SEQUENCE_TOKENS);
 export const SEQUENCE_CYCLE_VALUES: readonly string[] = Object.values(SEQUENCE_CYCLES);
 

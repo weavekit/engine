@@ -44,16 +44,6 @@ const CRM_LEAD: ObjectDefinition = {
   fields: [{ name: 'id', type: 'string', primary: true }],
 };
 
-const PERSON: ObjectDefinition = {
-  name: 'person',
-  fields: [{ name: 'id', type: 'string', primary: true }],
-};
-
-const DEPARTMENT: ObjectDefinition = {
-  name: 'department',
-  fields: [{ name: 'id', type: 'string', primary: true }],
-};
-
 const PROFILE: ObjectDefinition = {
   name: 'profile',
   fields: [
@@ -63,8 +53,8 @@ const PROFILE: ObjectDefinition = {
     { name: 'email', type: 'email' },
     { name: 'phone', type: 'phone' },
     { name: 'avatar', type: 'image' },
-    { name: 'owner_id', type: 'person', target: 'person' },
-    { name: 'dept_id', type: 'department', target: 'department' },
+    { name: 'owner_id', type: 'user', target: 'weavekit_user' },
+    { name: 'dept_id', type: 'department', target: 'weavekit_department' },
   ],
 };
 
@@ -114,8 +104,8 @@ describe('generateObjectTypes — object-level TS type compilation', () => {
     expect(src).not.toContain('lines');
   });
 
-  it('string subtypes → string; person → target primary-key type', () => {
-    const src = generateObjectTypes([PERSON, DEPARTMENT, PROFILE]);
+  it('string subtypes → string; identity FK → target primary-key type', () => {
+    const src = generateObjectTypes([PROFILE]);
     expect(src).toContain('export interface Profile {');
     expect(src).toContain('  first?: string;');
     expect(src).toContain('  last?: string;');

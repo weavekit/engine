@@ -438,7 +438,7 @@ describe('validateObject — titleTemplate', () => {
   });
 });
 
-describe('validateObject — string subtypes / image / person', () => {
+describe('validateObject — string subtypes / image / identity FK', () => {
   it('firstName/lastName/email/phone valid and normalized to string semantics', () => {
     const def = validateObject({
       name: 'profile',
@@ -460,19 +460,20 @@ describe('validateObject — string subtypes / image / person', () => {
     expect(() => validateObject({ name: 'x', fields: [{ name: 'id', type: 'string', primary: true }, { name: 'a', type: 'firstName', minLength: -1 }] })).toThrow(SchemaError);
   });
 
-  it('person requires target and snake_case; person placeholder valid', () => {
+  it('user injects the identity target; an explicit target is rejected', () => {
     expect(() =>
-      validateObject({ name: 'c', fields: [{ name: 'id', type: 'string', primary: true }, { name: 'o', type: 'person' }] }),
-    ).toThrow(/target/);
+      validateObject({ name: 'c', fields: [{ name: 'id', type: 'string', primary: true }, { name: 'o', type: 'user', target: 'anything' }] }),
+    ).toThrow(SchemaError);
     const def = validateObject({
       name: 'c',
       titleTemplate: '{owner}',
       fields: [
         { name: 'id', type: 'string', primary: true },
-        { name: 'owner', type: 'person', target: 'employees' },
+        { name: 'owner', type: 'user' },
       ],
     });
     expect(def.titleTemplate).toBe('{owner}');
+    expect(def.fields.find((f) => f.name === 'owner')).toMatchObject({ type: 'user', target: 'weavekit_user' });
   });
 
   it('image single/multiple valid', () => {
@@ -490,28 +491,25 @@ describe('validateObject — string subtypes / image / person', () => {
   });
 });
 
-describe('validateObject — department + person.department + features.fieldTypes gating', () => {
-  it('department requires target; person.department serialized and exposed', () => {
-    expect(() =>
-      validateObject({ name: 'c', fields: [{ name: 'id', type: 'string', primary: true }, { name: 'd', type: 'department' }] }),
-    ).toThrow(/target/);
+describe('validateObject — identity FK types + features.fieldTypes gating', () => {
+  it('department/user inject identity targets implicitly', () => {
     const def = validateObject({
       name: 'employee',
       fields: [
         { name: 'id', type: 'string', primary: true },
-        { name: 'dept_id', type: 'department', target: 'department' },
-        { name: 'manager_id', type: 'person', target: 'employee', department: 'dept_id' },
+        { name: 'dept_id', type: 'department' },
+        { name: 'manager_id', type: 'user' },
       ],
     });
     const byName = new Map(def.fields.map((f) => [f.name, f]));
-    expect(byName.get('dept_id')).toMatchObject({ type: 'department', target: 'department' });
-    expect(byName.get('manager_id')).toMatchObject({ type: 'person', target: 'employee', department: 'dept_id' });
+    expect(byName.get('dept_id')).toMatchObject({ type: 'department', target: 'weavekit_department' });
+    expect(byName.get('manager_id')).toMatchObject({ type: 'user', target: 'weavekit_user' });
   });
 
   it('allowedFieldTypes whitelist fail-closed (disabled types rejected)', () => {
     expect(() =>
       validateObject(
-        { name: 'c', fields: [{ name: 'id', type: 'string', primary: true }, { name: 'owner', type: 'person', target: 'users' }] },
+        { name: 'c', fields: [{ name: 'id', type: 'string', primary: true }, { name: 'owner', type: 'user' }] },
         { allowedFieldTypes: ['string', 'integer'] },
       ),
     ).toThrow(/disabled/);

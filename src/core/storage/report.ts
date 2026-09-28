@@ -1,5 +1,6 @@
 import { DEFAULT_FIELD_TYPE_REGISTRY, FIELD_TYPES, type FieldTypeRegistry } from '../types/index.js';
 import { resolveLabel } from '../object/display.js';
+import { systemObjects } from '../object/system-objects.js';
 import type { Locale } from '../i18n/index.js';
 import type { FieldDefinition, ObjectDefinition } from '../types/index.js';
 import { buildExpectedTable } from './diff.js';
@@ -140,7 +141,7 @@ function displayActualType(col: ActualColumn): string {
 function schemaTypeOf(field: FieldDefinition, fk: ExpectedFk | undefined): string {
   switch (field.type) {
     case FIELD_TYPES.RELATION:
-    case FIELD_TYPES.PERSON:
+    case FIELD_TYPES.USER:
     case FIELD_TYPES.DEPARTMENT:
       return fk === undefined ? field.type : `${field.type} → ${fk.refTable}.${fk.refColumn}`;
     case FIELD_TYPES.MULTI_RELATION:
@@ -170,7 +171,9 @@ export function buildMappingReport(
   locale?: Locale,
   registry: FieldTypeRegistry = DEFAULT_FIELD_TYPE_REGISTRY,
 ): MappingReport {
-  const defsMap = new Map(defs.map((def) => [def.name, def]));
+  // identity FK fields resolve against the engine identity objects even though
+  // those are not reported as tables (only `defs` are iterated below)
+  const defsMap = new Map([...systemObjects(), ...defs].map((def) => [def.name, def]));
   const tables: MappingTable[] = [];
 
   for (const def of [...defs].sort((a, b) => a.name.localeCompare(b.name))) {

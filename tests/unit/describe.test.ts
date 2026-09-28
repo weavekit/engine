@@ -155,23 +155,15 @@ describe('describeObject — virtual system fields (weave_*), read-only + typed'
   });
 });
 
-describe('describeObject — person/image/department new-type metadata', () => {
-  it('person exposes target and counts in relations; image exposes multiple; department counts in relations; person.department exposed', () => {
+describe('describeObject — user/department/image new-type metadata', () => {
+  it('user exposes the identity target + department column; image exposes multiple; department counts in relations', () => {
     const reg = new ObjectRegistry();
-    reg.register({
-      name: 'employee',
-      fields: [{ name: 'id', type: 'string', primary: true }],
-    });
-    reg.register({
-      name: 'department',
-      fields: [{ name: 'id', type: 'string', primary: true }],
-    });
     reg.register({
       name: 'contact',
       fields: [
         { name: 'id', type: 'string', primary: true },
-        { name: 'manager_id', type: 'person', target: 'employee', department: 'dept_id' },
-        { name: 'dept_id', type: 'department', target: 'department' },
+        { name: 'manager_id', type: 'user' },
+        { name: 'dept_id', type: 'department' },
         { name: 'avatar', type: 'image' },
         { name: 'gallery', type: 'image', multiple: true },
       ],
@@ -180,13 +172,13 @@ describe('describeObject — person/image/department new-type metadata', () => {
 
     const desc = describeObject(reg, 'contact', ['any'], DEFAULT_LOCALE);
     const byName = new Map(desc.fields.map((f) => [f.name, f]));
-    expect(byName.get('manager_id')).toMatchObject({ name: 'manager_id', type: 'person', target: 'employee', department: 'dept_id' });
-    expect(byName.get('dept_id')).toMatchObject({ name: 'dept_id', type: 'department', target: 'department' });
+    expect(byName.get('manager_id')).toMatchObject({ name: 'manager_id', type: 'user', target: 'weavekit_user', department: 'department_id' });
+    expect(byName.get('dept_id')).toMatchObject({ name: 'dept_id', type: 'department', target: 'weavekit_department' });
     expect(byName.get('avatar')).toMatchObject({ name: 'avatar', type: 'image' });
     expect(byName.get('avatar')?.multiple).toBe(false);
     expect(byName.get('gallery')?.multiple).toBe(true);
-    expect(desc.relations).toContainEqual({ field: 'manager_id', type: 'person', target: 'employee' });
-    expect(desc.relations).toContainEqual({ field: 'dept_id', type: 'department', target: 'department' });
+    expect(desc.relations).toContainEqual({ field: 'manager_id', type: 'user', target: 'weavekit_user' });
+    expect(desc.relations).toContainEqual({ field: 'dept_id', type: 'department', target: 'weavekit_department' });
   });
 });
 

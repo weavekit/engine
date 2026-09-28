@@ -67,7 +67,7 @@ const SEMANTIC_FIELD_TYPES: readonly string[] = SEMANTICS;
 const DEFAULT_FIELD_TYPES_BY_TYPE: Record<ProjectType, string[]> = {
   // pure API tooling, no UI — identity/avatar semantics unused; extend via config
   agent: [...BASE_FIELD_TYPES],
-  // governance: backend members/teams (person/department) of the user's own system
+  // governance: backend members/teams (user/department) of the user's own system
   governance: [...BASE_FIELD_TYPES, ...SEMANTIC_FIELD_TYPES],
   service: [...BASE_FIELD_TYPES, ...SEMANTIC_FIELD_TYPES],
   business: [...BASE_FIELD_TYPES, ...SEMANTIC_FIELD_TYPES],

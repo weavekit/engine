@@ -1,4 +1,4 @@
-import { describe, it, expect } from '../helpers/test.js';import { buildExpectedTable, diffAll, diffTable, ObjectRegistry, onDeleteClause } from '../../src/core/index.js';
+import { describe, it, expect } from '../helpers/test.js';import { buildExpectedTable, diffAll, diffTable, ObjectRegistry, onDeleteClause, systemObjects } from '../../src/core/index.js';
 import type { ActualTable } from '../../src/core/index.js';
 
 function registryOf(entries: Record<string, unknown>): ObjectRegistry {
@@ -34,6 +34,25 @@ describe('buildExpectedTable — expected table construction', () => {
     ]);
     expect(t.indexes.map((i) => i.columns)).toContainEqual(['supplier_id']);
     expect(t.columns.find((c) => c.name === 'code')?.unique).toBe(true);
+  });
+
+  it('identity FK fields → UUID column + FK to the engine identity objects', () => {
+    const reg = registryOf({
+      employee: {
+        name: 'employee',
+        fields: [
+          { name: 'id', type: 'string', primary: true },
+          { name: 'manager_id', type: 'user' },
+          { name: 'dept_id', type: 'department' },
+        ],
+      },
+    });
+    const defs = new Map([...systemObjects(), ...reg.list()].map((d) => [d.name, d]));
+    const t = buildExpectedTable(reg.get('employee')!, defs);
+    expect(t.columns.find((c) => c.name === 'manager_id')?.type).toBe('UUID');
+    expect(t.columns.find((c) => c.name === 'dept_id')?.type).toBe('UUID');
+    expect(t.fks).toContainEqual({ column: 'manager_id', refTable: 'weavekit_user', refColumn: 'id', onDelete: 'restrict' });
+    expect(t.fks).toContainEqual({ column: 'dept_id', refTable: 'weavekit_department', refColumn: 'id', onDelete: 'restrict' });
   });
 
   it('details child table auto three columns + composite index', () => {

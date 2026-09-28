@@ -6,8 +6,11 @@
  * Consumers import the const (runtime) or the derived type (compile-time).
  */
 
-/** every field type: scalar + relation + sequence */
-export const FIELD_TYPES = {
+/**
+ * PG-native value columns — field types whose column maps directly to a
+ * PostgreSQL type (a value scalar: readable/comparable as data).
+ */
+export const PG_FIELD_TYPES = {
   STRING: 'string',
   TEXT: 'text',
   CHAR: 'char',
@@ -28,21 +31,43 @@ export const FIELD_TYPES = {
   UUID: 'uuid',
   JSON: 'json',
   JSONB: 'jsonb',
+} as const;
+
+/** engine structural types: cross-row shape (enum, relations, child tables, sequence ids) */
+export const STRUCTURAL_FIELD_TYPES = {
   ENUM: 'enum',
   RELATION: 'relation',
   DETAILS: 'details',
   MULTI_RELATION: 'multiRelation',
   SEQ_NO: 'seq_no',
-  // string subtypes (first/last name, contact) and media (image/asset)
+} as const;
+
+/** semantic value subtypes (string subtypes + media): scalar, display semantics only */
+export const SEMANTIC_FIELD_TYPES = {
   FIRST_NAME: 'firstName',
   LAST_NAME: 'lastName',
   EMAIL: 'email',
   PHONE: 'phone',
   IMAGE: 'image',
-  // identity FK to the internal address-book/person object (relation-like; not scalar)
-  PERSON: 'person',
-  // identity FK to the internal department/organization object (relation-like; not scalar)
+} as const;
+
+/** identity FK types: relation-like to the engine identity directory (not scalar) */
+export const IDENTITY_FIELD_TYPES = {
+  USER: 'user',
   DEPARTMENT: 'department',
+} as const;
+
+/** every engine-level type (structural + semantic + identity) */
+export const ENGINE_FIELD_TYPES = {
+  ...STRUCTURAL_FIELD_TYPES,
+  ...SEMANTIC_FIELD_TYPES,
+  ...IDENTITY_FIELD_TYPES,
+} as const;
+
+/** every field type: PG-native value columns + engine-level types */
+export const FIELD_TYPES = {
+  ...PG_FIELD_TYPES,
+  ...ENGINE_FIELD_TYPES,
 } as const;
 /** a built-in field type (the closed set the engine ships) */
 export type BuiltinFieldType = typeof FIELD_TYPES[keyof typeof FIELD_TYPES];
@@ -53,36 +78,12 @@ export type BuiltinFieldType = typeof FIELD_TYPES[keyof typeof FIELD_TYPES];
  */
 export type FieldType = BuiltinFieldType | (string & {});
 
-/** value scalar subset of FIELD_TYPES (most are PK-eligible; `json`/`interval` excluded at object validation) */
-export const SCALAR_FIELD_TYPES = {
-  STRING: 'string',
-  TEXT: 'text',
-  CHAR: 'char',
-  SMALLINT: 'smallint',
-  INTEGER: 'integer',
-  BIGINT: 'bigint',
-  NUMBER: 'number',
-  REAL: 'real',
-  DOUBLE: 'double',
-  CURRENCY: 'currency',
-  BOOLEAN: 'boolean',
-  DATE: 'date',
-  TIME: 'time',
-  TIMETZ: 'timetz',
-  TIMESTAMP: 'timestamp',
-  TIMESTAMPTZ: 'timestamptz',
-  INTERVAL: 'interval',
-  UUID: 'uuid',
-  JSON: 'json',
-  JSONB: 'jsonb',
-  ENUM: 'enum',
-  FIRST_NAME: 'firstName',
-  LAST_NAME: 'lastName',
-  EMAIL: 'email',
-  PHONE: 'phone',
-  IMAGE: 'image',
+/** the engine identity objects targeted by the `user`/`department` field types */
+export const IDENTITY_OBJECT_NAMES = {
+  USER: 'weavekit_user',
+  DEPARTMENT: 'weavekit_department',
 } as const;
-export type ScalarFieldType = typeof SCALAR_FIELD_TYPES[keyof typeof SCALAR_FIELD_TYPES];
+export type IdentityObjectName = typeof IDENTITY_OBJECT_NAMES[keyof typeof IDENTITY_OBJECT_NAMES];
 
 /** FK delete behavior for `relation` fields (default restrict) */
 export const ON_DELETE_ACTIONS = {

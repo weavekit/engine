@@ -27,7 +27,7 @@ describe('built-in identity objects', () => {
     expect(JSON.stringify(user.fields.find((f) => f.name === 'department_id'))).toContain(
       'weavekit_department',
     );
-    // user.director_id = the person's direct manager (reporting line)
+    // user.director_id = the user's direct manager (reporting line)
     expect(JSON.stringify(user.fields.find((f) => f.name === 'director_id'))).toContain('weavekit_user');
     // department.manager_id = the department head (org leader)
     expect(JSON.stringify(dept.fields.find((f) => f.name === 'manager_id'))).toContain('weavekit_user');

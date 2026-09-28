@@ -1,4 +1,5 @@
 import type { ObjectDefinition } from '../types/index.js';
+import { IDENTITY_OBJECT_NAMES } from '../types/values.js';
 import { validateObject } from './validate.js';
 
 /**
@@ -6,16 +7,17 @@ import { validateObject } from './validate.js';
  *
  * These are engine-managed (never declared in a project's `objects/` tree) and
  * live under the reserved `weavekit_` name prefix. They carry the identity used
- * by ownership (`created_by` / `owner_id`) and, later, department-scoped
- * permissions. Their primary keys are application-generated UUIDs.
+ * by ownership (`created_by` / `owner_id`) and department-scoped permissions.
+ * The `user`/`department` field types target these objects implicitly. Their
+ * primary keys are application-generated UUIDs.
  */
 
 /** reserved names of the built-in identity objects */
-export const SYSTEM_OBJECT_NAMES = ['weavekit_user', 'weavekit_department'] as const;
+export const SYSTEM_OBJECT_NAMES = [IDENTITY_OBJECT_NAMES.USER, IDENTITY_OBJECT_NAMES.DEPARTMENT] as const;
 export type SystemObjectName = typeof SYSTEM_OBJECT_NAMES[number];
 
 const USER: unknown = {
-  name: 'weavekit_user',
+  name: IDENTITY_OBJECT_NAMES.USER,
   labels: { en: 'User', zh: '用户' },
   // engine-owned table: additive ALTER is allowed (the zero-DDL rule protects
   // only customer tables), so the identity columns below can land on existing DBs
@@ -38,8 +40,8 @@ const USER: unknown = {
     { name: 'entry_date', type: 'date' },
     { name: 'departure_date', type: 'date' },
     { name: 'birthday', type: 'date' },
-    { name: 'department_id', type: 'relation', target: 'weavekit_department' },
-    { name: 'director_id', type: 'relation', target: 'weavekit_user' },
+    { name: 'department_id', type: 'relation', target: IDENTITY_OBJECT_NAMES.DEPARTMENT },
+    { name: 'director_id', type: 'relation', target: IDENTITY_OBJECT_NAMES.USER },
     { name: 'enabled', type: 'boolean' },
     { name: 'sort_key', type: 'string' },
     { name: 'description', type: 'text' },
@@ -47,7 +49,7 @@ const USER: unknown = {
 };
 
 const DEPARTMENT: unknown = {
-  name: 'weavekit_department',
+  name: IDENTITY_OBJECT_NAMES.DEPARTMENT,
   labels: { en: 'Department', zh: '部门' },
   alter: true,
   constraints: [{ type: 'unique', fields: ['external_source', 'external_id'] }],
@@ -57,8 +59,8 @@ const DEPARTMENT: unknown = {
     { name: 'external_id', type: 'string' },
     { name: 'name', type: 'string' },
     { name: 'code', type: 'string' },
-    { name: 'parent_id', type: 'relation', target: 'weavekit_department' },
-    { name: 'manager_id', type: 'relation', target: 'weavekit_user' },
+    { name: 'parent_id', type: 'relation', target: IDENTITY_OBJECT_NAMES.DEPARTMENT },
+    { name: 'manager_id', type: 'relation', target: IDENTITY_OBJECT_NAMES.USER },
     { name: 'enabled', type: 'boolean' },
     { name: 'sort_key', type: 'string' },
     { name: 'description', type: 'text' },

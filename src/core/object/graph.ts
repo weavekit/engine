@@ -12,33 +12,15 @@ import type { FieldTypeRegistry } from '../types/index.js';
 import {
   DETAILS_COLUMNS,
   FIELD_TYPES,
+  IDENTITY_OBJECT_NAMES,
+  PG_FIELD_TYPES,
   RELATION_KINDS,
-  SCALAR_FIELD_TYPES,
 } from '../types/values.js';
-import { DEFAULT_FIELD_TYPE_REGISTRY, fieldBase, primaryFieldsOf, primaryKeyOf } from '../types/index.js';
-
-const SCALAR_TYPE_VALUES: readonly string[] = Object.values(SCALAR_FIELD_TYPES);
+import { DEFAULT_FIELD_TYPE_REGISTRY, fieldBase, isScalarFieldType, primaryFieldsOf, primaryKeyOf } from '../types/index.js';
 
 /** value primitive bases a data-driven enum source column may use (compared as text) */
 const ENUM_SOURCE_BASES: ReadonlySet<string> = new Set<string>([
-  FIELD_TYPES.STRING,
-  FIELD_TYPES.TEXT,
-  FIELD_TYPES.CHAR,
-  FIELD_TYPES.SMALLINT,
-  FIELD_TYPES.INTEGER,
-  FIELD_TYPES.BIGINT,
-  FIELD_TYPES.NUMBER,
-  FIELD_TYPES.REAL,
-  FIELD_TYPES.DOUBLE,
-  FIELD_TYPES.CURRENCY,
-  FIELD_TYPES.BOOLEAN,
-  FIELD_TYPES.DATE,
-  FIELD_TYPES.TIME,
-  FIELD_TYPES.TIMETZ,
-  FIELD_TYPES.TIMESTAMP,
-  FIELD_TYPES.TIMESTAMPTZ,
-  FIELD_TYPES.INTERVAL,
-  FIELD_TYPES.UUID,
+  ...Object.values(PG_FIELD_TYPES).filter((t) => t !== FIELD_TYPES.JSON && t !== FIELD_TYPES.JSONB),
   FIELD_TYPES.ENUM,
   FIELD_TYPES.SEQ_NO,
 ]);
@@ -113,11 +95,14 @@ export function buildGraph(
 ): RelationGraph {
   const locale = options?.locale;
   const names = new Set(defs.keys());
+  // identity FK types target the engine identity objects, which are never
+  // declared in `objects/` (not in the registry) but always exist
+  for (const name of Object.values(IDENTITY_OBJECT_NAMES)) names.add(name);
   const edges: RelationEdge[] = [];
 
   for (const def of defs.values()) {
     for (const field of def.fields) {
-      if (field.type === FIELD_TYPES.RELATION || field.type === FIELD_TYPES.PERSON || field.type === FIELD_TYPES.DEPARTMENT) {
+      if (field.type === FIELD_TYPES.RELATION || field.type === FIELD_TYPES.USER || field.type === FIELD_TYPES.DEPARTMENT) {
         if (!names.has(field.target)) {
           graphError(locale, 'graph.relation.target.missing', {
             object: def.name,
@@ -248,7 +233,7 @@ export function buildGraph(
     }
   }
 
-  validateFormulaCrossObject(defs, locale);
+  validateFormulaCrossObject(defs, locale, options?.fieldTypes ?? DEFAULT_FIELD_TYPE_REGISTRY);
 
   return new RelationGraph(edges);
 }
@@ -268,6 +253,7 @@ function fieldOf(def: ObjectDefinition, name: string): ObjectDefinition['fields'
 function validateFormulaCrossObject(
   defs: ReadonlyMap<string, ObjectDefinition>,
   locale: Locale | undefined,
+  registry: FieldTypeRegistry,
 ): void {
   const nodes: string[] = [];
   const edges: [string, string][] = [];
@@ -303,16 +289,16 @@ function validateFormulaCrossObject(
         if (parentField === undefined) continue;
         // defensive fail-closed: a cross-object reference whose parent is not a
         // relation/details field is invalid — do not silently drop the edge
-        if (parentField.type !== FIELD_TYPES.RELATION && parentField.type !== FIELD_TYPES.PERSON && parentField.type !== FIELD_TYPES.DEPARTMENT && parentField.type !== FIELD_TYPES.DETAILS) {
+        if (parentField.type !== FIELD_TYPES.RELATION && parentField.type !== FIELD_TYPES.USER && parentField.type !== FIELD_TYPES.DEPARTMENT && parentField.type !== FIELD_TYPES.DETAILS) {
           graphError(locale, 'formula.refType', { object: def.name, type: parentField.type, field: ref.parent });
         }
-        if (parentField.type === FIELD_TYPES.RELATION || parentField.type === FIELD_TYPES.PERSON || parentField.type === FIELD_TYPES.DEPARTMENT) {
+        if (parentField.type === FIELD_TYPES.RELATION || parentField.type === FIELD_TYPES.USER || parentField.type === FIELD_TYPES.DEPARTMENT) {
           const targetDef = defs.get(parentField.target);
           const targetField = targetDef === undefined ? undefined : fieldOf(targetDef, ref.name);
           if (targetField === undefined) {
             graphError(locale, 'formula.refMissing', { object: def.name, field: `${ref.parent}.${ref.name}` });
           }
-          if (targetField !== undefined && !SCALAR_TYPE_VALUES.includes(targetField.type)) {
+          if (targetField !== undefined && !isScalarFieldType(registry, targetField.type)) {
             graphError(locale, 'formula.refType', { object: def.name, type: targetField.type, field: `${ref.parent}.${ref.name}` });
           }
           if (targetField !== undefined && targetField.type !== FIELD_TYPES.RELATION && targetField.type !== FIELD_TYPES.DETAILS && targetField.type !== FIELD_TYPES.MULTI_RELATION && targetField.type !== FIELD_TYPES.SEQ_NO) {

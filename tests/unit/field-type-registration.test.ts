@@ -33,9 +33,9 @@ const registry = buildFieldTypeRegistry([
 describe('field-type registry — base delegation', () => {
   it('built-ins resolve through the default registry', () => {
     expect(fieldBase(DEFAULT_FIELD_TYPE_REGISTRY, 'email')).toBe('string');
-    expect(fieldBase(DEFAULT_FIELD_TYPE_REGISTRY, 'person')).toBe('relation');
+    expect(fieldBase(DEFAULT_FIELD_TYPE_REGISTRY, 'user')).toBe('relation');
     expect(isScalarFieldType(DEFAULT_FIELD_TYPE_REGISTRY, 'email')).toBe(true);
-    expect(isRelationLike(DEFAULT_FIELD_TYPE_REGISTRY, 'person')).toBe(true);
+    expect(isRelationLike(DEFAULT_FIELD_TYPE_REGISTRY, 'user')).toBe(true);
   });
 
   it('registered types inherit their base', () => {

@@ -6,7 +6,7 @@ import type {
   SequenceCycle,
 } from './values.js';
 
-export type { ScalarFieldType, BuiltinFieldType, FieldType, OnDeleteAction, SequenceCycle } from './values.js';
+export type { BuiltinFieldType, FieldType, OnDeleteAction, SequenceCycle } from './values.js';
 
 export interface FieldBase {
   name: string;
@@ -296,23 +296,20 @@ export interface ImageField extends FieldBase {
   default?: string | string[];
 }
 
-/** identity FK to the internal address-book/person object (relation-like, mirrors RelationField) */
-export interface PersonField extends FieldBase {
-  type: typeof FIELD_TYPES.PERSON;
+/** identity FK to the engine identity directory (relation-like, mirrors RelationField) */
+export interface UserField extends FieldBase {
+  type: typeof FIELD_TYPES.USER;
+  /** engine-injected target (always `weavekit_user`); never declared in schema.json */
   target: string;
   required?: boolean;
   unique?: boolean;
   onDelete?: OnDeleteAction;
-  /**
-   * the department FK field name on the *person target* object (e.g. `dept_id`).
-   * Lets the resolve layer pull the person's department (department icon + name).
-   */
-  department?: string;
 }
 
-/** identity FK to the internal department/organization object (relation-like, mirrors RelationField) */
+/** identity FK to the engine department/organization directory (relation-like, mirrors RelationField) */
 export interface DepartmentField extends FieldBase {
   type: typeof FIELD_TYPES.DEPARTMENT;
+  /** engine-injected target (always `weavekit_department`); never declared in schema.json */
   target: string;
   required?: boolean;
   unique?: boolean;
@@ -366,5 +363,5 @@ export type FieldDefinition =
   | EmailField
   | PhoneField
   | ImageField
-  | PersonField
+  | UserField
   | DepartmentField;

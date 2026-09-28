@@ -110,4 +110,39 @@ describe('schema format version', () => {
     );
     expect(parsed.fields.find((f) => f.name === 'meta')?.type).toBe('json');
   });
+
+  it('migrates a v4 `person` field to `user` and drops identity targets', () => {
+    const migrated = migrateSchemaObject({
+      name: 'employee',
+      schemaVersion: 4,
+      fields: [
+        { name: 'id', type: 'string', primary: true },
+        { name: 'manager_id', type: 'person', target: 'employee', department: 'dept_id' },
+        { name: 'dept_id', type: 'department', target: 'department' },
+      ],
+    });
+    expect(migrated.object.schemaVersion).toBe(SCHEMA_FORMAT_VERSION);
+    const fields = migrated.object.fields as Array<Record<string, unknown>>;
+    const manager = fields.find((f) => f.name === 'manager_id');
+    expect(manager).toMatchObject({ type: 'user' });
+    expect(manager?.target).toBeUndefined();
+    expect(manager?.department).toBeUndefined();
+    const dept = fields.find((f) => f.name === 'dept_id');
+    expect(dept).toMatchObject({ type: 'department' });
+    expect(dept?.target).toBeUndefined();
+  });
+
+  it('parseSchema validates a migrated `user` field with the injected identity target', () => {
+    const parsed = parseSchema(
+      JSON.stringify({
+        name: 'employee',
+        schemaVersion: 4,
+        fields: [
+          { name: 'id', type: 'string', primary: true },
+          { name: 'manager_id', type: 'person', target: 'employee' },
+        ],
+      }),
+    );
+    expect(parsed.fields.find((f) => f.name === 'manager_id')).toMatchObject({ type: 'user', target: 'weavekit_user' });
+  });
 });

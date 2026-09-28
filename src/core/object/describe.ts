@@ -47,7 +47,7 @@ export interface MetadataField {
   options?: string[];
   multiple?: boolean;
   target?: string;
-  /** for `person` fields: the department FK field name on the person target object */
+  /** for `user` fields: the department FK column on the identity object (`department_id`) */
   department?: string;
   /** true when this field is the object's primary key (the CRUD id field for frontends) */
   primary?: boolean;
@@ -177,8 +177,9 @@ function fieldDescription(field: FieldDefinition, objects: ObjectRegistry): Meta
     out.target = (field as { target?: string }).target;
     if ((field as { multiple?: boolean }).multiple === true) out.multiple = true;
   }
-  if (field.type === FIELD_TYPES.PERSON && field.department !== undefined) {
-    out.department = field.department;
+  if (field.type === FIELD_TYPES.USER) {
+    // the identity object's department FK column (surfaced for the resolve layer)
+    out.department = 'department_id';
   }
   // row-scope markers: which column backs `own` / `department`, and its id source
   const scope = field as unknown as { ownership?: boolean; department?: boolean; ownershipSource?: string; departmentSource?: string };

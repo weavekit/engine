@@ -9,7 +9,7 @@ import {
   type FieldTypeRegistration,
   type FieldTypeRegistry,
 } from '../../types/index.js';
-import { FIELD_TYPES, ROW_SCOPE_MARKERS, SCOPE_SOURCES } from '../../types/values.js';
+import { FIELD_TYPES, IDENTITY_OBJECT_NAMES, ROW_SCOPE_MARKERS, SCOPE_SOURCES } from '../../types/values.js';
 import type { ScopeSource } from '../../types/values.js';
 import { validateLabels } from './labels.js';
 import {
@@ -71,8 +71,8 @@ const EXTRA_KEYS: Record<FieldType, readonly string[]> = {
   email: ['minLength', 'maxLength', 'regex', 'required', 'unique', 'default', 'formula'],
   phone: ['minLength', 'maxLength', 'regex', 'required', 'unique', 'default', 'formula'],
   image: ['required', 'unique', 'multiple', 'default'],
-  person: ['target', 'required', 'unique', 'onDelete', 'department'],
-  department: ['target', 'required', 'unique', 'onDelete'],
+  user: ['required', 'unique', 'onDelete'],
+  department: ['required', 'unique', 'onDelete'],
 };
 
 /** reject any attribute not allowed for the given field type (typo protection) */
@@ -135,7 +135,7 @@ function validateDefault(value: unknown, type: FieldType, vc: Vc, options?: stri
       if (options !== undefined && !options.includes(value)) fail(vc, 'field.default.inOptions', { value });
       break;
     case FIELD_TYPES.RELATION:
-    case FIELD_TYPES.PERSON:
+    case FIELD_TYPES.USER:
     case FIELD_TYPES.DEPARTMENT:
     case FIELD_TYPES.DETAILS:
     case FIELD_TYPES.MULTI_RELATION:
@@ -602,26 +602,21 @@ export function validateField(raw: unknown, vc: Vc, options: FieldValidateOption
         default: multiple === true ? (raw.default as string[] | undefined) : (raw.default as string | undefined),
       };
     }
-    case FIELD_TYPES.PERSON: {
-      const target = expectString(raw, 'target', vc);
-      if (target === undefined) fail(vc, 'field.relation.target.required');
-      if (!SNAKE_CASE.test(target)) fail(vc, 'field.relation.target.snake', { target });
+    case FIELD_TYPES.USER: {
       const onDelete = expectString(raw, 'onDelete', vc) as OnDeleteAction | undefined;
       if (onDelete !== undefined && !ON_DELETE_ACTION_VALUES.includes(onDelete)) {
         fail(vc, 'field.relation.onDelete.invalid', { actions: ON_DELETE_ACTION_VALUES.join('/') });
       }
-      const department = expectString(raw, 'department', vc);
-      return { ...base, type: FIELD_TYPES.PERSON, target, required, unique, onDelete, department };
+      // implicit target: the engine identity object (never declared in schema.json)
+      return { ...base, type: FIELD_TYPES.USER, target: IDENTITY_OBJECT_NAMES.USER, required, unique, onDelete };
     }
     case FIELD_TYPES.DEPARTMENT: {
-      const target = expectString(raw, 'target', vc);
-      if (target === undefined) fail(vc, 'field.relation.target.required');
-      if (!SNAKE_CASE.test(target)) fail(vc, 'field.relation.target.snake', { target });
       const onDelete = expectString(raw, 'onDelete', vc) as OnDeleteAction | undefined;
       if (onDelete !== undefined && !ON_DELETE_ACTION_VALUES.includes(onDelete)) {
         fail(vc, 'field.relation.onDelete.invalid', { actions: ON_DELETE_ACTION_VALUES.join('/') });
       }
-      return { ...base, type: FIELD_TYPES.DEPARTMENT, target, required, unique, onDelete };
+      // implicit target: the engine identity object (never declared in schema.json)
+      return { ...base, type: FIELD_TYPES.DEPARTMENT, target: IDENTITY_OBJECT_NAMES.DEPARTMENT, required, unique, onDelete };
     }
     case FIELD_TYPES.SEQ_NO: {
       const format = expectString(raw, 'format', vc);

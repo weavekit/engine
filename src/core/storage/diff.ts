@@ -69,7 +69,7 @@ export function buildExpectedTable(
     if (field.type === FIELD_TYPES.DETAILS) continue;
 
     let type: string;
-    if (field.type === FIELD_TYPES.RELATION || field.type === FIELD_TYPES.PERSON || field.type === FIELD_TYPES.DEPARTMENT) {
+    if (field.type === FIELD_TYPES.RELATION || field.type === FIELD_TYPES.USER || field.type === FIELD_TYPES.DEPARTMENT) {
       const targetDef = defs.get(field.target);
       type = targetDef === undefined ? 'VARCHAR(255)' : (targetPkType(targetDef, registry) ?? 'VARCHAR(255)');
     } else {
@@ -85,7 +85,7 @@ export function buildExpectedTable(
       unique: (field as { unique?: boolean }).unique === true,
     });
 
-    if (field.type === FIELD_TYPES.RELATION || field.type === FIELD_TYPES.PERSON || field.type === FIELD_TYPES.DEPARTMENT) {
+    if (field.type === FIELD_TYPES.RELATION || field.type === FIELD_TYPES.USER || field.type === FIELD_TYPES.DEPARTMENT) {
       const targetDef = defs.get(field.target);
       const targetPks = targetDef === undefined ? [] : primaryFieldsOf(targetDef);
       // a composite target is referenced by its record_key (text) — no real FK

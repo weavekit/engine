@@ -48,15 +48,15 @@ describe('pgType — type mapping', () => {
     expect(pgType(f({ name: 'oid', type: 'relation', target: 'order' }), undefined)).toBe('VARCHAR(255)');
   });
 
-  it('string subtypes + image + person', () => {
+  it('string subtypes + image + identity FK', () => {
     expect(pgType(f({ name: 'fn', type: 'firstName' }), undefined)).toBe('VARCHAR(255)');
     expect(pgType(f({ name: 'ln', type: 'lastName' }), undefined)).toBe('VARCHAR(255)');
     expect(pgType(f({ name: 'em', type: 'email' }), undefined)).toBe('VARCHAR(255)');
     expect(pgType(f({ name: 'ph', type: 'phone' }), undefined)).toBe('VARCHAR(255)');
     expect(pgType(f({ name: 'img', type: 'image' }), undefined)).toBe('VARCHAR(255)');
     expect(pgType(f({ name: 'img', type: 'image', multiple: true }), undefined)).toBe('TEXT[]');
-    expect(pgType(f({ name: 'owner', type: 'person', target: 'users' }), 'INTEGER')).toBe('INTEGER');
-    expect(pgType(f({ name: 'dept', type: 'department', target: 'departments' }), undefined)).toBe('VARCHAR(255)');
+    expect(pgType(f({ name: 'owner', type: 'user', target: 'weavekit_user' }), 'INTEGER')).toBe('INTEGER');
+    expect(pgType(f({ name: 'dept', type: 'department', target: 'weavekit_department' }), undefined)).toBe('VARCHAR(255)');
   });
 
   it('multiRelation/seq_no', () => {

@@ -11,7 +11,7 @@ set — schemas stay reproducible.
 
 ## Naming: the namespace rule
 
-- **Bare names are reserved for the engine** (`string`, `currency`, `seq_no`, `person`, …). A
+- **Bare names are reserved for the engine** (`string`, `currency`, `seq_no`, `user`, …). A
   registration cannot use one.
 - **Registered types must be namespaced**: `<namespace>_<name>` (lowercase snake_case). This keeps
   user/plugin types from ever colliding with built-ins — now or in a future release.
@@ -49,7 +49,7 @@ export default [
 **Allowed bases**: `string`, `text`, `char`, `smallint`, `integer`, `bigint`, `number`, `real`,
 `double`, `currency`, `boolean`, `date`, `time`, `timetz`, `timestamp`, `timestamptz`, `interval`,
 `uuid`, `json`, `jsonb`, `relation`. The structural types (`enum`, `details`, `multiRelation`,
-`seq_no`) and the semantic types (`image`, `person`, `department`) are **not** valid bases.
+`seq_no`) and the semantic types (`image`, `user`, `department`) are **not** valid bases.
 
 ## Enabling registrations
 

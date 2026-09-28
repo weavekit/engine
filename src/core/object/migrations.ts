@@ -46,6 +46,29 @@ function migrateJsonToJsonb(raw: RawObject): RawObject {
 }
 
 /**
+ * v4 → v5: the `person` field type is renamed to `user`; the identity FK types
+ * (`user`/`department`) now target the engine identity objects
+ * (`weavekit_user`/`weavekit_department`) implicitly. Drop a declared `target`
+ * on those fields and the legacy `person.department` attr.
+ */
+function migratePersonToUser(raw: RawObject): RawObject {
+  const fields = Array.isArray(raw.fields)
+    ? raw.fields.map((field) => {
+        if (!isRecord(field)) return field;
+        if (field.type !== 'person' && field.type !== 'user' && field.type !== 'department') return field;
+        const next: RawObject = { ...field };
+        delete next.target;
+        if (field.type === 'person') {
+          next.type = 'user';
+          delete next.department;
+        }
+        return next;
+      })
+    : raw.fields;
+  return { ...raw, fields, schemaVersion: 5 };
+}
+
+/**
  * On-disk format migrations: `from`-version → a transform producing version+1.
  * Append a step here whenever {@link SCHEMA_FORMAT_VERSION} is bumped. Steps
  * must be pure (they may not read files or the database).
@@ -59,6 +82,8 @@ const MIGRATIONS: Record<number, (raw: RawObject) => RawObject> = {
   2: migrateAddConstraintSupport,
   // v3 → v4: `json` now maps to PG `json`; rewrite former `json` (== JSONB) to `jsonb`.
   3: migrateJsonToJsonb,
+  // v4 → v5: `person` → `user`; identity FK types target the identity objects implicitly.
+  4: migratePersonToUser,
 };
 
 /**

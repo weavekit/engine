@@ -1,4 +1,11 @@
-import { FIELD_TYPES, type FieldType } from './values.js';
+import {
+  FIELD_TYPES,
+  IDENTITY_FIELD_TYPES,
+  PG_FIELD_TYPES,
+  SEMANTIC_FIELD_TYPES as SEMANTIC_VALUE_TYPES,
+  STRUCTURAL_FIELD_TYPES,
+  type FieldType,
+} from './values.js';
 import type { FieldTypeRegistration, FieldTypeRegistry } from './field-type.js';
 
 /**
@@ -19,41 +26,26 @@ function define(descriptor: FieldTypeRegistration): void {
   registry.set(descriptor.name, descriptor);
 }
 
-// ---- primitives ----
-define({ name: FIELD_TYPES.STRING, scalar: true });
-define({ name: FIELD_TYPES.TEXT, scalar: true });
-define({ name: FIELD_TYPES.CHAR, scalar: true });
-define({ name: FIELD_TYPES.SMALLINT, scalar: true });
-define({ name: FIELD_TYPES.INTEGER, scalar: true });
-define({ name: FIELD_TYPES.BIGINT, scalar: true });
-define({ name: FIELD_TYPES.NUMBER, scalar: true });
-define({ name: FIELD_TYPES.REAL, scalar: true });
-define({ name: FIELD_TYPES.DOUBLE, scalar: true });
-define({ name: FIELD_TYPES.CURRENCY, scalar: true });
-define({ name: FIELD_TYPES.BOOLEAN, scalar: true });
-define({ name: FIELD_TYPES.DATE, scalar: true });
-define({ name: FIELD_TYPES.TIME, scalar: true });
-define({ name: FIELD_TYPES.TIMETZ, scalar: true });
-define({ name: FIELD_TYPES.TIMESTAMP, scalar: true });
-define({ name: FIELD_TYPES.TIMESTAMPTZ, scalar: true });
-define({ name: FIELD_TYPES.INTERVAL, scalar: true });
-define({ name: FIELD_TYPES.UUID, scalar: true });
-define({ name: FIELD_TYPES.JSON, scalar: true });
-define({ name: FIELD_TYPES.JSONB, scalar: true });
+// ---- PG-native value primitives (value scalars; PK-eligible as a base) ----
+for (const name of Object.values(PG_FIELD_TYPES)) define({ name, scalar: true });
+
+// ---- structural primitives (cross-row shape) ----
 define({ name: FIELD_TYPES.ENUM, scalar: true });
 define({ name: FIELD_TYPES.RELATION, relationLike: true });
 define({ name: FIELD_TYPES.DETAILS, relationLike: true });
 define({ name: FIELD_TYPES.MULTI_RELATION, relationLike: true });
 define({ name: FIELD_TYPES.SEQ_NO });
 
-// ---- semantic types (base delegation + ui hints + format hints) ----
+// ---- semantic value types (base delegation + ui hints + format hints) ----
 define({ name: FIELD_TYPES.FIRST_NAME, base: FIELD_TYPES.STRING, scalar: true, ui: { visual: 'none' } });
 define({ name: FIELD_TYPES.LAST_NAME, base: FIELD_TYPES.STRING, scalar: true, ui: { visual: 'none' } });
 define({ name: FIELD_TYPES.EMAIL, base: FIELD_TYPES.STRING, scalar: true, ui: { visual: 'none' }, openApiFormat: 'email' });
 define({ name: FIELD_TYPES.PHONE, base: FIELD_TYPES.STRING, scalar: true, ui: { visual: 'none' } });
 define({ name: FIELD_TYPES.IMAGE, base: FIELD_TYPES.STRING, scalar: true, ui: { visual: 'image' }, openApiFormat: 'uri' });
-define({ name: FIELD_TYPES.PERSON, base: FIELD_TYPES.RELATION, relationLike: true, ui: { visual: 'avatar' } });
-define({ name: FIELD_TYPES.DEPARTMENT, base: FIELD_TYPES.RELATION, relationLike: true, ui: { visual: 'icon' } });
+
+// ---- identity FK types (relation-like; implicit target = the identity objects) ----
+define({ name: IDENTITY_FIELD_TYPES.USER, base: FIELD_TYPES.RELATION, relationLike: true, ui: { visual: 'avatar' } });
+define({ name: IDENTITY_FIELD_TYPES.DEPARTMENT, base: FIELD_TYPES.RELATION, relationLike: true, ui: { visual: 'icon' } });
 
 /** the default registry: every engine built-in type (immutable by convention) */
 export const DEFAULT_FIELD_TYPE_REGISTRY: FieldTypeRegistry = registry;
@@ -106,40 +98,12 @@ export function describeFieldType(registry: FieldTypeRegistry, type: FieldType):
 
 /** engine primitives — always allowed by the default whitelist. */
 export const PRIMITIVE_FIELD_TYPES: readonly FieldType[] = [
-  FIELD_TYPES.STRING,
-  FIELD_TYPES.TEXT,
-  FIELD_TYPES.CHAR,
-  FIELD_TYPES.SMALLINT,
-  FIELD_TYPES.INTEGER,
-  FIELD_TYPES.BIGINT,
-  FIELD_TYPES.NUMBER,
-  FIELD_TYPES.REAL,
-  FIELD_TYPES.DOUBLE,
-  FIELD_TYPES.CURRENCY,
-  FIELD_TYPES.BOOLEAN,
-  FIELD_TYPES.DATE,
-  FIELD_TYPES.TIME,
-  FIELD_TYPES.TIMETZ,
-  FIELD_TYPES.TIMESTAMP,
-  FIELD_TYPES.TIMESTAMPTZ,
-  FIELD_TYPES.INTERVAL,
-  FIELD_TYPES.UUID,
-  FIELD_TYPES.JSON,
-  FIELD_TYPES.JSONB,
-  FIELD_TYPES.ENUM,
-  FIELD_TYPES.RELATION,
-  FIELD_TYPES.DETAILS,
-  FIELD_TYPES.MULTI_RELATION,
-  FIELD_TYPES.SEQ_NO,
+  ...Object.values(PG_FIELD_TYPES),
+  ...Object.values(STRUCTURAL_FIELD_TYPES),
 ];
 
 /** semantic types that are gated by the config `features.fieldTypes` whitelist. */
 export const SEMANTIC_FIELD_TYPES: readonly FieldType[] = [
-  FIELD_TYPES.FIRST_NAME,
-  FIELD_TYPES.LAST_NAME,
-  FIELD_TYPES.EMAIL,
-  FIELD_TYPES.PHONE,
-  FIELD_TYPES.IMAGE,
-  FIELD_TYPES.PERSON,
-  FIELD_TYPES.DEPARTMENT,
+  ...Object.values(SEMANTIC_VALUE_TYPES),
+  ...Object.values(IDENTITY_FIELD_TYPES),
 ];

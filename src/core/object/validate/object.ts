@@ -3,7 +3,7 @@ import type { Locale } from '../../i18n/index.js';
 import { SCHEMA_FORMAT_VERSION } from '../schema-version.js';
 import type { FieldDefinition, ObjectDefinition } from '../../types/index.js';
 import { DEFAULT_FIELD_TYPE_REGISTRY, isScalarFieldType, type FieldTypeRegistry } from '../../types/index.js';
-import { FIELD_TYPES, READ_SCOPES, RESERVED_OBJECT_PREFIX } from '../../types/values.js';
+import { FIELD_TYPES, PG_FIELD_TYPES, READ_SCOPES, RESERVED_OBJECT_PREFIX } from '../../types/values.js';
 import { validateField } from './field.js';
 import { validateFormulas } from './formulas.js';
 import { validateIndexes } from './indexes.js';
@@ -13,6 +13,15 @@ import { validatePermissions } from './permissions.js';
 import { validateWorkflow } from './workflow.js';
 import { hashWorkflow } from '../workflow-hash.js';
 import { fail, isRecord, expectString, SNAKE_CASE, TITLE_PLACEHOLDER_RE, type Vc } from './primitives.js';
+
+/** PG-native value types that are scalar but not allowed as a primary key */
+const PK_NOT_ALLOWED: ReadonlySet<string> = new Set<string>([
+  PG_FIELD_TYPES.JSON,
+  PG_FIELD_TYPES.JSONB,
+  PG_FIELD_TYPES.INTERVAL,
+  PG_FIELD_TYPES.REAL,
+  PG_FIELD_TYPES.DOUBLE,
+]);
 
 export interface ValidateOptions {
   /** directory name hint; must equal object name when provided */
@@ -101,13 +110,7 @@ export function validateObject(raw: unknown, options?: ValidateOptions): ObjectD
     if (!isScalarFieldType(registry, primaryField.type)) {
       fail(vc, 'object.primary.scalarOnly', { type: primaryField.type });
     }
-    if (
-      primaryField.type === FIELD_TYPES.JSON ||
-      primaryField.type === FIELD_TYPES.JSONB ||
-      primaryField.type === FIELD_TYPES.INTERVAL ||
-      primaryField.type === FIELD_TYPES.REAL ||
-      primaryField.type === FIELD_TYPES.DOUBLE
-    ) {
+    if (PK_NOT_ALLOWED.has(primaryField.type)) {
       fail(vc, 'object.primary.notAllowed', { field: primaryField.name, type: primaryField.type });
     }
     if ((primaryField as { formula?: string }).formula !== undefined) {

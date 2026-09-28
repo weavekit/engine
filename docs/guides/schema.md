@@ -26,7 +26,7 @@ people may use it. Objects live in `objects/<name>/`, and the folder name must m
 The on-disk format is versioned, and new files carry a top-level `schemaVersion`:
 
 ```json
-{ "schemaVersion": 4, "name": "lead", "labels": { "en": "Lead" }, "fields": [ /* … */ ] }
+{ "schemaVersion": 5, "name": "lead", "labels": { "en": "Lead" }, "fields": [ /* … */ ] }
 ```
 
 Files written before versioning existed are treated as legacy version `0`. The engine migrates older
@@ -38,6 +38,9 @@ the current version (the change is auto-committed).
 - **v3** added object-level `constraints` (composite/scoped `UNIQUE`); additive, no rewrite.
 - **v4** made `json` map to PostgreSQL `json` (it previously mapped to `jsonb`); `weave schema:upgrade`
   rewrites former `json` fields to `jsonb`, and `json` is now free to mean PG `json`.
+- **v5** renamed the `person` field type to `user` and made the identity FK types (`user`,
+  `department`) target the engine identity objects (`weavekit_user`/`weavekit_department`)
+  implicitly — a declared `target` and the legacy `person.department` attr are dropped.
 
 If a file declares a version **newer** than the engine supports, the engine rejects it with
 `schema.version.unsupported`. It fails closed rather than risk misreading a future format.
@@ -72,8 +75,10 @@ If a file declares a version **newer** than the engine supports, the engine reje
 | `details` | child table | strong 1:N ownership |
 | `multiRelation` | TEXT[] + GIN | multi-select reference |
 
-Built-in semantic types (`firstName`, `lastName`, `email`, `phone`, `image`, `person`,
-`department`) sit on top of these primitives. When you need a business-semantic type the engine
+Built-in semantic types (`firstName`, `lastName`, `email`, `phone`, `image`) and the identity FK
+types (`user`, `department`) sit on top of these primitives. `user`/`department` are relation-like
+and always point at the engine identity objects (`weavekit_user`/`weavekit_department`) — no
+`target` is declared. When you need a business-semantic type the engine
 doesn't ship (`money`, `address`, …), you can register your own — see
 [Custom field types](../reference/custom-field-types.md).
 

@@ -57,7 +57,7 @@ Field types carry meaning the agent can use — prefer the most specific type th
 
 - **`enum` over free `string`** for any closed set. The options appear in `describe_object`, so the
   agent picks a valid value instead of guessing.
-- **Semantic types over raw primitives** — `email`, `phone`, `image`, `person`, `department`,
+- **Semantic types over raw primitives** — `email`, `phone`, `image`, `user`, `department`,
   `firstName`/`lastName`. They inherit storage from a primitive but tell the agent (and the frontend)
   what the value *is*.
 - **Business semantics via custom field types** — when a domain concept recurs (`money`, `rating`,
