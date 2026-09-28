@@ -27,6 +27,9 @@ function ctxWithSubject(ctx: ToolExecContext, subject: IdentitySubject): DataAcc
 async function effectiveSubject(args: Record<string, unknown>, ctx: ToolExecContext): Promise<IdentitySubject> {
   const override = args[ON_BEHALF_OF];
   if (override === undefined) return ctx.session.user;
+  if (!ctx.allowImpersonation) {
+    throw new SchemaError('mcp.impersonation.denied', {}, ctx.engine.locale);
+  }
   const resolved = await ctx.resolveIdentity(String(override));
   if (resolved === null) {
     throw new SchemaError('mcp.identity.unknown', { ref: String(override) }, ctx.engine.locale);
@@ -104,16 +107,20 @@ async function callProtected(
   tool: string,
   objectName: string | undefined,
   args: Record<string, unknown>,
-  subject: IdentitySubject,
-  run: () => Promise<McpToolResult>,
+  getSubject: () => Promise<IdentitySubject>,
+  run: (subject: IdentitySubject) => Promise<McpToolResult>,
 ): Promise<McpToolResult> {
   if (!ctx.guardrails.checkRateLimit(ctx.session.agentKey)) {
     const msg = new SchemaError('mcp.rateLimited', {}, ctx.engine.locale);
-    auditToolCall(ctx, tool, objectName, subject, args, true, msg.code);
+    auditToolCall(ctx, tool, objectName, ctx.session.user, args, true, msg.code);
     return errorResult(msg, ctx);
   }
+  // the effective subject may fail to resolve (e.g. impersonation denied); the
+  // fallback session identity is used for the audit record in that case
+  let subject = ctx.session.user;
   try {
-    const result = await run();
+    subject = await getSubject();
+    const result = await run(subject);
     auditToolCall(ctx, tool, objectName, subject, args, false, undefined);
     return result;
   } catch (error) {
@@ -143,8 +150,7 @@ export async function searchRecordsHandler(
   args: Record<string, unknown>,
   ctx: ToolExecContext,
 ): Promise<McpToolResult> {
-  const subject = await effectiveSubject(args, ctx);
-  return callProtected(ctx, REGISTRY_TOOLS.SEARCH, requestedObject(args), args, subject, async () => {
+  return callProtected(ctx, REGISTRY_TOOLS.SEARCH, requestedObject(args), args, () => effectiveSubject(args, ctx), async (subject) => {
     const def = resolveObject(ctx, args);
     const { rows, total } = await ctx.engine.dataAccess.find(def.name, toFindOptions(args), ctxWithSubject(ctx, subject));
     const { limit, offset } = resolvePagination(toFindOptions(args));
@@ -156,8 +162,7 @@ export async function getRecordHandler(
   args: Record<string, unknown>,
   ctx: ToolExecContext,
 ): Promise<McpToolResult> {
-  const subject = await effectiveSubject(args, ctx);
-  return callProtected(ctx, REGISTRY_TOOLS.GET, requestedObject(args), args, subject, async () => {
+  return callProtected(ctx, REGISTRY_TOOLS.GET, requestedObject(args), args, () => effectiveSubject(args, ctx), async (subject) => {
     const def = resolveObject(ctx, args);
     const id = String(args.id ?? '');
     const record = await ctx.engine.dataAccess.findOne(def.name, id, ctxWithSubject(ctx, subject));
@@ -172,8 +177,7 @@ export async function createRecordHandler(
   args: Record<string, unknown>,
   ctx: ToolExecContext,
 ): Promise<McpToolResult> {
-  const subject = await effectiveSubject(args, ctx);
-  return callProtected(ctx, REGISTRY_TOOLS.CREATE, requestedObject(args), args, subject, async () => {
+  return callProtected(ctx, REGISTRY_TOOLS.CREATE, requestedObject(args), args, () => effectiveSubject(args, ctx), async (subject) => {
     const def = resolveObject(ctx, args);
     const data = (args.data ?? {}) as Record<string, unknown>;
     const record = await ctx.engine.dataAccess.create(def.name, data, ctxWithSubject(ctx, subject));
@@ -185,8 +189,7 @@ export async function updateRecordHandler(
   args: Record<string, unknown>,
   ctx: ToolExecContext,
 ): Promise<McpToolResult> {
-  const subject = await effectiveSubject(args, ctx);
-  return callProtected(ctx, REGISTRY_TOOLS.UPDATE, requestedObject(args), args, subject, async () => {
+  return callProtected(ctx, REGISTRY_TOOLS.UPDATE, requestedObject(args), args, () => effectiveSubject(args, ctx), async (subject) => {
     const def = resolveObject(ctx, args);
     const id = String(args.id ?? '');
     const changes = (args.changes ?? {}) as Record<string, unknown>;
@@ -204,8 +207,7 @@ export async function workflowTransitionHandler(
   args: Record<string, unknown>,
   ctx: ToolExecContext,
 ): Promise<McpToolResult> {
-  const subject = await effectiveSubject(args, ctx);
-  return callProtected(ctx, WORKFLOW_TOOLS.TRANSITION, requestedObject(args), args, subject, async () => {
+  return callProtected(ctx, WORKFLOW_TOOLS.TRANSITION, requestedObject(args), args, () => effectiveSubject(args, ctx), async (subject) => {
     const def = resolveObject(ctx, args);
     if (def.workflow === undefined) {
       throw new SchemaError(
@@ -225,8 +227,7 @@ export async function deleteRecordHandler(
   args: Record<string, unknown>,
   ctx: ToolExecContext,
 ): Promise<McpToolResult> {
-  const subject = await effectiveSubject(args, ctx);
-  return callProtected(ctx, REGISTRY_TOOLS.DELETE, requestedObject(args), args, subject, async () => {
+  return callProtected(ctx, REGISTRY_TOOLS.DELETE, requestedObject(args), args, () => effectiveSubject(args, ctx), async (subject) => {
     const def = resolveObject(ctx, args);
     const id = String(args.id ?? '');
     await ctx.engine.dataAccess.delete(def.name, id, ctxWithSubject(ctx, subject));

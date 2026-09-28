@@ -1,5 +1,5 @@
 import type { Locale } from '../i18n/index.js';
-import { resolvePermission, type ResolvedPermission } from '../rbac/index.js';
+import { resolvePermissionFor, type ResolvedPermission } from '../rbac/index.js';
 import { RECORD_META_VIRTUAL_FIELD_SPECS, type RecordMetaVirtualFieldSpec } from '../storage/record-meta.js';
 import { SchemaError } from '../types/errors.js';
 import {
@@ -224,7 +224,7 @@ function permissionsOf(perm: ResolvedPermission): MetadataPermissions {
 export function listObjectDescriptors(registry: ObjectRegistry, roles: readonly string[]): ObjectListEntry[] {
   return registry
     .list()
-    .filter((def) => resolvePermission(def, roles)?.read !== undefined)
+    .filter((def) => resolvePermissionFor(registry, def, roles)?.read !== undefined)
     .map((def) => ({ name: def.name, labels: def.labels, description: def.description }));
 }
 
@@ -241,7 +241,7 @@ export function describeObject(
 ): ObjectDescriptor {
   const def = registry.get(name);
   if (def === undefined) throw new SchemaError('data.objectUnknown', { object: name }, locale);
-  const perm = resolvePermission(def, roles);
+  const perm = resolvePermissionFor(registry, def, roles);
   if (perm === undefined || perm.read === undefined) {
     throw new SchemaError('rbac.denied.read', { object: name, role: roles.join(',') }, locale);
   }
@@ -277,7 +277,7 @@ export function listObjectPermissions(
 ): Array<{ name: string; labels?: Record<string, string>; permissions: MetadataPermissions }> {
   const out: Array<{ name: string; labels?: Record<string, string>; permissions: MetadataPermissions }> = [];
   for (const def of registry.list()) {
-    const perm = resolvePermission(def, roles);
+    const perm = resolvePermissionFor(registry, def, roles);
     if (perm !== undefined) {
       out.push({ name: def.name, labels: def.labels, permissions: permissionsOf(perm) });
     }

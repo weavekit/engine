@@ -52,6 +52,7 @@ export type { ScaffoldProjectOptions, ScaffoldProjectResult } from './cli/scaffo
 export { loadFieldTypesDir, normalizeFieldTypeRegistration, resolveFieldTypeRegistry } from './runtime/fieldtypes/index.js';
 export type { LoadedFieldType } from './runtime/fieldtypes/index.js';
 export { PROJECT_TYPES } from './cli/types/values.js';
+export { PROJECT_TYPE_DEFINITIONS, projectTypeDef, isBusinessUI } from './cli/project-types/manifest.js';
 export type { ProjectType } from './cli/types/values.js';
 
 export { version } from './version.js';

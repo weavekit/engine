@@ -87,3 +87,27 @@ export function buildRlsPolicyDdl(def: ObjectDefinition): string[] {
 export function buildRlsGrantDdl(def: ObjectDefinition, role: string): string {
   return `GRANT SELECT ON ${q(def.name)} TO ${role};`;
 }
+
+/** the restricted-SQL role name shape (`weavekit_query`, …) */
+const RLS_ROLE_RE = /^[a-z_][a-z0-9_]*$/;
+
+/** PostgreSQL keywords/pseudo-roles a custom RLS role name must never be */
+const RESERVED_ROLE_NAMES: ReadonlySet<string> = new Set<string>([
+  'user',
+  'public',
+  'current_user',
+  'session_user',
+  'current_role',
+  'current_catalog',
+  'current_schema',
+  'all',
+  'none',
+]);
+
+/**
+ * True when `role` is a safe, non-reserved identifier for `SET LOCAL ROLE` /
+ * `CREATE ROLE` (the name is interpolated into DDL after this check).
+ */
+export function isSafeRlsRole(role: string): boolean {
+  return RLS_ROLE_RE.test(role) && !RESERVED_ROLE_NAMES.has(role.toLowerCase());
+}

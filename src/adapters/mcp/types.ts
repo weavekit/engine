@@ -28,6 +28,8 @@ export interface ToolExecContext {
   session: McpSession;
   guardrails: McpGuardrails;
   resolveIdentity: IdentityResolver;
+  /** whether a call-level `onBehalfOf` override is allowed (config: `mcp.impersonation`) */
+  allowImpersonation: boolean;
 }
 
 /** a compiled MCP tool (per-session; the surface is filtered by RBAC) */

@@ -57,4 +57,10 @@ export interface ObjectDefinition {
    * a column fails the sync (fail-fast, protects user-owned tables).
    */
   alter?: boolean;
+  /**
+   * for a `details` child: the owning parent object name. Set by `buildGraph`
+   * (a child has at most one parent). Its row-level permission + scope are
+   * derived from the parent — see `resolvePermissionFor`/`buildRowScopeFor`.
+   */
+  detailsParent?: string;
 }

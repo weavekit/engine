@@ -10,6 +10,7 @@ import { inspectSchema } from './inspect.js';
 import { ensureMetaTable, setMeta } from './meta.js';
 import { createPool } from './pool.js';
 import { buildRecordMetaTable } from './record-meta.js';
+import { isSafeRlsRole } from '../rbac/index.js';
 
 export interface MigrateOptions {
   /** postgres connection string; falls back to process.env.DATABASE_URL */
@@ -36,8 +37,6 @@ export interface MigrationResult {
   /** non-fatal issues (e.g. RLS role could not be created) */
   warnings: string[];
 }
-
-const RLS_ROLE_RE = /^[a-z_][a-z0-9_]*$/;
 
 const q = (id: string) => `"${id}"`;
 const lit = (s: string) => `'${s.replace(/'/g, "''")}'`;
@@ -142,7 +141,7 @@ export async function migrate(registry: ObjectRegistry, options: MigrateOptions 
     const defs = new Map([...systemObjects(), ...registry.list()].map((d) => [d.name, d]));
     const actual = await inspectSchema(pool);
 
-    if (options.rls !== undefined && !RLS_ROLE_RE.test(options.rls.role)) {
+    if (options.rls !== undefined && !isSafeRlsRole(options.rls.role)) {
       throw new Error(`invalid RLS role name "${options.rls.role}"`);
     }
 

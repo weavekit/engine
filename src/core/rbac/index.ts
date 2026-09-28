@@ -14,5 +14,6 @@ export {
   assertCanUpdateField,
 } from './authorize.js';
 export { buildRowScope } from './rowScope.js';
+export { resolvePermissionFor, buildRowScopeFor, type ObjectLookup } from './details.js';
 export { excludedFields } from './fields.js';
-export { buildRlsPolicy, buildRlsPolicyDdl, buildRlsGrantDdl, policyName } from './rls.js';
+export { buildRlsPolicy, buildRlsPolicyDdl, buildRlsGrantDdl, policyName, isSafeRlsRole } from './rls.js';

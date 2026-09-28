@@ -11,6 +11,10 @@ export interface RowScopeFragment {
 
 const q = (name: string) => `"${name}"`;
 
+/** qualify a column when a table alias is in play (`p."owner_id"`), else bare */
+const col = (alias: string | undefined, name: string): string =>
+  alias === undefined ? q(name) : `${alias}.${q(name)}`;
+
 /** a scope-marked field (ownership / department) on an object, with its value source */
 interface ScopeField {
   name: string;
@@ -38,34 +42,34 @@ function departmentSubtreeSql(): string {
 }
 
 /** own scope: the record's ownership column identifies the subject */
-function ownFragment(ownership: ScopeField): RowScopeFragment {
+function ownFragment(ownership: ScopeField, alias?: string): RowScopeFragment {
   if (ownership.source === SCOPE_SOURCES.EXTERNAL) {
     // ownership holds external user ids → translate the subject's internal id
     return {
-      sql: `${q(ownership.name)} IN (SELECT external_id FROM weavekit_user WHERE id::text = $1)`,
+      sql: `${col(alias, ownership.name)} IN (SELECT external_id FROM weavekit_user WHERE id::text = $1)`,
       params: [],
     };
   }
-  return { sql: `${q(ownership.name)} = $1`, params: [] };
+  return { sql: `${col(alias, ownership.name)} = $1`, params: [] };
 }
 
 /** department scope via a record-owned department column (mode B) */
-function departmentColumnFragment(dept: ScopeField): RowScopeFragment {
+function departmentColumnFragment(dept: ScopeField, alias?: string): RowScopeFragment {
   if (dept.source === SCOPE_SOURCES.EXTERNAL) {
     return {
-      sql: `(${q(dept.name)} IN (SELECT external_id FROM weavekit_department WHERE id::text = $1)
-        OR ${q(dept.name)} IN (SELECT external_id FROM weavekit_department WHERE id::text IN ${departmentSubtreeSql()}))`,
+      sql: `(${col(alias, dept.name)} IN (SELECT external_id FROM weavekit_department WHERE id::text = $1)
+        OR ${col(alias, dept.name)} IN (SELECT external_id FROM weavekit_department WHERE id::text IN ${departmentSubtreeSql()}))`,
       params: [],
     };
   }
-  return { sql: `(${q(dept.name)} = $1 OR ${q(dept.name)} IN ${departmentSubtreeSql()})`, params: [] };
+  return { sql: `(${col(alias, dept.name)} = $1 OR ${col(alias, dept.name)} IN ${departmentSubtreeSql()})`, params: [] };
 }
 
 /** department scope derived from the record's owner (mode A): owner → user → department */
-function departmentByOwnerFragment(ownership: ScopeField): RowScopeFragment {
+function departmentByOwnerFragment(ownership: ScopeField, alias?: string): RowScopeFragment {
   const userMatch = ownership.source === SCOPE_SOURCES.EXTERNAL
-    ? `u.external_id = ${q(ownership.name)}`
-    : `u.id::text = ${q(ownership.name)}`;
+    ? `u.external_id = ${col(alias, ownership.name)}`
+    : `u.id::text = ${col(alias, ownership.name)}`;
   return {
     sql: `EXISTS (SELECT 1 FROM weavekit_user u WHERE ${userMatch}
       AND (u.department_id::text = $1 OR u.department_id::text IN ${departmentSubtreeSql()}))`,
@@ -82,7 +86,9 @@ function departmentByOwnerFragment(ownership: ScopeField): RowScopeFragment {
  *   department or a descendant (recursive over `weavekit_department`)
  *
  * The fragment uses `$1` for the subject attribute; `builder.scopeSuffix`
- * renumbers it against the surrounding query.
+ * renumbers it against the surrounding query. `alias` qualifies the scope
+ * column references against a table alias (used when embedding the predicate in
+ * a correlated subquery, e.g. a details child scoped by its parent).
  */
 export function buildRowScope(
   def: ObjectDefinition,
@@ -90,6 +96,7 @@ export function buildRowScope(
   subject: IdentitySubject,
   roles: readonly string[],
   locale?: Locale,
+  alias?: string,
 ): RowScopeFragment | undefined {
   if (scope === undefined || scope === READ_SCOPES.ALL) return undefined;
   const role = roles.join(',');
@@ -100,7 +107,7 @@ export function buildRowScope(
     if (ownership === undefined) {
       throw new SchemaError('rbac.scope.columnMissing', { object: def.name, role, scope }, locale);
     }
-    const fragment = ownFragment(ownership);
+    const fragment = ownFragment(ownership, alias);
     return { sql: fragment.sql, params: [subject.id] };
   }
 
@@ -110,11 +117,11 @@ export function buildRowScope(
     }
     const dept = markerField(def, ROW_SCOPE_MARKERS.DEPARTMENT);
     if (dept !== undefined) {
-      const fragment = departmentColumnFragment(dept);
+      const fragment = departmentColumnFragment(dept, alias);
       return { sql: fragment.sql, params: [subject.departmentId] };
     }
     if (ownership !== undefined) {
-      const fragment = departmentByOwnerFragment(ownership);
+      const fragment = departmentByOwnerFragment(ownership, alias);
       return { sql: fragment.sql, params: [subject.departmentId] };
     }
     throw new SchemaError('rbac.scope.columnMissing', { object: def.name, role, scope }, locale);

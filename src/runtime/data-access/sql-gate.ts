@@ -1,4 +1,4 @@
-import { SchemaError, resolvePermission } from '../../core/index.js';
+import { SchemaError, resolvePermissionFor } from '../../core/index.js';
 import { READ_SCOPES } from '../../core/index.js';
 import type { Locale, ObjectDefinition, ObjectRegistry } from '../../core/index.js';
 import type { SqlAnalysis } from '../sql-analyzer/index.js';
@@ -62,7 +62,7 @@ export function enforceSqlGates(options: SqlGateOptions): void {
   // excluded fields per referenced object (empty set = not field-restricted)
   const excludedByTable = new Map<string, Set<string>>();
   for (const [name, def] of objects) {
-    const p = resolvePermission(def, roles);
+    const p = resolvePermissionFor(registry, def, roles);
     if (p === undefined || p.read === undefined) {
       denied(name, 'role has no read permission on this object', locale);
     }

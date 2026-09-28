@@ -157,7 +157,7 @@ describe('buildGraph — details strong ownership', () => {
     expect(() => reg.buildGraph()).toThrow(/cannot declare reserved column/);
   });
 
-  it('same child object referenced by multiple parents (multi-parent reuse)', () => {
+  it('rejects a child referenced by multiple parents (details is single-owner)', () => {
     const reg = registryOf({
       order: {
         name: 'order',
@@ -178,10 +178,8 @@ describe('buildGraph — details strong ownership', () => {
         fields: [{ name: 'id', type: 'string', primary: true }],
       },
     });
-    const graph = reg.buildGraph();
-    expect(graph.hasManyFrom('order')).toHaveLength(1);
-    expect(graph.hasManyFrom('invoice')).toHaveLength(1);
-    expect(graph.belongsToFrom('attachment')).toHaveLength(2);
+    // details is strong single-owner: a shared child must use relation/multiRelation instead
+    expect(() => reg.buildGraph()).toThrow(/only one parent/);
   });
 });
 

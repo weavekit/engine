@@ -205,6 +205,13 @@ export interface EngineIdentityConfig {
 export interface EngineConfig {
   /** postgres connection string; defaults to process.env.DATABASE_URL */
   databaseUrl?: string;
+  /**
+   * connection string used only for schema migration/DDL by the CLI (`weave
+   * migrate`/`weave dev`). Defaults to `databaseUrl`. Point it at a
+   * migration/owner account so the runtime account can be least-privileged
+   * (no DDL/DROP/TRUNCATE). The engine itself never runs DDL at runtime.
+   */
+  migrationDatabaseUrl?: string;
   /** runtime message locale; resolution: config → env WEAVEKIT_LOCALE → 'en' */
   locale?: Locale;
   /**

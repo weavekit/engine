@@ -17,6 +17,8 @@ import {
   RELATION_KINDS,
 } from '../types/values.js';
 import { DEFAULT_FIELD_TYPE_REGISTRY, fieldBase, isScalarFieldType, primaryFieldsOf, primaryKeyOf } from '../types/index.js';
+import { resolvePermission } from '../rbac/index.js';
+import type { ReadScope } from '../types/index.js';
 
 /** value primitive bases a data-driven enum source column may use (compared as text) */
 const ENUM_SOURCE_BASES: ReadonlySet<string> = new Set<string>([
@@ -80,6 +82,35 @@ function graphError(
   throw new SchemaError(code, params, locale);
 }
 
+const DETAILS_SCOPE_RANK: Record<ReadScope, number> = { own: 1, department: 2, all: 3 };
+const rankOf = (scope: ReadScope | undefined): number => (scope === undefined ? 0 : DETAILS_SCOPE_RANK[scope]);
+
+/**
+ * A details child may narrow but never broaden its parent's permissions: for
+ * every role the child declares, the parent must grant at least as much.
+ */
+function assertDetailsChildNotBroader(
+  child: ObjectDefinition,
+  parent: ObjectDefinition,
+  locale: Locale | undefined,
+): void {
+  if (child.permissions === undefined) return;
+  for (const role of Object.keys(child.permissions)) {
+    const p = resolvePermission(parent, [role]);
+    const c = resolvePermission(child, [role]);
+    if (
+      p === undefined ||
+      c === undefined ||
+      rankOf(c.read) > rankOf(p.read) ||
+      rankOf(c.manage) > rankOf(p.manage) ||
+      (c.create && !p.create) ||
+      (c.delete && !p.delete)
+    ) {
+      graphError(locale, 'permission.detailsChild.broader', { object: child.name, role, parent: parent.name });
+    }
+  }
+}
+
 /**
  * Validate a set of object definitions and build the relation graph.
  *
@@ -140,6 +171,17 @@ export function buildGraph(
             target: field.target,
           });
         }
+        // a details child belongs to exactly one parent: its permissions/scope
+        // are derived from that parent (see resolvePermissionFor).
+        if (child.detailsParent !== undefined && child.detailsParent !== def.name) {
+          graphError(locale, 'graph.details.multiParent', {
+            object: child.name,
+            parent: child.detailsParent,
+            other: def.name,
+          });
+        }
+        child.detailsParent = def.name;
+        assertDetailsChildNotBroader(child, def, locale);
         const parentPks = primaryFieldsOf(def);
         // parent_id is the parent's record_key (text); only a *single* parent PK
         // must itself be a string (a composite parent is always keyed by text)

@@ -1,18 +1,10 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { basename, dirname, join } from 'node:path';
 import { FIELD_TYPES, SCHEMA_FORMAT_VERSION } from '../core/index.js';
-import { PRIMITIVE_FIELD_TYPES as PRIMITIVES, OPT_IN_FIELD_TYPES as OPT_IN } from '../core/types/registry.js';
+import { isBusinessUI, projectTypeDef } from './project-types/manifest.js';
 import { runGit } from '../runtime/git/index.js';
 import { version } from '../version.js';
 import type { ProjectType } from './types/index.js';
-
-/** project-type presets (starting subsystem composition + narrative); core is never trimmed */
-const TYPE_NARRATIVES: Record<ProjectType, string> = {
-  agent: 'AI-Agent backend: metadata-driven objects with REST access for AI agents',
-  governance: 'Governance platform: auditable, permission-scoped business objects',
-  service: 'Business service: headless backend with RBAC and a REST API',
-  business: 'Business backend: objects and formulas on Postgres',
-} satisfies Record<ProjectType, string>;
 
 const LEADS_OBJECT = {
   schemaVersion: SCHEMA_FORMAT_VERSION,
@@ -54,41 +46,23 @@ const LEADS_OBJECT = {
   },
 };
 
-/** presets whose starting subsystem set includes the script sandbox */
-const SCRIPT_TYPES = new Set<ProjectType>(['service', 'business']);
-
-/** engine primitives — always enabled */
-const BASE_FIELD_TYPES: readonly string[] = PRIMITIVES;
-
-/** opt-in types gated by `features.fieldTypes` */
-const OPT_IN_FIELD_TYPES: readonly string[] = OPT_IN;
-
-/** per-projectType default `features.fieldTypes` whitelist (config gating, fail-closed) */
-const DEFAULT_FIELD_TYPES_BY_TYPE: Record<ProjectType, string[]> = {
-  // pure API tooling, no UI — identity/avatar semantics unused; extend via config
-  agent: [...BASE_FIELD_TYPES],
-  // governance: backend members/teams (user/department) of the user's own system
-  governance: [...BASE_FIELD_TYPES, ...OPT_IN_FIELD_TYPES],
-  service: [...BASE_FIELD_TYPES, ...OPT_IN_FIELD_TYPES],
-  business: [...BASE_FIELD_TYPES, ...OPT_IN_FIELD_TYPES],
-};
-
 /** `features.fieldTypes` snippet for a project-type preset (undefined → no gating) */
 function renderFeatures(type?: ProjectType): string {
-  if (type === undefined) return '';
-  const fieldTypes = DEFAULT_FIELD_TYPES_BY_TYPE[type];
+  const def = projectTypeDef(type);
+  if (def === undefined) return '';
   return `  features: {
     // field-type whitelist — a schema using a type outside this list is rejected
-    fieldTypes: [${fieldTypes.map((t) => `'${t}'`).join(', ')}],
+    fieldTypes: [${def.fieldTypes.map((t) => `'${t}'`).join(', ')}],
   },
 `;
 }
 
 function renderConfig(type?: ProjectType): string {
-  const narrative = type === undefined ? '' : `  // ${TYPE_NARRATIVES[type] ?? 'custom project'}\n`;
+  const def = projectTypeDef(type);
+  const narrative = def === undefined ? '' : `  // ${def.narrative}\n`;
   const projectType = type === undefined ? '' : `  projectType: '${type}',\n`;
   const subsystems =
-    type !== undefined && SCRIPT_TYPES.has(type)
+    def?.script === true
       ? `  subsystems: {
     // sandbox hooks run in isolated workers (*.server.js)
     script: { enabled: true },
@@ -168,9 +142,10 @@ function renderPackageJson(name: string): string {
 }
 
 function renderReadme(dir: string, type?: ProjectType): string {
-  const line = type === undefined ? 'WeaveKit project' : `${type}: ${TYPE_NARRATIVES[type] ?? 'WeaveKit project'}`;
+  const def = projectTypeDef(type);
+  const line = type === undefined || def === undefined ? 'WeaveKit project' : `${type}: ${def.narrative}`;
   const business =
-    type === 'business'
+    isBusinessUI(type)
       ? `\n> **Backend preset.** \`business\` currently scaffolds the headless engine only (REST/MCP/RBAC/audit/script) — no UI. Files such as \`objects/<name>/show.client.js\` and \`pages/<name>/layout.json\` are experimental groundwork for a future product line and have **no in-project renderer yet**.\n`
       : '';
   return `# ${basename(dir)}\n\n${line}\n${business}\n- \`weave dev\` — run with hot reload\n- \`weave migrate\` — sync schema to PostgreSQL\n- \`weave build\` — production bundle\n- \`weave test\` — run tests\nObjects live in \`objects/<name>/schema.json\`.\n`;

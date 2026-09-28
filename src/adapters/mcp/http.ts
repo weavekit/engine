@@ -88,6 +88,8 @@ export interface McpHttpDeps {
    * every `writeHead` call instead (`true` reflects the request origin).
    */
   corsOrigin?: string | string[] | boolean;
+  /** allow a call-level `onBehalfOf` override (default false) */
+  allowImpersonation?: boolean;
 }
 
 interface SessionEntry {
@@ -171,7 +173,7 @@ export function registerMcpRoutes(app: FastifyInstance, deps: McpHttpDeps): void
         auditDeniedTool(guardrails, session, name, request.params.arguments);
         throw new SchemaError('mcp.tool.notFound', { tool: name }, locale);
       }
-      const ctx = { engine, session, guardrails, resolveIdentity: identityResolver };
+              const ctx = { engine, session, guardrails, resolveIdentity: identityResolver, allowImpersonation: deps.allowImpersonation === true };
       const result: McpToolResult = await tool.spec.handler((request.params.arguments ?? {}) as Record<string, unknown>, ctx);
       return result as unknown as CallToolResult;
     });

@@ -14,7 +14,7 @@ describe('field-type taxonomy', () => {
     expect([...pg, ...custom].sort()).toEqual(Object.values(FIELD_TYPES).sort());
     expect(new Set(pg).size).toBe(pg.length);
     expect(new Set(custom).size).toBe(custom.length);
-    expect(pg.filter((t) => custom.includes(t))).toEqual([]);
+    expect(pg.filter((t) => (custom as readonly string[]).includes(t))).toEqual([]);
     // currency is an engine custom type, not a PG-native passthrough
     expect(pg).not.toContain('currency');
     expect(custom).toContain('currency');

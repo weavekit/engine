@@ -93,6 +93,7 @@ the tool itself is present.
 - **Rate limiting** — per-agent-key sliding window (default 100/60s). Over-limit calls return an `isError` result and fire a `warn` alert.
 - **Alerts** — injected `AlertSink` (default console; webhook/slack via config).
 - **Audit** — every tool attempt writes `mcp.tool.<name>` to the unified `weavekit_audit` table (action prefix `ACTION_PREFIXES.MCP_TOOL`), including RBAC denials and failures. `actorId` is the agent key; `meta` carries `{ onBehalfOf, subjectId, roles, agentLabel, tool }`. Audit is best-effort — a failing sink never blocks the tool call.
+- **Impersonation** — a call-level `onBehalfOf` tool argument is **disabled by default** (`mcp.impersonation` defaults to `off`); set it to `'directory'` to let an agent switch to any identity in the configured directory per call. The identity bound at handshake (`X-Weavekit-On-Behalf-Of`) is always enforced.
 
 ## Wiring
 

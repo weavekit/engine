@@ -64,6 +64,51 @@ interface ColumnField {
  */
 export const MAX_SQL_AST_NODES = 5000;
 
+/**
+ * Functions with side effects or filesystem/catalog access that a read-only
+ * sandbox query must never call (matched on the bare, lowercased name).
+ */
+const DENIED_FUNCTIONS: ReadonlySet<string> = new Set<string>([
+  'nextval',
+  'setval',
+  'set_config',
+  'pg_advisory_lock',
+  'pg_advisory_lock_shared',
+  'pg_advisory_xact_lock',
+  'pg_advisory_xact_lock_shared',
+  'pg_advisory_unlock',
+  'pg_advisory_unlock_all',
+  'pg_sleep',
+  'pg_sleep_for',
+  'pg_sleep_until',
+  'pg_read_file',
+  'pg_read_binary_file',
+  'pg_ls_dir',
+  'pg_stat_file',
+  'lo_import',
+  'lo_export',
+  'lo_unlink',
+  'lo_create',
+  'lo_put',
+  'pg_terminate_backend',
+  'pg_cancel_backend',
+  'pg_reload_conf',
+  'pg_rotate_logfile',
+  'pg_create_restore_point',
+  'pg_switch_wal',
+  'pg_stat_reset',
+  'pg_stat_reset_shared',
+  'pg_stat_reset_single_table_counters',
+  'dblink',
+  'dblink_exec',
+  'pg_promote',
+]);
+
+/** fail-closed with the standard `script.query.invalid` code */
+function reject(detail: string, locale?: Locale): never {
+  throw new SchemaError('script.query.invalid', { detail }, locale);
+}
+
 /** count AST nodes (plain objects / arrays) and fail-closed when over the cap */
 function assertBoundedAst(ast: unknown, locale?: Locale): void {
   let count = 0;
@@ -136,6 +181,22 @@ export function createSqlAnalyzer(): SqlAnalyzer {
               ? { qualifier: quals.length >= 1 ? quals[0] : undefined, column: '*', star: true }
               : { qualifier: quals.length > 1 ? quals[0] : undefined, column: quals[quals.length - 1] ?? '', star: false },
           );
+        },
+        // fail-closed: no data-modifying node may appear anywhere (top-level
+        // SELECT check only covers the outermost node; a data-modifying CTE
+        // inside a subquery would otherwise execute a write)
+        InsertStmt: () => reject('data-modifying statements are not allowed', locale),
+        UpdateStmt: () => reject('data-modifying statements are not allowed', locale),
+        DeleteStmt: () => reject('data-modifying statements are not allowed', locale),
+        MergeStmt: () => reject('data-modifying statements are not allowed', locale),
+        // fail-closed: deny side-effecting / filesystem / catalog functions
+        FuncCall: (path) => {
+          const node = path.node as { funcname?: Array<{ String?: { sval: string } }> };
+          const parts = (node.funcname ?? []).map((p) => p.String?.sval ?? '').filter((s) => s.length > 0);
+          const bare = (parts[parts.length - 1] ?? '').toLowerCase();
+          if (DENIED_FUNCTIONS.has(bare)) {
+            reject(`function "${bare}" is not allowed`, locale);
+          }
         },
       });
 

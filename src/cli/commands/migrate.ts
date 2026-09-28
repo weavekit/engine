@@ -25,7 +25,7 @@ export async function migrate(cwd: string, options: MigrateOptions): Promise<voi
 
   const result = await syncSchema({
     dir: schemaDir,
-    databaseUrl: config.databaseUrl,
+    databaseUrl: config.migrationDatabaseUrl ?? config.databaseUrl,
     dryRun: options.dryRun,
     rls: rlsRole !== undefined ? { role: rlsRole } : undefined,
     allowedFieldTypes: config.features?.fieldTypes,
@@ -76,7 +76,7 @@ export async function migrate(cwd: string, options: MigrateOptions): Promise<voi
   if (!options.dryRun && changes.length > 0 && commit?.committed === true) {
     const author = await gitCommitAuthor(schemaDir);
     // reached only after a successful sync, which required a DB URL
-    const pool = createPool(config.databaseUrl ?? process.env.DATABASE_URL!);
+    const pool = createPool(config.migrationDatabaseUrl ?? config.databaseUrl ?? process.env.DATABASE_URL!);
     try {
       await recordSchemaChanges(pool, changes, result.files, {
         sha: commit.sha,

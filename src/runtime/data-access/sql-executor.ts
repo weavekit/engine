@@ -1,5 +1,5 @@
 import type { Pool } from 'pg';
-import { SchemaError } from '../../core/index.js';
+import { isSafeRlsRole, SchemaError } from '../../core/index.js';
 
 export interface RestrictedSqlSubject {
   id: string;
@@ -34,7 +34,6 @@ export interface RestrictedSqlResult {
 
 const MAX_ROWS_DEFAULT = 1000;
 const TIMEOUT_DEFAULT = 2000;
-const RLS_ROLE_RE = /^[a-z_][a-z0-9_]*$/;
 
 function gucLiteral(value: string): string {
   return `'${value.replace(/'/g, "''")}'`;
@@ -75,7 +74,7 @@ export async function executeRestrictedSql(
   if (trimmed.includes(';')) {
     throw new SchemaError('script.query.invalid', { detail: 'multiple statements are not allowed' });
   }
-  if (options.rls !== undefined && !RLS_ROLE_RE.test(options.rls.role)) {
+  if (options.rls !== undefined && !isSafeRlsRole(options.rls.role)) {
     throw new SchemaError('script.query.invalid', { detail: `invalid RLS role "${options.rls.role}"` });
   }
 

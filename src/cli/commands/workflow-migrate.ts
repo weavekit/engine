@@ -57,7 +57,7 @@ export async function workflowMigrate(
     return;
   }
 
-  const databaseUrl = config.databaseUrl ?? process.env.DATABASE_URL;
+  const databaseUrl = config.migrationDatabaseUrl ?? config.databaseUrl ?? process.env.DATABASE_URL;
   if (databaseUrl === undefined) {
     p.error('no database URL (set DATABASE_URL or config.databaseUrl)');
     process.exitCode = 1;

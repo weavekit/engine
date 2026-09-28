@@ -112,3 +112,22 @@ Inside `*.server.js`, `this.db.query` runs under a restricted PG role with row-l
 from the same matrix. Its `own`/`department` predicates are **flat equality on internal ids** (they do
 not expand the department subtree or translate external ids) — use `this.db.objects` for those. Flat
 equality is strictly narrower, so RLS never over-exposes.
+
+## Details children inherit their parent
+
+A `details` child is an owned part of its parent record, so its permissions are **derived from the
+parent object** rather than defined on the child:
+
+- A child with **no** `permissions` is exactly its parent's — read/manage scope and create/update/
+  delete are taken from the parent.
+- A child **may narrow** (declare stricter permissions) but never broaden: the two are intersected
+  (scope = the narrower one, operations = AND, hidden fields = union). A child declaring broader
+  permissions than its parent is rejected at load (`permission.detailsChild.broader`).
+- A child belongs to **exactly one** parent — a shared child must use `relation`/`multiRelation`, not
+  `details` (`graph.details.multiParent`).
+- Row scopes are inherited through the parent link: a child row is visible iff its `parent_id` points
+  at a parent row the subject can read.
+
+Cross-object **formula** references (`relation.target_field`, `SUM(lines.qty)`) are resolved under the
+same rules: if the subject cannot read the referenced target (object read permission + row scope +
+field `exclude`), the reference resolves to `null` rather than leaking data.

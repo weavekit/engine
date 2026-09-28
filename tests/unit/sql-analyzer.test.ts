@@ -110,4 +110,22 @@ describe('SqlAnalyzer — fail-closed (parse failure/non-SELECT/multiple stateme
     expect((caught as { code?: string }).code).toBe('script.query.invalid');
     expect((caught as { params?: { detail?: string } }).params?.detail).toContain('too complex');
   });
+
+  it('data-modifying CTE and side-effect functions → script.query.invalid', async () => {
+    for (const sql of [
+      'SELECT * FROM (WITH d AS (DELETE FROM lead RETURNING *) SELECT * FROM d) x',
+      "SELECT nextval('lead_seq')",
+      'SELECT pg_sleep(1)',
+      "SELECT set_config('x', 'y', false)",
+    ]) {
+      let caught: Error | undefined;
+      try {
+        await analyzer.analyzeSelect(sql);
+      } catch (e) {
+        caught = e as Error;
+      }
+      expect(caught).toBeDefined();
+      expect((caught as { code?: string }).code).toBe('script.query.invalid');
+    }
+  });
 });

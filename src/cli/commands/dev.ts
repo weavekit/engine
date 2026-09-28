@@ -17,7 +17,7 @@ import {
 import type { SchemaFile } from '../../runtime/git/index.js';
 import { loadConfig } from '../load-config.js';
 import { resolveProjectFieldTypes } from '../resolve-field-types.js';
-import { PROJECT_TYPES } from '../types/index.js';
+import { isBusinessUI } from '../project-types/manifest.js';
 import type { DevOptions } from '../types/index.js';
 import { backfillDefaultViews } from './default-view.js';
 import { firstStaticKey } from '../facts.js';
@@ -72,13 +72,13 @@ export async function dev(cwd: string, options: DevOptions): Promise<void> {
       const commit = await autoCommit({
         dir: schemaDir,
         message: buildCommitMessage(changes),
-        paths: config.projectType === PROJECT_TYPES.BUSINESS ? ['objects', 'pages'] : undefined,
+        paths: isBusinessUI(config.projectType) ? ['objects', 'pages'] : undefined,
       });
       if (commit.committed) p.log(`committed ${commit.sha}`);
       if (commit.committed && changes.length > 0) {
         const author = await gitCommitAuthor(schemaDir);
         // reached only after a successful sync, which required a DB URL
-        const pool = createPool(config.databaseUrl ?? process.env.DATABASE_URL!);
+        const pool = createPool(config.migrationDatabaseUrl ?? config.databaseUrl ?? process.env.DATABASE_URL!);
         try {
           await recordSchemaChanges(pool, changes, files, { sha: commit.sha, author, applied });
         } finally {
@@ -127,7 +127,7 @@ export async function dev(cwd: string, options: DevOptions): Promise<void> {
 
   /** backfill missing default page layouts for business projects */
   async function backfillViews(sync: SyncResult): Promise<void> {
-    if (config.projectType !== PROJECT_TYPES.BUSINESS) return;
+    if (!isBusinessUI(config.projectType)) return;
     const written = await backfillDefaultViews(
       schemaDir,
       sync.registry.list().map((o) => ({ name: o.name, fields: o.fields })),
@@ -140,7 +140,7 @@ export async function dev(cwd: string, options: DevOptions): Promise<void> {
     // always sync Git → PG before serving: per-object `alter: true` objects get
     // additive DDL; alter:false objects fail fast on a missing column
     const fieldTypes = await resolveProjectFieldTypes(cwd, config);
-    const sync = await syncSchema({ dir: schemaDir, databaseUrl: config.databaseUrl, locale: config.locale, allowedFieldTypes: config.features?.fieldTypes, fieldTypes });
+    const sync = await syncSchema({ dir: schemaDir, databaseUrl: config.migrationDatabaseUrl ?? config.databaseUrl, locale: config.locale, allowedFieldTypes: config.features?.fieldTypes, fieldTypes });
     await backfillViews(sync);
     await regenerateTypes(sync.files, fieldTypes);
     await commitMetadata(sync.files, sync.migration.applied);
@@ -165,7 +165,7 @@ export async function dev(cwd: string, options: DevOptions): Promise<void> {
     // is rejected and the running engine stays up.
     let sync: SyncResult;
     try {
-      sync = await syncSchema({ dir: schemaDir, databaseUrl: config.databaseUrl, locale: config.locale, allowedFieldTypes: config.features?.fieldTypes, fieldTypes });
+      sync = await syncSchema({ dir: schemaDir, databaseUrl: config.migrationDatabaseUrl ?? config.databaseUrl, locale: config.locale, allowedFieldTypes: config.features?.fieldTypes, fieldTypes });
     } catch (error) {
       const drift = driftOf(error);
       const message = drift !== null ? driftMessage(drift) : error instanceof Error ? error.message : String(error);

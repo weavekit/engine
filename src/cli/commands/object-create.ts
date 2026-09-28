@@ -4,7 +4,7 @@ import { FIELD_TYPES, SCHEMA_FORMAT_VERSION } from "../../core/index.js";
 import { autoCommit } from "../../runtime/git/index.js";
 import { writeDefaultLayout } from "./default-view.js";
 import { loadConfig } from "../load-config.js";
-import { PROJECT_TYPES } from "../types/index.js";
+import { isBusinessUI } from "../project-types/manifest.js";
 import type { ObjectCreateOptions } from "../types/index.js";
 
 const SNAKE_CASE = /^[a-z][a-z0-9_]*$/;
@@ -195,7 +195,7 @@ export async function objectCreate(
   let showClientPath: string | undefined;
   let listClientPath: string | undefined;
   let layoutPath: string | undefined;
-  if (config.projectType === PROJECT_TYPES.BUSINESS) {
+  if (isBusinessUI(config.projectType)) {
     const pageDir = join(schemaDir, "pages", name);
     await mkdir(pageDir, { recursive: true });
     showClientPath = join(pageDir, "show.client.js");
@@ -213,15 +213,12 @@ export async function objectCreate(
 
   const commit = await autoCommit({
     dir: schemaDir,
-    paths:
-      config.projectType === PROJECT_TYPES.BUSINESS
-        ? ["objects", "pages"]
-        : undefined,
+    paths: isBusinessUI(config.projectType) ? ["objects", "pages"] : undefined,
   });
   p.log(
     `created object "${name}" (${files.join(", ")})${commit.committed ? ` · committed ${commit.sha}` : ""}`,
   );
-  if (config.projectType === PROJECT_TYPES.BUSINESS) {
+  if (isBusinessUI(config.projectType)) {
     p.log(
       "note: *.client.js and pages/<name>/layout.json are experimental groundwork for a future product line (no in-project renderer yet)",
     );

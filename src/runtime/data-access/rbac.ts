@@ -1,16 +1,58 @@
 import type { ObjectDefinition } from '../../core/index.js';
-import { SchemaError, primaryFieldsOf } from '../../core/index.js';
+import { DETAILS_COLUMNS, SchemaError, primaryFieldsOf, recordKeySql } from '../../core/index.js';
+import type { Locale } from '../../core/index.js';
 import {
   assertCanCreate,
   assertCanDelete,
   assertCanUpdate,
   buildRowScope,
-  resolvePermission,
+  buildRowScopeFor,
+  resolvePermissionFor,
 } from '../../core/index.js';
 import type { AuditSink } from '../../core/audit/index.js';
 import { AUDIT_ACTOR_TYPES, DATA_ACTIONS } from '../../core/audit/index.js';
 import type { DataAccessContext, FindOptions, FindResult, ObjectDataAccess } from './types.js';
 import type { ReadScope } from '../../core/index.js';
+import { scopeSuffix } from './builder.js';
+
+const q = (id: string) => `"${id}"`;
+
+function deniedCreate(object: string, role: string, locale?: Locale): never {
+  throw new SchemaError('rbac.denied.create', { object, role }, locale);
+}
+
+/**
+ * For a direct details-child create, the referenced `parent_id` must point at a
+ * parent row the subject can read (within the parent's row scope). Nested child
+ * writes go through the parent's own create (which already enforces this).
+ */
+async function assertChildParentInScope(
+  ctx: DataAccessContext,
+  def: ObjectDefinition,
+  data: Record<string, unknown>,
+): Promise<void> {
+  const parentName = def.detailsParent;
+  if (parentName === undefined || ctx.subject === undefined) return;
+  const parent = ctx.registry.get(parentName);
+  if (parent === undefined) return;
+  const role = ctx.subject.roles.join(',');
+  const parentId = data[DETAILS_COLUMNS.PARENT_ID];
+  const pp = resolvePermissionFor(ctx.registry, parent, ctx.subject.roles);
+  if (pp === undefined || pp.read === undefined || parentId === undefined || parentId === null) {
+    deniedCreate(def.name, role, ctx.locale);
+  }
+  const scope = buildRowScope(parent, pp.read, ctx.subject, ctx.subject.roles, ctx.locale);
+  const rk = recordKeySql(parent, (field) => q(field));
+  let sql = `SELECT 1 FROM ${q(parent.name)} WHERE ${rk} = $1`;
+  const params: unknown[] = [String(parentId)];
+  if (scope !== undefined) {
+    const scoped = scopeSuffix(scope, params.length);
+    sql = `${sql} AND (${scoped.sql})`;
+    params.push(...scoped.params);
+  }
+  const res = await ctx.pool.query(`${sql} LIMIT 1`, params);
+  if (res.rowCount === 0) deniedCreate(def.name, role, ctx.locale);
+}
 
 function requireDef(ctx: DataAccessContext, objectName: string): ObjectDefinition {
   const def = ctx.registry.get(objectName);
@@ -53,7 +95,7 @@ function strip<T>(record: T, exclude: readonly string[]): T {
 function scopedCtx(ctx: DataAccessContext, objectName: string, read: ReadScope | undefined): DataAccessContext {
   if (read === undefined || ctx.subject === undefined) return ctx;
   const def = requireDef(ctx, objectName);
-  const rowScope = buildRowScope(def, read, ctx.subject, ctx.subject.roles, ctx.locale);
+  const rowScope = buildRowScopeFor(ctx.registry, def, read, ctx.subject, ctx.subject.roles, ctx.locale);
   return { ...ctx, rowScope };
 }
 
@@ -76,7 +118,7 @@ export function withRbac(inner: ObjectDataAccess, options: { audit?: AuditSink }
     ): Promise<FindResult<T>> {
       if (ctx.subject === undefined) return inner.find<T>(objectName, opts, ctx);
       const def = requireDef(ctx, objectName);
-      const p = resolvePermission(def, ctx.subject.roles);
+      const p = resolvePermissionFor(ctx.registry, def, ctx.subject.roles);
       if (p === undefined || p.read === undefined) {
         const err = new SchemaError('rbac.denied.read', { object: objectName, role: ctx.subject.roles.join(',') }, ctx.locale);
         denied(audit, ctx, DATA_ACTIONS.READ, objectName, undefined, err);
@@ -92,7 +134,7 @@ export function withRbac(inner: ObjectDataAccess, options: { audit?: AuditSink }
     ): Promise<T | null> {
       if (ctx.subject === undefined) return inner.findOne<T>(objectName, id, ctx);
       const def = requireDef(ctx, objectName);
-      const p = resolvePermission(def, ctx.subject.roles);
+      const p = resolvePermissionFor(ctx.registry, def, ctx.subject.roles);
       if (p === undefined || p.read === undefined) {
         const err = new SchemaError('rbac.denied.read', { object: objectName, role: ctx.subject.roles.join(',') }, ctx.locale);
         denied(audit, ctx, DATA_ACTIONS.READ, objectName, id, err);
@@ -110,12 +152,14 @@ export function withRbac(inner: ObjectDataAccess, options: { audit?: AuditSink }
       if (ctx.subject === undefined) return inner.create<T>(objectName, data, ctx);
       const def = requireDef(ctx, objectName);
       try {
-        assertCanCreate(def, ctx.subject.roles, ctx.locale);
+        assertCanCreate(def, ctx.subject.roles, ctx.locale, ctx.registry);
       } catch (error) {
         denied(audit, ctx, DATA_ACTIONS.CREATE, objectName, undefined, error);
         throw error;
       }
-      const p = resolvePermission(def, ctx.subject.roles);
+      const p = resolvePermissionFor(ctx.registry, def, ctx.subject.roles);
+      // a direct details-child create must attach to a parent row in scope
+      await assertChildParentInScope(ctx, def, data);
       // `p.createFields === null` means "all writable fields allowed on create"
       // (no fields.create declared); otherwise only the whitelist is accepted
       let payload = data;
@@ -150,12 +194,12 @@ export function withRbac(inner: ObjectDataAccess, options: { audit?: AuditSink }
       if (ctx.subject === undefined) return inner.update<T>(objectName, id, changes, ctx);
       const def = requireDef(ctx, objectName);
       try {
-        assertCanUpdate(def, ctx.subject.roles, ctx.locale);
+        assertCanUpdate(def, ctx.subject.roles, ctx.locale, ctx.registry);
       } catch (error) {
         denied(audit, ctx, DATA_ACTIONS.UPDATE, objectName, id, error);
         throw error;
       }
-      const p = resolvePermission(def, ctx.subject.roles);
+      const p = resolvePermissionFor(ctx.registry, def, ctx.subject.roles);
       // fail-closed: without a read scope we cannot derive a row scope, so an
       // update would silently target any row — deny instead
       if (p?.read === undefined) {
@@ -194,12 +238,12 @@ export function withRbac(inner: ObjectDataAccess, options: { audit?: AuditSink }
       if (ctx.subject === undefined) return inner.transition<T>(objectName, id, action, ctx);
       const def = requireDef(ctx, objectName);
       try {
-        assertCanUpdate(def, ctx.subject.roles, ctx.locale);
+        assertCanUpdate(def, ctx.subject.roles, ctx.locale, ctx.registry);
       } catch (error) {
         denied(audit, ctx, DATA_ACTIONS.UPDATE, objectName, id, error);
         throw error;
       }
-      const p = resolvePermission(def, ctx.subject.roles);
+      const p = resolvePermissionFor(ctx.registry, def, ctx.subject.roles);
       if (p?.read === undefined) {
         const err = new SchemaError('rbac.denied.update', { object: objectName, role: ctx.subject.roles.join(',') }, ctx.locale);
         denied(audit, ctx, DATA_ACTIONS.UPDATE, objectName, id, err);
@@ -213,12 +257,12 @@ export function withRbac(inner: ObjectDataAccess, options: { audit?: AuditSink }
       if (ctx.subject === undefined) return inner.delete(objectName, id, ctx);
       const def = requireDef(ctx, objectName);
       try {
-        assertCanDelete(def, ctx.subject.roles, ctx.locale);
+        assertCanDelete(def, ctx.subject.roles, ctx.locale, ctx.registry);
       } catch (error) {
         denied(audit, ctx, DATA_ACTIONS.DELETE, objectName, id, error);
         throw error;
       }
-      const p = resolvePermission(def, ctx.subject.roles);
+      const p = resolvePermissionFor(ctx.registry, def, ctx.subject.roles);
       // fail-closed: same as update — no read scope means no row scope
       if (p?.read === undefined) {
         const err = new SchemaError('rbac.denied.delete', { object: objectName, role: ctx.subject.roles.join(',') }, ctx.locale);

@@ -49,7 +49,7 @@ interface Harness {
   audits: AuditEvent[];
 }
 
-function harness(options: { rateOk?: boolean } = {}): Harness {
+function harness(options: { rateOk?: boolean; allowImpersonation?: boolean } = {}): Harness {
   const calls: Call[] = [];
   const audits: AuditEvent[] = [];
   const registry = new ObjectRegistry();
@@ -104,6 +104,7 @@ function harness(options: { rateOk?: boolean } = {}): Harness {
       },
     } as never,
     resolveIdentity: async () => user,
+    allowImpersonation: options.allowImpersonation ?? true,
   };
   return { ctx, calls, audits };
 }
@@ -173,5 +174,13 @@ describe('registry tool handlers — object resolution + RBAC-delegated dispatch
     expect(result.isError).toBe(true);
     expect(calls).toHaveLength(0);
     expect(audits[0]!.errorCode).toBe('workflow.transition.unknown');
+  });
+
+  it('call-level onBehalfOf is rejected by default (mcp.impersonation.denied)', async () => {
+    const { ctx, calls, audits } = harness({ allowImpersonation: false });
+    const result = await searchRecordsHandler({ object: 'lead', onBehalfOf: 'alice' }, ctx);
+    expect(result.isError).toBe(true);
+    expect(calls).toHaveLength(0);
+    expect(audits[0]!.errorCode).toBe('mcp.impersonation.denied');
   });
 });

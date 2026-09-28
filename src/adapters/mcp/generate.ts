@@ -1,5 +1,5 @@
 import type { ObjectRegistry, IdentitySubject, ToolDefinition } from '../../core/index.js';
-import { INTROSPECTION_TOOLS, REGISTRY_TOOLS, WORKFLOW_TOOLS, resolvePermission } from '../../core/index.js';
+import { INTROSPECTION_TOOLS, REGISTRY_TOOLS, WORKFLOW_TOOLS, resolvePermissionFor } from '../../core/index.js';
 import type { ResolvedPermission } from '../../core/index.js';
 import { ACTION_PREFIXES } from '../../core/audit/index.js';
 import type { ToolExecutor } from '../../runtime/tools/index.js';
@@ -39,7 +39,7 @@ function capabilities(
 ): { read: boolean; create: boolean; update: boolean; delete: boolean; transition: boolean } {
   const caps = { read: false, create: false, update: false, delete: false, transition: false };
   for (const def of registry.list()) {
-    const p: ResolvedPermission | undefined = resolvePermission(def, subject.roles);
+    const p: ResolvedPermission | undefined = resolvePermissionFor(registry, def, subject.roles);
     if (p === undefined) continue;
     if (p.read !== undefined) caps.read = true;
     if (p.create === true) caps.create = true;

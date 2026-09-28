@@ -56,6 +56,8 @@ One-way Git → PostgreSQL sync: load `schema.json` files → validate → state
 metadata cache → auto-commit the `objects/` tree ([Git-versioned metadata](git-versioned-metadata.md)).
 
 - `--dry-run` — generate DDL and report without executing.
+- Runs against `migrationDatabaseUrl` (falling back to `databaseUrl`). Point it at a migration/owner
+  account and give the runtime account no DDL — the engine never runs DDL at runtime.
 - Existing tables are validated **read-only** by default. A declared field with no matching column
   aborts with `object.field.columnMissing`. An object opts into additive auto-DDL with `"alter": true`
   in its `schema.json`. See

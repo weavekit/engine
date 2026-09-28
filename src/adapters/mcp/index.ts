@@ -41,6 +41,13 @@ export interface EngineMcpConfig {
    * roles/team) from the customer's own database.
    */
   identities?: Record<string, IdentitySubject> | IdentityResolver;
+  /**
+   * call-level impersonation (`onBehalfOf` tool argument): `off` (default)
+   * rejects a per-call identity override; `directory` allows switching to any
+   * identity in the configured directory. The session-bound identity
+   * (`X-Weavekit-On-Behalf-Of` at handshake) is always enforced.
+   */
+  impersonation?: 'off' | 'directory';
 }
 
 export interface McpRegisterDeps {
@@ -105,6 +112,7 @@ export function registerMcp(app: FastifyInstance, deps: McpRegisterDeps): McpSer
     tools,
     endpoint: mcp?.endpoint,
     corsOrigin,
+    allowImpersonation: mcp?.impersonation === 'directory',
   });
 
   return {

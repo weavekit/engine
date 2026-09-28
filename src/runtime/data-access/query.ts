@@ -9,7 +9,7 @@ import { NOOP_SCRIPT_DISPATCHER, SCRIPT_HOOKS, type GuardrailContext, type Guard
 import { evaluateTransition, type PolicyApprovals } from '../tools/policies.js';
 import { buildCountSql, buildFindSql, scopeSuffix, type BuildContext } from './builder.js';
 import { deleteDetailsChildren, insertDetails } from './details.js';
-import { computeFormulas } from './formula.js';
+import { computeFormulas, type FormulaAuth } from './formula.js';
 import { ensureSeqTable, generateSeqNo } from './seqno.js';
 import type { DataAccessContext, FindOptions, FindResult, ObjectDataAccess } from './types.js';
 import { validateRecord } from './validate.js';
@@ -17,6 +17,11 @@ import { WRITE_MODES } from './values.js';
 import { upsertRecordMeta, deleteRecordMeta } from '../record-meta/index.js';
 
 const q = (id: string) => `"${id}"`;
+
+/** cross-object formula authorization derived from the request context */
+function formulaAuth(ctx: DataAccessContext): FormulaAuth {
+  return { subject: ctx.subject, roles: ctx.subject?.roles ?? [], locale: ctx.locale };
+}
 
 /** pg QueryResult shape the drift wrapper needs */
 interface QueryResultLike {
@@ -522,7 +527,7 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
       await insertDetails(client, def, externalId, payload, ctx.registry, ctx.locale);
 
       // compute formula fields AFTER children exist (aggregates see them), then persist
-      await computeFormulas(def, record, client, ctx.registry, now, externalId);
+      await computeFormulas(def, record, client, ctx.registry, now, externalId, formulaAuth(ctx));
       const formulaCols = def.fields
         .filter((f) => (f as { formula?: string }).formula !== undefined)
         .map((f) => f.name);
@@ -624,7 +629,7 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
       const now = new Date();
       const record = { ...existing, ...payload };
       record[RECORD_META_ID_FIELD] = metaKey;
-      await computeFormulas(def, record, client, ctx.registry, now, metaKey);
+      await computeFormulas(def, record, client, ctx.registry, now, metaKey, formulaAuth(ctx));
 
       const settable = new Set<string>();
       for (const key of Object.keys(payload)) {
@@ -791,7 +796,7 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
       const now = new Date();
       const record = { ...existing, ...payload };
       record[RECORD_META_ID_FIELD] = metaKey;
-      await computeFormulas(def, record, client, ctx.registry, now, metaKey);
+      await computeFormulas(def, record, client, ctx.registry, now, metaKey, formulaAuth(ctx));
 
       const settable = new Set<string>();
       for (const key of Object.keys(payload)) {
