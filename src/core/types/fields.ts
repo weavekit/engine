@@ -2,6 +2,7 @@ import type {
   BuiltinFieldType,
   FIELD_TYPES,
   OnDeleteAction,
+  ScopeSource,
   SequenceCycle,
 } from './values.js';
 
@@ -26,10 +27,6 @@ export interface FieldBase {
   primary?: boolean;
   /** user-declared system-reserved field marker (engine protects values/schema ops) */
   system?: boolean;
-  /** row-level ownership marker (RBAC read=own); string fields only, at most one per object */
-  ownership?: boolean;
-  /** row-level team marker (RBAC read=team); string fields only, at most one per object */
-  team?: boolean;
   /**
    * secret field: masked (omitted) from every REST read response — written
    * normally (create/update), never read back over REST. The data-access layer
@@ -49,6 +46,14 @@ export interface StringField extends FieldBase {
   default?: string;
   /** computed field expression */
   formula?: string;
+  /** row-level ownership marker (RBAC read/manage=own); at most one per object */
+  ownership?: boolean;
+  /** where the ownership column's values come from (`internal` default | `external`) */
+  ownershipSource?: ScopeSource;
+  /** row-level department marker (RBAC read/manage=department); at most one per object */
+  department?: boolean;
+  /** where the department column's values come from (`internal` default | `external`) */
+  departmentSource?: ScopeSource;
 }
 
 export interface TextField extends FieldBase {

@@ -5,6 +5,11 @@ export type { ReadScope } from './values.js';
 /** per-role permissions for one object (roles come from the user system) */
 export interface PermissionDefinition {
   read?: ReadScope;
+  /**
+   * row scope for writes (update/delete); defaults to `read` when unset. Lets a
+   * role read narrowly but manage broadly (or vice versa).
+   */
+  manage?: ReadScope;
   create?: boolean;
   /** true = all fields updatable; string[] = whitelist; false/undefined = none (fail-closed) */
   update?: boolean | string[];

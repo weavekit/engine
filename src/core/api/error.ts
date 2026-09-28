@@ -12,12 +12,13 @@ const FORBIDDEN = new Set<MessageKey>([
   'rbac.denied.update',
   'rbac.denied.delete',
   'rbac.denied.field',
-  'rbac.teamId.missing',
+  'rbac.departmentId.missing',
   'script.query.denied',
   'audit.denied.actor',
   'proxy.denied',
   'workflow.transition.denied',
   'identity.notSynced',
+  'rbac.scope.columnMissing',
 ]);
 
 /** message keys that map to 404 Not Found */

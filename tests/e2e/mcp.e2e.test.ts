@@ -14,7 +14,7 @@ const LEAD: ObjectDefinition = {
     { name: 'name', type: 'string' },
     { name: 'status', type: 'enum', options: ['open', 'won', 'lost'] },
     { name: 'owner_id', type: 'string', [ROW_SCOPE_MARKERS.OWNERSHIP]: true },
-    { name: 'team_id', type: 'string', [ROW_SCOPE_MARKERS.TEAM]: true },
+    { name: 'team_id', type: 'string', [ROW_SCOPE_MARKERS.DEPARTMENT]: true },
     { name: 'secret', type: 'string' },
   ],
   permissions: {

@@ -16,8 +16,6 @@
 export interface IdentitySubject {
   id: string;
   roles: string[];
-  /** @deprecated team scope; superseded by `departmentId` when row RBAC moves to departments */
-  teamId?: string;
   /** department whose subtree the subject may read (department scope) */
   departmentId?: string;
 }

@@ -29,7 +29,7 @@ export interface ScriptUser {
   name?: string;
   roles: string[];
   /** team id, required for `team`-scoped row access (RLS + rowScope) */
-  teamId?: string;
+  departmentId?: string;
 }
 
 /** filter/sort shapes are structurally compatible with the data-access layer */

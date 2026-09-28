@@ -8,7 +8,7 @@ import { setErrorHandlers } from '../../src/adapters/rest/index.js';
 import type { ObjectDataAccess } from '../../src/runtime/data-access/index.js';
 
 const alice: IdentitySubject = { id: 'u-alice', roles: ['sales'] };
-const emma: IdentitySubject = { id: 'u-emma', roles: ['finance'], teamId: 't1' };
+const emma: IdentitySubject = { id: 'u-emma', roles: ['finance'], departmentId: 't1' };
 
 const LEAD: ObjectDefinition = {
   name: 'lead',
@@ -103,7 +103,7 @@ describe('MCP identities — resolver function (route B)', () => {
   it('function resolves ref → subject (async query of customer user table)', async () => {
     const table = new Map([
       ['alice', { id: 'u-alice', roles: ['sales'] }],
-      ['emma', { id: 'u-emma', roles: ['finance'], teamId: 't1' }],
+      ['emma', { id: 'u-emma', roles: ['finance'], departmentId: 't1' }],
     ]);
     let calls = 0;
     const { app, baseUrl } = await newApp(async (ref: string) => {

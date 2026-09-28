@@ -113,7 +113,7 @@ function scriptUserOf(ctx: DataAccessContext): ScriptUser {
   return {
     id: ctx.subject?.id ?? 'system',
     roles: ctx.subject?.roles ?? [],
-    teamId: ctx.subject?.teamId,
+    departmentId: ctx.subject?.departmentId,
   };
 }
 

@@ -20,7 +20,7 @@ const LEAD: ObjectDefinition = {
     { name: "name", type: "string" },
     { name: "status", type: "enum", options: ["open", "won", "lost"] },
     { name: "owner_id", type: "string", [ROW_SCOPE_MARKERS.OWNERSHIP]: true },
-    { name: "team_id", type: "string", [ROW_SCOPE_MARKERS.TEAM]: true },
+    { name: "team_id", type: "string", [ROW_SCOPE_MARKERS.DEPARTMENT]: true },
     { name: "secret", type: "string" },
   ],
   permissions: {
@@ -31,7 +31,7 @@ const LEAD: ObjectDefinition = {
       delete: true,
       fields: { exclude: ["secret"] },
     },
-    sales_manager: { read: "team", update: [], delete: false },
+    sales_manager: { read: "department", update: [], delete: false },
     finance: { read: "all", fields: { exclude: ["secret"] } },
   },
 };
@@ -46,7 +46,7 @@ maybe("REST API E2E (local PG + fastify inject): auth + RBAC full path", () => {
       auth: {
         source: {
           "key-sales-rep": { id: "u100", roles: ["sales"] },
-          "key-manager": { id: "u300", roles: ["sales_manager"], teamId: "t1" },
+          "key-manager": { id: "u300", roles: ["sales_manager"], departmentId: "t1" },
           "key-finance": { id: "u400", roles: ["finance"] },
           "key-ghost": { id: "u500", roles: ["ghost_role"] },
         },
@@ -232,7 +232,7 @@ maybe("REST API E2E (local PG + fastify inject): auth + RBAC full path", () => {
         finBody.rows.every((r: Record<string, unknown>) => !("secret" in r)),
       ).toBe(true);
 
-      // 16. team row filtering (sales_manager, teamId=t1)
+      // 16. team row filtering (sales_manager, departmentId=t1)
       const manager = await get("/api/objects/lead", "key-manager");
       const mgrBody = manager.json();
       expect(mgrBody.total).toBe(2);

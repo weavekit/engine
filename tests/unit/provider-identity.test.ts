@@ -2,7 +2,7 @@ import { describe, it, expect } from '../helpers/test.js';import { createIdentit
 import type { IdentitySubject } from '../../src/core/rbac/index.js';
 
 const alice: IdentitySubject = { id: 'u-alice', roles: ['sales'] };
-const emma: IdentitySubject = { id: 'u-emma', roles: ['finance'], teamId: 't1' };
+const emma: IdentitySubject = { id: 'u-emma', roles: ['finance'], departmentId: 't1' };
 
 describe('createIdentityResolver', () => {
   it('exact match ref → subject', () => {

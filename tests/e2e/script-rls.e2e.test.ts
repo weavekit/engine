@@ -22,11 +22,11 @@ maybe('Script restricted SQL RLS E2E (native PG RLS + real PG)', () => {
         { name: 'title', type: 'string' },
         { name: 'secret', type: 'string' },
         { name: 'owner_id', type: 'string', [ROW_SCOPE_MARKERS.OWNERSHIP]: true },
-        { name: 'team_id', type: 'string', [ROW_SCOPE_MARKERS.TEAM]: true },
+        { name: 'team_id', type: 'string', [ROW_SCOPE_MARKERS.DEPARTMENT]: true },
       ],
       permissions: {
         sales: { read: 'own', fields: { exclude: ['secret'] } },
-        ops: { read: 'team' },
+        ops: { read: 'department' },
         admin: { read: 'all' },
       },
     });
@@ -52,9 +52,9 @@ maybe('Script restricted SQL RLS E2E (native PG RLS + real PG)', () => {
       );
 
       const SQL = 'SELECT id, title FROM lead'; // no star, no excluded column → gates pass, test RLS row-level
-      const ids = async (subject: { id: string; roles: string[]; teamId?: string }): Promise<string[]> => {
+      const ids = async (subject: { id: string; roles: string[]; departmentId?: string }): Promise<string[]> => {
         const analysis = await createSqlAnalyzer().analyzeSelect(SQL);
-        enforceSqlGates({ analysis, registry: reg, roles: subject.roles, teamId: subject.teamId });
+        enforceSqlGates({ analysis, registry: reg, roles: subject.roles, departmentId: subject.departmentId });
         const res = await executeRestrictedSql(pool, SQL, [], { rls: { role: RLS_ROLE, subject } });
         return (res.rows as Array<{ id: string }>).map((r) => r.id);
       };
@@ -62,8 +62,8 @@ maybe('Script restricted SQL RLS E2E (native PG RLS + real PG)', () => {
       // own row-level: sales/u1 sees only self
       expect((await ids({ id: 'u1', roles: ['sales'] })).sort()).toEqual(['L1', 'L2']);
 
-      // team row-level: ops + teamId t1 → L1/L3
-      expect((await ids({ id: 'u9', roles: ['ops'], teamId: 't1' })).sort()).toEqual(['L1', 'L3']);
+      // team row-level: ops + departmentId t1 → L1/L3
+      expect((await ids({ id: 'u9', roles: ['ops'], departmentId: 't1' })).sort()).toEqual(['L1', 'L3']);
 
       // all: admin sees everything
       expect((await ids({ id: 'a1', roles: ['admin'] })).sort()).toEqual(['L1', 'L2', 'L3']);
@@ -83,10 +83,10 @@ maybe('Script restricted SQL RLS E2E (native PG RLS + real PG)', () => {
       const own = await dataAccess.find(
         'lead',
         {},
-        { pool, registry: reg, subject: { id: 'u1', roles: ['sales'], teamId: 't1' } },
+        { pool, registry: reg, subject: { id: 'u1', roles: ['sales'], departmentId: 't1' } },
       );
       const objectsIds = (own.rows as Array<{ id: string }>).map((r) => r.id).sort();
-      const queryIds = (await ids({ id: 'u1', roles: ['sales'], teamId: 't1' })).sort();
+      const queryIds = (await ids({ id: 'u1', roles: ['sales'], departmentId: 't1' })).sort();
       expect(queryIds).toEqual(objectsIds);
     } finally {
       await pool.query('DROP TABLE IF EXISTS lead CASCADE');

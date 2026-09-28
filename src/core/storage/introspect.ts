@@ -348,8 +348,9 @@ export function mapToSchema(tables: Map<string, ActualTable>, options: Introspec
       const validated = validateObject(schema, { nameHint: name, fieldTypes });
       objects.push({ name, table: name, schema: validated });
       for (const f of validated.fields) {
-        if (f.name === 'owner_id' && f.ownership !== true) suggestions.push(`"${name}.owner_id": consider marking ownership: true`);
-        if (f.name === 'team_id' && f.team !== true) suggestions.push(`"${name}.team_id": consider marking team: true`);
+        const marker = f as unknown as { ownership?: boolean; department?: boolean };
+        if (f.name === 'owner_id' && marker.ownership !== true) suggestions.push(`"${name}.owner_id": consider marking ownership: true`);
+        if (f.name === 'department_id' && marker.department !== true) suggestions.push(`"${name}.department_id": consider marking department: true`);
       }
     } catch (error) {
       skipped.push({ table: name, reason: error instanceof Error ? error.message : String(error) });

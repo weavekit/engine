@@ -127,15 +127,19 @@ export function validateObject(raw: unknown, options?: ValidateOptions): ObjectD
 
   const ownershipFields = fields.filter((f) => (f as { ownership?: boolean }).ownership === true);
   if (ownershipFields.length > 1) fail(vc, 'field.ownership.many');
-  const teamFields = fields.filter((f) => (f as { team?: boolean }).team === true);
-  if (teamFields.length > 1) fail(vc, 'field.team.many');
+  const departmentFields = fields.filter((f) => (f as { department?: boolean }).department === true);
+  if (departmentFields.length > 1) fail(vc, 'field.department.many');
 
   if (permissions !== undefined) {
     const hasOwnership = ownershipFields.length > 0;
-    const hasTeam = teamFields.length > 0;
+    const hasDepartment = departmentFields.length > 0;
     for (const [role, p] of Object.entries(permissions)) {
-      if (p.read === READ_SCOPES.OWN && !hasOwnership) fail(vc, 'permission.own.ownershipField', { role });
-      if (p.read === READ_SCOPES.TEAM && !hasTeam) fail(vc, 'permission.team.teamField', { role });
+      const scopes = [p.read, p.manage];
+      if (scopes.includes(READ_SCOPES.OWN) && !hasOwnership) fail(vc, 'permission.own.ownershipField', { role });
+      // department scope needs a department column (mode B) or an owner (mode A)
+      if (scopes.includes(READ_SCOPES.DEPARTMENT) && !hasDepartment && !hasOwnership) {
+        fail(vc, 'permission.department.missingField', { role });
+      }
     }
   }
 

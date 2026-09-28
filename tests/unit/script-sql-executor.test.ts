@@ -67,11 +67,11 @@ describe('executeRestrictedSql — restricted SQL gate', () => {
     expect(seq[seq.length - 1]).toBe('COMMIT');
   });
 
-  it('rls: SET LOCAL ROLE + weavekit GUC carries subject (with teamId), single quotes escaped', async () => {
+  it('rls: SET LOCAL ROLE + weavekit GUC carries subject (with departmentId), single quotes escaped', async () => {
     const { pool, calls } = mockPool();
     await executeRestrictedSql(pool, 'SELECT * FROM lead', [], {
       timeoutMs: 1500,
-      rls: { role: 'weavekit_query', subject: { id: "u'1", roles: ['sales', 'admin'], teamId: 't1' } },
+      rls: { role: 'weavekit_query', subject: { id: "u'1", roles: ['sales', 'admin'], departmentId: 't1' } },
     });
     const seq = calls.map((c) => c.sql);
     expect(seq[0]).toBe('BEGIN');
@@ -79,7 +79,7 @@ describe('executeRestrictedSql — restricted SQL gate', () => {
     expect(seq[2]).toBe('SET LOCAL ROLE weavekit_query');
     expect(seq[3]).toBe("SET LOCAL weavekit.actor_id = 'u''1'");
     expect(seq[4]).toBe("SET LOCAL weavekit.roles = 'sales,admin'");
-    expect(seq[5]).toBe("SET LOCAL weavekit.team_id = 't1'");
+    expect(seq[5]).toBe("SET LOCAL weavekit.department_id = 't1'");
     expect(seq[seq.length - 1]).toBe('COMMIT');
   });
 

@@ -39,8 +39,8 @@ export type {
 } from './relation.js';
 export type { IndexDefinition, ConstraintDefinition, ObjectDefinition } from './object.js';
 export type { WorkflowDefinition, WorkflowState, WorkflowTransition, WorkflowTimeout, WorkflowStateMigration, EngineWorkflowConfig, WorkflowTimer, WorkflowTimerStore, WorkflowBackend, WorkflowTimerSync } from './workflow.js';
-export type { IndexType, ConstraintType, SequenceCycle, SequenceToken, DetailsColumn, RelationKind, RowScopeMarker, WeaveStatus } from './values.js';
-export { DETAILS_COLUMNS, FIELD_TYPES, READ_SCOPES, RELATION_KINDS, ROW_SCOPE_MARKERS, CONSTRAINT_TYPES, WEAVE_STATUS } from './values.js';
+export type { IndexType, ConstraintType, SequenceCycle, SequenceToken, DetailsColumn, RelationKind, RowScopeMarker, WeaveStatus, ScopeSource } from './values.js';
+export { DETAILS_COLUMNS, FIELD_TYPES, READ_SCOPES, RELATION_KINDS, ROW_SCOPE_MARKERS, SCOPE_SOURCES, CONSTRAINT_TYPES, WEAVE_STATUS } from './values.js';
 export { WORKFLOW_FORMAT_VERSION, WORKFLOW_TIMER_DEFAULTS, parseDuration } from './workflow.js';
 export { primaryFieldOf, primaryFieldsOf, primaryKeyOf } from './primaryField.js';
 export { SchemaError } from './errors.js';

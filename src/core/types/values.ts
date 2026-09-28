@@ -92,20 +92,31 @@ export const ON_DELETE_ACTIONS = {
 } as const;
 export type OnDeleteAction = typeof ON_DELETE_ACTIONS[keyof typeof ON_DELETE_ACTIONS];
 
-/** row-level read scope for RBAC */
+/** row-level read/manage scope for RBAC */
 export const READ_SCOPES = {
   OWN: 'own',
-  TEAM: 'team',
+  DEPARTMENT: 'department',
   ALL: 'all',
 } as const;
 export type ReadScope = typeof READ_SCOPES[keyof typeof READ_SCOPES];
 
-/** field markers that declare row-level scope columns (ownership/team) */
+/** field markers that declare row-level scope columns (ownership/department) */
 export const ROW_SCOPE_MARKERS = {
   OWNERSHIP: 'ownership',
-  TEAM: 'team',
+  DEPARTMENT: 'department',
 } as const;
 export type RowScopeMarker = typeof ROW_SCOPE_MARKERS[keyof typeof ROW_SCOPE_MARKERS];
+
+/**
+ * where a scope column's values come from:
+ * - `internal` — ids of the engine identity directory (`weavekit_*` uuids)
+ * - `external` — ids from the identity source (translated via `external_id`)
+ */
+export const SCOPE_SOURCES = {
+  INTERNAL: 'internal',
+  EXTERNAL: 'external',
+} as const;
+export type ScopeSource = typeof SCOPE_SOURCES[keyof typeof SCOPE_SOURCES];
 
 /** object names reserved by the engine (system objects + engine-managed tables) */
 export const RESERVED_OBJECT_PREFIX = 'weavekit_';

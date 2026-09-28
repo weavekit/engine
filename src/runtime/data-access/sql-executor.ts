@@ -4,7 +4,7 @@ import { SchemaError } from '../../core/index.js';
 export interface RestrictedSqlSubject {
   id: string;
   roles: string[];
-  teamId?: string;
+  departmentId?: string;
 }
 
 export interface RestrictedSqlRls {
@@ -90,8 +90,8 @@ export async function executeRestrictedSql(
       await client.query(`SET LOCAL ROLE ${role}`);
       await client.query(`SET LOCAL weavekit.actor_id = ${gucLiteral(subject.id)}`);
       await client.query(`SET LOCAL weavekit.roles = ${gucLiteral(subject.roles.join(','))}`);
-      if (subject.teamId !== undefined) {
-        await client.query(`SET LOCAL weavekit.team_id = ${gucLiteral(subject.teamId)}`);
+      if (subject.departmentId !== undefined) {
+        await client.query(`SET LOCAL weavekit.department_id = ${gucLiteral(subject.departmentId)}`);
       }
     }
     const result = await client.query(

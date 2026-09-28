@@ -17,7 +17,7 @@ export interface IdentitiesRouteDeps {
  * `IdentityTable` (ref → id / roles / team). Only the static-directory form is
  * exposed — a customer-provided `IdentityResolver` (function) has no
  * introspectable entries and returns `{ identities: [] }`.
- *   GET {prefix}/identities → { identities: [{ ref, id, roles, teamId? }] }
+ *   GET {prefix}/identities → { identities: [{ ref, id, roles, departmentId? }] }
  */
 export function registerIdentitiesRoutes(
   app: FastifyInstance,
@@ -36,7 +36,7 @@ export function registerIdentitiesRoutes(
       ref,
       id: subjectValue.id,
       roles: subjectValue.roles,
-      ...(subjectValue.teamId === undefined ? {} : { teamId: subjectValue.teamId }),
+      ...(subjectValue.departmentId === undefined ? {} : { departmentId: subjectValue.departmentId }),
     }));
     return { identities };
   });

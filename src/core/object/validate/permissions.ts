@@ -14,6 +14,9 @@ export function validatePermissions(raw: unknown, vc: Vc, fields: readonly Field
     if (value.read !== undefined && !READ_SCOPE_VALUES.includes(value.read as string)) {
       fail(vc, 'permission.read.invalid', { role });
     }
+    if (value.manage !== undefined && !READ_SCOPE_VALUES.includes(value.manage as string)) {
+      fail(vc, 'permission.manage.invalid', { role });
+    }
     if (value.create !== undefined && typeof value.create !== 'boolean') fail(vc, 'permission.create.boolean', { role });
     if (value.delete !== undefined && typeof value.delete !== 'boolean') fail(vc, 'permission.delete.boolean', { role });
     if (value.update !== undefined) {
@@ -35,6 +38,7 @@ export function validatePermissions(raw: unknown, vc: Vc, fields: readonly Field
     }
     result[role] = {
       read: value.read as ReadScope | undefined,
+      manage: value.manage as ReadScope | undefined,
       create: value.create as boolean | undefined,
       update: value.update as boolean | string[] | undefined,
       delete: value.delete as boolean | undefined,

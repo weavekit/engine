@@ -199,7 +199,7 @@ maybe("CLI weave E2E (spawn + local PG + .tmp/weavekit-project)", () => {
       expect(leadsSchema).toContain('"sales"');
       expect(leadsSchema).toContain('"sales_manager"');
       expect(leadsSchema).toContain('"owner_id"');
-      expect(leadsSchema).toContain('"team_id"');
+      expect(leadsSchema).toContain('"department_id"');
       expect(leadsSchema).toContain('"source"');
 
       const dry = await runCli(["migrate", "--dry-run", "--json"]);

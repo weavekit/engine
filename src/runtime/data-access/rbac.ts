@@ -181,7 +181,7 @@ export function withRbac(inner: ObjectDataAccess, options: { audit?: AuditSink }
         }
         filtered[key] = value;
       }
-      const record = await inner.update<T>(objectName, id, filtered, scopedCtx(ctx, objectName, p?.read));
+      const record = await inner.update<T>(objectName, id, filtered, scopedCtx(ctx, objectName, p?.manage ?? p?.read));
       return strip(record, p?.exclude ?? []);
     },
 
@@ -205,7 +205,7 @@ export function withRbac(inner: ObjectDataAccess, options: { audit?: AuditSink }
         denied(audit, ctx, DATA_ACTIONS.UPDATE, objectName, id, err);
         throw err;
       }
-      const record = await inner.transition<T>(objectName, id, action, scopedCtx(ctx, objectName, p.read));
+      const record = await inner.transition<T>(objectName, id, action, scopedCtx(ctx, objectName, p.manage ?? p.read));
       return strip(record, p?.exclude ?? []);
     },
 
@@ -225,7 +225,7 @@ export function withRbac(inner: ObjectDataAccess, options: { audit?: AuditSink }
         denied(audit, ctx, DATA_ACTIONS.DELETE, objectName, id, err);
         throw err;
       }
-      return inner.delete(objectName, id, scopedCtx(ctx, objectName, p.read));
+      return inner.delete(objectName, id, scopedCtx(ctx, objectName, p.manage ?? p.read));
     },
   };
 }

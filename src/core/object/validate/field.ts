@@ -9,7 +9,8 @@ import {
   type FieldTypeRegistration,
   type FieldTypeRegistry,
 } from '../../types/index.js';
-import { FIELD_TYPES, ROW_SCOPE_MARKERS } from '../../types/values.js';
+import { FIELD_TYPES, ROW_SCOPE_MARKERS, SCOPE_SOURCES } from '../../types/values.js';
+import type { ScopeSource } from '../../types/values.js';
 import { validateLabels } from './labels.js';
 import {
   fail,
@@ -41,8 +42,7 @@ const DEPRECATED_DATETIME_ALIAS = 'datetime';
 
 /** extra keys allowed per field type */
 const EXTRA_KEYS: Record<FieldType, readonly string[]> = {
-  string: ['minLength', 'maxLength', 'regex', 'required', 'unique', 'default', 'formula', ROW_SCOPE_MARKERS.OWNERSHIP, ROW_SCOPE_MARKERS.TEAM],
-  text: ['maxLength', 'required', 'unique', 'default', 'formula'],
+  string: ['minLength', 'maxLength', 'regex', 'required', 'unique', 'default', 'formula', ROW_SCOPE_MARKERS.OWNERSHIP, ROW_SCOPE_MARKERS.DEPARTMENT, 'ownershipSource', 'departmentSource'],  text: ['maxLength', 'required', 'unique', 'default', 'formula'],
   char: ['length', 'required', 'unique', 'default', 'formula'],
   smallint: ['min', 'max', 'required', 'unique', 'default', 'formula'],
   integer: ['min', 'max', 'required', 'unique', 'default', 'formula'],
@@ -222,7 +222,9 @@ export function validateField(raw: unknown, vc: Vc, options: FieldValidateOption
       const maxLength = expectPositiveInt(raw, 'maxLength', vc);
       const regex = expectString(raw, 'regex', vc);
       const ownership = expectBoolean(raw, ROW_SCOPE_MARKERS.OWNERSHIP, vc);
-      const team = expectBoolean(raw, ROW_SCOPE_MARKERS.TEAM, vc);
+      const department = expectBoolean(raw, ROW_SCOPE_MARKERS.DEPARTMENT, vc);
+      const ownershipSource = expectScopeSource(raw, 'ownershipSource', vc);
+      const departmentSource = expectScopeSource(raw, 'departmentSource', vc);
       if (regex !== undefined) {
         try {
           new RegExp(regex);
@@ -245,7 +247,9 @@ export function validateField(raw: unknown, vc: Vc, options: FieldValidateOption
         unique,
         default: raw.default as string | undefined,
         ownership,
-        team,
+        department,
+        ownershipSource,
+        departmentSource,
       };
     }
     case FIELD_TYPES.TEXT: {
@@ -641,9 +645,18 @@ export function validateField(raw: unknown, vc: Vc, options: FieldValidateOption
   }
 }
 
-/** engine-semantic attrs a registered type does NOT inherit from its base (computed/RBAC) */
-const SEMANTIC_ATTRS = new Set<string>(['formula', ROW_SCOPE_MARKERS.OWNERSHIP, ROW_SCOPE_MARKERS.TEAM]);
+/** read an optional scope-source attr (`ownershipSource`/`departmentSource`) */
+function expectScopeSource(raw: Record<string, unknown>, key: string, vc: Vc): ScopeSource | undefined {
+  const value = expectString(raw, key, vc);
+  if (value === undefined) return undefined;
+  if (value !== SCOPE_SOURCES.INTERNAL && value !== SCOPE_SOURCES.EXTERNAL) {
+    fail(vc, 'field.scopeSource.invalid', { attr: key });
+  }
+  return value;
+}
 
+/** engine-semantic attrs a registered type does NOT inherit from its base (computed/RBAC) */
+const SEMANTIC_ATTRS = new Set<string>(['formula', ROW_SCOPE_MARKERS.OWNERSHIP, ROW_SCOPE_MARKERS.DEPARTMENT]);
 /** type-check one declared extra-attribute value against its AttrSpec */
 function checkAttrValue(value: unknown, attr: string, spec: AttrSpec, vc: Vc): void {
   switch (spec.type) {

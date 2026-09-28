@@ -25,8 +25,9 @@ const LEADS_OBJECT = {
     // row-level ownership marker: read: "own" scopes queries to this field.
     // The field name is arbitrary — only the `ownership: true` flag matters.
     { name: 'owner_id', type: FIELD_TYPES.STRING, ownership: true },
-    // team marker: read: "team" scopes queries to this field (sales_manager).
-    { name: 'team_id', type: FIELD_TYPES.STRING, team: true },
+    // department marker: read/manage: "department" scopes queries to this field
+    // (the field name is arbitrary — only the `department: true` flag matters).
+    { name: 'department_id', type: FIELD_TYPES.STRING, department: true },
     { name: 'company', type: FIELD_TYPES.STRING },
     { name: 'amount', type: FIELD_TYPES.CURRENCY },
     // sales cannot read this field; sales_manager can (fields.exclude strips on read).
@@ -44,7 +45,7 @@ const LEADS_OBJECT = {
       fields: { exclude: ['source'] },
     },
     sales_manager: {
-      read: 'team',
+      read: 'department',
       create: true,
       update: ['title', 'status'],
       delete: false,

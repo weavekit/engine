@@ -12,7 +12,7 @@ const CASES: Array<[MessageKey, number]> = [
   // 403
   ['rbac.denied.read', 403],
   ['rbac.denied.field', 403],
-  ['rbac.teamId.missing', 403],
+  ['rbac.departmentId.missing', 403],
   ['script.query.denied', 403],
   ['audit.denied.actor', 403],
   ['proxy.denied', 403],

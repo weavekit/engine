@@ -32,7 +32,7 @@ function buildRegistry(): ObjectRegistry {
   return reg;
 }
 
-describe('SqlGate — read permission + teamId + field exclude (real analyzer)', () => {
+describe('SqlGate — read permission + departmentId + field exclude (real analyzer)', () => {
   let analyzer: SqlAnalyzer;
   const reg = buildRegistry();
 
@@ -41,10 +41,10 @@ describe('SqlGate — read permission + teamId + field exclude (real analyzer)',
     await analyzer.ensureLoaded();
   });
 
-  async function gate(sql: string, roles: string[], teamId?: string): Promise<string | undefined> {
+  async function gate(sql: string, roles: string[], departmentId?: string): Promise<string | undefined> {
     const analysis = await analyzer.analyzeSelect(sql);
     try {
-      enforceSqlGates({ analysis, registry: reg, roles, teamId });
+      enforceSqlGates({ analysis, registry: reg, roles, departmentId });
       return undefined;
     } catch (e) {
       return (e as { code?: string }).code ?? 'unknown';
@@ -55,15 +55,15 @@ describe('SqlGate — read permission + teamId + field exclude (real analyzer)',
     expect(await gate('SELECT * FROM lead', ['no_such_role'])).toBe('script.query.denied');
   });
 
-  it('team read but no teamId → rbac.teamId.missing', async () => {
+  it('team read but no departmentId → rbac.departmentId.missing', async () => {
     const reg2 = new ObjectRegistry();
     reg2.register({
       name: 'team_lead',
       fields: [
         { name: 'id', type: 'string', primary: true },
-        { name: 'team_id', type: 'string', [ROW_SCOPE_MARKERS.TEAM]: true },
+        { name: 'team_id', type: 'string', [ROW_SCOPE_MARKERS.DEPARTMENT]: true },
       ],
-      permissions: { ops: { read: 'team' } },
+      permissions: { ops: { read: 'department' } },
     });
     reg2.buildGraph();
     const analysis = await analyzer.analyzeSelect('SELECT * FROM team_lead');
@@ -73,10 +73,10 @@ describe('SqlGate — read permission + teamId + field exclude (real analyzer)',
     } catch (e) {
       code = (e as { code?: string }).code;
     }
-    expect(code).toBe('rbac.teamId.missing');
-    // with teamId → passes
+    expect(code).toBe('rbac.departmentId.missing');
+    // with departmentId → passes
     const ok = await analyzer.analyzeSelect('SELECT * FROM team_lead');
-    expect(() => enforceSqlGates({ analysis: ok, registry: reg2, roles: ['ops'], teamId: 't1' })).not.toThrow();
+    expect(() => enforceSqlGates({ analysis: ok, registry: reg2, roles: ['ops'], departmentId: 't1' })).not.toThrow();
   });
 
   it('field exclude: bare column/qualified column/function argument hit → script.query.denied', async () => {

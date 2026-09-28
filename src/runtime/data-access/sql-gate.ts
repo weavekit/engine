@@ -11,7 +11,7 @@ import type { SqlAnalysis } from '../sql-analyzer/index.js';
  *
  * 1. **read permission** — the subject must have a read permission on every
  *    referenced object table (deterministic error instead of a silent 0 rows).
- * 2. **team scope** — a `team`-read object requires `subject.teamId`.
+ * 2. **team scope** — a `team`-read object requires `subject.departmentId`.
  * 3. **field `exclude`** (fine-grained, column-level) — a query that references
  *    an excluded column of a field-restricted object is rejected:
  *    - a star (`*` / `t.*`) over a field-restricted object
@@ -22,8 +22,8 @@ import type { SqlAnalysis } from '../sql-analyzer/index.js';
  *
  * Row-level scoping is handled separately by PostgreSQL RLS (see the C2 design);
  * this module is the permission + column boundary in the application layer.
- * All failures are `script.query.denied` (403) except missing `teamId`, which is
- * the existing `rbac.teamId.missing`.
+ * All failures are `script.query.denied` (403) except missing `departmentId`, which is
+ * the existing `rbac.departmentId.missing`.
  */
 export interface SqlGateOptions {
   analysis: SqlAnalysis;
@@ -31,7 +31,7 @@ export interface SqlGateOptions {
   /** subject role names (resolved permission derives the read scope + exclusions) */
   roles: readonly string[];
   /** subject team id, required when a referenced object's read scope is `team` */
-  teamId?: string;
+  departmentId?: string;
   locale?: Locale;
 }
 
@@ -40,7 +40,7 @@ function denied(object: string, detail: string, locale?: Locale): never {
 }
 
 export function enforceSqlGates(options: SqlGateOptions): void {
-  const { analysis, registry, roles, teamId, locale } = options;
+  const { analysis, registry, roles, departmentId, locale } = options;
 
   // fail-closed: every referenced table must be an engine-managed object.
   // A table outside the registry has no RBAC policy and no RLS strategy, so
@@ -66,8 +66,8 @@ export function enforceSqlGates(options: SqlGateOptions): void {
     if (p === undefined || p.read === undefined) {
       denied(name, 'role has no read permission on this object', locale);
     }
-    if (p.read === READ_SCOPES.TEAM && teamId === undefined) {
-      throw new SchemaError('rbac.teamId.missing', { object: name }, locale);
+    if (p.read === READ_SCOPES.DEPARTMENT && departmentId === undefined) {
+      throw new SchemaError('rbac.departmentId.missing', { object: name }, locale);
     }
     if (p.exclude !== undefined && p.exclude.length > 0) {
       excludedByTable.set(name, new Set(p.exclude));

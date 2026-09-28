@@ -84,6 +84,8 @@ export interface MetadataRelation {
 /** effective permissions for one identity on one object */
 export interface MetadataPermissions {
   read?: ReadScope;
+  /** row scope applied to update/delete; defaults to `read` */
+  manage?: ReadScope;
   create: boolean;
   /** null = every field updatable; [] = none; otherwise the field whitelist */
   update: string[] | null;
@@ -186,6 +188,7 @@ function virtualFieldDescription(spec: RecordMetaVirtualFieldSpec): MetadataFiel
 function permissionsOf(perm: ResolvedPermission): MetadataPermissions {
   return {
     read: perm.read,
+    manage: perm.manage,
     create: perm.create,
     update: perm.update,
     delete: perm.delete,

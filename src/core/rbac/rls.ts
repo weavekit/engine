@@ -11,15 +11,21 @@ const q = (id: string) => `"${id}"`;
  * `db.query` switches to a dedicated non-owner role (`SET LOCAL ROLE`) that IS
  * subject to RLS, and the subject is carried in session GUCs:
  *
- * - `weavekit.roles`     comma-joined role names
- * - `weavekit.actor_id`  subject id (own scope)
- * - `weavekit.team_id`   subject team id (team scope)
+ * - `weavekit.roles`         comma-joined role names
+ * - `weavekit.actor_id`      subject id (own scope)
+ * - `weavekit.department_id` subject department id (department scope)
  *
  * Unset GUCs resolve to NULL → the predicate is false → **0 rows (fail-closed)**.
  *
  * The predicate mirrors `resolvePermission` + `buildRowScope`: this is a second
  * encoding of the same matrix, so a parity test (db.objects vs db.query must
  * return the same rows for the same subject) guards against drift.
+ *
+ * Limitation: a script's `db.query` scopes `own`/`department` by flat equality
+ * on the marked column (internal source). The recursive department subtree and
+ * external-source translation are applied only by the application-layer
+ * `buildRowScope`; use `db.objects` for those. (Flat equality is strictly
+ * narrower, so RLS never over-exposes.)
  */
 
 const POLICY_PREFIX = 'weavekit_read_';
@@ -33,7 +39,7 @@ function roleIn(role: string): string {
 }
 
 function markerField(def: ObjectDefinition, marker: RowScopeMarker): string | undefined {
-  return def.fields.find((f) => (f as unknown as Record<string, boolean>)[marker as unknown as string] === true)?.name;
+  return def.fields.find((f) => (f as unknown as Record<string, boolean>)[marker] === true)?.name;
 }
 
 /**
@@ -55,10 +61,10 @@ export function buildRlsPolicy(def: ObjectDefinition): string | undefined {
       if (field !== undefined) {
         clauses.push(`(${roleIn(role)} AND current_setting('weavekit.actor_id', true) = ${q(field)})`);
       }
-    } else if (p.read === READ_SCOPES.TEAM) {
-      const field = markerField(def, ROW_SCOPE_MARKERS.TEAM);
+    } else if (p.read === READ_SCOPES.DEPARTMENT) {
+      const field = markerField(def, ROW_SCOPE_MARKERS.DEPARTMENT);
       if (field !== undefined) {
-        clauses.push(`(${roleIn(role)} AND current_setting('weavekit.team_id', true) = ${q(field)})`);
+        clauses.push(`(${roleIn(role)} AND current_setting('weavekit.department_id', true) = ${q(field)})`);
       }
     }
   }

@@ -63,7 +63,7 @@ export function createScriptRpcExecutor(options: ScriptBridgeOptions): RpcExecut
     const ctx: DataAccessContext = {
       pool,
       registry,
-      subject: { id: req.user.id, roles: req.user.roles, teamId: req.user.teamId },
+      subject: { id: req.user.id, roles: req.user.roles, departmentId: req.user.departmentId },
       locale,
     };
     const fn = (dataAccess as unknown as Record<string, unknown>)[method];
@@ -85,7 +85,7 @@ export function createScriptRpcExecutor(options: ScriptBridgeOptions): RpcExecut
       analysis,
       registry,
       roles: req.user.roles,
-      teamId: req.user.teamId,
+      departmentId: req.user.departmentId,
       locale,
     });
     return executeRestrictedSql(pool, sql, params, {
@@ -93,7 +93,7 @@ export function createScriptRpcExecutor(options: ScriptBridgeOptions): RpcExecut
       timeoutMs,
       rls: {
         role: options.rlsRole,
-        subject: { id: req.user.id, roles: req.user.roles, teamId: req.user.teamId },
+        subject: { id: req.user.id, roles: req.user.roles, departmentId: req.user.departmentId },
       },
     });
   }

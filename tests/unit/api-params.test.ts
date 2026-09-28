@@ -78,10 +78,10 @@ describe('mapSchemaError — error → HTTP status mapping', () => {
     expect(mapSchemaError(new SchemaError('data.objectUnknown', { object: 'x' })).status).toBe(404);
   });
 
-  it('rbac.denied.* / rbac.teamId.missing → 403', () => {
+  it('rbac.denied.* / rbac.departmentId.missing → 403', () => {
     expect(mapSchemaError(new SchemaError('rbac.denied.read', { object: 'x', role: 'r' })).status).toBe(403);
     expect(mapSchemaError(new SchemaError('rbac.denied.field', { object: 'x', role: 'r', field: 'f' })).status).toBe(403);
-    expect(mapSchemaError(new SchemaError('rbac.teamId.missing', { object: 'x' })).status).toBe(403);
+    expect(mapSchemaError(new SchemaError('rbac.departmentId.missing', { object: 'x' })).status).toBe(403);
   });
 
   it('auth.missingKey / auth.invalidKey → 401', () => {

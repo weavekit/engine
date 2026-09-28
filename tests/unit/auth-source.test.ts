@@ -70,7 +70,7 @@ describe('auth source — resolver function', () => {
   it('async resolver (simulates querying customer user table)', async () => {
     const table = new Map([
       ['Bearer tok-1', { id: 'u-alice', roles: ['sales'] }],
-      ['Bearer tok-2', { id: 'u-alex', roles: ['manager'], teamId: 't1' }],
+      ['Bearer tok-2', { id: 'u-alex', roles: ['manager'], departmentId: 't1' }],
     ]);
     const auth = createAuth({
       source: async (header) => {
@@ -79,7 +79,7 @@ describe('auth source — resolver function', () => {
       },
     });
     expect(await auth.resolve('Bearer tok-1')).toEqual({ id: 'u-alice', roles: ['sales'] });
-    expect(await auth.resolve('Bearer tok-2')).toEqual({ id: 'u-alex', roles: ['manager'], teamId: 't1' });
+    expect(await auth.resolve('Bearer tok-2')).toEqual({ id: 'u-alex', roles: ['manager'], departmentId: 't1' });
     expect(await auth.resolve('Bearer nope')).toBeNull();
   });
 

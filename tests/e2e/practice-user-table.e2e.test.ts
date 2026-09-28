@@ -116,8 +116,8 @@ maybe('Route B practice E2E (customer crm_users table + custom async resolver + 
         );
         const row = res.rows[0];
         if (row === undefined) return null;
-        const subject: { id: string; roles: string[]; teamId?: string } = { id: row.id, roles: [row.role] };
-        if (row.team_id !== null) subject.teamId = row.team_id;
+        const subject: { id: string; roles: string[]; departmentId?: string } = { id: row.id, roles: [row.role] };
+        if (row.team_id !== null) subject.departmentId = row.team_id;
         return subject;
       };
 

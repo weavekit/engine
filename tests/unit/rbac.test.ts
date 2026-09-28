@@ -22,12 +22,12 @@ const lead = defineObject({
     { name: 'id', type: 'string', primary: true },
     { name: 'name', type: 'string' },
     { name: 'owner_id', type: 'string', [ROW_SCOPE_MARKERS.OWNERSHIP]: true },
-    { name: 'team_id', type: 'string', [ROW_SCOPE_MARKERS.TEAM]: true },
+    { name: 'team_id', type: 'string', [ROW_SCOPE_MARKERS.DEPARTMENT]: true },
     { name: 'secret', type: 'string' },
   ],
   permissions: {
     sales: { read: READ_SCOPES.OWN, create: true, update: ['name'], delete: false, fields: { exclude: ['secret'] } },
-    sales_manager: { read: READ_SCOPES.TEAM, update: [], delete: false },
+    sales_manager: { read: READ_SCOPES.DEPARTMENT, update: [], delete: false },
     finance: { read: READ_SCOPES.ALL, fields: { exclude: ['secret'] } },
   },
 });
@@ -51,7 +51,7 @@ describe('resolvePermission — default permission semantics', () => {
 
   it('declared role: operations not written default to deny', () => {
     expect(resolvePermission(lead, ['sales_manager'])).toEqual({
-      read: READ_SCOPES.TEAM,
+      read: READ_SCOPES.DEPARTMENT,
       create: false,
       update: [],
       delete: false,
@@ -137,15 +137,20 @@ describe('buildRowScope — row-level scope', () => {
     });
   });
 
-  it('team → team field = subject.teamId', () => {
-    expect(buildRowScope(lead, READ_SCOPES.TEAM, { id: 'm1', roles: ['sales_manager'], teamId: 't1' }, ['sales_manager'])).toEqual({
-      sql: '"team_id" = $1',
-      params: ['t1'],
-    });
+  it('department → department field matches the subject department (flat + subtree)', () => {
+    const frag = buildRowScope(
+      lead,
+      READ_SCOPES.DEPARTMENT,
+      { id: 'm1', roles: ['sales_manager'], departmentId: 't1' },
+      ['sales_manager'],
+    )!;
+    expect(frag.params).toEqual(['t1']);
+    expect(frag.sql).toContain('"team_id" = $1');
+    expect(frag.sql).toContain('WITH RECURSIVE sub');
   });
 
-  it('team but subject has no teamId → deny', () => {
-    expect(() => buildRowScope(lead, READ_SCOPES.TEAM, { id: 'm1', roles: ['sales_manager'] }, ['sales_manager'])).toThrow(
+  it('department but subject has no departmentId → deny', () => {
+    expect(() => buildRowScope(lead, READ_SCOPES.DEPARTMENT, { id: 'm1', roles: ['sales_manager'] }, ['sales_manager'])).toThrow(
       SchemaError,
     );
   });
@@ -209,7 +214,7 @@ describe('withRbac — data access decorator', () => {
   } as unknown as ObjectDataAccess;
   const rbac = withRbac(inner);
 
-  const baseCtx = (subject?: { id: string; roles: string[]; teamId?: string }) => ({
+  const baseCtx = (subject?: { id: string; roles: string[]; departmentId?: string }) => ({
     pool: {} as never,
     registry,
     subject,
@@ -335,7 +340,7 @@ describe('withRbac — create whitelist + write ops without read fail-closed', (
   } as unknown as ObjectDataAccess;
   const rbac = withRbac(inner);
 
-  const baseCtx = (subject?: { id: string; roles: string[]; teamId?: string }) => ({
+  const baseCtx = (subject?: { id: string; roles: string[]; departmentId?: string }) => ({
     pool: {} as never,
     registry,
     subject,

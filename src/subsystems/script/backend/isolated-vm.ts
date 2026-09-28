@@ -55,7 +55,7 @@ type WorkerMessage =
   | { type: 'ready' }
   | { type: 'closed' }
   | { type: 'initError'; error: string }
-  | { type: 'rpc'; ns: string; method: string; args: unknown[]; user: { id: string; name?: string; roles: string[]; teamId?: string } }
+  | { type: 'rpc'; ns: string; method: string; args: unknown[]; user: { id: string; name?: string; roles: string[]; departmentId?: string } }
   | { type: 'callResult'; id: number; ok: true; value: unknown }
   | { type: 'callResult'; id: number; ok: false; error: { message: string; code?: 'abort' | 'timeout' | 'sandbox' }; poisoned?: boolean };
 
@@ -70,7 +70,7 @@ const lenView = new Int32Array(sab, 4, 1);
 const dataView = new Uint8Array(sab, 8, DATA_BYTES);
 const td = new TextDecoder();
 const te = new TextEncoder();
-let currentUser = { id: 'system', roles: [], teamId: undefined as string | undefined };
+let currentUser = { id: 'system', roles: [], departmentId: undefined as string | undefined };
 let isolate, context, exportsRef;
 
 function rpcSync(ns, method, args, user) {

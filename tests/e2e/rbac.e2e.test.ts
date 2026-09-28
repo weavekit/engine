@@ -25,12 +25,12 @@ maybe('RBAC E2E (local PG): row-level/field-level/operation-level enforcement', 
         { name: 'name', type: 'string' },
         { name: 'status', type: 'enum', options: ['open', 'won', 'lost'] },
         { name: 'owner_id', type: 'string', [ROW_SCOPE_MARKERS.OWNERSHIP]: true },
-        { name: 'team_id', type: 'string', [ROW_SCOPE_MARKERS.TEAM]: true },
+        { name: 'team_id', type: 'string', [ROW_SCOPE_MARKERS.DEPARTMENT]: true },
         { name: 'secret', type: 'string' },
       ],
       permissions: {
         sales: { read: READ_SCOPES.OWN, create: true, update: ['name', 'status'], delete: true, fields: { exclude: ['secret'] } },
-        sales_manager: { read: READ_SCOPES.TEAM, update: [], delete: false },
+        sales_manager: { read: READ_SCOPES.DEPARTMENT, update: [], delete: false },
         finance: { read: READ_SCOPES.ALL, fields: { exclude: ['secret'] } },
       },
     });
@@ -49,7 +49,7 @@ maybe('RBAC E2E (local PG): row-level/field-level/operation-level enforcement', 
       await dataAccess.create('lead', { id: 'L3', name: 'Initech', status: 'won', owner_id: 'u100', team_id: 't2', secret: 's3' }, base);
 
       const alice = { ...base, subject: { id: 'u100', roles: ['sales'] } as IdentitySubject };
-      const sarah = { ...base, subject: { id: 'u300', roles: ['sales_manager'], teamId: 't1' } as IdentitySubject };
+      const sarah = { ...base, subject: { id: 'u300', roles: ['sales_manager'], departmentId: 't1' } as IdentitySubject };
       const emma = { ...base, subject: { id: 'u400', roles: ['finance'] } as IdentitySubject };
       const ghost = { ...base, subject: { id: 'u500', roles: ['ghost_role'] } as IdentitySubject };
 
