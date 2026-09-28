@@ -46,6 +46,8 @@ export const id: Record<MessageKey, string> = {
   'object.primary.notAllowed': 'objek "{object}": bidang "{field}" bertipe "{type}" tidak bisa menjadi kunci utama',
   'object.primary.mutable': 'objek "{object}": bidang kunci utama "{field}" tidak dapat diubah',
   'recordKey.invalid': 'kunci record tidak valid "{key}"',
+  'identity.notSynced': 'identitas {ref} belum disediakan secara lokal - jalankan weave sync:identity dulu',
+  'identity.source.invalid': 'identity.source must be an IdentitySource (with pull) or a pg descriptor',
   'object.primary.scalarOnly': 'primary hanya mengizinkan tipe skalar, bukan "{type}"',
   'object.primary.columnMissing': 'objek "{object}": kolom kunci utama "{column}" tidak ditemukan di tabel "{table}"',
   'object.field.columnMissing': 'objek "{object}": kolom "{field}" tidak ada sebagai kolom di tabel "{table}"',

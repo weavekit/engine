@@ -17,6 +17,7 @@ const FORBIDDEN = new Set<MessageKey>([
   'audit.denied.actor',
   'proxy.denied',
   'workflow.transition.denied',
+  'identity.notSynced',
 ]);
 
 /** message keys that map to 404 Not Found */

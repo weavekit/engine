@@ -48,6 +48,17 @@ export interface IdentityDepartmentInput {
   enabled?: boolean | null;
 }
 
+/** greenfield user creation (an engine-owned user with no external source) */
+export interface IdentityUserCreate {
+  name?: string | null;
+  email?: string | null;
+  mobile?: string | null;
+  roles?: string[];
+  departmentId?: string | null;
+  directorId?: string | null;
+  enabled?: boolean | null;
+}
+
 /**
  * Replaceable persistence for the local identity directory (default: PG over
  * `weavekit_user`/`weavekit_department`). The engine-only `external_source` +
@@ -62,6 +73,10 @@ export interface IdentityStore {
   listExternalIds(source: string): Promise<{ users: string[]; departments: string[] }>;
   upsertUser(input: IdentityUserInput): Promise<{ id: string }>;
   upsertDepartment(input: IdentityDepartmentInput): Promise<{ id: string }>;
+  /** create an engine-owned (greenfield) user with no external source */
+  createUser(input: IdentityUserCreate): Promise<{ id: string }>;
+  /** list local users (admin surface) */
+  listUsers(): Promise<IdentityUserRow[]>;
   setEnabled(kind: 'user' | 'department', id: string, enabled: boolean): Promise<void>;
   getCursor(source: string): Promise<string | null>;
   setCursor(source: string, cursor: string): Promise<void>;

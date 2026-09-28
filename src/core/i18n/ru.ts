@@ -46,6 +46,8 @@ export const ru: Record<MessageKey, string> = {
   'object.primary.notAllowed': 'объект "{object}": поле "{field}" типа "{type}" не может быть первичным ключом',
   'object.primary.mutable': 'объект "{object}": поле первичного ключа "{field}" неизменяемо',
   'recordKey.invalid': 'недопустимый ключ записи "{key}"',
+  'identity.notSynced': 'идентификатор {ref} не синхронизирован локально - сначала выполните weave sync:identity',
+  'identity.source.invalid': 'identity.source must be an IdentitySource (with pull) or a pg descriptor',
   'object.primary.scalarOnly': 'primary допускает только скалярные типы, не "{type}"',
   'object.primary.columnMissing': 'объект "{object}": столбец первичного ключа "{column}" не найден в существующей таблице "{table}"',
   'object.field.columnMissing': 'объект "{object}": поле "{field}" не существует как столбец в существующей таблице "{table}"',

@@ -46,6 +46,8 @@ export const ko: Record<MessageKey, string> = {
   'object.primary.notAllowed': '객체 "{object}": "{type}" 유형의 필드 "{field}"는 기본 키가 될 수 없습니다',
   'object.primary.mutable': '객체 "{object}": 기본 키 필드 "{field}"은(는) 변경할 수 없습니다',
   'recordKey.invalid': '잘못된 레코드 키 "{key}"',
+  'identity.notSynced': 'ID {ref}이(가) 로컬에 없습니다 - 먼저 weave sync:identity를 실행하세요',
+  'identity.source.invalid': 'identity.source must be an IdentitySource (with pull) or a pg descriptor',
   'object.primary.scalarOnly': 'primary는 스칼라 유형만 허용됩니다. "{type}"은(는) 불가합니다',
   'object.primary.columnMissing': '객체 "{object}": 기본 키 열 "{column}"이(가) 기존 테이블 "{table}"에 없습니다',
   'object.field.columnMissing': '객체 "{object}": 필드 "{field}"이(가) 기존 테이블 "{table}"에 열로 존재하지 않습니다',

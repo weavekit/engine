@@ -46,6 +46,8 @@ export const de: Record<MessageKey, string> = {
   'object.primary.notAllowed': 'objekt "{object}": feld "{field}" vom typ "{type}" kann kein primärschlüssel sein',
   'object.primary.mutable': 'Objekt "{object}": Primärschlüsselfeld "{field}" ist unveränderlich und kann nicht aktualisiert werden',
   'recordKey.invalid': 'ungültiger recordschlüssel "{key}"',
+  'identity.notSynced': 'Identität {ref} ist lokal nicht bereitgestellt - zuerst weave sync:identity ausführen',
+  'identity.source.invalid': 'identity.source must be an IdentitySource (with pull) or a pg descriptor',
   'object.primary.scalarOnly': 'primary erlaubt nur skalare Typen, nicht "{type}"',
   'object.primary.columnMissing': 'Objekt "{object}": die Primärschlüsselspalte "{column}" wurde in der vorhandenen Tabelle "{table}" nicht gefunden',
   'object.field.columnMissing': 'Objekt "{object}": das Feld "{field}" existiert nicht als Spalte in der vorhandenen Tabelle "{table}"',

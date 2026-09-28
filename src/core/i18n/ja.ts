@@ -46,6 +46,8 @@ export const ja: Record<MessageKey, string> = {
   'object.primary.notAllowed': 'オブジェクト "{object}"：型 "{type}" のフィールド "{field}" は主キーにできません',
   'object.primary.mutable': 'オブジェクト "{object}": 主キーフィールド "{field}" は変更できません',
   'recordKey.invalid': '無効なレコードキー "{key}"',
+  'identity.notSynced': 'ID {ref} はローカルディレクトリに未登録 - 先に weave sync:identity を実行してください',
+  'identity.source.invalid': 'identity.source must be an IdentitySource (with pull) or a pg descriptor',
   'object.primary.scalarOnly': 'primary はスカラーフィールドのみ許可されます。「{type}」は不可です',
   'object.primary.columnMissing': 'オブジェクト "{object}"：主キー列 "{column}" が既存テーブル "{table}" に見つかりません',
   'object.field.columnMissing': 'オブジェクト "{object}"：フィールド "{field}" は既存テーブル "{table}" に列として存在しません',

@@ -8,7 +8,7 @@ import { connect } from './commands/connect.js';
 import { dev } from './commands/dev.js';
 import { fieldAdd } from './commands/field-add.js';
 import { fieldTypeCheck, fieldTypeList } from './commands/field-types.js';
-import { identitySync } from './commands/identity.js';
+import { identityCreate, identityList, identitySync, identityToggle } from './commands/identity.js';
 import { introspect } from './commands/introspect.js';
 import { mcpConfig } from './commands/mcp-config.js';
 import { migrate } from './commands/migrate.js';
@@ -122,6 +122,39 @@ program
   .option('--dry-run', 'pull + diff without writing')
   .action(async (opts: { dryRun?: boolean }) => {
     await runAction(() => identitySync(process.cwd(), { dryRun: opts.dryRun, printer: printer() }));
+  });
+
+program
+  .command(WEAVE_COMMANDS.IDENTITY_LIST)
+  .description('list engine-owned identities (greenfield admin)')
+  .action(async () => {
+    await runAction(() => identityList(process.cwd(), { printer: printer() }));
+  });
+
+program
+  .command(`${WEAVE_COMMANDS.IDENTITY_CREATE} <name>`)
+  .description('create an engine-owned identity (greenfield admin)')
+  .option('--email <email>', 'email')
+  .option('--roles <roles>', 'comma-separated roles')
+  .option('--disabled', 'create the identity disabled')
+  .action(async (name: string, opts: { email?: string; roles?: string; disabled?: boolean }) => {
+    await runAction(() =>
+      identityCreate(process.cwd(), { name, email: opts.email, roles: opts.roles, disabled: opts.disabled, printer: printer() }),
+    );
+  });
+
+program
+  .command(`${WEAVE_COMMANDS.IDENTITY_ENABLE} <id>`)
+  .description('enable an identity (greenfield admin)')
+  .action(async (id: string) => {
+    await runAction(() => identityToggle(process.cwd(), { id, printer: printer() }, true));
+  });
+
+program
+  .command(`${WEAVE_COMMANDS.IDENTITY_DISABLE} <id>`)
+  .description('disable an identity (greenfield admin)')
+  .action(async (id: string) => {
+    await runAction(() => identityToggle(process.cwd(), { id, printer: printer() }, false));
   });
 
 program

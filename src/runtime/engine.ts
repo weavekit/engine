@@ -33,9 +33,10 @@ import { createApprovals, type ApprovalsQueue } from './tools/index.js';
 import { resolvePolicies } from './tools/policies.js';
 import type { ToolExecutor } from './tools/index.js';
 import type { ProxyForwarder } from './proxy/index.js';
-import { buildAuthenticator, type AuthSource, type Authenticator } from '../adapters/auth/index.js';
+import { buildAuthenticator, createDirectoryAuthenticator, enforceSyncedIdentity, type AuthSource, type AuthVerifier, type Authenticator } from '../adapters/auth/index.js';
 import type { IdentitySource, IdentityStore } from '../core/provider/identity/index.js';
 import type { PgIdentitySourceConfig } from './identity/sources/pg.js';
+import { PgIdentityDirectory, PgIdentityStore, IdentityAdmin, resolveIdentitySource, runIdentitySync } from './identity/index.js';
 import {
   registerAuditRoutes,
   registerApprovalsRoutes,
@@ -53,6 +54,7 @@ import {
   type RestOptions,
 } from '../adapters/rest/index.js';
 import { registerScriptRoutes } from '../adapters/rest/scripts.js';
+import { registerIdentityAdminRoutes } from '../adapters/rest/identityAdmin.js';
 import { registerEventsRoutes } from '../adapters/events/index.js';
 import type { EventBus, IngressConfig } from '../core/provider/event/index.js';
 import { registerOpsRoutes } from '../adapters/ops/index.js';
@@ -185,6 +187,11 @@ export interface EngineIdentityConfig {
   source?: IdentitySource | PgIdentitySourceConfig;
   /** replaceable local directory store; defaults to PG over `weavekit_*` */
   store?: IdentityStore;
+  /**
+   * credential verifier (OIDC/JWT/SAML); when set the engine authenticates via
+   * `verifier → directory → subject` and `auth.source` may be omitted.
+   */
+  verifier?: AuthVerifier;
   /** reject subjects with no local identity for scoped access (default false) */
   required?: boolean;
   sync?: {
@@ -228,8 +235,8 @@ export interface EngineConfig {
    * - `identity` — commit identity; falls back to a local weavekit identity
    */
   commit?: { meta?: boolean; identity?: { name: string; email: string } };
-  /** authentication source (static key map or custom resolver); required (engine fails fast when absent) */
-  auth: { source: AuthSource };
+  /** authentication source (static key map or custom resolver); required unless `identity.verifier` is set */
+  auth?: { source: AuthSource };
   /** protocol adapters (REST/MCP/events), closable via config */
   adapters?: { rest?: EngineRestConfig; mcp?: EngineMcpConfig; events?: EngineEventsConfig };
   /** engine-level tool mechanism: custom tools + guardrail policies; disabled when absent */
@@ -329,7 +336,7 @@ export async function buildEngineFromRegistry(
   if (databaseUrl === undefined) {
     throw new SchemaError('engine.databaseUrl.missing', {}, locale);
   }
-  if (config.auth === undefined || config.auth.source === undefined) {
+  if (config.auth?.source === undefined && config.identity?.verifier === undefined) {
     throw new SchemaError('auth.notConfigured', {}, locale);
   }
 
@@ -452,7 +459,21 @@ export async function buildEngineFromRegistry(
   } else {
     dataAccess = withRbac(baseDataAccess, { audit: auditSink });
   }
-  const authenticator = buildAuthenticator(config.auth);
+  const identityCfg = config.identity;
+  // engine-owned identity directory: handles only (no I/O) unless onStart sync
+  const identityStore = identityCfg?.store ?? new PgIdentityStore(pool);
+  const identityDirectory = new PgIdentityDirectory(identityStore);
+  if (identityCfg?.sync?.onStart === true && identityCfg.source !== undefined) {
+    const source = resolveIdentitySource(identityCfg.source, pool);
+    await runIdentitySync(source, identityStore, { deactivateMissing: identityCfg.sync.deactivateMissing });
+  }
+  let authenticator: Authenticator =
+    identityCfg?.verifier !== undefined
+      ? createDirectoryAuthenticator({ verifier: identityCfg.verifier, directory: identityDirectory, locale })
+      : buildAuthenticator(config.auth ?? { source: {} });
+  if (identityCfg?.required === true) {
+    authenticator = enforceSyncedIdentity(authenticator, identityDirectory, locale);
+  }
 
   // tool mechanism: load custom tools when config.tools.toolsDir is set
   // (absent = not loaded = zero overhead). The executor wraps the RBAC-decorated
@@ -584,6 +605,8 @@ export async function buildEngineFromRegistry(
       },
       restOptions,
     );
+    // greenfield identity administration (admin-gated): list/create/enable users
+    registerIdentityAdminRoutes(app, { authenticator, locale, admin: new IdentityAdmin(identityStore) }, restOptions);
     // frontend metadata contract (framework-agnostic, all frontend adapters consume these)
     registerMetadataRoutes(app, { registry, pool, dataAccess, authenticator, locale }, restOptions);
     registerPermissionsRoutes(app, { registry, pool, dataAccess, authenticator, locale }, restOptions);
@@ -688,6 +711,7 @@ export async function buildEngineFromRegistry(
       audit: auditSink,
       alerts: createAlerts(mcpCfg?.guardrails?.alerts),
       tools,
+      directory: identityDirectory,
       corsOrigin: config.adapters?.rest?.cors?.origin,
     });
   }

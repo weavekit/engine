@@ -5,6 +5,7 @@ import type {
   IdentityDepartmentInput,
   IdentityDepartmentRow,
   IdentityStore,
+  IdentityUserCreate,
   IdentityUserInput,
   IdentityUserRow,
 } from '../../core/provider/identity/index.js';
@@ -167,6 +168,30 @@ export class PgIdentityStore implements IdentityStore {
   async setEnabled(kind: 'user' | 'department', id: string, enabled: boolean): Promise<void> {
     const table = kind === 'user' ? 'weavekit_user' : 'weavekit_department';
     await this.pool.query(`UPDATE ${table} SET enabled = $2 WHERE id = $1`, [id, enabled]);
+  }
+
+  async createUser(input: IdentityUserCreate): Promise<{ id: string }> {
+    const res = await this.pool.query(
+      `INSERT INTO weavekit_user (id, name, email, mobile, roles, department_id, director_id, enabled)
+       VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8)
+       RETURNING id`,
+      [
+        randomUUID(),
+        input.name ?? null,
+        input.email ?? null,
+        input.mobile ?? null,
+        JSON.stringify(input.roles ?? []),
+        input.departmentId ?? null,
+        input.directorId ?? null,
+        input.enabled ?? null,
+      ],
+    );
+    return { id: (res.rows[0] as { id: string }).id };
+  }
+
+  async listUsers(): Promise<IdentityUserRow[]> {
+    const res = await this.pool.query(`SELECT ${USER_COLS} FROM weavekit_user ORDER BY name NULLS LAST, id`);
+    return (res.rows as RawRow[]).map(mapUser);
   }
 
   async getCursor(source: string): Promise<string | null> {

@@ -64,6 +64,22 @@ function memoryStore(): IdentityStore & { users: Map<string, IdentityUserRow>; d
       depts.set(k, row);
       return { id: row.id };
     },
+    async createUser(input) {
+      const id = nextId();
+      users.set(`local::${id}`, {
+        id,
+        externalSource: null,
+        externalId: null,
+        roles: input.roles ?? [],
+        departmentId: input.departmentId ?? null,
+        directorId: input.directorId ?? null,
+        enabled: input.enabled ?? null,
+      });
+      return { id };
+    },
+    async listUsers() {
+      return [...users.values()];
+    },
     async setEnabled(kind, id, enabled) {
       const map: Map<string, { id: string; enabled: boolean | null }> = kind === 'user' ? users : depts;
       for (const row of map.values()) if (row.id === id) row.enabled = enabled;

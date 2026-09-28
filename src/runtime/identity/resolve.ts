@@ -1,4 +1,5 @@
 import type { Pool } from 'pg';
+import { SchemaError } from '../../core/index.js';
 import type { IdentitySource } from '../../core/provider/identity/index.js';
 import { createPgIdentitySource, type PgIdentitySourceConfig } from './sources/pg.js';
 
@@ -12,5 +13,7 @@ export function resolveIdentitySource(
   pool: Pool,
 ): IdentitySource {
   if (typeof (source as IdentitySource).pull === 'function') return source as IdentitySource;
-  return createPgIdentitySource(source as PgIdentitySourceConfig, pool);
+  const pg = source as PgIdentitySourceConfig;
+  if (pg.users !== undefined && pg.departments !== undefined) return createPgIdentitySource(pg, pool);
+  throw new SchemaError('identity.source.invalid', {}, undefined);
 }

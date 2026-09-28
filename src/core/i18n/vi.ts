@@ -46,6 +46,8 @@ export const vi: Record<MessageKey, string> = {
   'object.primary.notAllowed': 'đối tượng "{object}": trường "{field}" kiểu "{type}" không thể là khóa chính',
   'object.primary.mutable': 'đối tượng "{object}": trường khóa chính "{field}" là bất biến',
   'recordKey.invalid': 'khóa bản ghi không hợp lệ "{key}"',
+  'identity.notSynced': 'danh tinh {ref} chua duoc provision cuc bo - chay weave sync:identity truoc',
+  'identity.source.invalid': 'identity.source must be an IdentitySource (with pull) or a pg descriptor',
   'object.primary.scalarOnly': 'primary chỉ cho phép kiểu vô hướng, không phải "{type}"',
   'object.primary.columnMissing': 'đối tượng "{object}": không tìm thấy cột khóa chính "{column}" trong bảng "{table}"',
   'object.field.columnMissing': 'đối tượng "{object}": trường "{field}" không tồn tại như một cột trong bảng "{table}"',

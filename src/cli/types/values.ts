@@ -28,6 +28,10 @@ export const WEAVE_COMMANDS = {
   SCHEMA_MAP: 'schema:map',
   SCHEMA_UPGRADE: 'schema:upgrade',
   SYNC_IDENTITY: 'sync:identity',
+  IDENTITY_LIST: 'identity:list',
+  IDENTITY_CREATE: 'identity:create',
+  IDENTITY_DISABLE: 'identity:disable',
+  IDENTITY_ENABLE: 'identity:enable',
   OPENAPI: 'openapi',
 } as const;
 export type WeaveCommand = typeof WEAVE_COMMANDS[keyof typeof WEAVE_COMMANDS];

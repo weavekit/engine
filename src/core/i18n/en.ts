@@ -24,6 +24,8 @@ export const en = {
   'object.primary.notAllowed': 'object "{object}": field "{field}" of type "{type}" cannot be a primary key',
   'object.primary.mutable': 'object "{object}": primary field "{field}" is immutable - primary keys cannot be updated',
   'recordKey.invalid': 'invalid record key "{key}"',
+  'identity.notSynced': 'identity {ref} is not provisioned locally - run weave sync:identity first',
+  'identity.source.invalid': 'identity.source must be an IdentitySource (with pull) or a pg descriptor',
   'object.primary.columnMissing': 'object "{object}": primary column "{column}" not found in existing table "{table}"',
   'object.field.columnMissing': 'object "{object}": field "{field}" does not exist as a column in existing table "{table}"',
   'object.constraints.notArray': 'object "{object}": constraints must be an array',

@@ -46,6 +46,8 @@ export const pt: Record<MessageKey, string> = {
   'object.primary.notAllowed': 'objeto "{object}": o campo "{field}" do tipo "{type}" não pode ser chave primária',
   'object.primary.mutable': 'objeto "{object}": o campo de chave primária "{field}" é imutável e não pode ser atualizado',
   'recordKey.invalid': 'chave de registro inválida "{key}"',
+  'identity.notSynced': 'identidade {ref} não provisionada localmente - execute weave sync:identity primeiro',
+  'identity.source.invalid': 'identity.source must be an IdentitySource (with pull) or a pg descriptor',
   'object.primary.scalarOnly': 'primary só permite tipos escalares, não "{type}"',
   'object.primary.columnMissing': 'objeto "{object}": a coluna de chave primária "{column}" não existe na tabela existente "{table}"',
   'object.field.columnMissing': 'o objeto "{object}": o campo "{field}" não existe como coluna na tabela existente "{table}"',

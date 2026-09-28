@@ -46,6 +46,8 @@ export const fr: Record<MessageKey, string> = {
   'object.primary.notAllowed': 'objet "{object}" : le champ "{field}" de type "{type}" ne peut pas être une clé primaire',
   'object.primary.mutable': 'objet "{object}" : le champ de cle primaire "{field}" est immuable et ne peut pas etre mis a jour',
   'recordKey.invalid': 'clé d\'enregistrement invalide "{key}"',
+  'identity.notSynced': 'identite {ref} non provisionnee localement - lancez weave sync:identity',
+  'identity.source.invalid': 'identity.source must be an IdentitySource (with pull) or a pg descriptor',
   'object.primary.scalarOnly': 'primary n\'autorise que les types scalaires, pas "{type}"',
   'object.primary.columnMissing': 'objet "{object}" : la colonne de clé primaire "{column}" est introuvable dans la table existante "{table}"',
   'object.field.columnMissing': 'objet "{object}" : le champ "{field}" n\'existe pas comme colonne dans la table existante "{table}"',

@@ -46,6 +46,8 @@ export const ar: Record<MessageKey, string> = {
   'object.primary.notAllowed': 'الكائن "{object}": الحقل "{field}" من النوع "{type}" لا يمكن أن يكون مفتاحًا أساسيًا',
   'object.primary.mutable': 'الكائن "{object}": حقل المفتاح الأساسي "{field}" غير قابل للتغيير',
   'recordKey.invalid': 'مفتاح سجل غير صالح "{key}"',
+  'identity.notSynced': 'الهوية {ref} غير متوفرة محليا - شغّل weave sync:identity أولا',
+  'identity.source.invalid': 'identity.source must be an IdentitySource (with pull) or a pg descriptor',
   'object.primary.scalarOnly': 'primary يسمح فقط بالأنواع القياسية، وليس "{type}"',
   'object.primary.columnMissing': 'الكائن "{object}": عمود المفتاح الأساسي "{column}" غير موجود في الجدول "{table}"',
   'object.field.columnMissing': 'الكائن "{object}": الحقل "{field}" غير موجود كعمود في الجدول الموجود "{table}"',

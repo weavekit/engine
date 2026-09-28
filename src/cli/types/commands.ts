@@ -28,6 +28,27 @@ export interface IdentitySyncOptions {
   printer: CliPrinter;
 }
 
+/** `weave identity:list` options */
+export interface IdentityListOptions {
+  printer: CliPrinter;
+}
+
+/** `weave identity:create <name>` options */
+export interface IdentityCreateOptions {
+  name: string;
+  email?: string;
+  roles?: string;
+  /** create disabled */
+  disabled?: boolean;
+  printer: CliPrinter;
+}
+
+/** `weave identity:enable <id>` / `weave identity:disable <id>` options */
+export interface IdentityToggleOptions {
+  id: string;
+  printer: CliPrinter;
+}
+
 /** `weave test` options */
 export interface TestOptions {
   /** extra arguments forwarded to `bun test` */

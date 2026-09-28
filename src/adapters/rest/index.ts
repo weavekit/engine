@@ -11,6 +11,8 @@ export { registerPagesRoutes } from './pages.js';
 export { registerSchemaRoutes } from './schemas.js';
 export { registerGuardrailsRoutes } from './guardrails.js';
 export { registerIdentitiesRoutes } from './identities.js';
+export { registerIdentityAdminRoutes } from './identityAdmin.js';
+export type { IdentityAdminRouteDeps } from './identityAdmin.js';
 export { registerProxyRoutes } from './proxy.js';
 export type { ProxyRouteDeps } from './proxy.js';
 export { registerIngressRoutes } from './ingress.js';

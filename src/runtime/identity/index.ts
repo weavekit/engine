@@ -1,5 +1,6 @@
 export { PgIdentityStore } from './store.js';
 export { PgIdentityDirectory } from './directory.js';
+export { IdentityAdmin } from './admin.js';
 export { runIdentitySync } from './sync.js';
 export type { IdentitySyncOptions, IdentitySyncSummary, IdentitySyncCounts } from './sync.js';
 export { createPgIdentitySource } from './sources/pg.js';

@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import type { Locale, IdentitySubject, ToolDefinition } from '../../core/index.js';
 import type { AuditSink } from '../../core/audit/index.js';
 import type { AlertSink } from '../../core/provider/alerts/index.js';
-import type { IdentityResolver } from '../../core/provider/identity/index.js';
+import type { IdentityDirectory, IdentityResolver } from '../../core/provider/identity/index.js';
 import type { ToolExecutor } from '../../runtime/tools/index.js';
 import type { Authenticator } from '../auth/index.js';
 import { McpSessionStore } from './session.js';
@@ -59,6 +59,8 @@ export interface McpRegisterDeps {
    * written here for browser-based MCP clients.
    */
   corsOrigin?: string | string[] | boolean;
+  /** engine identity directory; used as the on-behalf-of resolver when `mcp.identities` is unset */
+  directory?: IdentityDirectory;
 }
 
 export interface McpServerHandle {
@@ -72,16 +74,19 @@ export interface McpServerHandle {
  * identity (`mcp.identities`: static directory or a customer-provided resolver).
  */
 export function registerMcp(app: FastifyInstance, deps: McpRegisterDeps): McpServerHandle {
-  const { engine, authenticator, mcp, locale, audit, alerts, tools, corsOrigin } = deps;
+  const { engine, authenticator, mcp, locale, audit, alerts, tools, corsOrigin, directory } = deps;
 
-  // default resolver over a static directory; a function identity source wins
+  // on-behalf-of resolver priority: a function `mcp.identities` wins, then a
+  // static `mcp.identities` map, then the engine identity directory, else empty
+  const explicit = mcp?.identities;
   const identityResolver: IdentityResolver =
-    typeof mcp?.identities === 'function'
-      ? mcp.identities
-      : (ref: string) => {
-          const subject = (mcp?.identities ?? {}) as Record<string, IdentitySubject>;
-          return subject[ref] ?? null;
-        };
+    typeof explicit === 'function'
+      ? explicit
+      : explicit !== undefined
+        ? (ref: string) => (explicit as Record<string, IdentitySubject>)[ref] ?? null
+        : directory !== undefined
+          ? (ref: string) => directory.resolve(ref)
+          : () => null;
 
   const guardrails = createGuardrails({
     rateLimit: mcp?.guardrails?.rateLimit,

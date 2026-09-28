@@ -46,6 +46,8 @@ export const zhHant: Record<MessageKey, string> = {
   'object.primary.notAllowed': '物件 "{object}"：型別為 "{type}" 的欄位 "{field}" 不能作為主鍵',
   'object.primary.mutable': '物件 "{object}"：主鍵欄位 "{field}" 不可修改',
   'recordKey.invalid': '無效的記錄鍵 "{key}"',
+  'identity.notSynced': '身分 {ref} 尚未同步到本機目錄 - 請先執行 weave sync:identity',
+  'identity.source.invalid': 'identity.source must be an IdentitySource (with pull) or a pg descriptor',
   'object.primary.scalarOnly': 'primary 僅允許純量欄位，不能是「{type}」',
   'object.primary.columnMissing': '物件 "{object}"：主鍵欄位 "{column}" 不存在於既有資料表 "{table}"',
   'object.field.columnMissing': '物件 "{object}"：欄位 "{field}" 不存在於既有資料表 "{table}" 的欄位中',

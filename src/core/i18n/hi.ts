@@ -46,6 +46,8 @@ export const hi: Record<MessageKey, string> = {
   'object.primary.notAllowed': 'ऑब्जेक्ट "{object}": "{type}" प्रकार का फ़ील्ड "{field}" प्राथमिक कुंजी नहीं हो सकता',
   'object.primary.mutable': 'ऑब्जेक्ट "{object}": प्राथमिक कुंजी फ़ील्ड "{field}" अपरिवर्तनीय है',
   'recordKey.invalid': 'अमान्य रिकॉर्ड कुंजी "{key}"',
+  'identity.notSynced': 'पहचान {ref} स्थानीय रूप से मौजूद नहीं है - पहले weave sync:identity चलाएँ',
+  'identity.source.invalid': 'identity.source must be an IdentitySource (with pull) or a pg descriptor',
   'object.primary.scalarOnly': 'primary केवल स्केलर प्रकारों की अनुमति देता है, "{type}" नहीं',
   'object.primary.columnMissing': 'ऑब्जेक्ट "{object}": प्राथमिक कुंजी कॉलम "{column}" मौजूदा टेबल "{table}" में नहीं मिला',
   'object.field.columnMissing': 'ऑब्जेक्ट "{object}": फ़ील्ड "{field}" मौजूदा टेबल "{table}" में कॉलम के रूप में मौजूद नहीं है',
