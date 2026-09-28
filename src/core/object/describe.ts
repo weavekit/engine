@@ -72,6 +72,12 @@ export interface MetadataField {
    * target's primary key). Clients fetch the option set by querying that object.
    */
   optionsFrom?: { object: string; column: string };
+  /** true when this field is the object's row-scope `own` column */
+  ownership?: boolean;
+  /** true when this field is the object's row-scope `department` column */
+  departmentScope?: boolean;
+  /** for a scope-marked field: where its values come from (internal ids | external ids) */
+  scopeSource?: 'internal' | 'external';
 }
 
 /** a relation field (weak/strong/multi) as a named edge */
@@ -173,6 +179,16 @@ function fieldDescription(field: FieldDefinition, objects: ObjectRegistry): Meta
   }
   if (field.type === FIELD_TYPES.PERSON && field.department !== undefined) {
     out.department = field.department;
+  }
+  // row-scope markers: which column backs `own` / `department`, and its id source
+  const scope = field as unknown as { ownership?: boolean; department?: boolean; ownershipSource?: string; departmentSource?: string };
+  if (scope.ownership === true) {
+    out.ownership = true;
+    out.scopeSource = scope.ownershipSource === 'external' ? 'external' : 'internal';
+  }
+  if (scope.department === true) {
+    out.departmentScope = true;
+    out.scopeSource = scope.departmentSource === 'external' ? 'external' : 'internal';
   }
   return out;
 }

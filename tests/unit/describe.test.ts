@@ -189,3 +189,26 @@ describe('describeObject — person/image/department new-type metadata', () => {
     expect(desc.relations).toContainEqual({ field: 'dept_id', type: 'department', target: 'department' });
   });
 });
+
+describe('describeObject — row-scope field markers', () => {
+  it('marks the ownership/department columns and their id source', () => {
+    const reg = new ObjectRegistry();
+    reg.register({
+      name: 'widget',
+      fields: [
+        { name: 'id', type: 'string', primary: true },
+        { name: 'owner_ref', type: 'string', ownership: true, ownershipSource: 'external' },
+        { name: 'dept_id', type: 'string', department: true },
+      ],
+      permissions: { viewer: { read: 'department', manage: 'own' } },
+    });
+    reg.buildGraph();
+    const desc = describeObject(reg, 'widget', ['viewer'], DEFAULT_LOCALE);
+    const byName = new Map(desc.fields.map((f) => [f.name, f]));
+    expect(byName.get('owner_ref')).toMatchObject({ ownership: true, scopeSource: 'external' });
+    expect(byName.get('dept_id')).toMatchObject({ departmentScope: true, scopeSource: 'internal' });
+    // read/manage scopes are both surfaced
+    expect(desc.permissions.read).toBe(READ_SCOPES.DEPARTMENT);
+    expect(desc.permissions.manage).toBe(READ_SCOPES.OWN);
+  });
+});
