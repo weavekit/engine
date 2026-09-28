@@ -39,7 +39,7 @@ const USER: unknown = {
     { name: 'departure_date', type: 'date' },
     { name: 'birthday', type: 'date' },
     { name: 'department_id', type: 'relation', target: 'weavekit_department' },
-    { name: 'manager_id', type: 'relation', target: 'weavekit_user' },
+    { name: 'director_id', type: 'relation', target: 'weavekit_user' },
     { name: 'enabled', type: 'boolean' },
     { name: 'sort_key', type: 'string' },
     { name: 'description', type: 'text' },
