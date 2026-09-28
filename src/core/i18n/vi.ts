@@ -76,6 +76,7 @@ export const vi: Record<MessageKey, string> = {
   'field.default.notSupported': 'đối tượng "{object}": type {type} không hỗ trợ default',
   'field.default.optionsFrom': 'đối tượng "{object}": default không được hỗ trợ khi các tùy chọn enum đến từ nguồn dữ liệu',
   'field.minGtMax': 'đối tượng "{object}": min không được lớn hơn max',
+  'field.currency.invalid': 'object "{object}": currency "{currency}" is not a valid ISO 4217 code',
   'field.minLengthGtMaxLength': 'đối tượng "{object}": minLength không được lớn hơn maxLength',
   'field.regex.invalid': 'đối tượng "{object}": regex không phải là biểu thức chính quy hợp lệ',
   'field.min.integer': 'đối tượng "{object}": min phải là số nguyên',

@@ -1,5 +1,6 @@
 import type { FieldDefinition, RegisteredField } from '../types/index.js';
 import { DEFAULT_FIELD_TYPE_REGISTRY, fieldBase, type FieldTypeRegistry } from '../types/index.js';
+import { currencyMinorUnits } from '../types/currency.js';
 import { SchemaError } from '../types/errors.js';
 import { FIELD_TYPES, ON_DELETE_ACTIONS } from '../types/values.js';
 
@@ -105,8 +106,12 @@ export function pgType(
       return 'REAL';
     case FIELD_TYPES.DOUBLE:
       return 'DOUBLE PRECISION';
-    case FIELD_TYPES.CURRENCY:
-      return 'NUMERIC(12,2)';
+    case FIELD_TYPES.CURRENCY: {
+      // scale follows the ISO 4217 code when declared (USD=2, JPY=0); absent → 2
+      const code = (field as { currency?: string }).currency;
+      const scale = code === undefined ? 2 : currencyMinorUnits(code);
+      return `NUMERIC(12,${scale})`;
+    }
     case FIELD_TYPES.BOOLEAN:
       return 'BOOLEAN';
     case FIELD_TYPES.DATE:

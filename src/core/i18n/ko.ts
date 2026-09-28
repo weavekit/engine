@@ -76,6 +76,7 @@ export const ko: Record<MessageKey, string> = {
   'field.default.notSupported': '객체 "{object}": type {type}은(는) default를 지원하지 않습니다',
   'field.default.optionsFrom': '오브젝트 "{object}": enum 옵션이 데이터 소스에서 오는 경우 default는 지원되지 않습니다',
   'field.minGtMax': '객체 "{object}": min은 max보다 클 수 없습니다',
+  'field.currency.invalid': 'object "{object}": currency "{currency}" is not a valid ISO 4217 code',
   'field.minLengthGtMaxLength': '객체 "{object}": minLength는 maxLength보다 클 수 없습니다',
   'field.regex.invalid': '객체 "{object}": regex는 유효한 정규식이 아닙니다',
   'field.min.integer': '객체 "{object}": min은 정수여야 합니다',

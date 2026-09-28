@@ -76,6 +76,7 @@ export const zhHant: Record<MessageKey, string> = {
   'field.default.notSupported': '物件「{object}」：type {type} 不支援 default',
   'field.default.optionsFrom': '物件 "{object}"：enum 選項來自資料來源時不支援 default',
   'field.minGtMax': '物件「{object}」：min 不能大於 max',
+  'field.currency.invalid': '物件 "{object}"：幣種 "{currency}" 不是有效的 ISO 4217 代碼',
   'field.minLengthGtMaxLength': '物件「{object}」：minLength 不能大於 maxLength',
   'field.regex.invalid': '物件「{object}」：regex 不是合法正規表示式',
   'field.min.integer': '物件「{object}」：min 必須是整數',

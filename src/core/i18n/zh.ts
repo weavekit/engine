@@ -75,6 +75,7 @@ export const zh: Record<MessageKey, string> = {
   'field.default.notSupported': '对象 "{object}"：type {type} 不支持 default',
   'field.default.optionsFrom': '对象 "{object}"：enum 选项来自数据源时不支持 default',
   'field.minGtMax': '对象 "{object}"：min 不能大于 max',
+  'field.currency.invalid': '对象 "{object}"：币种 "{currency}" 不是有效的 ISO 4217 代码',
   'field.minLengthGtMaxLength': '对象 "{object}"：minLength 不能大于 maxLength',
   'field.regex.invalid': '对象 "{object}"：regex 不是合法正则表达式',
   'field.min.integer': '对象 "{object}"：min 必须是整数',

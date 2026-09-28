@@ -1,7 +1,7 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { basename, dirname, join } from 'node:path';
 import { FIELD_TYPES, SCHEMA_FORMAT_VERSION } from '../core/index.js';
-import { PRIMITIVE_FIELD_TYPES as PRIMITIVES, SEMANTIC_FIELD_TYPES as SEMANTICS } from '../core/types/registry.js';
+import { PRIMITIVE_FIELD_TYPES as PRIMITIVES, OPT_IN_FIELD_TYPES as OPT_IN } from '../core/types/registry.js';
 import { runGit } from '../runtime/git/index.js';
 import { version } from '../version.js';
 import type { ProjectType } from './types/index.js';
@@ -60,17 +60,17 @@ const SCRIPT_TYPES = new Set<ProjectType>(['service', 'business']);
 /** engine primitives — always enabled */
 const BASE_FIELD_TYPES: readonly string[] = PRIMITIVES;
 
-/** semantic types gated by `features.fieldTypes` */
-const SEMANTIC_FIELD_TYPES: readonly string[] = SEMANTICS;
+/** opt-in types gated by `features.fieldTypes` */
+const OPT_IN_FIELD_TYPES: readonly string[] = OPT_IN;
 
 /** per-projectType default `features.fieldTypes` whitelist (config gating, fail-closed) */
 const DEFAULT_FIELD_TYPES_BY_TYPE: Record<ProjectType, string[]> = {
   // pure API tooling, no UI — identity/avatar semantics unused; extend via config
   agent: [...BASE_FIELD_TYPES],
   // governance: backend members/teams (user/department) of the user's own system
-  governance: [...BASE_FIELD_TYPES, ...SEMANTIC_FIELD_TYPES],
-  service: [...BASE_FIELD_TYPES, ...SEMANTIC_FIELD_TYPES],
-  business: [...BASE_FIELD_TYPES, ...SEMANTIC_FIELD_TYPES],
+  governance: [...BASE_FIELD_TYPES, ...OPT_IN_FIELD_TYPES],
+  service: [...BASE_FIELD_TYPES, ...OPT_IN_FIELD_TYPES],
+  business: [...BASE_FIELD_TYPES, ...OPT_IN_FIELD_TYPES],
 };
 
 /** `features.fieldTypes` snippet for a project-type preset (undefined → no gating) */

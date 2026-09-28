@@ -76,6 +76,7 @@ export const ru: Record<MessageKey, string> = {
   'field.default.notSupported': 'объект "{object}": type {type} не поддерживает default',
   'field.default.optionsFrom': 'объект "{object}": default не поддерживается, когда опции enum берутся из источника данных',
   'field.minGtMax': 'объект "{object}": min не должно быть больше max',
+  'field.currency.invalid': 'object "{object}": currency "{currency}" is not a valid ISO 4217 code',
   'field.minLengthGtMaxLength': 'объект "{object}": minLength не должно быть больше maxLength',
   'field.regex.invalid': 'объект "{object}": regex не является допустимым регулярным выражением',
   'field.min.integer': 'объект "{object}": min должно быть целым',

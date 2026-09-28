@@ -7,8 +7,9 @@
  */
 
 /**
- * PG-native value columns — field types whose column maps directly to a
- * PostgreSQL type (a value scalar: readable/comparable as data).
+ * PG-native field types: near 1:1 with a native PostgreSQL column type
+ * (aliases allowed, e.g. `string`→varchar, `number`→numeric, `double`→double
+ * precision). No engine-specific rules beyond the column mapping.
  */
 export const PG_FIELD_TYPES = {
   STRING: 'string',
@@ -20,7 +21,6 @@ export const PG_FIELD_TYPES = {
   NUMBER: 'number',
   REAL: 'real',
   DOUBLE: 'double',
-  CURRENCY: 'currency',
   BOOLEAN: 'boolean',
   DATE: 'date',
   TIME: 'time',
@@ -33,41 +33,33 @@ export const PG_FIELD_TYPES = {
   JSONB: 'jsonb',
 } as const;
 
-/** engine structural types: cross-row shape (enum, relations, child tables, sequence ids) */
-export const STRUCTURAL_FIELD_TYPES = {
+/**
+ * Engine-shipped custom field types (each may carry its own rules: enum options,
+ * relation target, currency code, identity target, …). External user/plugin
+ * registrations join this same category at runtime through the
+ * `FieldTypeRegistry` (namespaced), so only the engine-provided ones are
+ * enumerated statically here.
+ */
+export const BUILTIN_CUSTOM_FIELD_TYPES = {
   ENUM: 'enum',
   RELATION: 'relation',
   DETAILS: 'details',
   MULTI_RELATION: 'multiRelation',
   SEQ_NO: 'seq_no',
-} as const;
-
-/** semantic value subtypes (string subtypes + media): scalar, display semantics only */
-export const SEMANTIC_FIELD_TYPES = {
   FIRST_NAME: 'firstName',
   LAST_NAME: 'lastName',
   EMAIL: 'email',
   PHONE: 'phone',
   IMAGE: 'image',
-} as const;
-
-/** identity FK types: relation-like to the engine identity directory (not scalar) */
-export const IDENTITY_FIELD_TYPES = {
+  CURRENCY: 'currency',
   USER: 'user',
   DEPARTMENT: 'department',
 } as const;
 
-/** every engine-level type (structural + semantic + identity) */
-export const ENGINE_FIELD_TYPES = {
-  ...STRUCTURAL_FIELD_TYPES,
-  ...SEMANTIC_FIELD_TYPES,
-  ...IDENTITY_FIELD_TYPES,
-} as const;
-
-/** every field type: PG-native value columns + engine-level types */
+/** every field type: PG-native columns + engine-shipped custom types */
 export const FIELD_TYPES = {
   ...PG_FIELD_TYPES,
-  ...ENGINE_FIELD_TYPES,
+  ...BUILTIN_CUSTOM_FIELD_TYPES,
 } as const;
 /** a built-in field type (the closed set the engine ships) */
 export type BuiltinFieldType = typeof FIELD_TYPES[keyof typeof FIELD_TYPES];

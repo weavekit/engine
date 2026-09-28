@@ -76,6 +76,7 @@ export const hi: Record<MessageKey, string> = {
   'field.default.notSupported': 'ऑब्जेक्ट "{object}": type {type} default का समर्थन नहीं करता',
   'field.default.optionsFrom': 'ऑब्जेक्ट "{object}": जब enum विकल्प किसी डेटा स्रोत से आते हैं तो default समर्थित नहीं है',
   'field.minGtMax': 'ऑब्जेक्ट "{object}": min, max से बड़ा नहीं होना चाहिए',
+  'field.currency.invalid': 'object "{object}": currency "{currency}" is not a valid ISO 4217 code',
   'field.minLengthGtMaxLength': 'ऑब्जेक्ट "{object}": minLength, maxLength से बड़ा नहीं होना चाहिए',
   'field.regex.invalid': 'ऑब्जेक्ट "{object}": regex एक मान्य नियमित अभिव्यक्ति नहीं है',
   'field.min.integer': 'ऑब्जेक्ट "{object}": min एक पूर्णांक होना चाहिए',

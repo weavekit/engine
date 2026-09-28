@@ -76,6 +76,7 @@ export const ja: Record<MessageKey, string> = {
   'field.default.notSupported': 'オブジェクト「{object}」：type {type} は default をサポートしません',
   'field.default.optionsFrom': 'オブジェクト "{object}"：enum の選択肢がデータソース由来の場合、default は使用できません',
   'field.minGtMax': 'オブジェクト「{object}」：min は max より大きくできません',
+  'field.currency.invalid': 'object "{object}": currency "{currency}" is not a valid ISO 4217 code',
   'field.minLengthGtMaxLength': 'オブジェクト「{object}」：minLength は maxLength より大きくできません',
   'field.regex.invalid': 'オブジェクト「{object}」：regex は有効な正規表現ではありません',
   'field.min.integer': 'オブジェクト「{object}」：min は整数でなければなりません',

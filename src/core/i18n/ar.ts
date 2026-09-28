@@ -76,6 +76,7 @@ export const ar: Record<MessageKey, string> = {
   'field.default.notSupported': 'الكائن "{object}": type {type} لا يدعم default',
   'field.default.optionsFrom': 'الكائن "{object}": default غير مدعوم عندما تكون خيارات enum من مصدر بيانات',
   'field.minGtMax': 'الكائن "{object}": min يجب ألا يكون أكبر من max',
+  'field.currency.invalid': 'object "{object}": currency "{currency}" is not a valid ISO 4217 code',
   'field.minLengthGtMaxLength': 'الكائن "{object}": minLength يجب ألا يكون أكبر من maxLength',
   'field.regex.invalid': 'الكائن "{object}": regex ليس تعبيرًا منتظمًا صالحًا',
   'field.min.integer': 'الكائن "{object}": min يجب أن يكون عددًا صحيحًا',

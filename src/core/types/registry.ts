@@ -1,18 +1,10 @@
-import {
-  FIELD_TYPES,
-  IDENTITY_FIELD_TYPES,
-  PG_FIELD_TYPES,
-  SEMANTIC_FIELD_TYPES as SEMANTIC_VALUE_TYPES,
-  STRUCTURAL_FIELD_TYPES,
-  type FieldType,
-} from './values.js';
+import { FIELD_TYPES, PG_FIELD_TYPES, type FieldType } from './values.js';
 import type { FieldTypeRegistration, FieldTypeRegistry } from './field-type.js';
 
 /**
  * Field-type registry — the single source for the engine's field-type
- * descriptors. Primitive types (scalar + relation + sequence) carry `base:
- * undefined`; semantic types (string subtypes, media, identity FKs) carry a
- * `base` they fully inherit (storage/describe/gen-types/MCP behaviour), plus a
+ * descriptors. PG-native types carry `base: undefined`; custom types may carry a
+ * `base` they fully inherit (storage/describe/gen-types/MCP behaviour) plus a
  * small `ui` hints block consumed by `@weave-kit/ui`. Schema-level gating lives
  * in the config `features.fieldTypes` whitelist (see validate.ts), NOT here.
  *
@@ -29,14 +21,15 @@ function define(descriptor: FieldTypeRegistration): void {
 // ---- PG-native value primitives (value scalars; PK-eligible as a base) ----
 for (const name of Object.values(PG_FIELD_TYPES)) define({ name, scalar: true });
 
-// ---- structural primitives (cross-row shape) ----
+// ---- engine custom primitives (each may carry its own rules) ----
 define({ name: FIELD_TYPES.ENUM, scalar: true });
 define({ name: FIELD_TYPES.RELATION, relationLike: true });
 define({ name: FIELD_TYPES.DETAILS, relationLike: true });
 define({ name: FIELD_TYPES.MULTI_RELATION, relationLike: true });
 define({ name: FIELD_TYPES.SEQ_NO });
+define({ name: FIELD_TYPES.CURRENCY, scalar: true });
 
-// ---- semantic value types (base delegation + ui hints + format hints) ----
+// ---- engine custom types with base delegation + ui/format hints ----
 define({ name: FIELD_TYPES.FIRST_NAME, base: FIELD_TYPES.STRING, scalar: true, ui: { visual: 'none' } });
 define({ name: FIELD_TYPES.LAST_NAME, base: FIELD_TYPES.STRING, scalar: true, ui: { visual: 'none' } });
 define({ name: FIELD_TYPES.EMAIL, base: FIELD_TYPES.STRING, scalar: true, ui: { visual: 'none' }, openApiFormat: 'email' });
@@ -44,8 +37,8 @@ define({ name: FIELD_TYPES.PHONE, base: FIELD_TYPES.STRING, scalar: true, ui: { 
 define({ name: FIELD_TYPES.IMAGE, base: FIELD_TYPES.STRING, scalar: true, ui: { visual: 'image' }, openApiFormat: 'uri' });
 
 // ---- identity FK types (relation-like; implicit target = the identity objects) ----
-define({ name: IDENTITY_FIELD_TYPES.USER, base: FIELD_TYPES.RELATION, relationLike: true, ui: { visual: 'avatar' } });
-define({ name: IDENTITY_FIELD_TYPES.DEPARTMENT, base: FIELD_TYPES.RELATION, relationLike: true, ui: { visual: 'icon' } });
+define({ name: FIELD_TYPES.USER, base: FIELD_TYPES.RELATION, relationLike: true, ui: { visual: 'avatar' } });
+define({ name: FIELD_TYPES.DEPARTMENT, base: FIELD_TYPES.RELATION, relationLike: true, ui: { visual: 'icon' } });
 
 /** the default registry: every engine built-in type (immutable by convention) */
 export const DEFAULT_FIELD_TYPE_REGISTRY: FieldTypeRegistry = registry;
@@ -96,14 +89,24 @@ export function describeFieldType(registry: FieldTypeRegistry, type: FieldType):
   return registry.get(type);
 }
 
-/** engine primitives — always allowed by the default whitelist. */
+/** always-enabled types — every scaffold preset (including `agent`) starts from these. */
 export const PRIMITIVE_FIELD_TYPES: readonly FieldType[] = [
   ...Object.values(PG_FIELD_TYPES),
-  ...Object.values(STRUCTURAL_FIELD_TYPES),
+  FIELD_TYPES.ENUM,
+  FIELD_TYPES.RELATION,
+  FIELD_TYPES.DETAILS,
+  FIELD_TYPES.MULTI_RELATION,
+  FIELD_TYPES.SEQ_NO,
+  FIELD_TYPES.CURRENCY,
 ];
 
-/** semantic types that are gated by the config `features.fieldTypes` whitelist. */
-export const SEMANTIC_FIELD_TYPES: readonly FieldType[] = [
-  ...Object.values(SEMANTIC_VALUE_TYPES),
-  ...Object.values(IDENTITY_FIELD_TYPES),
+/** opt-in types — the non-`agent` presets add these; `features.fieldTypes` gates them. */
+export const OPT_IN_FIELD_TYPES: readonly FieldType[] = [
+  FIELD_TYPES.FIRST_NAME,
+  FIELD_TYPES.LAST_NAME,
+  FIELD_TYPES.EMAIL,
+  FIELD_TYPES.PHONE,
+  FIELD_TYPES.IMAGE,
+  FIELD_TYPES.USER,
+  FIELD_TYPES.DEPARTMENT,
 ];

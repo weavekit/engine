@@ -1,8 +1,11 @@
 # Custom field types
 
-WeaveKit ships a fixed set of **built-in** field types (see [Schema](../guides/schema.md)). When a
-project needs business semantics the built-ins don't cover (`money`, `address`, `rating`, …), you can
-register **custom field types** without patching the engine.
+WeaveKit ships a fixed set of **built-in** field types (see [Schema](../guides/schema.md)). These fall
+into two buckets: **PG-native** value types (`string`…`jsonb`) and **custom** types (`enum`,
+`relation`, `image`, `currency`, `user`, …). The custom ones are built-in registrations — the engine
+ships them through the same mechanism you use below. When a project needs a business type the built-ins
+don't cover (`address`, `rating`, …), you can register your own **custom field type** without patching
+the engine.
 
 A registered type is a **thin, declarative layer over a built-in primitive**: you declare a `base`,
 and the engine inherits storage, TypeScript generation, OpenAPI schemas and describe behaviour from

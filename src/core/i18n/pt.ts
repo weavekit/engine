@@ -76,6 +76,7 @@ export const pt: Record<MessageKey, string> = {
   'field.default.notSupported': 'objeto "{object}": type {type} não suporta default',
   'field.default.optionsFrom': 'objeto "{object}": default não é suportado quando as opções enum vêm de uma fonte de dados',
   'field.minGtMax': 'objeto "{object}": min não deve ser maior que max',
+  'field.currency.invalid': 'object "{object}": currency "{currency}" is not a valid ISO 4217 code',
   'field.minLengthGtMaxLength': 'objeto "{object}": minLength não deve ser maior que maxLength',
   'field.regex.invalid': 'objeto "{object}": regex não é uma expressão regular válida',
   'field.min.integer': 'objeto "{object}": min deve ser um inteiro',

@@ -58,7 +58,7 @@ If a file declares a version **newer** than the engine supports, the engine reje
 | `number` | NUMERIC | `min`/`max`/`precision`/`scale` |
 | `real` | REAL | 4-byte float |
 | `double` | DOUBLE PRECISION | 8-byte float |
-| `currency` | NUMERIC(12,2) | money |
+| `currency` | NUMERIC(12,scale) | money; optional ISO 4217 `currency` code sets the scale (USD=2, JPY=0), default 2 |
 | `boolean` | BOOLEAN | |
 | `date` | DATE | canonical `YYYY-MM-DD` |
 | `time` | TIME | wall-clock time (no zone) |
@@ -75,11 +75,13 @@ If a file declares a version **newer** than the engine supports, the engine reje
 | `details` | child table | strong 1:N ownership |
 | `multiRelation` | TEXT[] + GIN | multi-select reference |
 
-Built-in semantic types (`firstName`, `lastName`, `email`, `phone`, `image`) and the identity FK
-types (`user`, `department`) sit on top of these primitives. `user`/`department` are relation-like
-and always point at the engine identity objects (`weavekit_user`/`weavekit_department`) — no
-`target` is declared. When you need a business-semantic type the engine
-doesn't ship (`money`, `address`, …), you can register your own — see
+Types come in two buckets: **PG-native value types** (`string`…`jsonb`, whose column maps near 1:1 to
+a PostgreSQL type) and **engine-shipped custom types** (`enum`/`seq_no`/`relation`/`details`/
+`multiRelation`, the semantic types `firstName`/`lastName`/`email`/`phone`/`image`/`currency`, and the
+identity FK types `user`/`department`). Each custom type carries its own rules. `user`/`department` are
+relation-like and always point at the engine identity objects (`weavekit_user`/`weavekit_department`) —
+no `target` is declared. When you need a business type the engine
+doesn't ship (`address`, …), you can register your own — see
 [Custom field types](../reference/custom-field-types.md).
 
 ## Common field attributes

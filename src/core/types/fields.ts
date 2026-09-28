@@ -147,6 +147,8 @@ export interface CurrencyField extends FieldBase {
   unique?: boolean;
   default?: number;
   formula?: string;
+  /** ISO 4217 code (optional; drives the column scale; absent → 2 minor units) */
+  currency?: string;
 }
 
 export interface BooleanField extends FieldBase {

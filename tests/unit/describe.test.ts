@@ -182,6 +182,24 @@ describe('describeObject — user/department/image new-type metadata', () => {
   });
 });
 
+describe('describeObject — currency code', () => {
+  it('exposes the ISO code; omits it when absent', () => {
+    const reg = new ObjectRegistry();
+    reg.register({
+      name: 'invoice',
+      fields: [
+        { name: 'id', type: 'string', primary: true },
+        { name: 'amount_jpy', type: 'currency', currency: 'JPY' },
+        { name: 'amount', type: 'currency' },
+      ],
+    });
+    const desc = describeObject(reg, 'invoice', ['any'], DEFAULT_LOCALE);
+    const byName = new Map(desc.fields.map((f) => [f.name, f]));
+    expect(byName.get('amount_jpy')?.currency).toBe('JPY');
+    expect(byName.get('amount')?.currency).toBeUndefined();
+  });
+});
+
 describe('describeObject — row-scope field markers', () => {
   it('marks the ownership/department columns and their id source', () => {
     const reg = new ObjectRegistry();

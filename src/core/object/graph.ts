@@ -23,6 +23,7 @@ const ENUM_SOURCE_BASES: ReadonlySet<string> = new Set<string>([
   ...Object.values(PG_FIELD_TYPES).filter((t) => t !== FIELD_TYPES.JSON && t !== FIELD_TYPES.JSONB),
   FIELD_TYPES.ENUM,
   FIELD_TYPES.SEQ_NO,
+  FIELD_TYPES.CURRENCY,
 ]);
 
 export interface BuildGraphOptions {

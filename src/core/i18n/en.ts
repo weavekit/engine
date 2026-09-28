@@ -67,6 +67,7 @@ export const en = {
   'field.default.notSupported': 'object "{object}": type {type} does not support default',
   'field.default.optionsFrom': 'object "{object}": default is not supported when enum options come from a data source',
   'field.minGtMax': 'object "{object}": min must not be greater than max',
+  'field.currency.invalid': 'object "{object}": currency "{currency}" is not a valid ISO 4217 code',
   'field.minLengthGtMaxLength': 'object "{object}": minLength must not be greater than maxLength',
   'field.regex.invalid': 'object "{object}": regex is not a valid regular expression',
   'field.min.integer': 'object "{object}": min must be an integer',

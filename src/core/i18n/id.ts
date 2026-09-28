@@ -76,6 +76,7 @@ export const id: Record<MessageKey, string> = {
   'field.default.notSupported': 'objek "{object}": type {type} tidak mendukung default',
   'field.default.optionsFrom': 'objek "{object}": default tidak didukung saat opsi enum berasal dari sumber data',
   'field.minGtMax': 'objek "{object}": min tidak boleh lebih besar dari max',
+  'field.currency.invalid': 'object "{object}": currency "{currency}" is not a valid ISO 4217 code',
   'field.minLengthGtMaxLength': 'objek "{object}": minLength tidak boleh lebih besar dari maxLength',
   'field.regex.invalid': 'objek "{object}": regex bukan ekspresi reguler yang valid',
   'field.min.integer': 'objek "{object}": min harus berupa bilangan bulat',

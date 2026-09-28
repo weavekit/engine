@@ -522,6 +522,31 @@ describe('validateObject — identity FK types + features.fieldTypes gating', ()
   });
 });
 
+describe('validateObject — currency code', () => {
+  it('accepts a valid ISO 4217 code and preserves it', () => {
+    const def = validateObject({
+      name: 'inv',
+      fields: [
+        { name: 'id', type: 'string', primary: true },
+        { name: 'amount', type: 'currency', currency: 'JPY' },
+      ],
+    });
+    expect(def.fields.find((f) => f.name === 'amount')).toMatchObject({ type: 'currency', currency: 'JPY' });
+  });
+
+  it('rejects a non-ISO code', () => {
+    expect(() =>
+      validateObject({
+        name: 'inv',
+        fields: [
+          { name: 'id', type: 'string', primary: true },
+          { name: 'amount', type: 'currency', currency: 'usd' },
+        ],
+      }),
+    ).toThrow(SchemaError);
+  });
+});
+
 describe('validateObject — fields.create whitelist', () => {
   const base = {
     name: 'note',

@@ -31,6 +31,12 @@ describe('pgType — type mapping', () => {
     expect(pgType(f({ name: 'a', type: 'char', length: 5 }), undefined)).toBe('CHAR(5)');
   });
 
+  it('currency scale follows the ISO code', () => {
+    expect(pgType(f({ name: 'a', type: 'currency' }), undefined)).toBe('NUMERIC(12,2)');
+    expect(pgType(f({ name: 'a', type: 'currency', currency: 'USD' }), undefined)).toBe('NUMERIC(12,2)');
+    expect(pgType(f({ name: 'a', type: 'currency', currency: 'JPY' }), undefined)).toBe('NUMERIC(12,0)');
+  });
+
   it('enum single vs multiple', () => {
     expect(pgType(f({ name: 'a', type: 'enum', options: ['x'] }), undefined)).toBe('VARCHAR(255)');
     expect(pgType(f({ name: 'a', type: 'enum', options: ['x'], multiple: true }), undefined)).toBe('TEXT[]');
