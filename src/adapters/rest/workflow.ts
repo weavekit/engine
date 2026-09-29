@@ -35,6 +35,8 @@ export function registerWorkflowRoutes(
     checkRateLimit(limiter, request, locale);
     const subject = await authenticateRequest(authenticator, request, locale);
     const { name, id, action } = request.params as { name: string; id: string; action: string };
-    return dataAccess.transition(name, id, action, { pool, registry, subject, locale });
+    const body = request.body;
+    const payload = typeof body === 'object' && body !== null && !Array.isArray(body) ? (body as Record<string, unknown>) : undefined;
+    return dataAccess.transition(name, id, action, { pool, registry, subject, locale }, payload);
   });
 }

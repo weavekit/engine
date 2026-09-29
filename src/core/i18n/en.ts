@@ -202,6 +202,8 @@ export const en = {
   'workflow.nodes.required': 'object "{object}": workflow must declare at least one node',
   'workflow.node.invalid': 'object "{object}": workflow node {i} is invalid ({value}) — expected a unique snake_case id, kind "approve"|"notify", and a non-empty assign.roles (mode "any"|"all" on approve nodes only)',
   'workflow.rollback.notEarlier': 'object "{object}": node {i} rollback target "{value}" must name an earlier node in the chain',
+  'workflow.assignee.none': 'object "{object}": workflow node "{node}" resolved to no assignees',
+  'workflow.withdraw.locked': 'object "{object}": cannot withdraw or cancel while "{holder}" is viewing this record',
   'workflow.transition.unknown': 'object "{object}": unknown workflow transition "{action}"',
   'workflow.transition.notAllowed': 'object "{object}": transition "{action}" is not allowed from state "{from}"',
   'workflow.transition.required': 'object "{object}": "{field}" is engine-managed — change it via a workflow action',

@@ -10,6 +10,7 @@ import type { PolicyApprovals } from '../tools/policies.js';
 import { buildCountSql, buildFindSql, scopeSuffix, type BuildContext } from './builder.js';
 import { deleteDetailsChildren, insertDetails } from './details.js';
 import { insertLinks, replaceLinks } from './link.js';
+import { runWorkflowTransition } from './workflow.js';
 import { computeFormulas, type FormulaAuth } from './formula.js';
 import { generateSeqNo } from './seqno.js';
 import type { DataAccessContext, FindOptions, FindResult, ObjectDataAccess } from './types.js';
@@ -659,23 +660,84 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
   }
 
   /**
-   * Fire a workflow action.
-   *
-   * Phase C note: the transition executor is being rebuilt on the three-layer
-   * model (instance/step/workitem) in C1/C2. Until then any request is rejected
-   * so a stale client cannot mutate the (removed) state field.
+   * Fire a workflow action against the three-layer runtime (instance/step/
+   * workitem). Runs in one transaction: the instance row is locked, the current
+   * step's workitems are quorum-evaluated, the new step/workitems are opened and
+   * the side-table status mirror is updated. The customer row is never touched.
    */
   async transition<T = Record<string, unknown>>(
     objectName: string,
-    _id: string,
+    id: string,
     action: string,
     ctx: DataAccessContext,
+    payload?: Record<string, unknown>,
   ): Promise<T> {
-    requireDef(ctx, objectName);
-    // guardrail policies + approvals are consumed by the C2 transition executor
+    const def = requireDef(ctx, objectName);
+    if (def.workflow === undefined) {
+      throw new SchemaError('workflow.transition.unknown', { object: objectName, action }, ctx.locale);
+    }
+    if (primaryNames(def).length === 0) {
+      throw new SchemaError('data.recordNotFound', { object: objectName, id }, ctx.locale);
+    }
+    // guardrail policy + approval gating on transitions is re-integrated in a later phase
     void this.policies;
     void this.approvals;
-    throw new SchemaError('workflow.transition.unknown', { object: objectName, action }, ctx.locale);
+    const pkValues = pkValuesOf(def, id, ctx);
+    let client: PoolClient;
+    let owned = false;
+    if (ctx.client !== undefined) {
+      client = ctx.client;
+    } else {
+      owned = true;
+      client = await ctx.pool.connect();
+    }
+    try {
+      if (owned) await client.query('BEGIN');
+      // the customer record must exist (transitions never create records)
+      const { sql, params } = buildFindSql(
+        def,
+        { filter: pkFilter(def, pkValues), limit: 1 },
+        bctx(ctx, objectName),
+        undefined,
+        undefined,
+        [recordKeySelect(def)],
+      );
+      const found = await runTableQuery(client, objectName, sql, params, ctx.locale);
+      if (found.rows[0] === undefined) {
+        throw new SchemaError('data.recordNotFound', { object: objectName, id }, ctx.locale);
+      }
+
+      const outcome = await runWorkflowTransition(client, def, id, action, ctx.subject, payload, ctx.locale);
+      if (owned) await client.query('COMMIT');
+      auditWrite(this.audit, ctx, DATA_ACTIONS.TRANSITION, objectName, id, {
+        action,
+        node: outcome.toNodeId ?? null,
+        from: outcome.fromNodeId ?? null,
+        ...(def.workflowHash === undefined ? {} : { workflowHash: def.workflowHash }),
+      });
+      this.events?.publishRecordChange('updated', objectName, id);
+      this.events?.publishRecordTransitioned(
+        objectName,
+        id,
+        outcome.fromNodeId ?? '',
+        outcome.toNodeId ?? '',
+        action,
+        def.workflow.version,
+        def.workflowHash,
+      );
+      if (outcome.nodeId !== undefined) {
+        await this.workflowTimers?.sync(objectName, id, outcome.nodeId).catch(() => {});
+      } else {
+        await this.workflowTimers?.cancel(objectName, id).catch(() => {});
+      }
+      return (await this.findOne<T>(objectName, id, ctx)) as T;
+    } catch (err) {
+      if (owned) await client.query('ROLLBACK');
+      auditWrite(this.audit, ctx, DATA_ACTIONS.TRANSITION, objectName, id, { action }, err);
+      throw err;
+    } finally {
+      if (owned) client.release();
+    }
   }
 
 

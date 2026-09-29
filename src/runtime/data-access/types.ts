@@ -95,17 +95,20 @@ export interface ObjectDataAccess {
     ctx: DataAccessContext,
   ): Promise<T>;
   /**
-   * Fire a declared workflow transition (`objects/<name>/workflow.json`): resolve
-   * the transition for the record's current state, check role permissions, run the
-   * workflow hooks and write the target state atomically. The object must declare a
-   * workflow; unknown/disallowed transitions throw (`workflow.transition.unknown` /
-   * `workflow.transition.notAllowed`).
+   * Fire a workflow action against the three-layer runtime (`objects/<name>/workflow.json`):
+   * resolve the node the record is at, evaluate the workitem quorum, open the
+   * next step/workitems and update the side-table status mirror atomically. The
+   * object must declare a workflow; unknown/disallowed actions throw
+   * (`workflow.transition.unknown` / `workflow.transition.notAllowed`).
+   * `payload` carries action extras (`{ to: { userId } }` for `forward`,
+   * `{ comment }`).
    */
   transition<T = Record<string, unknown>>(
     objectName: string,
     id: string,
     action: string,
     ctx: DataAccessContext,
+    payload?: Record<string, unknown>,
   ): Promise<T>;
   delete(objectName: string, id: string, ctx: DataAccessContext): Promise<void>;
 }

@@ -234,8 +234,9 @@ export function withRbac(inner: ObjectDataAccess, options: { audit?: AuditSink }
       id: string,
       action: string,
       ctx: DataAccessContext,
+      payload?: Record<string, unknown>,
     ): Promise<T> {
-      if (ctx.subject === undefined) return inner.transition<T>(objectName, id, action, ctx);
+      if (ctx.subject === undefined) return inner.transition<T>(objectName, id, action, ctx, payload);
       const def = requireDef(ctx, objectName);
       try {
         assertCanUpdate(def, ctx.subject.roles, ctx.locale, ctx.registry);
@@ -249,7 +250,7 @@ export function withRbac(inner: ObjectDataAccess, options: { audit?: AuditSink }
         denied(audit, ctx, DATA_ACTIONS.UPDATE, objectName, id, err);
         throw err;
       }
-      const record = await inner.transition<T>(objectName, id, action, scopedCtx(ctx, objectName, p.manage ?? p.read));
+      const record = await inner.transition<T>(objectName, id, action, scopedCtx(ctx, objectName, p.manage ?? p.read), payload);
       return strip(record, p?.exclude ?? []);
     },
 

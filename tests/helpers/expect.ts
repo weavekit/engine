@@ -177,8 +177,19 @@ function expectImpl<T>(actual: T) {
       },
     },
     get rejects() {
+      const rejection = async (): Promise<unknown> => {
+        try {
+          await (actual as Promise<unknown>);
+        } catch (error) {
+          return error;
+        }
+        throw new Error('expected promise to reject');
+      };
       return {
         toThrow: (matcher?: unknown) => assert.rejects(actual as Promise<unknown>, matcher as never),
+        toMatchObject: async (expected: Record<string, unknown>) => matchObject(await rejection(), expected),
+        toBeInstanceOf: async (cls: unknown) =>
+          assert.ok((await rejection()) instanceof (cls as new () => unknown)),
       };
     },
     get resolves() {

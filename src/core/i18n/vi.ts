@@ -243,6 +243,8 @@ export const vi: Record<MessageKey, string> = {
 'workflow.nodes.required': 'Đối tượng "{object}": workflow phải khai báo ít nhất một nút',
 'workflow.node.invalid': 'Đối tượng "{object}": nút workflow {i} không hợp lệ ({value}) — cần id snake_case duy nhất, kind "approve"|"notify", và assign.roles không rỗng (mode "any"|"all" chỉ trên nút approve)',
 'workflow.rollback.notEarlier': 'Đối tượng "{object}": đích hoàn tác "{value}" của nút {i} phải trỏ tới một nút trước đó trong chuỗi',
+'workflow.assignee.none': 'Đối tượng "{object}": nút workflow "{node}" không có người được giao',
+'workflow.withdraw.locked': 'Đối tượng "{object}": không thể thu hồi hoặc hủy khi "{holder}" đang xem bản ghi này',
   'workflow.transition.unknown': 'đối tượng "{object}": chuyển đổi workflow không xác định "{action}"',
   'workflow.transition.notAllowed': 'đối tượng "{object}": chuyển đổi "{action}" không được phép từ trạng thái "{from}"',
   'workflow.transition.required': 'đối tượng "{object}": trường "{field}" do workflow quản lý — hãy thay đổi qua một chuyển đổi',
