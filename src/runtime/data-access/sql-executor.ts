@@ -1,5 +1,8 @@
 import type { Pool } from 'pg';
 import { isSafeRlsRole, SchemaError } from '../../core/index.js';
+import type { Locale } from '../../core/index.js';
+import { createSqlAnalyzer } from '../sql-analyzer/index.js';
+import type { SqlAnalyzer } from '../sql-analyzer/index.js';
 
 export interface RestrictedSqlSubject {
   id: string;
@@ -26,6 +29,10 @@ export interface RestrictedSqlOptions {
    * (0 rows) — fail-closed.
    */
   rls?: RestrictedSqlRls;
+  /** analyzer used for the mandatory SELECT-only gate; defaults to a shared instance */
+  analyzer?: SqlAnalyzer;
+  /** message locale for gate failures */
+  locale?: Locale;
 }
 
 export interface RestrictedSqlResult {
@@ -39,12 +46,20 @@ function gucLiteral(value: string): string {
   return `'${value.replace(/'/g, "''")}'`;
 }
 
+/** shared analyzer for callers that don't inject one (WASM is initialized once) */
+let sharedAnalyzer: SqlAnalyzer | undefined;
+function defaultAnalyzer(): SqlAnalyzer {
+  return (sharedAnalyzer ??= createSqlAnalyzer());
+}
+
 /**
  * Controlled SQL execution for sandbox scripts (`this.db.query`).
  *
  * Gates:
- * - SELECT-only — any other statement is rejected before touching the pool
- * - single statement — a `;` anywhere (after stripping one trailing) is rejected
+ * - SELECT-only — enforced by the AST analyzer (`analyzeSelect`), which is the
+ *   single source: exactly one statement, a `SelectStmt` root, no nested DML,
+ *   no denied functions, bounded AST. A raw regex is not used (it is both
+ *   bypassable and over-restrictive).
  * - row cap — the query is wrapped in a subquery and the outer LIMIT is
  *   clamped to `maxRows`, so a runaway result can never flood the response
  * - server-side timeout — runs on a dedicated pooled client with
@@ -68,12 +83,9 @@ export async function executeRestrictedSql(
   }
   let trimmed = sql.trim();
   if (trimmed.endsWith(';')) trimmed = trimmed.slice(0, -1);
-  if (!/^SELECT\s/i.test(trimmed)) {
-    throw new SchemaError('script.query.invalid', { detail: 'only SELECT statements are allowed' });
-  }
-  if (trimmed.includes(';')) {
-    throw new SchemaError('script.query.invalid', { detail: 'multiple statements are not allowed' });
-  }
+  // mandatory AST gate (fail-closed): the analyzer — not a regex — is the single
+  // SELECT-only check, so a direct caller cannot run a non-SELECT or multi-statement.
+  await (options.analyzer ?? defaultAnalyzer()).analyzeSelect(trimmed, options.locale);
   if (options.rls !== undefined && !isSafeRlsRole(options.rls.role)) {
     throw new SchemaError('script.query.invalid', { detail: `invalid RLS role "${options.rls.role}"` });
   }

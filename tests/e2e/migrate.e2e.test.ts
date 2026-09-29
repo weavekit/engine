@@ -283,6 +283,49 @@ maybe('Migration E2E (local PG)', () => {
     }
   });
 
+  it('string default with a quote is escaped (correct value, no injection)', async () => {
+    const cleanup = createPool(url!);
+    await cleanup.query('DROP TABLE IF EXISTS "qdefault"');
+    await cleanup.end();
+    const reg = new ObjectRegistry();
+    reg.register({
+      name: 'qdefault',
+      fields: [
+        { name: 'id', type: 'string', primary: true },
+        { name: 'note', type: 'string', default: "O'Brien; --" },
+      ],
+    });
+    const result = await migrate(reg, { databaseUrl: url });
+    expect(result.statements.some((s) => s.includes("DEFAULT 'O''Brien; --'"))).toBe(true);
+
+    const pool = createPool(url!);
+    try {
+      const r = await pool.query(`INSERT INTO "qdefault" (id) VALUES ('x') RETURNING note`);
+      expect(r.rows[0].note).toBe("O'Brien; --");
+    } finally {
+      await pool.query('DROP TABLE IF EXISTS "qdefault"');
+      await pool.end();
+    }
+  });
+
+  it('bigint default that is not an integer is rejected at validation', () => {
+    const reg = new ObjectRegistry();
+    let caught: unknown;
+    try {
+      reg.register({
+        name: 'bigbad',
+        fields: [
+          { name: 'id', type: 'string', primary: true },
+          { name: 'n', type: 'bigint', default: '1; DROP TABLE lead' },
+        ],
+      });
+    } catch (e) {
+      caught = e;
+    }
+    expect(caught).toBeDefined();
+    expect((caught as { code?: string }).code).toBe('field.default.integer');
+  });
+
   it('clean up test tables', async () => {
     const pool = createPool(url!);
     try {

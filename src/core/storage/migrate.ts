@@ -10,6 +10,7 @@ import { inspectSchema } from './inspect.js';
 import { setMeta } from './meta.js';
 import { createPool } from './pool.js';
 import { buildRecordMetaTable } from './record-meta.js';
+import { sqlLiteral } from './sql-literals.js';
 import { SYSTEM_TABLES, buildSystemTables, systemHardeningStatements } from './system-tables.js';
 import { isSafeRlsRole } from '../rbac/index.js';
 
@@ -40,7 +41,6 @@ export interface MigrationResult {
 }
 
 const q = (id: string) => `"${id}"`;
-const lit = (s: string) => `'${s.replace(/'/g, "''")}'`;
 
 /**
  * DDL to ensure the native enum types referenced by managed objects exist.
@@ -82,10 +82,10 @@ async function buildEnumStatements(
   for (const [name, options] of declared) {
     const labels = existing.get(name);
     if (labels === undefined) {
-      statements.push(`CREATE TYPE ${q(name)} AS ENUM (${[...options].map(lit).join(', ')})`);
+      statements.push(`CREATE TYPE ${q(name)} AS ENUM (${[...options].map(sqlLiteral).join(', ')})`);
     } else {
       for (const option of options) {
-        if (!labels.has(option)) statements.push(`ALTER TYPE ${q(name)} ADD VALUE IF NOT EXISTS ${lit(option)}`);
+        if (!labels.has(option)) statements.push(`ALTER TYPE ${q(name)} ADD VALUE IF NOT EXISTS ${sqlLiteral(option)}`);
       }
     }
   }

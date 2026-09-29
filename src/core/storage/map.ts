@@ -3,6 +3,7 @@ import { DEFAULT_FIELD_TYPE_REGISTRY, fieldBase, type FieldTypeRegistry } from '
 import { currencyMinorUnits } from '../types/currency.js';
 import { SchemaError } from '../types/errors.js';
 import { FIELD_TYPES, ON_DELETE_ACTIONS } from '../types/values.js';
+import { sqlLiteral } from './sql-literals.js';
 
 /**
  * PG type-name vocabulary → canonical array element `udt_name` (without the
@@ -44,6 +45,9 @@ const PG_TYPE_BASE: Record<string, string> = {
 const SAFE_PG_BASE: ReadonlySet<string> = new Set(Object.keys(PG_TYPE_BASE));
 
 const SAFE_PG_RE = /^([A-Z][A-Z0-9_ ]*?)(\(\d+(?:\s*,\s*\d+)?\))?(\[\])?$/;
+
+/** a native enum type name is interpolated raw into DDL: snake_case identifier only */
+const PG_ENUM_TYPE_RE = /^[a-z][a-z0-9_]*$/;
 
 /**
  * True when a registered `storage.pgType` output is a safe PostgreSQL column
@@ -135,7 +139,15 @@ export function pgType(
     case FIELD_TYPES.ENUM: {
       const enumType = (field as { enumType?: string }).enumType;
       const multiple = (field as { multiple?: boolean }).multiple === true;
-      if (enumType !== undefined) return multiple ? `${enumType}[]` : enumType;
+      if (enumType !== undefined) {
+        // defense in depth: the validator already restricts enumType to a
+        // snake_case identifier, but it is interpolated raw into DDL here, so
+        // re-check before it can reach a type name.
+        if (!PG_ENUM_TYPE_RE.test(enumType)) {
+          throw new SchemaError('field.enum.enumType.invalid', { object: field.name, value: enumType });
+        }
+        return multiple ? `${enumType}[]` : enumType;
+      }
       return multiple ? 'TEXT[]' : 'VARCHAR(255)';
     }
     case FIELD_TYPES.RELATION:
@@ -163,21 +175,21 @@ export function defaultExpr(
     case FIELD_TYPES.DATE:
     case FIELD_TYPES.TIMESTAMP:
     case FIELD_TYPES.TIMESTAMPTZ:
-      return raw.default === 'now' ? 'now()' : `'${String(raw.default)}'`;
+      return raw.default === 'now' ? 'now()' : sqlLiteral(String(raw.default));
     case FIELD_TYPES.TIME:
     case FIELD_TYPES.TIMETZ:
-      return `'${String(raw.default)}'`;
+      return sqlLiteral(String(raw.default));
     case FIELD_TYPES.ENUM:
       // multi-value enum defaults are not expressed in DDL (application layer)
-      return (field as { multiple?: boolean }).multiple ? undefined : `'${String(raw.default)}'`;
+      return (field as { multiple?: boolean }).multiple ? undefined : sqlLiteral(String(raw.default));
     case FIELD_TYPES.STRING:
       // multi-value image defaults are application layer too
       if (field.type === FIELD_TYPES.IMAGE && (field as { multiple?: boolean }).multiple === true) return undefined;
-      return `'${String(raw.default)}'`;
+      return sqlLiteral(String(raw.default));
     case FIELD_TYPES.TEXT:
     case FIELD_TYPES.CHAR:
     case FIELD_TYPES.UUID:
-      return `'${String(raw.default)}'`;
+      return sqlLiteral(String(raw.default));
     case FIELD_TYPES.BOOLEAN:
       return String(raw.default);
     case FIELD_TYPES.SMALLINT:
@@ -187,10 +199,22 @@ export function defaultExpr(
     case FIELD_TYPES.REAL:
     case FIELD_TYPES.DOUBLE:
     case FIELD_TYPES.CURRENCY:
-      return String(raw.default);
+      return numericLiteral(field, raw.default);
     default:
       return undefined;
   }
+}
+
+/**
+ * A safe numeric DDL literal. JS numbers are emitted verbatim (finite only);
+ * string defaults (only reachable for `bigint`, whose large values may exceed
+ * `Number.MAX_SAFE_INTEGER`) must be a plain integer. Anything else fails loud
+ * rather than being interpolated raw into DDL.
+ */
+function numericLiteral(field: FieldDefinition, value: unknown): string {
+  if (typeof value === 'number' && Number.isFinite(value)) return String(value);
+  if (typeof value === 'string' && /^[+-]?\d+$/.test(value)) return value;
+  throw new SchemaError('storage.default.invalid', { field: field.name, value: String(value) });
 }
 
 /**

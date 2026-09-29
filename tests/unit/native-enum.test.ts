@@ -36,4 +36,15 @@ describe('native enum type derivation', () => {
     const status = def.fields.find((f) => f.name === 'status') as { enumType?: string };
     expect(status.enumType).toBeUndefined();
   });
+
+  it('rejects an enumType that is not a snake_case identifier (DDL injection guard)', () => {
+    let caught: unknown;
+    try {
+      parseSchema(withStatus({ type: 'enum', options: ['open'], enumType: 'lead"; DROP TABLE x; --' }));
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeInstanceOf(Error);
+    expect((caught as { code?: string }).code).toBe('field.enum.enumType.invalid');
+  });
 });

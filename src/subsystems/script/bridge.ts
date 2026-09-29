@@ -91,6 +91,8 @@ export function createScriptRpcExecutor(options: ScriptBridgeOptions): RpcExecut
     return executeRestrictedSql(pool, sql, params, {
       maxRows: options.maxRows,
       timeoutMs,
+      analyzer,
+      locale,
       rls: {
         role: options.rlsRole,
         subject: { id: req.user.id, roles: req.user.roles, departmentId: req.user.departmentId },

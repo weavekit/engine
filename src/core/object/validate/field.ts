@@ -106,7 +106,13 @@ function validateDefault(value: unknown, type: FieldType, vc: Vc, options?: stri
       if (typeof value !== 'number' || !Number.isInteger(value)) fail(vc, 'field.default.integer');
       break;
     case FIELD_TYPES.BIGINT:
-      if (typeof value !== 'string' && (typeof value !== 'number' || !Number.isInteger(value))) {
+      // a string default is allowed for values beyond Number.MAX_SAFE_INTEGER,
+      // but must be a plain integer (it is emitted verbatim as a numeric literal)
+      if (typeof value === 'number') {
+        if (!Number.isInteger(value)) fail(vc, 'field.default.integer');
+      } else if (typeof value === 'string') {
+        if (!/^[+-]?\d+$/.test(value)) fail(vc, 'field.default.integer');
+      } else {
         fail(vc, 'field.default.integer');
       }
       break;
@@ -481,6 +487,11 @@ export function validateField(raw: unknown, vc: Vc, options: FieldValidateOption
       const rawOptions = raw.options;
       const multiple = expectBoolean(raw, 'multiple', vc);
       const enumType = expectString(raw, 'enumType', vc);
+      // a native enum type name is interpolated into DDL — restrict it to the
+      // same identifier shape as object/field names (no quotes/spaces/semicolons)
+      if (enumType !== undefined && !SNAKE_CASE.test(enumType)) {
+        fail(vc, 'field.enum.enumType.invalid', { value: enumType });
+      }
       if (multiple === true && primary === true) fail(vc, 'field.enum.multiple.primary');
       if (multiple === true && unique === true) fail(vc, 'field.enum.multiple.unique');
 

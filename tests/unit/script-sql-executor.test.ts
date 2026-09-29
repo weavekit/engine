@@ -42,6 +42,16 @@ describe('executeRestrictedSql — restricted SQL gate', () => {
     }
   });
 
+  it('data-modifying CTE rejected by the AST analyzer (nested DML)', async () => {
+    const { pool } = mockPool();
+    try {
+      await executeRestrictedSql(pool, 'WITH d AS (DELETE FROM lead RETURNING id) SELECT * FROM d', []);
+      expect.unreachable('should throw');
+    } catch (error) {
+      expect((error as SchemaError).code).toBe('script.query.invalid');
+    }
+  });
+
   it('SELECT subquery wrapping + LIMIT cap + parameter offset', async () => {
     const { pool, calls } = mockPool();
     const result = await executeRestrictedSql(pool, 'SELECT * FROM lead WHERE status = $1', ['open'], { maxRows: 50 });

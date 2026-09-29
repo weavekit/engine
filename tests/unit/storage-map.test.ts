@@ -93,6 +93,31 @@ describe('defaultExpr — default value mapping', () => {
   });
 });
 
+describe('defaultExpr — DDL literal escaping', () => {
+  it('escapes single quotes in string defaults', () => {
+    expect(defaultExpr(f({ name: 's', type: 'string', default: "O'Brien" }))).toBe("'O''Brien'");
+    expect(defaultExpr(f({ name: 's', type: 'string', default: "x'; DROP TABLE t; --" }))).toBe(
+      "'x''; DROP TABLE t; --'",
+    );
+  });
+  it('escapes date/uuid/char/enum defaults', () => {
+    expect(defaultExpr(f({ name: 'd', type: 'date', default: "2020-01-01'" }))).toBe("'2020-01-01'''");
+    expect(defaultExpr(f({ name: 'u', type: 'uuid', default: "a'" }))).toBe("'a'''");
+    expect(defaultExpr(f({ name: 'c', type: 'char', default: "a'" }))).toBe("'a'''");
+    expect(defaultExpr(f({ name: 'e', type: 'enum', options: ["a'b"], default: "a'b" }))).toBe("'a''b'");
+  });
+  it('bigint: integer string emitted raw; non-integer fails loud', () => {
+    expect(defaultExpr(f({ name: 'n', type: 'bigint', default: '9007199254740993' }))).toBe('9007199254740993');
+    let caught: unknown;
+    try {
+      defaultExpr(f({ name: 'n', type: 'bigint', default: '1; DROP TABLE x' }));
+    } catch (error) {
+      caught = error;
+    }
+    expect((caught as { code?: string }).code).toBe('storage.default.invalid');
+  });
+});
+
 describe('pgTypeMatches — custom-storage vocabulary (no false drift)', () => {
   const col = (dataType: string, extra: Record<string, unknown> = {}) => ({ dataType, ...extra });
 
