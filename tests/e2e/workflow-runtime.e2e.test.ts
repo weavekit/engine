@@ -283,6 +283,63 @@ maybe('Workflow runtime E2E (three-layer: instance/step/workitem, local PG)', ()
     expect(unlock.statusCode).toBe(200);
   });
 
+  it('reactivates a terminal instance to a node (admin only; pinned version unchanged)', async () => {
+    const id = encodeRecordKey(['D8']);
+    await engine.dataAccess.create('wf_doc', { id: 'D8' }, dctx(admin));
+    await submit(id);
+    await act(id, 'approve', a1);
+    await act(id, 'approve', m1);
+    await act(id, 'approve', m2);
+    expect(await instanceOf(id)).toMatchObject({ state: 'finished' });
+
+    const hashOf = async () =>
+      (await pool.query(`SELECT workflow_hash FROM weavekit_workflow_instances WHERE record_key = $1`, [id])).rows[0]
+        .workflow_hash as string;
+    const before = await hashOf();
+
+    await expect(act(id, 'reactivate', a1, { node: 'review' })).rejects.toMatchObject({
+      code: 'workflow.transition.denied',
+    });
+    await expect(act(id, 'reactivate', admin, { node: 'ghost' })).rejects.toMatchObject({
+      code: 'workflow.node.unknown',
+    });
+
+    await act(id, 'reactivate', admin, { node: 'review' });
+    expect(await instanceOf(id)).toMatchObject({ state: 'running', node: 'review' });
+    expect(await hashOf()).toBe(before);
+  });
+
+  it('returns step/workitem history over REST', async () => {
+    const id = encodeRecordKey(['D9']);
+    await engine.dataAccess.create('wf_doc', { id: 'D9' }, dctx(admin));
+    await submit(id);
+    await act(id, 'approve', a1);
+    const res = await engine.app.inject({
+      method: 'GET',
+      url: `/api/objects/wf_doc/${id}/workflow/history`,
+      headers: { authorization: 'Bearer key-admin' },
+    });
+    expect(res.statusCode).toBe(200);
+    const h = res.json() as { state: string; steps: unknown[]; workitems: unknown[] };
+    expect(h.state).toBe('running');
+    expect(h.steps).toHaveLength(2);
+    expect(h.workitems.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('lists the caller pending workitems (todos)', async () => {
+    const id = encodeRecordKey(['D10']);
+    await engine.dataAccess.create('wf_doc', { id: 'D10' }, dctx(admin));
+    await submit(id);
+    const res = await engine.app.inject({
+      method: 'GET',
+      url: '/api/workflow/todos',
+      headers: { authorization: 'Bearer key-a1' },
+    });
+    expect(res.statusCode).toBe(200);
+    const items = (res.json() as { items: Array<{ recordKey: string; nodeId: string }> }).items;
+    expect(items.some((t) => t.recordKey === id && t.nodeId === 'review')).toBe(true);
+  });
+
   it('registers each object definition content-addressably on migrate', async () => {
     const r = await pool.query(
       `SELECT hash FROM weavekit_workflow_definitions WHERE object = 'wf_doc'`,

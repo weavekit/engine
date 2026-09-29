@@ -53,6 +53,8 @@ const noopDataAccess: ObjectDataAccess = {
   workflowStatus: async () => ({ state: 'draft', actions: [], workitems: [] }),
   acquireWorkflowLock: async () => ({ expiresAt: new Date() }),
   releaseWorkflowLock: async () => {},
+  workflowHistory: async () => ({ state: 'draft', approval: null, steps: [], workitems: [] }),
+  workflowTodos: async () => [],
 };
 
 const ARGS = {

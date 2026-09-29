@@ -22,8 +22,17 @@ export const WORKFLOW_ACTIONS = {
   WITHDRAW: 'withdraw',
   CANCEL: 'cancel',
   FORWARD: 'forward',
+  REACTIVATE: 'reactivate',
 } as const;
 export type WorkflowAction = (typeof WORKFLOW_ACTIONS)[keyof typeof WORKFLOW_ACTIONS];
+
+/** role name that may run admin-only actions (reactivate / future override) */
+export const WORKFLOW_ADMIN_ROLE = 'admin';
+
+/** true when the subject holds an admin role */
+export function isWorkflowAdmin(subject: IdentitySubject | undefined): boolean {
+  return subject !== undefined && subject.roles.includes(WORKFLOW_ADMIN_ROLE);
+}
 
 /** side-table `status` mirror values (map instance state → record status) */
 const SIDE_STATUS: Record<string, string> = {
@@ -462,6 +471,43 @@ export async function runWorkflowTransition(
     return { state: 'running', nodeId: entered.nodeId, toNodeId: entered.nodeId, fromNodeId: WORKFLOW_START_NODE };
   }
 
+  if (action === WORKFLOW_ACTIONS.REACTIVATE) {
+    if (!isWorkflowAdmin(subject)) {
+      throw new SchemaError('workflow.transition.denied', { object: def.name, role: subject?.roles.join(',') ?? '', action }, locale);
+    }
+    if (inst === undefined || inst.state === 'running') {
+      throw new SchemaError('workflow.transition.notAllowed', { object: def.name, action }, locale);
+    }
+    const wf = await resolveDefinition(client, def, inst.workflow_hash, locale);
+    const nodeId = (payload as { node?: unknown } | undefined)?.node;
+    const idx = typeof nodeId === 'string' ? wf.nodes.findIndex((n) => n.id === nodeId) : -1;
+    if (typeof nodeId !== 'string' || idx < 0) {
+      throw new SchemaError('workflow.node.unknown', { object: def.name, node: String(nodeId ?? '') }, locale);
+    }
+    const ctx: EnterCtx = { def, recordKey, wf, now, locale, prevStepId: null };
+    const entered = await enterNode(client, ctx, idx);
+    if ('finished' in entered) {
+      await updateInstance(client, def.name, recordKey, {
+        state: 'finished',
+        approval: 'approved',
+        finished_at: now,
+        current_step_id: null,
+        activated_at: now,
+      });
+      await mirrorSide(client, def.name, recordKey, 'finished', actor, now);
+      return { state: 'finished' };
+    }
+    await updateInstance(client, def.name, recordKey, {
+      state: 'running',
+      current_step_id: entered.stepId,
+      approval: null,
+      finished_at: null,
+      activated_at: now,
+    });
+    await mirrorSide(client, def.name, recordKey, 'running', actor, now);
+    return { state: 'running', nodeId: entered.nodeId, toNodeId: entered.nodeId };
+  }
+
   if (inst === undefined || inst.state !== 'running') {
     throw new SchemaError('workflow.transition.notAllowed', { object: def.name, action }, locale);
   }
@@ -734,4 +780,131 @@ export async function releaseWorkflowLock(
     subject?.id ?? '',
   ]);
 }
+
+/** one step in a record's workflow history */
+export interface WorkflowStepView {
+  id: string;
+  nodeId: string;
+  kind: string;
+  ordinal: number;
+  state: string;
+  approval: string | null;
+  enteredAt: Date;
+  finishedAt: Date | null;
+}
+
+/** one workitem in a record's workflow history */
+export interface WorkflowWorkitemHistory {
+  id: string;
+  stepId: string;
+  nodeId: string;
+  kind: string;
+  participant: string;
+  state: string;
+  approval: string | null;
+  action: string | null;
+  finisher: string | null;
+  delegant: string | null;
+  receiptor: string | null;
+  comment: string | null;
+  receivedAt: Date;
+  finishedAt: Date | null;
+  allowedAt: Date | null;
+}
+
+/** a record's full workflow history (steps + workitems) */
+export interface WorkflowHistory {
+  state: string;
+  approval: string | null;
+  steps: WorkflowStepView[];
+  workitems: WorkflowWorkitemHistory[];
+}
+
+/** read a record's workflow history (steps + workitems), oldest first */
+export async function getWorkflowHistory(
+  client: Pool | PoolClient,
+  def: WorkflowRuntimeOptions,
+  recordKey: string,
+): Promise<WorkflowHistory> {
+  const inst = await client.query(
+    `SELECT state, approval FROM ${q(T.WORKFLOW_INSTANCES)} WHERE object = $1 AND record_key = $2`,
+    [def.name, recordKey],
+  );
+  const instRow = inst.rows[0] as { state: string; approval: string | null } | undefined;
+  const steps = await client.query(
+    `SELECT id, node_id, kind, ordinal, state, approval, entered_at, finished_at
+       FROM ${q(T.WORKFLOW_STEPS)} WHERE object = $1 AND record_key = $2 ORDER BY ordinal`,
+    [def.name, recordKey],
+  );
+  const items = await client.query(
+    `SELECT id, step_id, node_id, kind, participant, state, approval, action, finisher, delegant, receiptor, comment, received_at, finished_at, allowed_at
+       FROM ${q(T.WORKFLOW_WORKITEMS)} WHERE object = $1 AND record_key = $2 ORDER BY received_at`,
+    [def.name, recordKey],
+  );
+  return {
+    state: instRow?.state ?? 'draft',
+    approval: instRow?.approval ?? null,
+    steps: (steps.rows as Record<string, unknown>[]).map((r) => ({
+      id: String(r.id),
+      nodeId: String(r.node_id),
+      kind: String(r.kind),
+      ordinal: Number(r.ordinal),
+      state: String(r.state),
+      approval: (r.approval as string | null) ?? null,
+      enteredAt: r.entered_at as Date,
+      finishedAt: (r.finished_at as Date | null) ?? null,
+    })),
+    workitems: (items.rows as Record<string, unknown>[]).map((r) => ({
+      id: String(r.id),
+      stepId: String(r.step_id),
+      nodeId: String(r.node_id),
+      kind: String(r.kind),
+      participant: String(r.participant),
+      state: String(r.state),
+      approval: (r.approval as string | null) ?? null,
+      action: (r.action as string | null) ?? null,
+      finisher: (r.finisher as string | null) ?? null,
+      delegant: (r.delegant as string | null) ?? null,
+      receiptor: (r.receiptor as string | null) ?? null,
+      comment: (r.comment as string | null) ?? null,
+      receivedAt: r.received_at as Date,
+      finishedAt: (r.finished_at as Date | null) ?? null,
+      allowedAt: (r.allowed_at as Date | null) ?? null,
+    })),
+  };
+}
+
+/** one pending workitem in a subject's cross-object inbox */
+export interface WorkflowTodo {
+  object: string;
+  recordKey: string;
+  workitemId: string;
+  nodeId: string;
+  kind: string;
+  state: string;
+}
+
+/** the subject's pending workitems across all objects (`approve` items awaiting action) */
+export async function getWorkflowTodos(
+  client: Pool | PoolClient,
+  subject: IdentitySubject | undefined,
+): Promise<WorkflowTodo[]> {
+  if (subject === undefined) return [];
+  const res = await client.query(
+    `SELECT object, record_key, id, node_id, kind, state
+       FROM ${q(T.WORKFLOW_WORKITEMS)}
+      WHERE participant = $1 AND kind = 'approve' AND state = 'active'
+      ORDER BY received_at`,
+    [subject.id],
+  );
+  return (res.rows as Record<string, unknown>[]).map((r) => ({
+    object: String(r.object),
+    recordKey: String(r.record_key),
+    workitemId: String(r.id),
+    nodeId: String(r.node_id),
+    kind: String(r.kind),
+    state: String(r.state),
+  }));
+}
+
 

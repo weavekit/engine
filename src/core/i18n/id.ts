@@ -244,6 +244,7 @@ export const id: Record<MessageKey, string> = {
 'workflow.node.invalid': 'Objek "{object}": node workflow {i} tidak valid ({value}) — diperlukan id snake_case yang unik, kind "approve"|"notify", dan assign.roles yang tidak kosong (mode "any"|"all" hanya pada node approve)',
 'workflow.rollback.notEarlier': 'Objek "{object}": target rollback "{value}" dari node {i} harus menunjuk node yang lebih awal dalam rantai',
 'workflow.assignee.none': 'Objek "{object}": node workflow "{node}" tidak menghasilkan penerima tugas',
+'workflow.node.unknown': 'Objek "{object}": node workflow "{node}" tidak dideklarasikan dalam definisi yang dipin',
 'workflow.withdraw.locked': 'Objek "{object}": tidak dapat menarik atau membatalkan saat "{holder}" sedang melihat catatan ini',
   'workflow.transition.unknown': 'objek "{object}": transisi workflow tidak dikenal "{action}"',
   'workflow.transition.notAllowed': 'objek "{object}": transisi "{action}" tidak diizinkan dari status "{from}"',

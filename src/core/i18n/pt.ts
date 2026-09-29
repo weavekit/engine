@@ -244,6 +244,7 @@ export const pt: Record<MessageKey, string> = {
 'workflow.node.invalid': 'Objeto "{object}": o nó de workflow {i} é inválido ({value}) — espera-se um id snake_case único, kind "approve"|"notify" e assign.roles não vazio (mode "any"|"all" apenas em nós approve)',
 'workflow.rollback.notEarlier': 'Objeto "{object}": o destino de reversão "{value}" do nó {i} deve nomear um nó anterior na cadeia',
 'workflow.assignee.none': 'Objeto "{object}": o nó de workflow "{node}" não resolveu para nenhum responsável',
+'workflow.node.unknown': 'Objeto "{object}": o nó de workflow "{node}" não está declarado na definição fixada',
 'workflow.withdraw.locked': 'Objeto "{object}": não é possível retirar ou cancelar enquanto "{holder}" está visualizando este registro',
   'workflow.transition.unknown': 'objeto "{object}": transição de workflow desconhecida "{action}"',
   'workflow.transition.notAllowed': 'objeto "{object}": a transição "{action}" não é permitida a partir do estado "{from}"',

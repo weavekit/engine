@@ -220,6 +220,15 @@ route('delete', (c) => `${c.prefix}/objects/{name}/{id}/workflow/lock`, op(OPENA
   parameters: [P.name, P.id],
   responses: { 200: ok('Released.', { type: 'object', properties: { released: { type: 'boolean' } } }), ...errors('403', '404') },
 }));
+route('get', (c) => `${c.prefix}/objects/{name}/{id}/workflow/history`, op(OPENAPI_TAGS.WORKFLOW, 'getWorkflowHistory', 'Workflow history for a record', {
+  description: 'Returns the instance state plus every step and workitem (oldest first).',
+  parameters: [P.name, P.id],
+  responses: { 200: ok('Workflow history.', GENERIC_OBJECT), ...errors('403', '404') },
+}));
+route('get', (c) => `${c.prefix}/workflow/todos`, op(OPENAPI_TAGS.WORKFLOW, 'listWorkflowTodos', 'Pending workitems for the caller', {
+  description: "Returns the caller's pending (`active`, `approve`) workitems across all objects.",
+  responses: { 200: ok('Pending workitems.', { type: 'object', properties: { items: { type: 'array', items: GENERIC_OBJECT } } }), ...errors('403') },
+}));
 
 // ---- Metadata / permissions / identities ----
 route('get', (c) => `${c.prefix}/metadata`, op(OPENAPI_TAGS.METADATA, 'getMetadata', 'Object descriptors for API clients', {

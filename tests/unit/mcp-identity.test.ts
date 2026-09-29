@@ -29,6 +29,8 @@ const noopDataAccess: ObjectDataAccess = {
   workflowStatus: async () => ({ state: 'draft', actions: [], workitems: [] }),
   acquireWorkflowLock: async () => ({ expiresAt: new Date() }),
   releaseWorkflowLock: async () => undefined,
+  workflowHistory: async () => ({ state: 'draft', approval: null, steps: [], workitems: [] }),
+  workflowTodos: async () => [],
 };
 
 type IdentitySource = Record<string, IdentitySubject> | ((ref: string) => IdentitySubject | null | Promise<IdentitySubject | null>);

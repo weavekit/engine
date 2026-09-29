@@ -243,6 +243,7 @@ export const zh: Record<MessageKey, string> = {
 'workflow.node.invalid': '对象 "{object}"：workflow 节点 {i} 无效（{value}）——需要唯一的 snake_case id、kind "approve"|"notify"，以及非空的 assign.roles（mode "any"|"all" 仅用于 approve 节点）',
 'workflow.rollback.notEarlier': '对象 "{object}"：节点 {i} 的回退目标 "{value}" 必须是链中更靠前的节点',
 'workflow.assignee.none': '对象 "{object}"：workflow 节点 "{node}" 未解析到任何办理人',
+'workflow.node.unknown': '对象 "{object}"：workflow 节点 "{node}" 不在钉住的定义中',
 'workflow.withdraw.locked': '对象 "{object}"："{holder}" 正在查看该记录，无法撤回或取消',
   'workflow.transition.unknown': '对象 "{object}"：未知的 workflow 转换 "{action}"',
   'workflow.transition.notAllowed': '对象 "{object}"：状态 "{from}" 不允许转换 "{action}"',

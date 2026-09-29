@@ -244,6 +244,7 @@ export const zhHant: Record<MessageKey, string> = {
 'workflow.node.invalid': '物件 "{object}"：workflow 節點 {i} 無效（{value}）——需要唯一的 snake_case id、kind "approve"|"notify"，以及非空的 assign.roles（mode "any"|"all" 僅用於 approve 節點）',
 'workflow.rollback.notEarlier': '物件 "{object}"：節點 {i} 的回退目標 "{value}" 必須是鏈中更靠前的節點',
 'workflow.assignee.none': '物件 "{object}"：workflow 節點 "{node}" 未解析到任何辦理人',
+'workflow.node.unknown': '物件 "{object}"：workflow 節點 "{node}" 不在釘住的定義中',
 'workflow.withdraw.locked': '物件 "{object}"："{holder}" 正在檢視該記錄，無法撤回或取消',
   'workflow.transition.unknown': '物件 "{object}"：未知的 workflow 轉換 "{action}"',
   'workflow.transition.notAllowed': '物件 "{object}"：狀態 "{from}" 不允許轉換 "{action}"',

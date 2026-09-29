@@ -45,6 +45,20 @@ export function registerWorkflowRoutes(
     return dataAccess.workflowStatus(name, id, { pool, registry, subject, locale });
   });
 
+  app.get(`${prefix}/objects/:name/:id/workflow/history`, async (request) => {
+    checkRateLimit(limiter, request, locale);
+    const subject = await authenticateRequest(authenticator, request, locale);
+    const { name, id } = request.params as { name: string; id: string };
+    requireWorkflow(name);
+    return dataAccess.workflowHistory(name, id, { pool, registry, subject, locale });
+  });
+
+  app.get(`${prefix}/workflow/todos`, async (request) => {
+    checkRateLimit(limiter, request, locale);
+    const subject = await authenticateRequest(authenticator, request, locale);
+    return { items: await dataAccess.workflowTodos({ pool, registry, subject, locale }) };
+  });
+
   app.post(`${prefix}/objects/:name/:id/workflow/lock`, async (request) => {
     checkRateLimit(limiter, request, locale);
     const subject = await authenticateRequest(authenticator, request, locale);

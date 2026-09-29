@@ -244,6 +244,7 @@ export const ja: Record<MessageKey, string> = {
 'workflow.node.invalid': 'オブジェクト "{object}"：workflow ノード {i} が無効です（{value}）— 一意な snake_case の id、kind "approve"|"notify"、空でない assign.roles が必要です（mode "any"|"all" は approve ノードのみ）',
 'workflow.rollback.notEarlier': 'オブジェクト "{object}"：ノード {i} のロールバック先 "{value}" はチェーン内のより前のノードである必要があります',
 'workflow.assignee.none': 'オブジェクト "{object}"：workflow ノード "{node}" の担当者が解決できませんでした',
+'workflow.node.unknown': 'オブジェクト "{object}"：workflow ノード "{node}" は固定された定義に存在しません',
 'workflow.withdraw.locked': 'オブジェクト "{object}"："{holder}" がこのレコードを閲覧中のため、撤回/取消できません',
   'workflow.transition.unknown': 'オブジェクト "{object}": 不明な workflow 遷移 "{action}"',
   'workflow.transition.notAllowed': 'オブジェクト "{object}": 状態 "{from}" から遷移 "{action}" は許可されていません',

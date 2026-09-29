@@ -244,6 +244,7 @@ export const de: Record<MessageKey, string> = {
 'workflow.node.invalid': 'Objekt "{object}": workflow-Knoten {i} ist ungültig ({value}) — erwartet wird eine eindeutige snake_case-id, kind "approve"|"notify" und ein nicht leeres assign.roles (mode "any"|"all" nur für approve-Knoten)',
 'workflow.rollback.notEarlier': 'Objekt "{object}": Rücksetzungsziel "{value}" von Knoten {i} muss einen früheren Knoten in der Kette benennen',
 'workflow.assignee.none': 'Objekt "{object}": workflow-Knoten "{node}" hat keine zugewiesenen Bearbeiter',
+'workflow.node.unknown': 'Objekt "{object}": workflow-Knoten "{node}" ist in der fixierten Definition nicht deklariert',
 'workflow.withdraw.locked': 'Objekt "{object}": Rückzug/Abbruch nicht möglich, während "{holder}" diesen Datensatz ansieht',
   'workflow.transition.unknown': 'Objekt "{object}": unbekannter Workflow-Übergang "{action}"',
   'workflow.transition.notAllowed': 'Objekt "{object}": Übergang "{action}" ist aus Zustand "{from}" nicht erlaubt',

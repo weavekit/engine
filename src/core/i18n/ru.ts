@@ -244,6 +244,7 @@ export const ru: Record<MessageKey, string> = {
 'workflow.node.invalid': 'Объект "{object}": узел workflow {i} недопустим ({value}) — требуется уникальный snake_case id, kind "approve"|"notify" и непустой assign.roles (mode "any"|"all" только для узлов approve)',
 'workflow.rollback.notEarlier': 'Объект "{object}": цель отката "{value}" узла {i} должна указывать на более ранний узел цепочки',
 'workflow.assignee.none': 'Объект "{object}": узел workflow "{node}" не сопоставлен ни с одним исполнителем',
+'workflow.node.unknown': 'Объект "{object}": узел workflow "{node}" не объявлен в зафиксированном определении',
 'workflow.withdraw.locked': 'Объект "{object}": нельзя отозвать или отменить, пока "{holder}" просматривает эту запись',
   'workflow.transition.unknown': 'объект "{object}": неизвестный переход workflow "{action}"',
   'workflow.transition.notAllowed': 'объект "{object}": переход "{action}" не разрешён из состояния "{from}"',

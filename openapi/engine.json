@@ -1334,6 +1334,95 @@
         }
       }
     },
+    "/api/objects/{name}/{id}/workflow/history": {
+      "get": {
+        "tags": [
+          "Workflow"
+        ],
+        "operationId": "getWorkflowHistory",
+        "summary": "Workflow history for a record",
+        "description": "Returns the instance state plus every step and workitem (oldest first).",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Object name from `objects/<name>/schema.json`."
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Record id — the `record_key` encoding of the (possibly composite) primary key; returned as `weave_id`."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Workflow history.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/workflow/todos": {
+      "get": {
+        "tags": [
+          "Workflow"
+        ],
+        "operationId": "listWorkflowTodos",
+        "summary": "Pending workitems for the caller",
+        "description": "Returns the caller's pending (`active`, `approve`) workitems across all objects.",
+        "responses": {
+          "200": {
+            "description": "Pending workitems.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": true
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
     "/api/metadata": {
       "get": {
         "tags": [

@@ -282,6 +282,22 @@ export function withRbac(inner: ObjectDataAccess, options: { audit?: AuditSink }
       return inner.releaseWorkflowLock(objectName, id, ctx);
     },
 
+    async workflowHistory(objectName: string, id: string, ctx: DataAccessContext) {
+      if (ctx.subject === undefined) return inner.workflowHistory(objectName, id, ctx);
+      const def = requireDef(ctx, objectName);
+      const p = resolvePermissionFor(ctx.registry, def, ctx.subject.roles);
+      if (p === undefined || p.read === undefined) {
+        const err = new SchemaError('rbac.denied.read', { object: objectName, role: ctx.subject.roles.join(',') }, ctx.locale);
+        denied(audit, ctx, DATA_ACTIONS.READ, objectName, id, err);
+        throw err;
+      }
+      return inner.workflowHistory(objectName, id, scopedCtx(ctx, objectName, p.read));
+    },
+
+    async workflowTodos(ctx: DataAccessContext) {
+      return inner.workflowTodos(ctx);
+    },
+
     async delete(objectName: string, id: string, ctx: DataAccessContext): Promise<void> {
       if (ctx.subject === undefined) return inner.delete(objectName, id, ctx);
       const def = requireDef(ctx, objectName);

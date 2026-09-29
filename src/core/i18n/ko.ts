@@ -244,6 +244,7 @@ export const ko: Record<MessageKey, string> = {
 'workflow.node.invalid': '개체 "{object}": workflow 노드 {i}이(가) 잘못되었습니다({value}) — 고유한 snake_case id, kind "approve"|"notify", 비어 있지 않은 assign.roles가 필요합니다(mode "any"|"all"는 approve 노드에만 적용)',
 'workflow.rollback.notEarlier': '개체 "{object}": 노드 {i}의 롤백 대상 "{value}"은(는) 체인에서 더 앞선 노드여야 합니다',
 'workflow.assignee.none': '개체 "{object}": workflow 노드 "{node}"의 담당자가 없습니다',
+'workflow.node.unknown': '개체 "{object}": workflow 노드 "{node}"이(가) 고정된 정의에 없습니다',
 'workflow.withdraw.locked': '개체 "{object}": "{holder}"이(가) 이 레코드를 보고 있어 철회/취소할 수 없습니다',
   'workflow.transition.unknown': '개체 "{object}": 알 수 없는 workflow 전환 "{action}"',
   'workflow.transition.notAllowed': '개체 "{object}": 상태 "{from}"에서 전환 "{action}"이(가) 허용되지 않습니다',

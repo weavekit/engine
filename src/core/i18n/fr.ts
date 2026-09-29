@@ -244,6 +244,7 @@ export const fr: Record<MessageKey, string> = {
 'workflow.node.invalid': 'Objet "{object}" : le nœud workflow {i} est invalide ({value}) — un id snake_case unique, kind "approve"|"notify" et un assign.roles non vide sont attendus (mode "any"|"all" uniquement sur les nœuds approve)',
 'workflow.rollback.notEarlier': 'Objet "{object}" : la cible de retour "{value}" du nœud {i} doit désigner un nœud antérieur de la chaîne',
 'workflow.assignee.none': 'Objet "{object}" : le nœud workflow "{node}" n’a aucun destinataire',
+'workflow.node.unknown': 'Objet "{object}" : le nœud workflow "{node}" n’est pas déclaré dans la définition épinglée',
 'workflow.withdraw.locked': 'Objet "{object}" : impossible de retirer ou d’annuler pendant que "{holder}" consulte cet enregistrement',
   'workflow.transition.unknown': 'objet "{object}" : transition de workflow inconnue "{action}"',
   'workflow.transition.notAllowed': 'objet "{object}" : transition "{action}" non autorisée depuis "{from}"',

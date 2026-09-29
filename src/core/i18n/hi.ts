@@ -244,6 +244,7 @@ export const hi: Record<MessageKey, string> = {
 'workflow.node.invalid': 'ऑब्जेक्ट "{object}": workflow नोड {i} अमान्य है ({value}) — एक अद्वितीय snake_case id, kind "approve"|"notify", और गैर-खाली assign.roles अपेक्षित है (mode "any"|"all" केवल approve नोड्स पर)',
 'workflow.rollback.notEarlier': 'ऑब्जेक्ट "{object}": नोड {i} का रोलबैक लक्ष्य "{value}" श्रृंखला में पहले के नोड का होना चाहिए',
 'workflow.assignee.none': 'ऑब्जेक्ट "{object}": workflow नोड "{node}" के लिए कोई निर्धारिती नहीं मिला',
+'workflow.node.unknown': 'ऑब्जेक्ट "{object}": workflow नोड "{node}" पिन की गई परिभाषा में घोषित नहीं है',
 'workflow.withdraw.locked': 'ऑब्जेक्ट "{object}": "{holder}" इस रिकॉर्ड को देख रहे हैं, तब वापस लेना/रद्द करना संभव नहीं',
   'workflow.transition.unknown': 'ऑब्जेक्ट "{object}": अज्ञात workflow संक्रमण "{action}"',
   'workflow.transition.notAllowed': 'ऑब्जेक्ट "{object}": स्थिति "{from}" से संक्रमण "{action}" की अनुमति नहीं है',

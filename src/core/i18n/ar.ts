@@ -244,6 +244,7 @@ export const ar: Record<MessageKey, string> = {
 'workflow.node.invalid': 'الكائن "{object}": العقدة {i} في workflow غير صالحة ({value}) — يُتوقع معرّف snake_case فريد، وkind "approve"|"notify"، وassign.roles غير فارغ (mode "any"|"all" لعُقد approve فقط)',
 'workflow.rollback.notEarlier': 'الكائن "{object}": يجب أن تشير وجهة الرجوع "{value}" للعقدة {i} إلى عقدة أسبق في السلسلة',
 'workflow.assignee.none': 'الكائن "{object}": لم يتم تعيين أي مسؤول للعقدة "{node}" في workflow',
+'workflow.node.unknown': 'الكائن "{object}": العقدة "{node}" في workflow غير معلنة في التعريف المثبّت',
 'workflow.withdraw.locked': 'الكائن "{object}": لا يمكن السحب أو الإلغاء أثناء عرض "{holder}" لهذا السجل',
   'workflow.transition.unknown': 'الكائن "{object}": انتقال workflow غير معروف "{action}"',
   'workflow.transition.notAllowed': 'الكائن "{object}": الانتقال "{action}" غير مسموح من الحالة "{from}"',

@@ -10,7 +10,17 @@ import type { PolicyApprovals } from '../tools/policies.js';
 import { buildCountSql, buildFindSql, scopeSuffix, type BuildContext } from './builder.js';
 import { deleteDetailsChildren, insertDetails } from './details.js';
 import { insertLinks, replaceLinks } from './link.js';
-import { runWorkflowTransition, getWorkflowStatus, acquireWorkflowLock, releaseWorkflowLock, type WorkflowStatus } from './workflow.js';
+import {
+  runWorkflowTransition,
+  getWorkflowStatus,
+  acquireWorkflowLock,
+  releaseWorkflowLock,
+  getWorkflowHistory,
+  getWorkflowTodos,
+  type WorkflowStatus,
+  type WorkflowHistory,
+  type WorkflowTodo,
+} from './workflow.js';
 import { computeFormulas, type FormulaAuth } from './formula.js';
 import { generateSeqNo } from './seqno.js';
 import type { DataAccessContext, FindOptions, FindResult, ObjectDataAccess } from './types.js';
@@ -762,6 +772,20 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
   async releaseWorkflowLock(objectName: string, id: string, ctx: DataAccessContext): Promise<void> {
     const def = requireDef(ctx, objectName);
     await releaseWorkflowLock(ctx.pool, def, id, ctx.subject);
+  }
+
+  /** Read a record's workflow history (steps + workitems). */
+  async workflowHistory(objectName: string, id: string, ctx: DataAccessContext): Promise<WorkflowHistory> {
+    const def = requireDef(ctx, objectName);
+    if (def.workflow === undefined) {
+      throw new SchemaError('workflow.transition.unknown', { object: objectName, action: 'history' }, ctx.locale);
+    }
+    return getWorkflowHistory(ctx.client ?? ctx.pool, def, id);
+  }
+
+  /** The subject's pending workitems across all objects. */
+  async workflowTodos(ctx: DataAccessContext): Promise<WorkflowTodo[]> {
+    return getWorkflowTodos(ctx.pool, ctx.subject);
   }
 
   /**

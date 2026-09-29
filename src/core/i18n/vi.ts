@@ -244,6 +244,7 @@ export const vi: Record<MessageKey, string> = {
 'workflow.node.invalid': 'Đối tượng "{object}": nút workflow {i} không hợp lệ ({value}) — cần id snake_case duy nhất, kind "approve"|"notify", và assign.roles không rỗng (mode "any"|"all" chỉ trên nút approve)',
 'workflow.rollback.notEarlier': 'Đối tượng "{object}": đích hoàn tác "{value}" của nút {i} phải trỏ tới một nút trước đó trong chuỗi',
 'workflow.assignee.none': 'Đối tượng "{object}": nút workflow "{node}" không có người được giao',
+'workflow.node.unknown': 'Đối tượng "{object}": nút workflow "{node}" không được khai báo trong định nghĩa đã ghim',
 'workflow.withdraw.locked': 'Đối tượng "{object}": không thể thu hồi hoặc hủy khi "{holder}" đang xem bản ghi này',
   'workflow.transition.unknown': 'đối tượng "{object}": chuyển đổi workflow không xác định "{action}"',
   'workflow.transition.notAllowed': 'đối tượng "{object}": chuyển đổi "{action}" không được phép từ trạng thái "{from}"',
