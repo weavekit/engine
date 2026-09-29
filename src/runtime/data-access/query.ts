@@ -740,7 +740,16 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
       } else {
         await this.workflowTimers?.cancel(objectName, id).catch(() => {});
       }
-      return (await this.findOne<T>(objectName, id, ctx)) as T;
+      const updated = await this.findOne<Record<string, unknown>>(objectName, id, ctx);
+      const transitionInfo = { from: outcome.fromNodeId ?? '', to: outcome.toNodeId ?? '' };
+      const warnings: string[] = [];
+      if (updated !== null) {
+        await this.runAfterHook(SCRIPT_HOOKS.ON_EXIT, DATA_ACTIONS.TRANSITION, objectName, updated, {}, ctx, warnings, id, { transition: transitionInfo, state: outcome.fromNodeId });
+        await this.runAfterHook(SCRIPT_HOOKS.ON_ENTER, DATA_ACTIONS.TRANSITION, objectName, updated, {}, ctx, warnings, id, { transition: transitionInfo, state: outcome.toNodeId });
+        await this.runAfterHook(SCRIPT_HOOKS.AFTER_TRANSITION, DATA_ACTIONS.TRANSITION, objectName, updated, {}, ctx, warnings, id, { transition: transitionInfo, state: outcome.toNodeId });
+      }
+      if (warnings.length > 0) ctx.onWarnings?.(warnings);
+      return updated as T;
     } catch (err) {
       if (owned) await client.query('ROLLBACK');
       auditWrite(this.audit, ctx, DATA_ACTIONS.TRANSITION, objectName, id, { action }, err);

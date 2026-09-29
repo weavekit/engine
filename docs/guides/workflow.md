@@ -1,184 +1,150 @@
 # Workflow
 
-A **workflow** is a declarative state machine for one object. Each record sits in a named state and
-moves between states only through declared **transitions**. It is **opt-in**: add the switch to
-`objects/<name>/schema.json`, then put the machine in a sibling `objects/<name>/workflow.json`:
+A **workflow** is a single-line approval chain for one object. It is **opt-in** and, crucially,
+**non-invasive**: instance state, the current node and every participant's task live in engine-owned
+tables — the customer's table is **never altered and never written**, so a workflow can be layered on
+an existing database. Each record runs through one instance (which can be re-activated), one node at
+a time.
+
+## Enabling
+
+Turn the switch on in `objects/<name>/schema.json` and put the chain in a sibling
+`objects/<name>/workflow.json`:
 
 ```json
 {
   "name": "order",
   "workflowEnabled": true,
-  "fields": [
-    { "name": "id", "type": "string", "primary": true },
-    { "name": "status", "type": "enum", "options": ["draft", "pending", "approved"] }
+  "fields": [{ "name": "id", "type": "string", "primary": true }]
+}
+```
+
+The fastest way is the CLI: `weave workflow:open <object>` scaffolds a starter chain (`--roles a,b`
+sets the node roles); `weave workflow:close <object>` turns it off (the file is kept). For a
+step-by-step case see [Governing a lifecycle](../practices/workflow-end-to-end.md).
+
+`workflowEnabled` is the source of truth: absent or `false` means disabled — the definition file is
+ignored and the workflow routes `404`, while the file is kept. `true` without a `workflow.json` fails
+validation (`workflow.definition.missing`).
+
+## Definition (`workflow.json`, format v2)
+
+```json
+{
+  "schemaVersion": 2,
+  "version": 1,
+  "nodes": [
+    { "id": "cc", "kind": "notify", "assign": { "roles": ["finance"] } },
+    { "id": "finance", "name": { "en": "Finance review" },
+      "assign": { "roles": ["finance"], "mode": "any" },
+      "onReject": null, "onWithdraw": null,
+      "onTimeout": { "after": "3d", "action": "reject" } },
+    { "id": "manager", "assign": { "roles": ["manager"], "mode": "all" }, "onReject": "finance" }
   ]
 }
 ```
 
-```json
-{
-  "stateField": "status",
-  "initial": "draft",
-  "states": [{ "name": "draft" }, { "name": "pending" }, { "name": "approved" }],
-  "transitions": [
-    { "action": "submit", "from": "draft", "to": "pending" },
-    { "action": "approve", "from": "pending", "to": "approved", "roles": ["manager"] }
-  ]
-}
-```
+- **`nodes`** is an ordered chain. The **start node is implicit** (`__start__`, the originator) — it is
+  never authored and does not appear in `nodes`.
+- **`kind`** — `approve` (default) or `notify` (抄送: no approval, advances immediately).
+- **`assign.roles`** (required) are resolved to internal users through `weavekit_user.roles` (see B).
+  A node that resolves to **no users fails closed** (`workflow.assignee.none`).
+- **`assign.mode`** — `any` (或签, default: the first decision settles the node) or `all` (会签: every
+  assignee must approve). `notify` nodes never use `all`.
+- **`onReject` / `onWithdraw`** name an **earlier** node id to roll back to; absent = the start node.
+- **`onTimeout`** — `{ after: "<duration>", action: "approve" | "reject" }` (approve nodes only).
 
-The fastest way to get here is the CLI: `weave workflow:open <object>` scaffolds the switch, a
-`status` enum field (unless `--state-field` reuses an existing single-valued enum) and a starter
-machine; `weave workflow:close <object>` turns it off again (the file is kept). For a step-by-step
-case see [Putting a governed lifecycle on an existing object](../practices/workflow-end-to-end.md).
+There is **no state field on the object** and no direct write path: a record's workflow position is
+engine-owned, so it can never be bypassed by `PATCH` / `update_record`.
 
-`workflowEnabled` is the source of truth: **absent or `false` means disabled** — the definition file
-is ignored (the state field behaves as a plain writable enum and the workflow routes 404), while the
-file and its data are kept. Setting it `true` without a `workflow.json` fails validation
-(`workflow.definition.missing`).
+## The three layers
 
-`stateField` must name a **single-valued `enum` field** on the object, and its `options` must list
-every state. New records start in `initial`. The state field is engine-managed: it is **read-only**
-except through a transition, so the machine can never be bypassed by a plain
-`PATCH`/`update_record`.
+| Layer | Table | One row per | Notes |
+| --- | --- | --- | --- |
+| Instance | `weavekit_workflow_instances` | record (`object`, `record_key`) | `running` / `finished` / `canceled`; pins `workflow_hash` |
+| Step | `weavekit_workflow_steps` | node entry (incl. re-visits) | `active` / `finished` / `skipped` / `canceled` |
+| Workitem | `weavekit_workflow_workitems` | assignee (user) | `waiting` / `active` / `done` / `canceled` / `transferred`; carries `approval`, `comment`, `finisher`, `delegant`, `receiptor` |
 
-Add labels for display names and an optional role gate per transition:
+The object's side table (`weavekit_record__<object>.status`) is a **read-only mirror** of the instance
+lifecycle: no instance → `draft`, `running` → `running`, `finished` → `effective`, `canceled` →
+`canceled`. After `submit` the record **never returns to `draft`** — a rollback only moves the chain
+back to a node (or the start node), where the originator edits in place.
 
-```json
-{
-  "name": "pending",
-  "labels": { "en": "Pending review", "zh": "待审核" }
-}
-```
+## Actions
 
-```json
-{ "action": "approve", "from": "pending", "to": "approved", "roles": ["manager"] }
-```
-
-```json
-{ "action": "publish", "from": "approved", "to": "published", "requiresApproval": true }
-```
-
-- **`roles`** (transition-level) restricts who may fire it; when omitted, any identity allowed to
-  update the object may fire it.
-- **`requiresApproval: true`** holds the transition until it is approved (see below).
-- **Audit & live events** — every transition is recorded as a `transition` audit event (with the
-  `action`, `from` and `to`) and published on the live channel as `record.transitioned`
-  (`{ object, id, from, to, action }`), alongside the generic `record.updated`.
-
-## Guardrails and approvals
-
-When the [open contract](custom-tools-and-guardrails.md) is enabled (`config.tools`), its guardrail
-policies and approval queue also apply to transitions. The engine passes
-`ctx.action = workflow.transition.<object>.<action>`, so a policy self-filters:
-
-```ts
-export default {
-  name: 'no-big-refunds',
-  decide(ctx) {
-    if (!ctx.action.startsWith('workflow.transition.')) return { allow: true };
-    return { allow: false, requireApproval: true, approvalKey: 'refund-approval' };
-  },
-};
-```
-
-- A `deny` decision fails the transition with `400 mcp.policy.denied`.
-- A `requireApproval` decision (or a transition's own `requiresApproval: true`) suspends it: the
-  caller gets `409 workflow.transition.pending` with an `approvalKey`; an admin approves it through
-  the [approval queue](approvals.md), and the caller retries the same transition.
-- If a transition requires approval but no approval queue is configured, it **fails closed**
-  (`workflow.approval.unavailable`) rather than firing.
-
-## Hooks
-
-If the [script subsystem](script-hooks.md) is enabled, an object can react to transitions in
-`objects/<name>/server.js`:
-
-| Hook | When | `this` |
+| Action | By | Effect |
 | --- | --- | --- |
-| `beforeTransition` | inside the transaction, before the write | `this.transition` (`{ from, to }`), `this.state` (target); may **return changes** to persist with the new state |
-| `afterTransition` | after commit | `this.transition`, `this.state` (target) |
-| `onExit` | after commit, when leaving a state | `this.state` (the state being left) |
-| `onEnter` | after commit, when entering a state | `this.state` (the state entered) |
-
-A `beforeTransition` throw aborts the transition (the state is unchanged); `afterTransition` /
-`onEnter` / `onExit` throws are non-fatal warnings (the transition is already committed).
-
-```js
-// objects/ticket/server.js
-export function onEnter() {
-  if (this.state === 'approved') this.changes.approved_at = new Date().toISOString();
-  return this.changes;
-}
-```
+| `submit` | originator | starts the instance (or resubmits from the start node); enters `nodes[0]` |
+| `approve` | a workitem assignee | advances (或签: first approval; 会签: all approvals) |
+| `reject` | a workitem assignee | rolls back to `onReject` (default: the start node) |
+| `withdraw` | a workitem assignee or the originator | rolls back to `onWithdraw` (default: the start node) |
+| `cancel` | the originator | terminates the instance (`canceled`) |
+| `forward` | a workitem assignee | hands the item to another user (`{ to: { userId } }`); the source is marked `transferred` |
+| `reactivate` | an admin (`admin` role) | re-opens a terminal instance at a chosen node (same pinned revision) |
 
 ## Timeouts (`onTimeout`)
 
-A state can declare a timeout; the clock starts when a record enters the state:
-
-```json
-{ "name": "pending", "onTimeout": { "after": "7d", "action": "expire" } }
-```
-
-`after` is a duration (`90s`, `30m`, `12h`, `7d`, `2w`, or a bare number of ms). Enable the scheduler:
+Enable the scheduler:
 
 ```ts
 export default { subsystems: { workflow: { enabled: true } } };
 ```
 
-The engine keeps a durable timer per record in `weavekit_workflow_timers` (PostgreSQL, claimed with
-`FOR UPDATE SKIP LOCKED`, so multiple instances never double-fire). When a timer is due the engine
-dispatches the `onTimeout` script hook (if `server.js` defines one) and then fires the declared
-`action` (if any) as a system transition. Entering a state with `onTimeout` arms a timer; leaving it
-(any transition) or deleting the record cancels it.
+Entering a node with `onTimeout` arms a durable timer in `weavekit_workflow_timers` (PostgreSQL,
+claimed with `FOR UPDATE SKIP LOCKED`, so multiple instances never double-fire); leaving the node
+cancels it. When due, the engine dispatches the `onTimeout` script hook (if any) and fires the
+declared auto-action as the `system` actor. Options: `pollMs` (30000), `batchSize` (50), `backend` (a
+pluggable `WorkflowBackend`; enterprise/HA seam).
 
-`subsystems.workflow` options: `pollMs` (default 30000), `batchSize` (default 50), and `backend` — a
-`WorkflowBackend` carrying a pluggable `WorkflowTimerStore` (the enterprise seam; the engine ships
-the PostgreSQL store and never imports a non-PG one).
+## Hooks
+
+With the [script subsystem](script-hooks.md) enabled, `objects/<name>/server.js` can react to
+transitions:
+
+| Hook | When | `this` |
+| --- | --- | --- |
+| `onExit` | after commit, leaving a node | `this.transition` (`{ from, to }` node ids), `this.state` (node left) |
+| `onEnter` | after commit, entering a node | `this.transition`, `this.state` (node entered) |
+| `afterTransition` | after commit | `this.transition`, `this.state` |
+| `onTimeout` | when a node timer fires | `this.state` (node) |
+
+Throws are non-fatal warnings (the transition is already committed). `beforeTransition` is **not**
+dispatched: the workflow no longer writes a customer state field, so there is no pre-commit record
+change to intercept.
 
 ## Versions & evolution
 
-`workflow.json` carries two independent versions, and the engine adds a third identity:
+`workflow.json` carries an on-disk `schemaVersion` (migrated by `weave workflow:upgrade`) and an
+optional author `version`; the engine derives a **semantic hash** over `{ version, nodes }`. Every
+`weave migrate` content-addresses the current definition into `weavekit_workflow_definitions`
+(append-only), and each instance **pins** the hash it started under — so a running record keeps
+executing its original chain even after the file changes. New records use the file's current version.
 
-- **`schemaVersion`** — the on-disk format version, stamped and migrated by `weave workflow:upgrade`.
-- **`version`** — an optional author-managed definition revision.
-- a **semantic hash** computed over the active definition (state field, initial, states, transitions
-  and `version`). All three are surfaced in the descriptor, in every `record.transitioned` event and
-  `transition` audit event, and on each timer — so history stays interpretable after the machine changes.
-
-The engine runs a **single live definition** (it does not keep several revisions in flight). To evolve
-it safely:
-
-- **Adding** states/transitions is safe. Adding a state also adds an `enum` option; `weave migrate`
-  applies the additive DDL when the object sets `alter: true`.
-- **Removing or renaming** a state leaves records stranded in it. Declare a remap and apply it:
-
-  ```json
-  { "migrations": [{ "from": "draft", "to": "pending" }] }
-  ```
-
-  `weave workflow:migrate <object>` runs `UPDATE <table> SET "<stateField>" = to WHERE "<stateField>" = from`
-  for each remap (use `--dry-run` first), reports any remaining **orphan** states, and writes a
-  `workflow.migrated` audit event. `from` must be an enum option that is no longer a declared state and
-  `to` must be a declared state; the enum option is left in place, so no destructive DDL is needed.
-- Changing `initial` only affects new records; existing records keep their state.
-- Disabling the workflow (`weave workflow:close`) keeps the definition and the data untouched.
+- **`weave workflow:switch <object> --revision <seq>`** writes a registered revision back to
+  `workflow.json` (affecting new records only). (`--revision` — `--version` is reserved by the CLI.)
+- **Adding** nodes is safe. **Removing/renaming** only affects new records; running records keep their
+  pinned revision and are unaffected.
 
 ## REST
 
 ```
-GET  {prefix}/objects/:name/:id/workflow              → { state, initial, actions: [{ action, to, labels? }] }
-POST {prefix}/objects/:name/:id/transitions/:action   → the updated record
+GET    {prefix}/objects/:name/:id/workflow              → { state, node?, approval?, actions[], workitems[] }
+POST   {prefix}/objects/:name/:id/workflow/:action      → run an action (body { comment } / { to:{userId} })
+POST   {prefix}/objects/:name/:id/workflow/lock         → acquire/renew the presence lock
+DELETE {prefix}/objects/:name/:id/workflow/lock         → release the presence lock
+GET    {prefix}/objects/:name/:id/workflow/history      → instance + steps + workitems
+GET    {prefix}/workflow/todos                          → the caller's pending workitems
 ```
 
-`actions` lists only the transitions fireable from the record's current state by the caller's roles —
-ideal for rendering the available buttons. `POST` returns `404 workflow.transition.unknown` for an
-unknown action, `409 workflow.transition.notAllowed` when the action exists but not from the current
-state, and `403 workflow.transition.denied` when the caller's roles are not permitted.
+`actions` lists only what the caller may do now. Errors: `404 workflow.transition.unknown`,
+`409 workflow.transition.notAllowed`, `403 workflow.transition.denied`, `409 workflow.withdraw.locked`.
+
+The **presence lock** (TTL 60s, renewed by the UI heartbeat) blocks `withdraw`/`cancel` while another
+participant has the record open — closing the page (or the lease expiring) releases it.
 
 ## Permissions
 
-A transition runs through the same RBAC as `update`: the identity needs an `update` permission on the
-object and is scoped to the rows it may read. `roles` on a transition is an additional, tighter gate.
-Writing the state field directly (via `PATCH` or a script/tool) fails with
-`400 workflow.transition.required`.
+An action runs through the same RBAC as `update` (an `update` permission + the caller's row scope), on
+top of the **workitem gate**: an `approve`/`reject`/`forward` needs the caller to be the assignee of an
+open workitem (admins may `reactivate`). Audit records a `transition` event (`action`, `from`, `to`,
+`workflowHash`) and the live channel publishes `record.transitioned`.

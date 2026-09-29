@@ -109,10 +109,9 @@ export const WORKFLOW_TIMER_DEFAULTS = {
 export interface WorkflowTimer {
   object: string;
   id: string;
-  state: string;
+  /** the current node id the timeout is armed for */
+  nodeId: string;
   dueAt: Date;
-  /** definition revision the timer was armed under (traceability) */
-  workflowVersion?: number;
   /** semantic hash of the definition the timer was armed under */
   workflowHash?: string;
 }

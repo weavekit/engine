@@ -235,10 +235,9 @@ const workflowTimers = (): ExpectedTable => ({
   name: SYSTEM_TABLES.WORKFLOW_TIMERS,
   columns: [
     col('object', 'TEXT', { notNull: true, primary: true }),
-    col('id', 'TEXT', { notNull: true, primary: true }),
-    col('state', 'TEXT', { notNull: true }),
+    col('record_key', 'TEXT', { notNull: true, primary: true }),
+    col('node_id', 'TEXT', { notNull: true }),
     col('due_at', 'TIMESTAMPTZ', { notNull: true }),
-    col('workflow_version', 'INTEGER'),
     col('workflow_hash', 'TEXT'),
   ],
   fks: [],

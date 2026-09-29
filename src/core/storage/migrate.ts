@@ -192,6 +192,15 @@ export async function migrate(registry: ObjectRegistry, options: MigrateOptions 
     // engine-owned system tables (metadata cache / seq / audit / approvals /
     // timers / counters) + their ACL hardening: provisioned here (and only
     // here) so the runtime never runs DDL and can be least-privileged.
+    // one-time reshape of the legacy workflow timer table
+    // (id/state/workflow_version -> record_key/node_id): engine-owned and
+    // transient, so drop+recreate is safe (there are no users yet).
+    const legacyTimers = actual.get(SYSTEM_TABLES.WORKFLOW_TIMERS);
+    const dropLegacyTimers =
+      legacyTimers !== undefined &&
+      legacyTimers.columns.some((c) => c.name === 'state') &&
+      !legacyTimers.columns.some((c) => c.name === 'record_key');
+    if (dropLegacyTimers) actual.delete(SYSTEM_TABLES.WORKFLOW_TIMERS);
     const systemStatements = diffAll(buildSystemTables(), actual);
     const hardening = (await publicHasTruncate(pool, SYSTEM_TABLES.AUDIT)) ? systemHardeningStatements() : [];
 
@@ -259,6 +268,7 @@ export async function migrate(registry: ObjectRegistry, options: MigrateOptions 
 
     const allStatements = [
       ...enumStatements,
+      ...(dropLegacyTimers ? [`DROP TABLE ${q(SYSTEM_TABLES.WORKFLOW_TIMERS)};`] : []),
       ...statements,
       ...metaStatements,
       ...linkStatements,

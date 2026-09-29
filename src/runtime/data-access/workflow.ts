@@ -907,4 +907,52 @@ export async function getWorkflowTodos(
   }));
 }
 
+/**
+ * Fire a node's `onTimeout` action (system actor): approve advances, reject
+ * rolls back. Stale timers (the record already left the node) are ignored.
+ * Returns the node the record is now at so the caller can re-arm the timer.
+ */
+export async function advanceOnTimeout(
+  client: PoolClient,
+  def: WorkflowRuntimeOptions,
+  recordKey: string,
+  nodeId: string,
+  action: 'approve' | 'reject',
+  locale: Locale | undefined,
+): Promise<{ state: 'running' | 'finished'; nodeId?: string }> {
+  const now = new Date();
+  const inst = await loadInstance(client, def.name, recordKey);
+  if (inst === undefined || inst.state !== 'running') return { state: 'running' };
+  const step = await loadActiveStep(client, inst.current_step_id);
+  if (step === undefined || step.node_id !== nodeId) return { state: 'running' };
+  const wf = await resolveDefinition(client, def, inst.workflow_hash, locale);
+  const node = wf.nodes.find((n) => n.id === step.node_id);
+  const ctx: EnterCtx = { def, recordKey, wf, now, locale, prevStepId: step.id };
+
+  if (action === 'reject') {
+    await cancelOpenWorkitems(client, step.id, now);
+    await closeStep(client, step.id, 'finished', 'rejected', now);
+    const outcome = await rollbackTo(client, ctx, node, step.id, WORKFLOW_ACTIONS.REJECT, 'system', now);
+    return { state: 'running', ...(outcome.nodeId === undefined ? {} : { nodeId: outcome.nodeId }) };
+  }
+
+  await cancelOpenWorkitems(client, step.id, now);
+  await closeStep(client, step.id, 'finished', 'approved', now);
+  const idx = node === undefined ? wf.nodes.length : nodeIndexOf(wf, node.id);
+  const entered = await enterNode(client, ctx, idx + 1);
+  if ('finished' in entered) {
+    await updateInstance(client, def.name, recordKey, {
+      state: 'finished',
+      approval: 'approved',
+      finished_at: now,
+      current_step_id: null,
+    });
+    await mirrorSide(client, def.name, recordKey, 'finished', 'system', now);
+    return { state: 'finished' };
+  }
+  await updateInstance(client, def.name, recordKey, { current_step_id: entered.stepId, state: 'running' });
+  await mirrorSide(client, def.name, recordKey, 'running', 'system', now);
+  return { state: 'running', nodeId: entered.nodeId };
+}
+
 
