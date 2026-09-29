@@ -50,6 +50,7 @@ import {
   registerGuardrailsRoutes,
   registerIdentitiesRoutes,
   registerWorkflowRoutes,
+  registerWorkflowSourceRoutes,
   setErrorHandlers,
   type RestOptions,
 } from '../adapters/rest/index.js';
@@ -679,6 +680,12 @@ export async function buildEngineFromRegistry(
     );
     // workflow transitions — available for any object declaring objects/<name>/workflow.json
     registerWorkflowRoutes(app, { registry, pool, dataAccess, authenticator, locale }, restOptions);
+    // workflow definition source (admin GET/PUT spec) — only when a project dir is configured
+    registerWorkflowSourceRoutes(
+      app,
+      { registry, authenticator, locale, projectDir: config.schemaDir, commitIdentity: config.commit?.identity },
+      restOptions,
+    );
 
     // Generic outbound proxy (P-4). Wired only when `config.proxy.resolver` is
     // provided (absent = createProxyForwarder is not imported = zero overhead).

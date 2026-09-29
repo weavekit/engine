@@ -5,8 +5,8 @@ import { DETAILS_COLUMNS, FIELD_TYPES, isSideTableVirtualField, RECORD_META_ID_F
 import type { AuditEvent, AuditSink } from '../../core/audit/index.js';
 import { AUDIT_ACTOR_TYPES, DATA_ACTIONS } from '../../core/audit/index.js';
 import type { EventPublisher } from '../../core/provider/event/index.js';
-import { NOOP_SCRIPT_DISPATCHER, SCRIPT_HOOKS, type GuardrailPolicy, type ScriptDispatcher, type ScriptHook, type ScriptUser, type WorkflowTimerSync } from '../../core/index.js';
-import type { PolicyApprovals } from '../tools/policies.js';
+import { NOOP_SCRIPT_DISPATCHER, SCRIPT_HOOKS, type GuardrailContext, type GuardrailPolicy, type ScriptDispatcher, type ScriptHook, type ScriptUser, type ToolDataAccess, type WorkflowTimerSync } from '../../core/index.js';
+import { evaluateTransition, type PolicyApprovals } from '../tools/policies.js';
 import { buildCountSql, buildFindSql, scopeSuffix, type BuildContext } from './builder.js';
 import { deleteDetailsChildren, insertDetails } from './details.js';
 import { insertLinks, replaceLinks } from './link.js';
@@ -17,9 +17,11 @@ import {
   releaseWorkflowLock,
   getWorkflowHistory,
   getWorkflowTodos,
+  overrideWorkflow,
   type WorkflowStatus,
   type WorkflowHistory,
   type WorkflowTodo,
+  type WorkflowOverride,
 } from './workflow.js';
 import { computeFormulas, type FormulaAuth } from './formula.js';
 import { generateSeqNo } from './seqno.js';
@@ -241,6 +243,22 @@ function needsSideTable(opts: FindOptions): boolean {
     }
   }
   return false;
+}
+
+/**
+ * Narrow `ToolDataAccess` over this data-access for guardrail policies: a policy
+ * calls `ctx.dataAccess.find(obj, opts, { subject? })` with no pool/registry, so
+ * those are injected from the execution context (mirrors the tool executor's
+ * wrapper; `...c` lets a policy override the subject per call).
+ */
+function toolDataAccessOver(inner: ObjectDataAccess, base: DataAccessContext): ToolDataAccess {
+  return {
+    find: (n, o, c) => inner.find(n, o as unknown as FindOptions, { ...base, ...c }),
+    findOne: (n, id, c) => inner.findOne(n, id, { ...base, ...c }),
+    create: (n, d, c) => inner.create(n, d, { ...base, ...c }),
+    update: (n, id, changes, c) => inner.update(n, id, changes, { ...base, ...c }),
+    delete: (n, id, c) => inner.delete(n, id, { ...base, ...c }),
+  } as ToolDataAccess;
 }
 
 /**
@@ -689,9 +707,6 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
     if (primaryNames(def).length === 0) {
       throw new SchemaError('data.recordNotFound', { object: objectName, id }, ctx.locale);
     }
-    // guardrail policy + approval gating on transitions is re-integrated in a later phase
-    void this.policies;
-    void this.approvals;
     const pkValues = pkValuesOf(def, id, ctx);
     let client: PoolClient;
     let owned = false;
@@ -715,6 +730,36 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
       const found = await runTableQuery(client, objectName, sql, params, ctx.locale);
       if (found.rows[0] === undefined) {
         throw new SchemaError('data.recordNotFound', { object: objectName, id }, ctx.locale);
+      }
+
+      // guardrail policy + approval gate (shared policy set with the open contract):
+      // a policy self-filters on `workflow.transition.<object>.<action>`; a node may
+      // also declare `requiresApproval`. deny → error; requireApproval → pending.
+      const currentNode = await getWorkflowStatus(client, def, id, ctx.subject);
+      const nodeDef = currentNode.node === undefined ? undefined : def.workflow.nodes.find((n) => n.id === currentNode.node);
+      const requireApproval = nodeDef?.requiresApproval === true;
+      if (this.policies.length > 0 || requireApproval) {
+        const actorId = ctx.subject?.id ?? 'system';
+        const guardrailCtx: GuardrailContext = {
+          actor: { key: actorId, label: actorId, onBehalfOf: actorId },
+          subject: ctx.subject ?? { id: 'system', roles: [] },
+          action: `workflow.transition.${def.name}.${action}`,
+          args: { object: def.name, id, action },
+          dataAccess: toolDataAccessOver(this, {
+            pool: ctx.pool,
+            registry: ctx.registry,
+            ...(ctx.locale === undefined ? {} : { locale: ctx.locale }),
+            ...(ctx.client === undefined ? {} : { client: ctx.client }),
+            ...(ctx.subject === undefined ? {} : { subject: ctx.subject }),
+          }),
+        };
+        const gate = await evaluateTransition(this.policies, this.approvals, guardrailCtx, requireApproval);
+        if (gate.kind === 'deny') {
+          throw new SchemaError(gate.code, { object: objectName, action, reason: gate.reason ?? '' }, ctx.locale);
+        }
+        if (gate.kind === 'pending') {
+          throw new SchemaError('workflow.transition.pending', { object: objectName, action, approvalKey: gate.approvalKey }, ctx.locale);
+        }
       }
 
       const outcome = await runWorkflowTransition(client, def, id, action, ctx.subject, payload, ctx.locale);
@@ -795,6 +840,43 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
   /** The subject's pending workitems across all objects. */
   async workflowTodos(ctx: DataAccessContext): Promise<WorkflowTodo[]> {
     return getWorkflowTodos(ctx.pool, ctx.subject);
+  }
+
+  /** Admin override: jump the record to a node or terminate the instance. */
+  async overrideWorkflow(
+    objectName: string,
+    id: string,
+    patch: WorkflowOverride,
+    ctx: DataAccessContext,
+  ): Promise<{ state: string; nodeId?: string }> {
+    const def = requireDef(ctx, objectName);
+    if (def.workflow === undefined) {
+      throw new SchemaError('workflow.transition.unknown', { object: objectName, action: 'override' }, ctx.locale);
+    }
+    let client: PoolClient;
+    let owned = false;
+    if (ctx.client !== undefined) {
+      client = ctx.client;
+    } else {
+      owned = true;
+      client = await ctx.pool.connect();
+    }
+    try {
+      if (owned) await client.query('BEGIN');
+      const result = await overrideWorkflow(client, def, id, patch, ctx.subject, ctx.locale);
+      if (owned) await client.query('COMMIT');
+      if (result.nodeId !== undefined) {
+        await this.workflowTimers?.sync(objectName, id, result.nodeId).catch(() => {});
+      } else {
+        await this.workflowTimers?.cancel(objectName, id).catch(() => {});
+      }
+      return result;
+    } catch (err) {
+      if (owned) await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      if (owned) client.release();
+    }
   }
 
   /**

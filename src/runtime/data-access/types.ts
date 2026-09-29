@@ -3,7 +3,7 @@ import type { Locale } from "../../core/index.js";
 import type { ObjectRegistry } from "../../core/index.js";
 import type { IdentitySubject } from "../../core/index.js";
 import type { FilterOp, SortDir } from "./values.js";
-import type { WorkflowStatus, WorkflowHistory, WorkflowTodo } from "./workflow.js";
+import type { WorkflowStatus, WorkflowHistory, WorkflowTodo, WorkflowOverride } from "./workflow.js";
 
 /** pool or pooled client — anything that can run parameterized queries */
 export type Queryable = Pool | PoolClient;
@@ -122,4 +122,11 @@ export interface ObjectDataAccess {
   workflowHistory(objectName: string, id: string, ctx: DataAccessContext): Promise<WorkflowHistory>;
   /** the subject's pending workitems across all objects */
   workflowTodos(ctx: DataAccessContext): Promise<WorkflowTodo[]>;
+  /** admin override: jump the record to a node or terminate the instance */
+  overrideWorkflow(
+    objectName: string,
+    id: string,
+    patch: WorkflowOverride,
+    ctx: DataAccessContext,
+  ): Promise<{ state: string; nodeId?: string }>;
 }

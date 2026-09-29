@@ -210,6 +210,11 @@ route('post', (c) => `${c.prefix}/objects/{name}/{id}/workflow/{action}`, op(OPE
   parameters: [P.name, P.id, P.transitionAction],
   responses: { 200: ok('The updated record.', RECORD_REF), ...errors('400', '403', '404', '409') },
 }));
+route('patch', (c) => `${c.prefix}/objects/{name}/{id}/workflow`, op(OPENAPI_TAGS.WORKFLOW, 'overrideWorkflow', 'Admin override (jump to a node or terminate)', {
+  description: "Admin-only (`admin` role). Body `{ node }` jumps the record to that node; `{ state: 'canceled' | 'finished' }` terminates it.",
+  parameters: [P.name, P.id],
+  responses: { 200: ok('Override result.', { type: 'object', properties: { state: { type: 'string' }, nodeId: { type: 'string' } } }), ...errors('400', '403', '404') },
+}));
 route('post', (c) => `${c.prefix}/objects/{name}/{id}/workflow/lock`, op(OPENAPI_TAGS.WORKFLOW, 'lockWorkflow', 'Acquire/renew the presence lock', {
   description: 'Acquires a 60s presence lease on the caller\'s current workitem so withdraw/cancel is blocked while the record is being viewed; call again to renew (heartbeat).',
   parameters: [P.name, P.id],
@@ -224,6 +229,16 @@ route('get', (c) => `${c.prefix}/objects/{name}/{id}/workflow/history`, op(OPENA
   description: 'Returns the instance state plus every step and workitem (oldest first).',
   parameters: [P.name, P.id],
   responses: { 200: ok('Workflow history.', GENERIC_OBJECT), ...errors('403', '404') },
+}));
+route('get', (c) => `${c.prefix}/objects/{name}/workflow/spec`, op(OPENAPI_TAGS.WORKFLOW, 'getWorkflowSpec', 'Raw workflow.json definition (admin)', {
+  description: 'Returns the object\'s `workflow.json` source with its content `version`. Admin-only; requires a project directory.',
+  parameters: [P.name],
+  responses: { 200: ok('Workflow source.', { type: 'object', properties: { source: { type: 'string' }, version: { type: 'string' }, hash: { type: 'string' } } }), ...errors('403', '404') },
+}));
+route('put', (c) => `${c.prefix}/objects/{name}/workflow/spec`, op(OPENAPI_TAGS.WORKFLOW, 'putWorkflowSpec', 'Write workflow.json (admin)', {
+  description: 'Validates and atomically writes `objects/<name>/workflow.json` then commits. Body `{ source }` or `{ nodes, version? }`; `expectVersion` is a strict optimistic lock. Affects new records; running instances keep their pinned revision.',
+  parameters: [P.name],
+  responses: { 200: ok('Written.', { type: 'object', properties: { ok: { type: 'boolean' }, committed: { type: 'boolean' }, version: { type: 'string' }, hash: { type: 'string' } } }), ...errors('400', '403', '404', '409') },
 }));
 route('get', (c) => `${c.prefix}/workflow/todos`, op(OPENAPI_TAGS.WORKFLOW, 'listWorkflowTodos', 'Pending workitems for the caller', {
   description: "Returns the caller's pending (`active`, `approve`) workitems across all objects.",

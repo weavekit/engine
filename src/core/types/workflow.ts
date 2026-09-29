@@ -69,6 +69,8 @@ export interface WorkflowNode {
   onReject?: string;
   /** on withdraw, roll back to this earlier node id; absent = the start node */
   onWithdraw?: string;
+  /** when true, the action at this node must be approved through the approval queue before it fires */
+  requiresApproval?: boolean;
   /** node-level timeout (approve nodes only) */
   onTimeout?: WorkflowTimeout;
 }

@@ -45,6 +45,18 @@ export function registerWorkflowRoutes(
     return dataAccess.workflowStatus(name, id, { pool, registry, subject, locale });
   });
 
+  app.patch(`${prefix}/objects/:name/:id/workflow`, async (request) => {
+    checkRateLimit(limiter, request, locale);
+    const subject = await authenticateRequest(authenticator, request, locale);
+    const { name, id } = request.params as { name: string; id: string };
+    requireWorkflow(name);
+    const body = payloadOf(request.body) ?? {};
+    const patch: { node?: string; state?: string } = {};
+    if (typeof body.node === 'string') patch.node = body.node;
+    if (typeof body.state === 'string') patch.state = body.state;
+    return dataAccess.overrideWorkflow(name, id, patch, { pool, registry, subject, locale });
+  });
+
   app.get(`${prefix}/objects/:name/:id/workflow/history`, async (request) => {
     checkRateLimit(limiter, request, locale);
     const subject = await authenticateRequest(authenticator, request, locale);

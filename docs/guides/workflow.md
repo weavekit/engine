@@ -52,6 +52,8 @@ validation (`workflow.definition.missing`).
 - **`assign.mode`** — `any` (或签, default: the first decision settles the node) or `all` (会签: every
   assignee must approve). `notify` nodes never use `all`.
 - **`onReject` / `onWithdraw`** name an **earlier** node id to roll back to; absent = the start node.
+- **`requiresApproval`** (optional) — when true, the action at this node must clear the approval queue
+  (shared with guardrail policies) before it fires (`409 workflow.transition.pending`).
 - **`onTimeout`** — `{ after: "<duration>", action: "approve" | "reject" }` (approve nodes only).
 
 There is **no state field on the object** and no direct write path: a record's workflow position is
@@ -130,10 +132,13 @@ executing its original chain even after the file changes. New records use the fi
 ```
 GET    {prefix}/objects/:name/:id/workflow              → { state, node?, approval?, actions[], workitems[] }
 POST   {prefix}/objects/:name/:id/workflow/:action      → run an action (body { comment } / { to:{userId} })
+PATCH  {prefix}/objects/:name/:id/workflow              → admin override: { node } jump / { state } terminate
 POST   {prefix}/objects/:name/:id/workflow/lock         → acquire/renew the presence lock
 DELETE {prefix}/objects/:name/:id/workflow/lock         → release the presence lock
 GET    {prefix}/objects/:name/:id/workflow/history      → instance + steps + workitems
 GET    {prefix}/workflow/todos                          → the caller's pending workitems
+GET    {prefix}/objects/:name/workflow/spec             → raw workflow.json + version (admin)
+PUT    {prefix}/objects/:name/workflow/spec             → validate + write + commit workflow.json (admin)
 ```
 
 `actions` lists only what the caller may do now. Errors: `404 workflow.transition.unknown`,

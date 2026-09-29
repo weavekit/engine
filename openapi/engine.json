@@ -1155,6 +1155,66 @@
             "$ref": "#/components/responses/Error"
           }
         }
+      },
+      "patch": {
+        "tags": [
+          "Workflow"
+        ],
+        "operationId": "overrideWorkflow",
+        "summary": "Admin override (jump to a node or terminate)",
+        "description": "Admin-only (`admin` role). Body `{ node }` jumps the record to that node; `{ state: 'canceled' | 'finished' }` terminates it.",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Object name from `objects/<name>/schema.json`."
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Record id — the `record_key` encoding of the (possibly composite) primary key; returned as `weave_id`."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Override result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "state": {
+                      "type": "string"
+                    },
+                    "nodeId": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
       }
     },
     "/api/objects/{name}/{id}/workflow/{action}": {
@@ -1378,6 +1438,119 @@
             "$ref": "#/components/responses/Error"
           },
           "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/objects/{name}/workflow/spec": {
+      "get": {
+        "tags": [
+          "Workflow"
+        ],
+        "operationId": "getWorkflowSpec",
+        "summary": "Raw workflow.json definition (admin)",
+        "description": "Returns the object's `workflow.json` source with its content `version`. Admin-only; requires a project directory.",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Object name from `objects/<name>/schema.json`."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Workflow source.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "source": {
+                      "type": "string"
+                    },
+                    "version": {
+                      "type": "string"
+                    },
+                    "hash": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Workflow"
+        ],
+        "operationId": "putWorkflowSpec",
+        "summary": "Write workflow.json (admin)",
+        "description": "Validates and atomically writes `objects/<name>/workflow.json` then commits. Body `{ source }` or `{ nodes, version? }`; `expectVersion` is a strict optimistic lock. Affects new records; running instances keep their pinned revision.",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Object name from `objects/<name>/schema.json`."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Written.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "committed": {
+                      "type": "boolean"
+                    },
+                    "version": {
+                      "type": "string"
+                    },
+                    "hash": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "409": {
             "$ref": "#/components/responses/Error"
           },
           "default": {

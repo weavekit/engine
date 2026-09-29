@@ -103,6 +103,14 @@ export function validateWorkflow(raw: unknown, vc: Vc): WorkflowDefinition | und
     const description = entry.description === undefined ? undefined : String(entry.description);
     const assign = validateAssign(entry.assign, kind, vc, i);
 
+    let requiresApproval: boolean | undefined;
+    if (entry.requiresApproval !== undefined) {
+      if (typeof entry.requiresApproval !== 'boolean') {
+        fail(vc, 'workflow.node.invalid', { i, value: 'requiresApproval' });
+      }
+      requiresApproval = entry.requiresApproval;
+    }
+
     // rollback targets must name an earlier node in the chain
     const rollbackTarget = (value: unknown): string | undefined => {
       if (value === undefined || value === null) return undefined;
@@ -145,6 +153,7 @@ export function validateWorkflow(raw: unknown, vc: Vc): WorkflowDefinition | und
       assign,
       ...(onReject === undefined ? {} : { onReject }),
       ...(onWithdraw === undefined ? {} : { onWithdraw }),
+      ...(requiresApproval === undefined ? {} : { requiresApproval }),
       ...(onTimeout === undefined ? {} : { onTimeout }),
     });
   });

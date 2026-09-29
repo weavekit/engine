@@ -298,6 +298,23 @@ export function withRbac(inner: ObjectDataAccess, options: { audit?: AuditSink }
       return inner.workflowTodos(ctx);
     },
 
+    async overrideWorkflow(
+      objectName: string,
+      id: string,
+      patch: { node?: string; state?: string },
+      ctx: DataAccessContext,
+    ) {
+      if (ctx.subject === undefined) return inner.overrideWorkflow(objectName, id, patch, ctx);
+      const def = requireDef(ctx, objectName);
+      try {
+        assertCanUpdate(def, ctx.subject.roles, ctx.locale, ctx.registry);
+      } catch (error) {
+        denied(audit, ctx, DATA_ACTIONS.UPDATE, objectName, id, error);
+        throw error;
+      }
+      return inner.overrideWorkflow(objectName, id, patch, ctx);
+    },
+
     async delete(objectName: string, id: string, ctx: DataAccessContext): Promise<void> {
       if (ctx.subject === undefined) return inner.delete(objectName, id, ctx);
       const def = requireDef(ctx, objectName);

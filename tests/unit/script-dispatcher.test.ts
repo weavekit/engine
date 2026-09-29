@@ -55,6 +55,7 @@ const noopDataAccess: ObjectDataAccess = {
   releaseWorkflowLock: async () => {},
   workflowHistory: async () => ({ state: 'draft', approval: null, steps: [], workitems: [] }),
   workflowTodos: async () => [],
+  overrideWorkflow: async () => ({ state: 'draft' }),
 };
 
 const ARGS = {

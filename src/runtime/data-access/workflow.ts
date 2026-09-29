@@ -955,4 +955,74 @@ export async function advanceOnTimeout(
   return { state: 'running', nodeId: entered.nodeId };
 }
 
+/** an admin override patch (`PATCH …/workflow`) */
+export interface WorkflowOverride {
+  /** jump the record to this node (must exist in the pinned definition) */
+  node?: string;
+  /** or terminate it (`canceled` / `finished`) */
+  state?: string;
+}
+
+/**
+ * Admin override: jump a record to a node, or terminate it. Admin-only
+ * (`WORKFLOW_ADMIN_ROLE`); unlike `reactivate` it also applies to a running
+ * instance.
+ */
+export async function overrideWorkflow(
+  client: PoolClient,
+  def: WorkflowRuntimeOptions,
+  recordKey: string,
+  patch: WorkflowOverride,
+  subject: IdentitySubject | undefined,
+  locale: Locale | undefined,
+): Promise<{ state: string; nodeId?: string }> {
+  if (!isWorkflowAdmin(subject)) {
+    throw new SchemaError('workflow.transition.denied', { object: def.name, role: subject?.roles.join(',') ?? '', action: 'override' }, locale);
+  }
+  const now = new Date();
+  const actor = subject?.id ?? 'system';
+  const inst = await loadInstance(client, def.name, recordKey);
+  if (inst === undefined) {
+    throw new SchemaError('workflow.transition.notAllowed', { object: def.name, action: 'override' }, locale);
+  }
+  const wf = await resolveDefinition(client, def, inst.workflow_hash, locale);
+  const step = await loadActiveStep(client, inst.current_step_id);
+  const ctx: EnterCtx = { def, recordKey, wf, now, locale, prevStepId: step?.id ?? null };
+
+  if (patch.node !== undefined) {
+    const idx = wf.nodes.findIndex((n) => n.id === patch.node);
+    if (idx < 0) throw new SchemaError('workflow.node.unknown', { object: def.name, node: patch.node }, locale);
+    if (step !== undefined) {
+      await cancelOpenWorkitems(client, step.id, now);
+      await closeStep(client, step.id, 'finished', null, now);
+    }
+    const entered = await enterNode(client, ctx, idx);
+    if ('finished' in entered) {
+      await updateInstance(client, def.name, recordKey, { state: 'finished', approval: 'approved', finished_at: now, current_step_id: null });
+      await mirrorSide(client, def.name, recordKey, 'finished', actor, now);
+      return { state: 'finished' };
+    }
+    await updateInstance(client, def.name, recordKey, { state: 'running', current_step_id: entered.stepId, approval: null, finished_at: null });
+    await mirrorSide(client, def.name, recordKey, 'running', actor, now);
+    return { state: 'running', nodeId: entered.nodeId };
+  }
+
+  if (patch.state === 'canceled' || patch.state === 'finished') {
+    if (step !== undefined) {
+      await cancelOpenWorkitems(client, step.id, now);
+      await closeStep(client, step.id, patch.state === 'canceled' ? 'canceled' : 'finished', patch.state === 'canceled' ? 'canceled' : 'approved', now);
+    }
+    await updateInstance(client, def.name, recordKey, {
+      state: patch.state,
+      approval: patch.state === 'finished' ? 'approved' : 'rejected',
+      finished_at: now,
+      current_step_id: null,
+    });
+    await mirrorSide(client, def.name, recordKey, patch.state, actor, now);
+    return { state: patch.state };
+  }
+
+  throw new SchemaError('workflow.transition.notAllowed', { object: def.name, action: 'override' }, locale);
+}
+
 

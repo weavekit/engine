@@ -39,6 +39,8 @@ export {
 export type { LayoutSourceDocument, WriteLayoutSourceOptions, WriteLayoutSourceResult } from './layoutSource.js';
 export { readSchemaSource, writeSchemaSource, validateSchemaCandidate, schemaPathOf } from './schemaSource.js';
 export type { SchemaSourceDocument, WriteSchemaSourceOptions, WriteSchemaSourceResult } from './schemaSource.js';
+export { readWorkflowSource, writeWorkflowSource, validateWorkflowCandidate, workflowPathOf } from './workflowSource.js';
+export type { WorkflowSourceDocument, WriteWorkflowSourceOptions, WriteWorkflowSourceResult } from './workflowSource.js';
 export {
   listPages,
   createCustomPage,

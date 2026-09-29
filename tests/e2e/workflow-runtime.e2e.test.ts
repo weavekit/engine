@@ -6,6 +6,7 @@ import {
   migrate,
   ObjectRegistry,
   SchemaError,
+  type GuardrailPolicy,
   type ObjectDefinition,
   type WeaveKitEngine,
 } from '../../src/index.js';
@@ -42,6 +43,34 @@ const GAP: ObjectDefinition = {
   permissions: { admin: { read: 'all', create: true, update: true } },
 };
 
+const GATED: ObjectDefinition = {
+  name: 'wf_gated',
+  fields: [{ name: 'id', type: 'string', primary: true }],
+  workflowEnabled: true,
+  workflow: { nodes: [{ id: 'review', assign: { roles: ['approver'] }, requiresApproval: true }] },
+  permissions: {
+    admin: { read: 'all', create: true, update: true },
+    approver: { read: 'all', update: true },
+  },
+};
+
+const DENIED: ObjectDefinition = {
+  name: 'wf_denied',
+  fields: [{ name: 'id', type: 'string', primary: true }],
+  workflowEnabled: true,
+  workflow: { nodes: [{ id: 'review', assign: { roles: ['approver'] } }] },
+  permissions: {
+    admin: { read: 'all', create: true, update: true },
+    approver: { read: 'all', update: true },
+  },
+};
+
+const denyWfDenied: GuardrailPolicy = {
+  name: 'deny-wf-denied',
+  decide: async (c) =>
+    c.action === 'workflow.transition.wf_denied.approve' ? { allow: false, reason: 'blocked' } : { allow: true },
+};
+
 const admin = { id: '11111111-1111-1111-1111-111111111111', roles: ['admin'] };
 const a1 = { id: '22222222-2222-2222-2222-222222222222', roles: ['approver'] };
 const a2 = { id: '33333333-3333-3333-3333-333333333333', roles: ['approver'] };
@@ -56,7 +85,8 @@ maybe('Workflow runtime E2E (three-layer: instance/step/workitem, local PG)', ()
   before(async () => {
     pool = createPool(url!);
     await pool.query(
-      `DROP TABLE IF EXISTS wf_doc, wf_gap, weavekit_record__wf_doc, weavekit_record__wf_gap CASCADE`,
+      `DROP TABLE IF EXISTS wf_doc, wf_gap, wf_gated, wf_denied,
+         weavekit_record__wf_doc, weavekit_record__wf_gap, weavekit_record__wf_gated, weavekit_record__wf_denied CASCADE`,
     );
     await pool.query(
       `DELETE FROM weavekit_workflow_workitems; DELETE FROM weavekit_workflow_steps;
@@ -67,6 +97,8 @@ maybe('Workflow runtime E2E (three-layer: instance/step/workitem, local PG)', ()
     registry = new ObjectRegistry();
     registry.register(DOC);
     registry.register(GAP);
+    registry.register(GATED);
+    registry.register(DENIED);
     registry.buildGraph();
     await migrate(registry, { databaseUrl: url! });
     // seed identity: two approvers, two managers
@@ -93,6 +125,7 @@ maybe('Workflow runtime E2E (three-layer: instance/step/workitem, local PG)', ()
           'key-m2': { id: m2.id, roles: ['manager'] },
         },
       },
+      tools: { guardrails: { policies: [denyWfDenied] } },
     });
   });
 
@@ -338,6 +371,40 @@ maybe('Workflow runtime E2E (three-layer: instance/step/workitem, local PG)', ()
     expect(res.statusCode).toBe(200);
     const items = (res.json() as { items: Array<{ recordKey: string; nodeId: string }> }).items;
     expect(items.some((t) => t.recordKey === id && t.nodeId === 'review')).toBe(true);
+  });
+
+  it('admin PATCH override: jump to a node and terminate', async () => {
+    const id = encodeRecordKey(['D11']);
+    await engine.dataAccess.create('wf_doc', { id: 'D11' }, dctx(admin));
+    await submit(id);
+    await expect(
+      engine.dataAccess.overrideWorkflow('wf_doc', id, { node: 'sign' }, dctx(a1)),
+    ).rejects.toMatchObject({ code: 'workflow.transition.denied' });
+    await engine.dataAccess.overrideWorkflow('wf_doc', id, { node: 'sign' }, dctx(admin));
+    expect(await instanceOf(id)).toMatchObject({ state: 'running', node: 'sign' });
+    await expect(
+      engine.dataAccess.overrideWorkflow('wf_doc', id, { node: 'ghost' }, dctx(admin)),
+    ).rejects.toMatchObject({ code: 'workflow.node.unknown' });
+    await engine.dataAccess.overrideWorkflow('wf_doc', id, { state: 'canceled' }, dctx(admin));
+    expect(await instanceOf(id)).toMatchObject({ state: 'canceled' });
+  });
+
+  it('resolves a node-level requiresApproval through the approval queue (pending)', async () => {
+    const id = encodeRecordKey(['G2']);
+    await engine.dataAccess.create('wf_gated', { id: 'G2' }, dctx(admin));
+    await engine.dataAccess.transition('wf_gated', id, 'submit', dctx(admin));
+    await expect(
+      engine.dataAccess.transition('wf_gated', id, 'approve', dctx(a1)),
+    ).rejects.toMatchObject({ code: 'workflow.transition.pending' });
+  });
+
+  it('applies guardrail policies to transitions (deny)', async () => {
+    const id = encodeRecordKey(['X1']);
+    await engine.dataAccess.create('wf_denied', { id: 'X1' }, dctx(admin));
+    await engine.dataAccess.transition('wf_denied', id, 'submit', dctx(admin));
+    await expect(
+      engine.dataAccess.transition('wf_denied', id, 'approve', dctx(a1)),
+    ).rejects.toMatchObject({ code: 'mcp.policy.denied' });
   });
 
   it('registers each object definition content-addressably on migrate', async () => {
