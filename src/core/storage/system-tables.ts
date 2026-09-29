@@ -21,6 +21,11 @@ export const SYSTEM_TABLES = {
   SEQ: 'weavekit_seq',
   AUDIT: 'weavekit_audit',
   APPROVALS: 'weavekit_approvals',
+  WORKFLOW_DEFINITIONS: 'weavekit_workflow_definitions',
+  WORKFLOW_INSTANCES: 'weavekit_workflow_instances',
+  WORKFLOW_STEPS: 'weavekit_workflow_steps',
+  WORKFLOW_WORKITEMS: 'weavekit_workflow_workitems',
+  WORKFLOW_LOCKS: 'weavekit_workflow_locks',
   WORKFLOW_TIMERS: 'weavekit_workflow_timers',
   COUNTERS: 'weavekit_counters',
 } as const;
@@ -123,6 +128,109 @@ const approvals = (): ExpectedTable => ({
   uniques: [],
 });
 
+const workflowDefinitions = (): ExpectedTable => ({
+  name: SYSTEM_TABLES.WORKFLOW_DEFINITIONS,
+  columns: [
+    col('object', 'TEXT', { notNull: true, primary: true }),
+    col('hash', 'TEXT', { notNull: true, primary: true }),
+    col('version_seq', 'INTEGER', { notNull: true }),
+    col('definition', 'JSONB', { notNull: true }),
+    col('created_at', 'TIMESTAMPTZ', { notNull: true, default: 'now()' }),
+  ],
+  fks: [],
+  indexes: [],
+  uniques: [{ name: 'weavekit_workflow_definitions_object_seq_key', columns: ['object', 'version_seq'] }],
+});
+
+const workflowInstances = (): ExpectedTable => ({
+  name: SYSTEM_TABLES.WORKFLOW_INSTANCES,
+  columns: [
+    col('object', 'TEXT', { notNull: true, primary: true }),
+    col('record_key', 'TEXT', { notNull: true, primary: true }),
+    col('workflow_hash', 'TEXT', { notNull: true }),
+    col('state', 'TEXT', { notNull: true }),
+    col('current_step_id', 'UUID'),
+    col('originator', 'TEXT', { notNull: true }),
+    col('originator_parent', 'TEXT'),
+    col('approval', 'TEXT'),
+    col('created_at', 'TIMESTAMPTZ', { notNull: true, default: 'now()' }),
+    col('started_at', 'TIMESTAMPTZ'),
+    col('activated_at', 'TIMESTAMPTZ'),
+    col('finished_at', 'TIMESTAMPTZ'),
+  ],
+  fks: [],
+  indexes: [],
+  uniques: [],
+});
+
+const workflowSteps = (): ExpectedTable => ({
+  name: SYSTEM_TABLES.WORKFLOW_STEPS,
+  columns: [
+    col('id', 'UUID', { notNull: true, primary: true }),
+    col('object', 'TEXT', { notNull: true }),
+    col('record_key', 'TEXT', { notNull: true }),
+    col('node_id', 'TEXT', { notNull: true }),
+    col('kind', 'TEXT', { notNull: true }),
+    col('ordinal', 'INTEGER', { notNull: true }),
+    col('state', 'TEXT', { notNull: true }),
+    col('approval', 'TEXT'),
+    col('prev_step_id', 'UUID'),
+    col('entered_at', 'TIMESTAMPTZ', { notNull: true, default: 'now()' }),
+    col('finished_at', 'TIMESTAMPTZ'),
+  ],
+  fks: [],
+  indexes: [
+    { name: 'weavekit_workflow_steps_record_idx', method: 'btree', columns: ['object', 'record_key', 'ordinal'] },
+  ],
+  uniques: [],
+});
+
+const workflowWorkitems = (): ExpectedTable => ({
+  name: SYSTEM_TABLES.WORKFLOW_WORKITEMS,
+  columns: [
+    col('id', 'UUID', { notNull: true, primary: true }),
+    col('object', 'TEXT', { notNull: true }),
+    col('record_key', 'TEXT', { notNull: true }),
+    col('step_id', 'UUID', { notNull: true }),
+    col('node_id', 'TEXT', { notNull: true }),
+    col('kind', 'TEXT', { notNull: true }),
+    col('participant', 'TEXT', { notNull: true }),
+    col('state', 'TEXT', { notNull: true }),
+    col('approval', 'TEXT'),
+    col('action', 'TEXT'),
+    col('finisher', 'TEXT'),
+    col('delegant', 'TEXT'),
+    col('receiptor', 'TEXT'),
+    col('comment', 'TEXT'),
+    col('received_at', 'TIMESTAMPTZ', { notNull: true, default: 'now()' }),
+    col('started_at', 'TIMESTAMPTZ'),
+    col('finished_at', 'TIMESTAMPTZ'),
+    col('allowed_at', 'TIMESTAMPTZ'),
+  ],
+  fks: [],
+  indexes: [
+    { name: 'weavekit_workflow_workitems_todo_idx', method: 'btree', columns: ['participant', 'state', 'kind'] },
+    { name: 'weavekit_workflow_workitems_step_idx', method: 'btree', columns: ['step_id', 'state'] },
+    { name: 'weavekit_workflow_workitems_record_idx', method: 'btree', columns: ['object', 'record_key'] },
+  ],
+  uniques: [],
+});
+
+const workflowLocks = (): ExpectedTable => ({
+  name: SYSTEM_TABLES.WORKFLOW_LOCKS,
+  columns: [
+    col('workitem_id', 'UUID', { notNull: true, primary: true }),
+    col('object', 'TEXT', { notNull: true }),
+    col('record_key', 'TEXT', { notNull: true }),
+    col('holder', 'TEXT', { notNull: true }),
+    col('acquired_at', 'TIMESTAMPTZ', { notNull: true, default: 'now()' }),
+    col('expires_at', 'TIMESTAMPTZ', { notNull: true }),
+  ],
+  fks: [],
+  indexes: [{ name: 'weavekit_workflow_locks_expiry_idx', method: 'btree', columns: ['expires_at'] }],
+  uniques: [],
+});
+
 const workflowTimers = (): ExpectedTable => ({
   name: SYSTEM_TABLES.WORKFLOW_TIMERS,
   columns: [
@@ -157,7 +265,20 @@ const counters = (): ExpectedTable => ({
  * runtime needs; the runtime itself never runs DDL.
  */
 export function buildSystemTables(): ExpectedTable[] {
-  return [meta(), metadata(), seq(), audit(), approvals(), workflowTimers(), counters()];
+  return [
+    meta(),
+    metadata(),
+    seq(),
+    audit(),
+    approvals(),
+    workflowDefinitions(),
+    workflowInstances(),
+    workflowSteps(),
+    workflowWorkitems(),
+    workflowLocks(),
+    workflowTimers(),
+    counters(),
+  ];
 }
 
 /**

@@ -26,7 +26,7 @@ export const RECORD_META_COLUMNS = {
   MODIFIED_BY: 'modified_by',
   CREATED_TIME: 'created_time',
   MODIFIED_TIME: 'modified_time',
-  WORKFLOW_ID: 'workflow_id',
+  WORKFLOW_INSTANCE_ID: 'workflow_instance_id',
 } as const;
 
 /** default `status` for a record with a metadata row */
@@ -64,7 +64,7 @@ export const RECORD_META_VIRTUAL_FIELD_SPECS: readonly RecordMetaVirtualFieldSpe
   { name: `${RECORD_META_VIRTUAL_PREFIX}${RECORD_META_COLUMNS.MODIFIED_BY}`, type: FIELD_TYPES.STRING },
   { name: `${RECORD_META_VIRTUAL_PREFIX}${RECORD_META_COLUMNS.CREATED_TIME}`, type: FIELD_TYPES.TIMESTAMPTZ },
   { name: `${RECORD_META_VIRTUAL_PREFIX}${RECORD_META_COLUMNS.MODIFIED_TIME}`, type: FIELD_TYPES.TIMESTAMPTZ },
-  { name: `${RECORD_META_VIRTUAL_PREFIX}${RECORD_META_COLUMNS.WORKFLOW_ID}`, type: FIELD_TYPES.STRING },
+  { name: `${RECORD_META_VIRTUAL_PREFIX}${RECORD_META_COLUMNS.WORKFLOW_INSTANCE_ID}`, type: FIELD_TYPES.STRING },
 ];
 
 /** virtual system field names (derived from the specs — single source) */
@@ -117,7 +117,7 @@ export function buildRecordMetaTable(object: string): ExpectedTable {
       { name: RECORD_META_COLUMNS.MODIFIED_BY, ...text },
       { name: RECORD_META_COLUMNS.CREATED_TIME, ...ts },
       { name: RECORD_META_COLUMNS.MODIFIED_TIME, ...ts },
-      { name: RECORD_META_COLUMNS.WORKFLOW_ID, type: 'TEXT', notNull: false, primary: false, unique: false },
+      { name: RECORD_META_COLUMNS.WORKFLOW_INSTANCE_ID, type: 'TEXT', notNull: false, primary: false, unique: false },
     ],
     fks: [],
     indexes: [

@@ -38,12 +38,17 @@ describe('engine system tables (migrate-owned)', () => {
     expect(stmts.some((s) => s.includes('REVOKE TRUNCATE') && s.includes(SYSTEM_TABLES.AUDIT))).toBe(true);
   });
 
-  it('covers the metadata cache / seq / audit / approvals / timers / counters / meta tables', () => {
+  it('covers the metadata cache / seq / audit / approvals / workflow / timers / counters / meta tables', () => {
     const names = buildSystemTables().map((t) => t.name);
     expect(names).toContain(SYSTEM_TABLES.METADATA);
     expect(names).toContain(SYSTEM_TABLES.SEQ);
     expect(names).toContain(SYSTEM_TABLES.AUDIT);
     expect(names).toContain(SYSTEM_TABLES.APPROVALS);
+    expect(names).toContain(SYSTEM_TABLES.WORKFLOW_DEFINITIONS);
+    expect(names).toContain(SYSTEM_TABLES.WORKFLOW_INSTANCES);
+    expect(names).toContain(SYSTEM_TABLES.WORKFLOW_STEPS);
+    expect(names).toContain(SYSTEM_TABLES.WORKFLOW_WORKITEMS);
+    expect(names).toContain(SYSTEM_TABLES.WORKFLOW_LOCKS);
     expect(names).toContain(SYSTEM_TABLES.WORKFLOW_TIMERS);
     expect(names).toContain(SYSTEM_TABLES.COUNTERS);
     expect(names).toContain(SYSTEM_TABLES.META);

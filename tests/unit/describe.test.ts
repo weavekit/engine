@@ -179,7 +179,7 @@ describe('describeObject — virtual system fields (weave_*), read-only + typed'
       'weave_modified_by',
       'weave_created_time',
       'weave_modified_time',
-      'weave_workflow_id',
+      'weave_workflow_instance_id',
     ]);
   });
 });

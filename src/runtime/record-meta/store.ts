@@ -26,7 +26,7 @@ export interface RecordMeta {
   modifiedBy: string | null;
   createdTime: Date | null;
   modifiedTime: Date | null;
-  workflowId: string | null;
+  workflowInstanceId: string | null;
 }
 
 /** fields that may be written on a sparse upsert (absent = leave unchanged) */
@@ -37,7 +37,7 @@ export interface RecordMetaPatch {
   modifiedBy?: string | null;
   createdTime?: Date | null;
   modifiedTime?: Date | null;
-  workflowId?: string | null;
+  workflowInstanceId?: string | null;
 }
 
 interface RawRow {
@@ -48,7 +48,7 @@ interface RawRow {
   modified_by: string | null;
   created_time: Date | null;
   modified_time: Date | null;
-  workflow_id: string | null;
+  workflow_instance_id: string | null;
 }
 
 const SELECT_COLUMNS = [
@@ -59,7 +59,7 @@ const SELECT_COLUMNS = [
   COL.MODIFIED_BY,
   COL.CREATED_TIME,
   COL.MODIFIED_TIME,
-  COL.WORKFLOW_ID,
+  COL.WORKFLOW_INSTANCE_ID,
 ]
   .map(q)
   .join(', ');
@@ -73,7 +73,7 @@ function toRecordMeta(row: RawRow): RecordMeta {
     modifiedBy: row.modified_by,
     createdTime: row.created_time,
     modifiedTime: row.modified_time,
-    workflowId: row.workflow_id,
+    workflowInstanceId: row.workflow_instance_id,
   };
 }
 
@@ -89,7 +89,7 @@ function patchEntries(patch: RecordMetaPatch): [string, unknown][] {
   put(COL.MODIFIED_BY, patch.modifiedBy);
   put(COL.CREATED_TIME, patch.createdTime);
   put(COL.MODIFIED_TIME, patch.modifiedTime);
-  put(COL.WORKFLOW_ID, patch.workflowId);
+  put(COL.WORKFLOW_INSTANCE_ID, patch.workflowInstanceId);
   return entries;
 }
 

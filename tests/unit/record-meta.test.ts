@@ -30,7 +30,7 @@ describe('record metadata side table', () => {
       'modified_by',
       'created_time',
       'modified_time',
-      'workflow_id',
+      'workflow_instance_id',
     ]);
 
     const pk = byName.get(RECORD_META_COLUMNS.RECORD_KEY);
@@ -65,7 +65,7 @@ describe('record metadata side table', () => {
       'weave_modified_by',
       'weave_created_time',
       'weave_modified_time',
-      'weave_workflow_id',
+      'weave_workflow_instance_id',
     ]);
     expect(isRecordMetaVirtualField('weave_id')).toBe(true);
     expect(isRecordMetaVirtualField('weave_status')).toBe(true);
