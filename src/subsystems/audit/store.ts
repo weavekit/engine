@@ -18,33 +18,6 @@ const AUDIT_FILTER_COLUMNS = new Map<string, 'boolean' | 'text' | 'timestamptz'>
 
 const TABLE = 'weavekit_audit';
 
-/** create the append-only audit table (idempotent); `before`/`after` columns are always present (replay only decides whether they are filled, so toggling the switch needs no migration) */
-export async function ensureAuditTable(pool: Pool): Promise<void> {
-  await pool.query(
-    `CREATE TABLE IF NOT EXISTS ${TABLE} (
-       id          bigserial PRIMARY KEY,
-       ts          timestamptz NOT NULL DEFAULT now(),
-       actor_type  text NOT NULL,
-       actor_id    text NOT NULL,
-       action      text NOT NULL,
-       object      text,
-       object_id   text,
-       changes     jsonb,
-       before      jsonb,
-       after       jsonb,
-       is_error    boolean NOT NULL DEFAULT false,
-       error_code  text,
-       meta        jsonb
-     )`,
-  );
-  await pool.query(`CREATE INDEX IF NOT EXISTS ${TABLE}_ts_idx ON ${TABLE} (ts DESC)`);
-  await pool.query(`CREATE INDEX IF NOT EXISTS ${TABLE}_actor_idx ON ${TABLE} (actor_id)`);
-  await pool.query(`CREATE INDEX IF NOT EXISTS ${TABLE}_obj_idx ON ${TABLE} (object, object_id)`);
-  // append-only hardening: the audit trail is INSERT/SELECT only for non-owners
-  // (DROP is ownership-only in PostgreSQL; TRUNCATE is the grantable risk)
-  await pool.query(`REVOKE TRUNCATE ON ${TABLE} FROM PUBLIC`).catch(() => undefined);
-}
-
 /** single append-only insert (writes the event's own timestamp — the audit is time-anchored to the business moment) */
 export async function insertAudit(pool: Pool, event: AuditEvent): Promise<void> {
   await pool.query(

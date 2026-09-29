@@ -2,14 +2,10 @@ import type { Pool } from 'pg';
 
 const META_TABLE = 'weavekit_meta';
 
-/** create the audit meta table if it does not exist */
-export async function ensureMetaTable(pool: Pool): Promise<void> {
-  await pool.query(
-    `CREATE TABLE IF NOT EXISTS ${META_TABLE} (key text PRIMARY KEY, value text NOT NULL)`,
-  );
-}
-
-/** upsert an audit record (e.g. schema.applied.<object> -> applied_at) */
+/**
+ * Upsert a meta record (e.g. `schema.applied.<object>` -> applied_at).
+ * The table is created by `weave migrate` — the runtime never runs DDL.
+ */
 export async function setMeta(pool: Pool, key: string, value: string): Promise<void> {
   await pool.query(
     `INSERT INTO ${META_TABLE} (key, value) VALUES ($1, $2)
@@ -18,9 +14,8 @@ export async function setMeta(pool: Pool, key: string, value: string): Promise<v
   );
 }
 
-/** read a meta value (null when the table or key is absent) */
+/** read a meta value (null when the key is absent) */
 export async function getMeta(pool: Pool, key: string): Promise<string | null> {
-  await ensureMetaTable(pool);
   const res = await pool.query(`SELECT value FROM ${META_TABLE} WHERE key = $1`, [key]);
   return (res.rows[0] as { value: string } | undefined)?.value ?? null;
 }

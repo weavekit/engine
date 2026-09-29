@@ -56,8 +56,13 @@ One-way Git → PostgreSQL sync: load `schema.json` files → validate → state
 metadata cache → auto-commit the `objects/` tree ([Git-versioned metadata](git-versioned-metadata.md)).
 
 - `--dry-run` — generate DDL and report without executing.
-- Runs against `migrationDatabaseUrl` (falling back to `databaseUrl`). Point it at a migration/owner
-  account and give the runtime account no DDL — the engine never runs DDL at runtime.
+- Runs against `migrationDatabaseUrl` (falling back to `databaseUrl`). This is the **same database,
+  a separate account** — a migration/owner role with DDL rights — so the runtime account can be
+  given no DDL. The engine never runs DDL at runtime.
+- Also provisions the engine's own system tables (`weavekit_metadata`, `weavekit_seq`,
+  `weavekit_audit`, `weavekit_approvals`, `weavekit_workflow_timers`, `weavekit_counters`,
+  `weavekit_meta`) and their row-level security. Run it at least once before the first boot; the
+  runtime account can then be least-privileged (`runtime.requireRestrictedAccount`, default on).
 - Existing tables are validated **read-only** by default. A declared field with no matching column
   aborts with `object.field.columnMissing`. An object opts into additive auto-DDL with `"alter": true`
   in its `schema.json`. See

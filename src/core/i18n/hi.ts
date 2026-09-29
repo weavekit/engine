@@ -175,6 +175,7 @@ export const hi: Record<MessageKey, string> = {
   'auth.invalidKey': 'अमान्य API कुंजी',
   'auth.notConfigured': 'auth कॉन्फ़िगर नहीं है — प्रारंभ अस्वीकृत',
   'engine.databaseUrl.missing': 'databaseUrl आवश्यक है (config.databaseUrl या DATABASE_URL पर्यावरण चर सेट करें)',
+  'engine.runtimeAccount.ddlAllowed': 'रनटाइम डेटाबेस खाता "{user}" वर्तमान schema में ऑब्जेक्ट बना सकता है — databaseUrl को न्यूनतम-विशेषाधिकार वाली भूमिका (DDL रहित) पर सेट करें और migrationDatabaseUrl से माइग्रेशन चलाएँ (अनुमति हेतु runtime.requireRestrictedAccount=false सेट करें)',
   'git.notRepo': '"{dir}" एक git रिपॉज़िटरी नहीं है',
   'git.command.failed': 'git {command} विफल: {detail}',
   'loader.dir.missing': 'मेटाडेटा निर्देशिका "{dir}" नहीं मिली',

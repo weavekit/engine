@@ -175,6 +175,7 @@ export const es: Record<MessageKey, string> = {
   'auth.invalidKey': 'API key inválida',
   'auth.notConfigured': 'auth no está configurado — se rechaza el arranque',
   'engine.databaseUrl.missing': 'databaseUrl es obligatorio (define config.databaseUrl o la variable de entorno DATABASE_URL)',
+  'engine.runtimeAccount.ddlAllowed': 'la cuenta de base de datos en tiempo de ejecución "{user}" puede crear objetos en el esquema actual — apunta databaseUrl a un rol con privilegios mínimos (sin DDL) y ejecuta las migraciones con migrationDatabaseUrl (establece runtime.requireRestrictedAccount=false para permitirlo)',
   'git.notRepo': '"{dir}" no es un repositorio git',
   'git.command.failed': 'git {command} falló: {detail}',
   'loader.dir.missing': 'directorio de metadatos "{dir}" no encontrado',

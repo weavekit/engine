@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import kleur from 'kleur';
 import { createPool, SchemaError, generateObjectTypes } from '../../index.js';
 import { buildEngineFromRegistry } from '../../runtime/engine.js';
-import type { WeaveKitEngine, FieldTypeRegistry } from '../../index.js';
+import type { WeaveKitEngine, FieldTypeRegistry, EngineConfig } from '../../index.js';
 import {
   autoCommit,
   buildCommitMessage,
@@ -26,6 +26,16 @@ import { readyScreen, renderReadyScreen } from '../ready-screen.js';
 const RELOAD_DEBOUNCE_MS = 300;
 const LISTEN_RETRIES = 5;
 const LISTEN_RETRY_MS = 300;
+
+/**
+ * `weave dev` runs against a local account that is typically the DB owner
+ * (single-account convenience), so relax the least-privilege runtime guard
+ * unless the project sets `runtime.requireRestrictedAccount` explicitly. The
+ * guard stays default-on for production `createEngine`.
+ */
+function devConfig(config: EngineConfig): EngineConfig {
+  return { ...config, runtime: { requireRestrictedAccount: false, ...config.runtime } };
+}
 
 /** `weave dev` — engine with hot reload: schema changes sync + rebuild the app */
 export async function dev(cwd: string, options: DevOptions): Promise<void> {
@@ -144,7 +154,7 @@ export async function dev(cwd: string, options: DevOptions): Promise<void> {
     await backfillViews(sync);
     await regenerateTypes(sync.files, fieldTypes);
     await commitMetadata(sync.files, sync.migration.applied);
-    engine = await buildEngineFromRegistry(sync.registry, config);
+    engine = await buildEngineFromRegistry(sync.registry, devConfig(config));
     await listen();
     const screen = screenFor();
     if (screen !== undefined) renderReadyScreen(p, screen);
@@ -200,7 +210,7 @@ export async function dev(cwd: string, options: DevOptions): Promise<void> {
       await backfillViews(sync);
       await regenerateTypes(sync.files, fieldTypes);
       await commitMetadata(sync.files, sync.migration.applied);
-      const next = await buildEngineFromRegistry(sync.registry, config);
+      const next = await buildEngineFromRegistry(sync.registry, devConfig(config));
       engine = next;
       await listen();
       p.log(`${kleur.green('reloaded')}${kleur.dim(` · ${next.registry.list().length} object(s)`)}`);

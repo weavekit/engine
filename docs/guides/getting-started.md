@@ -133,6 +133,32 @@ const engine = await createEngine({
 await engine.app.listen({ port: 3000 });
 ```
 
+### Production: two database accounts
+
+WeaveKit runs DDL only through `weave migrate`; the runtime only runs DML. Use **two accounts on the
+same database** (not two databases) — a runtime role with no DDL, and an owner role for migrations —
+so a compromised runtime cannot change the schema:
+
+```ts
+const engine = await createEngine({
+  // same host/port/dbname for both; only the role differs
+  databaseUrl: process.env.DATABASE_URL,                    // runtime role: no CREATE
+  migrationDatabaseUrl: process.env.MIGRATION_DATABASE_URL, // owner role: DDL via `weave migrate`
+  schemaDir: '.',
+  auth: { source: { 'sk-admin': { id: 'admin', roles: ['admin'] } } },
+});
+```
+
+```
+DATABASE_URL=postgres://weavekit_runtime:pw@localhost:5432/weavekit
+MIGRATION_DATABASE_URL=postgres://weavekit_owner:pw@localhost:5432/weavekit
+```
+
+Run `weave migrate` once (with `MIGRATION_DATABASE_URL`) before the first boot — it provisions the
+customer tables **and** the engine's own `weavekit_*` system tables. By default the engine refuses to
+start if the runtime account can `CREATE` (`runtime.requireRestrictedAccount`; set it to `false`, or
+`WEAVEKIT_REQUIRE_RESTRICTED_ACCOUNT=false`, for a single-account setup).
+
 ## Next
 
 - [Schema guide](schema.md) — objects, fields, relations

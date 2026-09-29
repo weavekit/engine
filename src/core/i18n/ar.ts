@@ -175,6 +175,7 @@ export const ar: Record<MessageKey, string> = {
   'auth.invalidKey': 'مفتاح API غير صالح',
   'auth.notConfigured': 'لم يتم تكوين المصادقة (auth) — رفض بدء التشغيل',
   'engine.databaseUrl.missing': 'databaseUrl مطلوب (عيّن config.databaseUrl أو متغير البيئة DATABASE_URL)',
+  'engine.runtimeAccount.ddlAllowed': 'حساب قاعدة البيانات وقت التشغيل "{user}" يمكنه إنشاء كائنات في المخطط الحالي — وجّه databaseUrl إلى دور بأقل صلاحيات (بدون DDL) ونفّذ الترحيلات عبر migrationDatabaseUrl (عيّن runtime.requireRestrictedAccount=false للسماح)',
   'git.notRepo': '"{dir}" ليس مستودع git',
   'git.command.failed': 'فشل تنفيذ git {command}: {detail}',
   'loader.dir.missing': 'دليل البيانات الوصفية "{dir}" غير موجود',

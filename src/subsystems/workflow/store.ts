@@ -3,25 +3,6 @@ import type { WorkflowTimer, WorkflowTimerStore } from '../../core/index.js';
 
 const TABLE = 'weavekit_workflow_timers';
 
-/** create the durable timer table (idempotent); one timer per record */
-export async function ensureWorkflowTimersTable(pool: Pool): Promise<void> {
-  await pool.query(
-    `CREATE TABLE IF NOT EXISTS ${TABLE} (
-       object text NOT NULL,
-       id     text NOT NULL,
-       state  text NOT NULL,
-       due_at timestamptz NOT NULL,
-       workflow_version integer,
-       workflow_hash    text,
-       PRIMARY KEY (object, id)
-     )`,
-  );
-  // additive columns for tables created before definition-identity tracking
-  await pool.query(`ALTER TABLE ${TABLE} ADD COLUMN IF NOT EXISTS workflow_version integer`);
-  await pool.query(`ALTER TABLE ${TABLE} ADD COLUMN IF NOT EXISTS workflow_hash text`);
-  await pool.query(`CREATE INDEX IF NOT EXISTS ${TABLE}_due_idx ON ${TABLE} (due_at)`);
-}
-
 interface TimerRow {
   object: string;
   id: string;

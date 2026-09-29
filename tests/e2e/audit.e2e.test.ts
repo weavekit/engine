@@ -147,7 +147,7 @@ maybe('Audit subsystem E2E (local PG)', () => {
     }
   }, 60000);
 
-  it('audit disabled → no audit table, writes work with zero audit', async () => {
+  it('audit disabled → no audit rows, writes work with zero audit', async () => {
     const pool = createPool(url!);
     try {
       await pool.query('DROP TABLE IF EXISTS lead, weavekit_audit, weavekit_metadata, weavekit_meta CASCADE');
@@ -165,8 +165,9 @@ maybe('Audit subsystem E2E (local PG)', () => {
         { id: 'N1', title: 't', name: 'n', owner_id: 'u1' },
         { pool: engine.pool, registry: engine.registry, subject: { id: 'u1', roles: ['sales'] } },
       );
-      const tbl = await pool.query("SELECT to_regclass('weavekit_audit') AS t");
-      expect(tbl.rows[0]?.t).toBeNull();
+      // migrate provisions the system table, but a disabled audit writes no rows
+      const rows = await pool.query('SELECT count(*)::int AS n FROM weavekit_audit');
+      expect(rows.rows[0]?.n).toBe(0);
       await engine.close();
     } finally {
       await pool.query('DROP TABLE IF EXISTS lead, weavekit_audit, weavekit_metadata, weavekit_meta CASCADE');

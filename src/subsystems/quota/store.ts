@@ -11,17 +11,7 @@ import type { CounterConsume, CounterStore } from '../../core/limiter/index.js';
  * Redis/cloud backend can be injected behind the same contract.
  */
 
-const CREATE_TABLE = `CREATE TABLE IF NOT EXISTS weavekit_counters (
-  key text NOT NULL,
-  period_start timestamptz NOT NULL,
-  value bigint NOT NULL DEFAULT 0,
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  PRIMARY KEY (key, period_start)
-)`;
-
 export async function createPgCounterStore(pool: Pool): Promise<CounterStore> {
-  await pool.query(CREATE_TABLE);
-
   async function value(key: string, periodStart: Date): Promise<number> {
     const res = await pool.query<{ value: string }>(
       'SELECT value FROM weavekit_counters WHERE key = $1 AND period_start = $2',

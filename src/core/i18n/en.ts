@@ -172,6 +172,7 @@ export const en = {
   'auth.invalidKey': 'invalid api key',
   'auth.notConfigured': 'auth is not configured — refusing to start',
   'engine.databaseUrl.missing': 'databaseUrl is required (set config.databaseUrl or the DATABASE_URL env var)',
+  'engine.runtimeAccount.ddlAllowed': 'runtime database account "{user}" can create objects in the current schema — point databaseUrl at a least-privileged role (no DDL) and run migrations with migrationDatabaseUrl (set runtime.requireRestrictedAccount=false to allow)',
   'git.notRepo': '"{dir}" is not a git repository',
   'git.command.failed': 'git {command} failed: {detail}',
   'loader.dir.missing': 'metadata directory "{dir}" not found',

@@ -174,6 +174,7 @@ export const zh: Record<MessageKey, string> = {
   'auth.invalidKey': 'API Key 无效',
   'auth.notConfigured': '未配置认证（auth）— 拒绝启动',
   'engine.databaseUrl.missing': 'databaseUrl 必填（请设置 config.databaseUrl 或 DATABASE_URL 环境变量）',
+  'engine.runtimeAccount.ddlAllowed': '运行时数据库账户 "{user}" 可在当前 schema 建表——请将 databaseUrl 指向最小权限角色（无 DDL），并用 migrationDatabaseUrl 执行迁移（设 runtime.requireRestrictedAccount=false 可放行）',
   'git.notRepo': '"{dir}" 不是 git 仓库',
   'git.command.failed': 'git {command} 失败：{detail}',
   'loader.dir.missing': '元数据目录 "{dir}" 不存在',

@@ -2,6 +2,11 @@ import { describe, it as nodeIt, before, after, beforeEach, afterEach } from 'no
 export { describe, before, after, beforeEach, afterEach };
 export type { TestContext } from 'node:test';
 
+// Tests run against a local test database whose account is typically the owner
+// (superuser). Relax the runtime least-privilege guard by default; a test that
+// exercises the guard sets WEAVEKIT_REQUIRE_RESTRICTED_ACCOUNT itself.
+process.env.WEAVEKIT_REQUIRE_RESTRICTED_ACCOUNT ??= 'false';
+
 /**
  * bun:test-compatible `it(name, fn, timeout)` — node:test wants `{ timeout }`
  * as the 2nd argument, so wrap it to accept bun's trailing-number form.

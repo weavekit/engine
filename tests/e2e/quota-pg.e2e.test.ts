@@ -1,5 +1,5 @@
 import { describe, it, expect } from '../helpers/test.js';
-import { createPool } from '../../src/index.js';
+import { createPool, migrate, ObjectRegistry } from '../../src/index.js';
 import { createPgCounterStore } from '../../src/subsystems/quota/index.js';
 
 const url = process.env.DATABASE_URL;
@@ -10,6 +10,7 @@ maybe('Quota CounterStore PG E2E (local database)', () => {
     const pool = createPool(url!);
     try {
       await pool.query('DROP TABLE IF EXISTS weavekit_counters CASCADE');
+      await migrate(new ObjectRegistry(), { databaseUrl: url! });
       const store = await createPgCounterStore(pool);
       const day = new Date('2026-03-15T00:00:00Z');
 
@@ -39,12 +40,12 @@ maybe('Quota CounterStore PG E2E (local database)', () => {
     }
   }, 30000);
 
-  it('createPgCounterStore idempotent (repeated table creation does not error)', async () => {
+  it('migrate provisions the counter table idempotently', async () => {
     const pool = createPool(url!);
     try {
       await pool.query('DROP TABLE IF EXISTS weavekit_counters CASCADE');
-      await createPgCounterStore(pool);
-      await createPgCounterStore(pool); // CREATE TABLE IF NOT EXISTS
+      await migrate(new ObjectRegistry(), { databaseUrl: url! });
+      await migrate(new ObjectRegistry(), { databaseUrl: url! }); // second run: no-op
       const tbl = await pool.query("SELECT to_regclass('weavekit_counters') AS t");
       expect(tbl.rows[0]?.t).not.toBeNull();
     } finally {

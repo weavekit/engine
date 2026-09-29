@@ -3,18 +3,6 @@ import type { Queryable } from './types.js';
 
 const SEQ_TABLE = 'weavekit_seq';
 
-/** create the seq counter table if it does not exist (once per write transaction) */
-export async function ensureSeqTable(db: Queryable): Promise<void> {
-  await db.query(
-    `CREATE TABLE IF NOT EXISTS ${SEQ_TABLE} (
-       object_name text NOT NULL,
-       bucket text NOT NULL,
-       last_value bigint NOT NULL,
-       PRIMARY KEY (object_name, bucket)
-     )`,
-  );
-}
-
 /** counter bucket: format literal prefix; for cycle=year the year is baked in */
 export function seqBucket(field: SeqNoField, format: string, now: Date): string {
   const idx = format.indexOf('{seq');

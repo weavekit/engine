@@ -82,7 +82,7 @@ export async function createEngine(config: EngineConfig): Promise<WeaveKitEngine
   if (config.migrate?.auto === true) {
     const sync = await syncSchema({
       dir,
-      databaseUrl: config.databaseUrl,
+      databaseUrl: config.migrationDatabaseUrl ?? config.databaseUrl,
       locale,
       allowedFieldTypes: config.features?.fieldTypes,
       fieldTypes,
@@ -99,7 +99,9 @@ export async function createEngine(config: EngineConfig): Promise<WeaveKitEngine
       if (commit.committed && changes.length > 0) {
         const author = await gitCommitAuthor(dir);
         // reached only after a successful sync, which required a DB URL
-        const pool = createPool(config.databaseUrl ?? process.env.DATABASE_URL!);
+        const pool = createPool(
+          config.migrationDatabaseUrl ?? config.databaseUrl ?? process.env.DATABASE_URL!,
+        );
         try {
           await recordSchemaChanges(pool, changes, sync.files, {
             sha: commit.sha,

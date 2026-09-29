@@ -14,19 +14,6 @@ export interface MetadataEntry {
   definition: unknown;
 }
 
-/** create the metadata cache table if it does not exist */
-export async function ensureMetadataTable(pool: Pool): Promise<void> {
-  await pool.query(
-    `CREATE TABLE IF NOT EXISTS ${TABLE} (
-       object_name text PRIMARY KEY,
-       content_hash text NOT NULL,
-       definition jsonb NOT NULL,
-       applied_at timestamptz NOT NULL DEFAULT now(),
-       updated_at timestamptz NOT NULL DEFAULT now()
-     )`,
-  );
-}
-
 /** read the whole metadata cache keyed by object name */
 export async function readMetadataCache(pool: Pool): Promise<Map<string, MetadataRow>> {
   const result = await pool.query(
@@ -84,7 +71,6 @@ export async function syncMetadataCache(
   pool: Pool,
   files: MetadataEntry[],
 ): Promise<{ updated: string[]; removed: string[] }> {
-  await ensureMetadataTable(pool);
   const existing = await readMetadataCache(pool);
   const updated = files.filter((f) => existing.get(f.name)?.contentHash !== f.contentHash).map((f) => f.name);
   const removed = [...existing.keys()].filter((name) => !files.some((f) => f.name === name));

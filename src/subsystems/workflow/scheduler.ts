@@ -13,7 +13,7 @@ import {
   parseDuration,
 } from '../../core/index.js';
 import type { DataAccessContext, ObjectDataAccess } from '../../runtime/data-access/index.js';
-import { createPgWorkflowTimerStore, ensureWorkflowTimersTable } from './store.js';
+import { createPgWorkflowTimerStore } from './store.js';
 
 /** the engine's workflow scheduler handle (also the injected {@link WorkflowTimerSync}) */
 export interface WorkflowTimerScheduler extends WorkflowTimerSync {
@@ -49,7 +49,6 @@ export async function createWorkflowScheduler(
   if (options.config?.backend !== undefined) {
     store = options.config.backend.timerStore;
   } else {
-    await ensureWorkflowTimersTable(options.pool);
     store = createPgWorkflowTimerStore(options.pool);
   }
 

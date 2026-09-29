@@ -175,6 +175,7 @@ export const de: Record<MessageKey, string> = {
   'auth.invalidKey': 'Ungültiger API-Schlüssel',
   'auth.notConfigured': 'auth ist nicht konfiguriert — Start wird verweigert',
   'engine.databaseUrl.missing': 'databaseUrl ist erforderlich (setze config.databaseUrl oder die Umgebungsvariable DATABASE_URL)',
+  'engine.runtimeAccount.ddlAllowed': 'das Laufzeit-Datenbankkonto "{user}" kann Objekte im aktuellen Schema erstellen — richte databaseUrl auf eine Rolle mit minimalen Rechten (kein DDL) und führe Migrationen mit migrationDatabaseUrl aus (setze runtime.requireRestrictedAccount=false zum Erlauben)',
   'git.notRepo': '"{dir}" ist kein Git-Repository',
   'git.command.failed': 'git {command} fehlgeschlagen: {detail}',
   'loader.dir.missing': 'Metadatenverzeichnis "{dir}" nicht gefunden',

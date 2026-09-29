@@ -175,6 +175,7 @@ export const id: Record<MessageKey, string> = {
   'auth.invalidKey': 'kunci API tidak valid',
   'auth.notConfigured': 'auth belum dikonfigurasi — menolak untuk memulai',
   'engine.databaseUrl.missing': 'databaseUrl wajib diisi (atur config.databaseUrl atau variabel lingkungan DATABASE_URL)',
+  'engine.runtimeAccount.ddlAllowed': 'akun basis data runtime "{user}" dapat membuat objek di schema saat ini — arahkan databaseUrl ke peran dengan hak istimewa minimal (tanpa DDL) dan jalankan migrasi dengan migrationDatabaseUrl (setel runtime.requireRestrictedAccount=false untuk mengizinkan)',
   'git.notRepo': '"{dir}" bukan repositori git',
   'git.command.failed': 'git {command} gagal: {detail}',
   'loader.dir.missing': 'direktori metadata "{dir}" tidak ditemukan',

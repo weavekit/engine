@@ -3,24 +3,6 @@ import type { ApprovalListFilter, ApprovalStatus, ApprovalsBackend, PendingAppro
 
 const TABLE = 'weavekit_approvals';
 
-/** idempotent table creation + indexes (append-query-friendly: status+created, actor) */
-export async function ensureApprovalsTable(pool: Pool): Promise<void> {
-  await pool.query(
-    `CREATE TABLE IF NOT EXISTS ${TABLE} (
-       approval_key text PRIMARY KEY,
-       action       text NOT NULL,
-       args         jsonb NOT NULL,
-       actor_key    text NOT NULL,
-       status       text NOT NULL,
-       created_at   timestamptz NOT NULL DEFAULT now(),
-       approved_by  text,
-       resolved_at  timestamptz
-     )`,
-  );
-  await pool.query(`CREATE INDEX IF NOT EXISTS ${TABLE}_status_created_idx ON ${TABLE} (status, created_at DESC)`);
-  await pool.query(`CREATE INDEX IF NOT EXISTS ${TABLE}_actor_idx ON ${TABLE} (actor_key)`);
-}
-
 interface Row {
   approval_key: string;
   action: string;

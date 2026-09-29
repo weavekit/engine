@@ -1,6 +1,6 @@
 import type { Pool } from 'pg';
 import type { AuditEvent, AuditSink } from '../../core/audit/index.js';
-import { ensureAuditTable, insertAudit, insertAuditBatch, queryAudit } from './store.js';
+import { insertAudit, insertAuditBatch, queryAudit } from './store.js';
 import type { AuditQuery, AuditQueryResult } from './store.js';
 
 export { AUDIT_ACTOR_TYPES, DATA_ACTIONS, NOOP_AUDIT_SINK } from '../../core/audit/index.js';
@@ -16,9 +16,8 @@ export interface AuditEngine extends AuditSink {
   close(): Promise<void>;
 }
 
-/** create the PG-backed audit engine (idempotent table creation) */
+/** create the PG-backed audit engine (table provisioned by `weave migrate`) */
 export async function createAudit(pool: Pool): Promise<AuditEngine> {
-  await ensureAuditTable(pool);
   return {
     async record(event) {
       await insertAudit(pool, event);

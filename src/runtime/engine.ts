@@ -207,11 +207,24 @@ export interface EngineConfig {
   databaseUrl?: string;
   /**
    * connection string used only for schema migration/DDL by the CLI (`weave
-   * migrate`/`weave dev`). Defaults to `databaseUrl`. Point it at a
-   * migration/owner account so the runtime account can be least-privileged
-   * (no DDL/DROP/TRUNCATE). The engine itself never runs DDL at runtime.
+   * migrate`/`weave dev`). Defaults to `databaseUrl`. **Same database, a
+   * separate account** — a PostgreSQL role with DDL rights (usually the owner),
+   * so the runtime account can be least-privileged (no DDL/DROP/TRUNCATE).
+   * Pointing it at a *different* database is a misconfiguration (migrations
+   * would land where the runtime cannot see them). The engine itself never runs
+   * DDL at runtime.
    */
   migrationDatabaseUrl?: string;
+  /**
+   * runtime database account guard. The engine only ever runs DML, so its
+   * account should be least-privileged (no schema `CREATE`); DDL is an explicit
+   * `weave migrate` using `migrationDatabaseUrl`. When `requireRestrictedAccount`
+   * is true (the default) the engine **fails to start** if its account can
+   * create objects in the current schema. Set false for a single-account setup
+   * (`weave dev` does this by default), or override with the
+   * `WEAVEKIT_REQUIRE_RESTRICTED_ACCOUNT` env var.
+   */
+  runtime?: { requireRestrictedAccount?: boolean };
   /** runtime message locale; resolution: config → env WEAVEKIT_LOCALE → 'en' */
   locale?: Locale;
   /**
@@ -330,6 +343,40 @@ export function resolveLocale(configLocale: Locale | undefined): Locale {
 }
 
 /**
+ * Whether the runtime database account must be least-privileged (no schema
+ * `CREATE`). Resolution: explicit `config.runtime.requireRestrictedAccount` →
+ * env `WEAVEKIT_REQUIRE_RESTRICTED_ACCOUNT` → default `true`.
+ */
+export function resolveRequireRestrictedAccount(config: EngineConfig): boolean {
+  const configured = config.runtime?.requireRestrictedAccount;
+  if (configured !== undefined) return configured;
+  const env = process.env.WEAVEKIT_REQUIRE_RESTRICTED_ACCOUNT;
+  if (env !== undefined) return env !== 'false' && env !== '0';
+  return true;
+}
+
+/**
+ * Fail-closed guard: refuse to start when the runtime account can create
+ * objects in the current schema. WeaveKit runs DDL only via `weave migrate`
+ * (with `migrationDatabaseUrl`); a runtime account with `CREATE` defeats the
+ * least-privilege model.
+ */
+export async function assertRestrictedRuntimeAccount(
+  pool: Pool,
+  config: EngineConfig,
+  locale: Locale,
+): Promise<void> {
+  if (!resolveRequireRestrictedAccount(config)) return;
+  const { rows } = await pool.query<{ user: string; can_create: boolean }>(
+    `SELECT current_user AS user, has_schema_privilege(current_user, current_schema(), 'CREATE') AS can_create`,
+  );
+  const row = rows[0];
+  if (row?.can_create === true) {
+    throw new SchemaError('engine.runtimeAccount.ddlAllowed', { user: row.user }, locale);
+  }
+}
+
+/**
  * Assemble a running engine from an already-built registry (no schema loading).
  * This is the low-level assembly used by `createEngine` and by tests/dev that
  * already hold an `ObjectRegistry` — prefer `createEngine` for the normal path.
@@ -348,6 +395,12 @@ export async function buildEngineFromRegistry(
   }
 
   const pool = createPool(databaseUrl);
+  try {
+    await assertRestrictedRuntimeAccount(pool, config, locale);
+  } catch (error) {
+    await pool.end();
+    throw error;
+  }
 
   // optional durable counter store (quotas/budgets); absent = zero overhead
   let quotas: CounterStore | undefined;

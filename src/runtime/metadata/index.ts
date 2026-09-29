@@ -1,5 +1,4 @@
 export {
-  ensureMetadataTable,
   readMetadataCache,
   writeMetadataCache,
   invalidateMetadata,

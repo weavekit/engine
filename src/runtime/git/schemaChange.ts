@@ -6,7 +6,7 @@ import {
   type Locale,
   type ObjectDefinition,
 } from '../../core/index.js';
-import { ensureAuditTable, insertAudit } from '../../subsystems/audit/store.js';
+import { insertAudit } from '../../subsystems/audit/store.js';
 import type { SchemaFile } from './loader.js';
 import { runGit } from './runner.js';
 
@@ -269,7 +269,6 @@ export async function recordSchemaChanges(
   commit: SchemaAuditCommit,
 ): Promise<void> {
   if (changes.length === 0) return;
-  await ensureAuditTable(pool);
 
   const byObject = new Map<string, SchemaChange[]>();
   for (const c of changes) {
@@ -322,7 +321,6 @@ export async function recordWorkflowMigration(
 ): Promise<void> {
   const applied = entries.filter((entry) => entry.moved.length > 0);
   if (applied.length === 0) return;
-  await ensureAuditTable(pool);
   const actorId = commit.author ?? 'system';
   const actorType = actorId === 'system' ? AUDIT_ACTOR_TYPES.SYSTEM : AUDIT_ACTOR_TYPES.USER;
   for (const entry of applied) {

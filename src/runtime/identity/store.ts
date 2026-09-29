@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { Pool } from 'pg';
-import { ensureMetaTable, getMeta, setMeta } from '../../core/storage/meta.js';
+import { getMeta, setMeta } from '../../core/storage/meta.js';
 import type {
   IdentityDepartmentInput,
   IdentityDepartmentRow,
@@ -199,7 +199,6 @@ export class PgIdentityStore implements IdentityStore {
   }
 
   async setCursor(source: string, cursor: string): Promise<void> {
-    await ensureMetaTable(this.pool);
     await setMeta(this.pool, `identity.cursor.${source}`, cursor);
   }
 }

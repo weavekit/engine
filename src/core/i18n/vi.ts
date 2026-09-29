@@ -175,6 +175,7 @@ export const vi: Record<MessageKey, string> = {
   'auth.invalidKey': 'API key không hợp lệ',
   'auth.notConfigured': 'auth chưa được cấu hình — từ chối khởi động',
   'engine.databaseUrl.missing': 'databaseUrl là bắt buộc (đặt config.databaseUrl hoặc biến môi trường DATABASE_URL)',
+  'engine.runtimeAccount.ddlAllowed': 'tài khoản cơ sở dữ liệu lúc chạy "{user}" có thể tạo đối tượng trong schema hiện tại — trỏ databaseUrl tới vai trò đặc quyền tối thiểu (không DDL) và chạy di trú bằng migrationDatabaseUrl (đặt runtime.requireRestrictedAccount=false để cho phép)',
   'git.notRepo': '"{dir}" không phải là kho git',
   'git.command.failed': 'git {command} thất bại: {detail}',
   'loader.dir.missing': 'không tìm thấy thư mục siêu dữ liệu "{dir}"',

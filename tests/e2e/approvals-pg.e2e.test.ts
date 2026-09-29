@@ -1,5 +1,5 @@
 import { describe, it, after, expect } from '../helpers/test.js';
-import { createPool } from '../../src/index.js';
+import { createPool, migrate, ObjectRegistry } from '../../src/index.js';
 import { createApprovalsBackend } from '../../src/subsystems/approvals/index.js';
 import type { Pool } from 'pg';
 import type { PendingApproval } from '../../src/core/tools/types.js';
@@ -13,6 +13,7 @@ maybe('Approvals subsystem PG E2E (local database)', () => {
   it('Persistence: upsert/list/get/resolve/count full path', async () => {
     pool = createPool(url!);
     await pool.query('DROP TABLE IF EXISTS weavekit_approvals CASCADE');
+    await migrate(new ObjectRegistry(), { databaseUrl: url! });
     const backend = await createApprovalsBackend(pool);
 
     const pending: PendingApproval = {

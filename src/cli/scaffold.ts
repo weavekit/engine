@@ -74,6 +74,12 @@ function renderConfig(type?: ProjectType): string {
   // WeaveKit engine configuration.
 ${narrative}export default {
 ${projectType}${subsystems}${features}  schemaDir: '.',
+  // Least-privilege production setup (optional; see docs/guides/getting-started.md):
+  // same database, two roles — serve with a runtime account that cannot run DDL,
+  // and migrate with an owner account.
+  // databaseUrl: process.env.DATABASE_URL,                    // runtime role: DML only
+  // migrationDatabaseUrl: process.env.MIGRATION_DATABASE_URL, // owner role: weave migrate
+  // runtime: { requireRestrictedAccount: true },              // default: fail if runtime can CREATE
   auth: {
     source: {
       // Replace with real keys; prefer env references:
@@ -120,7 +126,7 @@ process.on('SIGTERM', () => void shutdown());
 
 const GITIGNORE = `node_modules/\ndist/\n.env\n`;
 
-const ENV_EXAMPLE = `# Copy to .env and fill in your PostgreSQL connection.\nDATABASE_URL=postgres://postgres:postgres@localhost:5432/weavekit\n# HTTP port the engine listens on (default 3000)\n# PORT=3000\n`;
+const ENV_EXAMPLE = `# Copy to .env and fill in your PostgreSQL connection.\n# Runtime connection — the engine serves with this account and never runs DDL:\nDATABASE_URL=postgres://postgres:postgres@localhost:5432/weavekit\n# Optional least-privilege setup: the SAME database, a second owner role used only\n# by \`weave migrate\` (DDL). Leave it unset to run everything as the DATABASE_URL\n# account (single-account setup).\n# MIGRATION_DATABASE_URL=postgres://<second_user>:<password>@localhost:5432/weavekit\n# HTTP port the engine listens on (default 3000)\n# PORT=3000\n`;
 
 function renderPackageJson(name: string): string {
   return JSON.stringify(

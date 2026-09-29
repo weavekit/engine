@@ -54,7 +54,6 @@ const INTERNAL_NAMES = [
   'registerOpsRoutes',
   'readMetadataCache',
   'writeMetadataCache',
-  'ensureMetadataTable',
 ];
 
 describe('public API tiers', () => {

@@ -7,9 +7,10 @@ import { applyStatements } from './apply.js';
 import { buildExpectedTable, diffAll, diffRls, diffTable } from './diff.js';
 import type { ExpectedTable } from './diff.js';
 import { inspectSchema } from './inspect.js';
-import { ensureMetaTable, setMeta } from './meta.js';
+import { setMeta } from './meta.js';
 import { createPool } from './pool.js';
 import { buildRecordMetaTable } from './record-meta.js';
+import { SYSTEM_TABLES, buildSystemTables, systemHardeningStatements } from './system-tables.js';
 import { isSafeRlsRole } from '../rbac/index.js';
 
 export interface MigrateOptions {
@@ -118,6 +119,23 @@ async function provisionRlsRole(pool: import('pg').Pool, role: string, warnings:
 }
 
 /**
+ * True when `PUBLIC` still holds `TRUNCATE` on `table`, i.e. the append-only
+ * hardening `REVOKE` is worth emitting. New tables grant nothing to `PUBLIC`
+ * by default, so a clean run emits no hardening statement (keeps migrate
+ * idempotent).
+ */
+async function publicHasTruncate(pool: import('pg').Pool, table: string): Promise<boolean> {
+  const res = await pool.query(
+    `SELECT EXISTS (
+       SELECT 1 FROM pg_class c, aclexplode(coalesce(c.relacl, acldefault('r', c.relowner))) a
+       WHERE c.oid = to_regclass($1) AND a.grantee = 0 AND a.privilege_type = 'TRUNCATE'
+     ) AS needs`,
+    [table],
+  );
+  return (res.rows[0] as { needs: boolean } | undefined)?.needs === true;
+}
+
+/**
  * State-diff migration: compare each engine-managed object's expected table
  * against the live `information_schema`, generate DDL, apply inside a
  * transaction, and write `schema.applied.<object>` audit records.
@@ -162,6 +180,12 @@ export async function migrate(registry: ObjectRegistry, options: MigrateOptions 
     // they never touch the customer's own table
     const metaTables = [...defs.keys()].map((name) => buildRecordMetaTable(name));
     const metaStatements = diffAll(metaTables, actual);
+
+    // engine-owned system tables (metadata cache / seq / audit / approvals /
+    // timers / counters) + their ACL hardening: provisioned here (and only
+    // here) so the runtime never runs DDL and can be least-privileged.
+    const systemStatements = diffAll(buildSystemTables(), actual);
+    const hardening = (await publicHasTruncate(pool, SYSTEM_TABLES.AUDIT)) ? systemHardeningStatements() : [];
 
     // existing tables are read-only unless the object opted in (`alter: true`):
     // verify every declared field is a live column (prevents REST/MCP pointing
@@ -215,10 +239,16 @@ export async function migrate(registry: ObjectRegistry, options: MigrateOptions 
       }
     }
 
-    const allStatements = [...enumStatements, ...statements, ...metaStatements, ...rlsStatements];
+    const allStatements = [
+      ...enumStatements,
+      ...statements,
+      ...metaStatements,
+      ...systemStatements,
+      ...rlsStatements,
+      ...hardening,
+    ];
 
     if (!dryRun && allStatements.length > 0) {
-      await ensureMetaTable(pool);
       await applyStatements(pool, allStatements);
       const ts = new Date().toISOString();
       for (const name of applied) await setMeta(pool, `schema.applied.${name}`, ts);

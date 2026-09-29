@@ -43,7 +43,8 @@ export type {
   MappingTable,
   MappingTotals,
 } from './report.js';
-export { ensureMetaTable, setMeta } from './meta.js';
+export { setMeta, getMeta } from './meta.js';
 export { applyStatements } from './apply.js';
+export { SYSTEM_TABLES, SYSTEM_TABLE_NAMES, buildSystemTables, systemHardeningStatements } from './system-tables.js';
 export { migrate } from './migrate.js';
 export type { MigrateOptions, MigrationResult } from './migrate.js';

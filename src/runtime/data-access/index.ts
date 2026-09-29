@@ -23,7 +23,6 @@ export type { BuiltQuery, BuildContext, RowScope } from "./builder.js";
 export { validateRecord } from "./validate.js";
 export type { ValidateRecordOptions } from "./validate.js";
 export {
-  ensureSeqTable,
   seqBucket,
   renderSeq,
   generateSeqNo,

@@ -175,6 +175,7 @@ export const ja: Record<MessageKey, string> = {
   'auth.invalidKey': 'API キーが無効です',
   'auth.notConfigured': '認証（auth）が未設定です — 起動を拒否します',
   'engine.databaseUrl.missing': 'databaseUrl が必要です（config.databaseUrl または DATABASE_URL 環境変数を設定してください）',
+  'engine.runtimeAccount.ddlAllowed': 'ランタイム用データベースアカウント "{user}" は現在のスキーマでオブジェクトを作成できます——databaseUrl を最小権限のロール（DDL 不可）にし、migrationDatabaseUrl でマイグレーションを実行してください（runtime.requireRestrictedAccount=false で許可）',
   'git.notRepo': '「{dir}」は git リポジトリではありません',
   'git.command.failed': 'git {command} が失敗しました: {detail}',
   'loader.dir.missing': 'メタデータディレクトリ「{dir}」が見つかりません',

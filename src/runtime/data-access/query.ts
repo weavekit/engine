@@ -10,7 +10,7 @@ import { evaluateTransition, type PolicyApprovals } from '../tools/policies.js';
 import { buildCountSql, buildFindSql, scopeSuffix, type BuildContext } from './builder.js';
 import { deleteDetailsChildren, insertDetails } from './details.js';
 import { computeFormulas, type FormulaAuth } from './formula.js';
-import { ensureSeqTable, generateSeqNo } from './seqno.js';
+import { generateSeqNo } from './seqno.js';
 import type { DataAccessContext, FindOptions, FindResult, ObjectDataAccess } from './types.js';
 import { validateRecord } from './validate.js';
 import { WRITE_MODES } from './values.js';
@@ -489,7 +489,6 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
 
       const seqFields = def.fields.filter((f) => f.type === FIELD_TYPES.SEQ_NO);
       if (seqFields.length > 0) {
-        await ensureSeqTable(client);
         for (const f of seqFields) record[f.name] = await generateSeqNo(client, def.name, f, now);
       }
 
