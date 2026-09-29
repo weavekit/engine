@@ -106,6 +106,13 @@ export interface WorkflowCloseOptions {
   printer: CliPrinter;
 }
 
+/** `weave workflow:switch` options */
+export interface WorkflowSwitchOptions {
+  /** registered revision (version_seq) to write back to workflow.json */
+  revision?: string;
+  printer: CliPrinter;
+}
+
 /** `weave workflow:upgrade` options */
 export interface WorkflowUpgradeOptions {
   /** report what would change without writing files */

@@ -236,4 +236,12 @@ maybe('Workflow runtime E2E (three-layer: instance/step/workitem, local PG)', ()
     // m1 is a valid role holder but not a workitem participant at the review node
     await expect(act(id, 'approve', m1)).rejects.toMatchObject({ code: 'workflow.transition.denied' });
   });
+
+  it('registers each object definition content-addressably on migrate', async () => {
+    const r = await pool.query(
+      `SELECT hash FROM weavekit_workflow_definitions WHERE object = 'wf_doc'`,
+    );
+    expect(r.rows.length).toBeGreaterThanOrEqual(1);
+    expect(String((r.rows[0] as { hash: string }).hash)).toMatch(/^[0-9a-f]{64}$/);
+  });
 });

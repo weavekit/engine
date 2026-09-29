@@ -273,8 +273,34 @@ export async function migrate(registry: ObjectRegistry, options: MigrateOptions 
       for (const name of applied) await setMeta(pool, `schema.applied.${name}`, ts);
     }
 
+    // content-address every object's workflow definition (append-only, idempotent)
+    // so running instances can resolve the exact revision they were pinned to.
+    if (!dryRun) await registerWorkflowDefinitions(pool, defs);
+
     return { statements: allStatements, applied, dryRun, warnings };
   } finally {
     await pool.end();
+  }
+}
+
+/**
+ * Upsert each object's current workflow definition into
+ * `weavekit_workflow_definitions` (keyed by content hash). Idempotent; the
+ * `version_seq` is a monotonic display/switch ordinal. Never rewrites or drops
+ * an existing row (append-only revision history for instance pinning).
+ */
+async function registerWorkflowDefinitions(
+  pool: import('pg').Pool,
+  defs: ReadonlyMap<string, ObjectDefinition>,
+): Promise<void> {
+  const table = q(SYSTEM_TABLES.WORKFLOW_DEFINITIONS);
+  for (const def of defs.values()) {
+    if (def.workflow === undefined || def.workflowHash === undefined) continue;
+    await pool.query(
+      `INSERT INTO ${table} (object, hash, version_seq, definition)
+       VALUES ($1, $2, (SELECT COALESCE(MAX(version_seq), 0) + 1 FROM ${table} WHERE object = $1), $3::jsonb)
+       ON CONFLICT (object, hash) DO NOTHING`,
+      [def.name, def.workflowHash, JSON.stringify(def.workflow)],
+    );
   }
 }

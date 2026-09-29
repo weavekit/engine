@@ -19,6 +19,7 @@ export const WEAVE_COMMANDS = {
   MODULE_REMOVE: 'module:remove',
   WORKFLOW_OPEN: 'workflow:open',
   WORKFLOW_CLOSE: 'workflow:close',
+  WORKFLOW_SWITCH: 'workflow:switch',
   WORKFLOW_UPGRADE: 'workflow:upgrade',
   PAGES_MIGRATE: 'pages:migrate',
   CONNECT: 'connect',

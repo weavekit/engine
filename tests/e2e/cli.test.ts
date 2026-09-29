@@ -509,6 +509,38 @@ maybe("CLI weave E2E (spawn + local PG + .tmp/weavekit-project)", () => {
     }
   }, 120000);
 
+  it("workflow:switch restores a registered revision into workflow.json", async () => {
+    await rmProjectDir();
+    await mkdir(PROJECT_DIR, { recursive: true });
+    try {
+      await scaffoldProject(PROJECT_DIR);
+      await linkEngineModule();
+      await gitIn(["init"]);
+      await runCli(["object:create", "wf_switch"]);
+      await runCli(["workflow:open", "wf_switch", "--json"]);
+      // register revision 1
+      expect((await runCli(["migrate", "--json"])).code).toBe(0);
+
+      const workflowPath = join(PROJECT_DIR, "objects", "wf_switch", "workflow.json");
+      const original = JSON.parse(await readFile(workflowPath, "utf8")) as {
+        nodes: Array<{ id: string; assign: { roles: string[] } }>;
+      };
+      // mutate the file, then restore the registered revision
+      await writeFile(
+        workflowPath,
+        JSON.stringify({ schemaVersion: 2, nodes: [{ id: "changed", assign: { roles: ["x"] } }] }, null, 2),
+      );
+      const res = await runCli(["workflow:switch", "wf_switch", "--revision", "1", "--json"]);
+      expect(res.code).toBe(0);
+      const restored = JSON.parse(await readFile(workflowPath, "utf8")) as {
+        nodes: Array<{ id: string; assign: { roles: string[] } }>;
+      };
+      expect(restored.nodes).toEqual(original.nodes);
+    } finally {
+      await rmProjectDir();
+    }
+  }, 120000);
+
   it("field:add: add a field to an object (schema.json update + validation + autoCommit)", async () => {
     await rmProjectDir();
     await mkdir(PROJECT_DIR, { recursive: true });

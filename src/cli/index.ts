@@ -22,6 +22,7 @@ import { test } from './commands/test.js';
 import { types } from './commands/types.js';
 import { workflowClose } from './commands/workflow-close.js';
 import { workflowOpen } from './commands/workflow-open.js';
+import { workflowSwitch } from './commands/workflow-switch.js';
 import { workflowUpgrade } from './commands/workflow-upgrade.js';
 import { createPrinter } from './render.js';
 import { WEAVE_COMMANDS } from './types/index.js';
@@ -285,6 +286,16 @@ program
   .description('disable the object workflow (keeps workflow.json) and auto-commit')
   .action(async (object: string) => {
     await runAction(() => workflowClose(process.cwd(), object, { printer: printer() }));
+  });
+
+program
+  .command(`${WEAVE_COMMANDS.WORKFLOW_SWITCH} <object>`)
+  .description('replace workflow.json with a registered revision (affects new records) and auto-commit')
+  .requiredOption('--revision <seq>', 'registered revision (version_seq) to write back')
+  .action(async (object: string, opts: { revision?: string }) => {
+    await runAction(() =>
+      workflowSwitch(process.cwd(), object, { revision: opts.revision, printer: printer() }),
+    );
   });
 
 program
