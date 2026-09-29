@@ -5,6 +5,7 @@ import {
   READ_SCOPES,
   ROW_SCOPE_MARKERS,
   SchemaError,
+  buildFieldTypeRegistry,
   describeObject,
   listObjectDescriptors,
   listObjectPermissions,
@@ -80,6 +81,34 @@ describe('describeObject — single-object schema + effective permissions', () =
     expect(byName.get('subtotal')?.readOnly).toBe(true); // formula
     expect(byName.get('owner')?.readOnly).toBe(true); // system
     expect(byName.get('id')?.readOnly).toBeUndefined(); // ordinary field
+  });
+
+  it('exposes the resolved `base` for delegated/registered types; omits it for primitives', () => {
+    const reg = new ObjectRegistry({
+      fieldTypes: buildFieldTypeRegistry([{ name: 'acme_money', base: 'number' }]),
+    });
+    reg.register(
+      {
+        name: 'invoice',
+        fields: [
+          { name: 'id', type: 'string', primary: true },
+          { name: 'label', type: 'string' },
+          { name: 'email', type: 'email' },
+          { name: 'amount', type: 'acme_money' },
+        ],
+      },
+      { fieldTypes: reg.fieldTypes },
+    );
+    reg.buildGraph();
+    const byName = new Map(
+      describeObject(reg, 'invoice', ['any'], DEFAULT_LOCALE).fields.map((f) => [f.name, f]),
+    );
+    // primitives carry no `base`
+    expect(byName.get('id')?.base).toBeUndefined();
+    expect(byName.get('label')?.base).toBeUndefined();
+    // delegated built-in and registered types report their primitive
+    expect(byName.get('email')?.base).toBe('string');
+    expect(byName.get('amount')?.base).toBe('number');
   });
 
   it('unknown object → data.objectUnknown; no read permission → rbac.denied.read', () => {

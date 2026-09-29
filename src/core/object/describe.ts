@@ -4,6 +4,7 @@ import { RECORD_META_VIRTUAL_FIELD_SPECS, type RecordMetaVirtualFieldSpec } from
 import { SchemaError } from '../types/errors.js';
 import {
   FIELD_TYPES,
+  fieldBase,
   isRelationLike,
   primaryKeyOf,
   type AttrKind,
@@ -40,6 +41,14 @@ export interface MetadataAttrSpec {
 export interface MetadataField {
   name: string;
   type: string;
+  /**
+   * the primitive this `type` delegates to (resolved through the field-type
+   * registry); present only when it differs from `type` (e.g. a registered
+   * `namespace::…` type, `email → string`, `user → relation`). Neutral data
+   * semantics — lets a front-end map any type to a built-in control without
+   * engine-owned UI hints.
+   */
+  base?: string;
   /** per-locale display names; resolve with `resolveLabel` (absent → use `name`) */
   labels?: Record<string, string>;
   description?: string;
@@ -156,6 +165,10 @@ function fieldDescription(field: FieldDefinition, objects: ObjectRegistry): Meta
     labels: field.labels,
     description: field.description,
   };
+  // the resolved primitive a delegated/registered type inherits (omit when the
+  // type is already a primitive) — lets front-ends map any type to a base control
+  const base = fieldBase(registry, field.type);
+  if (base !== field.type) out.base = base;
   const attrs = attrSpecsOf(field, registry);
   if (attrs !== undefined) out.attrs = attrs;
   const readonly = field.system === true || (field as { formula?: string }).formula !== undefined;

@@ -107,6 +107,11 @@ A registered type can go beyond inheriting its base:
   endpoint) surface each declared attr together with its type's spec — `{ value?, type, values?,
   default?, description? }` — so clients and agents can interpret values without knowing the type in
   code. Only registered attributes are exposed; `storage` / `validate` internals never are.
+- **resolved `base`** — the metadata contract (`describe_object` / the REST metadata endpoint) carries
+  `base` for any field whose type delegates to a primitive — a registered `acme_money` reports
+  `base: "number"`, and built-ins report theirs too (`email → "string"`, `user → "relation"`). It is
+  neutral data semantics, **not** a widget: it lets a front-end map any type to a built-in control
+  without the engine ever emitting UI hints.
 - **`storage.pgType`** — map the field to a custom PostgreSQL column type. The function is pure; its
   output is checked against a safe grammar (a known type with optional size and `[]`) before it reaches
   DDL, and an unsafe value fails closed (`fieldtype.storage.invalid`). Relation-like types cannot
