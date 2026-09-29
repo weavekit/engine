@@ -237,6 +237,52 @@ maybe('Workflow runtime E2E (three-layer: instance/step/workitem, local PG)', ()
     await expect(act(id, 'approve', m1)).rejects.toMatchObject({ code: 'workflow.transition.denied' });
   });
 
+  it('exposes workflow status / actions / lock over REST', async () => {
+    const id = encodeRecordKey(['D7']);
+    await engine.dataAccess.create('wf_doc', { id: 'D7' }, dctx(admin));
+
+    const draft = await engine.app.inject({
+      method: 'GET',
+      url: `/api/objects/wf_doc/${id}/workflow`,
+      headers: { authorization: 'Bearer key-admin' },
+    });
+    expect(draft.statusCode).toBe(200);
+    expect((draft.json() as { state: string }).state).toBe('draft');
+    expect((draft.json() as { actions: string[] }).actions).toContain('submit');
+
+    const submitted = await engine.app.inject({
+      method: 'POST',
+      url: `/api/objects/wf_doc/${id}/workflow/submit`,
+      headers: { authorization: 'Bearer key-admin' },
+    });
+    expect(submitted.statusCode).toBe(200);
+
+    const status = await engine.app.inject({
+      method: 'GET',
+      url: `/api/objects/wf_doc/${id}/workflow`,
+      headers: { authorization: 'Bearer key-a1' },
+    });
+    const body = status.json() as { state: string; node: string; actions: string[] };
+    expect(body.state).toBe('running');
+    expect(body.node).toBe('review');
+    expect(body.actions).toEqual(['approve', 'reject', 'forward', 'withdraw']);
+
+    const lock = await engine.app.inject({
+      method: 'POST',
+      url: `/api/objects/wf_doc/${id}/workflow/lock`,
+      headers: { authorization: 'Bearer key-a1' },
+    });
+    expect(lock.statusCode).toBe(200);
+    expect((lock.json() as { expiresAt: string }).expiresAt).toBeDefined();
+
+    const unlock = await engine.app.inject({
+      method: 'DELETE',
+      url: `/api/objects/wf_doc/${id}/workflow/lock`,
+      headers: { authorization: 'Bearer key-a1' },
+    });
+    expect(unlock.statusCode).toBe(200);
+  });
+
   it('registers each object definition content-addressably on migrate', async () => {
     const r = await pool.query(
       `SELECT hash FROM weavekit_workflow_definitions WHERE object = 'wf_doc'`,

@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { PoolClient } from 'pg';
+import type { Pool, PoolClient } from 'pg';
 import {
   SchemaError,
   WEAVE_STATUS,
@@ -597,3 +597,141 @@ function commentOf(payload: Record<string, unknown> | undefined): string | null 
   const comment = payload?.comment;
   return typeof comment === 'string' && comment.length > 0 ? comment : null;
 }
+
+/** presence-lock TTL (seconds) — matches the frontend heartbeat convention */
+export const WORKFLOW_LOCK_TTL_SECONDS = 60;
+
+/** one open workitem of the current step, as seen by a caller */
+export interface WorkflowWorkitemView {
+  id: string;
+  nodeId: string;
+  kind: string;
+  state: string;
+  participant: string;
+}
+
+/** read-only workflow status for a record (GET …/workflow) */
+export interface WorkflowStatus {
+  state: 'draft' | 'running' | 'finished' | 'canceled';
+  /** current node id (running only) */
+  node?: string;
+  approval?: string | null;
+  /** actions available to the caller */
+  actions: string[];
+  /** the caller's open workitems on the current step */
+  workitems: WorkflowWorkitemView[];
+}
+
+/**
+ * Read a record's workflow status (no locking): instance state, current node
+ * and the actions available to `subject`. Used by the REST/MCP read surface.
+ */
+export async function getWorkflowStatus(
+  client: Pool | PoolClient,
+  def: WorkflowRuntimeOptions,
+  recordKey: string,
+  subject: IdentitySubject | undefined,
+): Promise<WorkflowStatus> {
+  const instRes = await client.query(
+    `SELECT state, approval, current_step_id, originator FROM ${q(T.WORKFLOW_INSTANCES)}
+      WHERE object = $1 AND record_key = $2`,
+    [def.name, recordKey],
+  );
+  const inst = instRes.rows[0] as
+    | { state: string; approval: string | null; current_step_id: string | null; originator: string }
+    | undefined;
+  if (inst === undefined) {
+    return { state: 'draft', actions: subject === undefined ? [] : [WORKFLOW_ACTIONS.SUBMIT], workitems: [] };
+  }
+  if (inst.state !== 'running') {
+    return {
+      state: inst.state as WorkflowStatus['state'],
+      approval: inst.approval,
+      actions: [],
+      workitems: [],
+    };
+  }
+  const stepRes = await client.query(
+    `SELECT node_id, kind FROM ${q(T.WORKFLOW_STEPS)} WHERE id = $1`,
+    [inst.current_step_id],
+  );
+  const step = stepRes.rows[0] as { node_id: string; kind: string } | undefined;
+  const openRes = await client.query(
+    `SELECT id, node_id, kind, state, participant FROM ${q(T.WORKFLOW_WORKITEMS)}
+      WHERE step_id = $1 AND kind = 'approve' AND state = 'active'`,
+    [inst.current_step_id],
+  );
+  const open = openRes.rows as WorkflowWorkitemView[];
+  const mine = subject === undefined ? [] : open.filter((w) => w.participant === subject.id);
+  const isOriginator = subject !== undefined && subject.id === inst.originator;
+  const actions: string[] = [];
+  if (subject !== undefined) {
+    if (step?.node_id === WORKFLOW_START_NODE) {
+      actions.push(WORKFLOW_ACTIONS.SUBMIT);
+    } else {
+      if (mine.length > 0) actions.push(WORKFLOW_ACTIONS.APPROVE, WORKFLOW_ACTIONS.REJECT, WORKFLOW_ACTIONS.FORWARD);
+      if (mine.length > 0 || isOriginator) actions.push(WORKFLOW_ACTIONS.WITHDRAW);
+    }
+    if (isOriginator) actions.push(WORKFLOW_ACTIONS.CANCEL);
+  }
+  return {
+    state: 'running',
+    ...(step === undefined ? {} : { node: step.node_id }),
+    approval: inst.approval,
+    actions,
+    workitems: mine,
+  };
+}
+
+/** acquire/renew the caller's presence lock on the current step (TTL lease) */
+export async function acquireWorkflowLock(
+  client: Pool | PoolClient,
+  def: WorkflowRuntimeOptions,
+  recordKey: string,
+  subject: IdentitySubject | undefined,
+  locale: Locale | undefined,
+): Promise<{ expiresAt: Date }> {
+  if (subject === undefined) {
+    throw new SchemaError('workflow.transition.denied', { object: def.name, role: '', action: 'lock' }, locale);
+  }
+  const instRes = await client.query(
+    `SELECT current_step_id FROM ${q(T.WORKFLOW_INSTANCES)} WHERE object = $1 AND record_key = $2 AND state = 'running'`,
+    [def.name, recordKey],
+  );
+  const stepId = (instRes.rows[0] as { current_step_id: string | null } | undefined)?.current_step_id ?? null;
+  if (stepId === null) {
+    throw new SchemaError('workflow.transition.notAllowed', { object: def.name, action: 'lock' }, locale);
+  }
+  const wi = await client.query(
+    `SELECT id FROM ${q(T.WORKFLOW_WORKITEMS)}
+      WHERE step_id = $1 AND participant = $2 AND kind = 'approve' AND state = 'active' LIMIT 1`,
+    [stepId, subject.id],
+  );
+  const workitemId = (wi.rows[0] as { id: string } | undefined)?.id;
+  if (workitemId === undefined) {
+    throw new SchemaError('workflow.transition.denied', { object: def.name, role: subject.roles.join(','), action: 'lock' }, locale);
+  }
+  const res = await client.query(
+    `INSERT INTO ${q(T.WORKFLOW_LOCKS)} (workitem_id, object, record_key, holder, acquired_at, expires_at)
+     VALUES ($1, $2, $3, $4, now(), now() + ($5 || ' seconds')::interval)
+     ON CONFLICT (workitem_id) DO UPDATE SET holder = EXCLUDED.holder, acquired_at = now(), expires_at = EXCLUDED.expires_at
+     RETURNING expires_at`,
+    [workitemId, def.name, recordKey, subject.id, String(WORKFLOW_LOCK_TTL_SECONDS)],
+  );
+  return { expiresAt: (res.rows[0] as { expires_at: Date }).expires_at };
+}
+
+/** release the caller's presence lock (and drop any expired locks for the record) */
+export async function releaseWorkflowLock(
+  client: Pool | PoolClient,
+  def: WorkflowRuntimeOptions,
+  recordKey: string,
+  subject: IdentitySubject | undefined,
+): Promise<void> {
+  await client.query(`DELETE FROM ${q(T.WORKFLOW_LOCKS)} WHERE object = $1 AND record_key = $2 AND (holder = $3 OR expires_at <= now())`, [
+    def.name,
+    recordKey,
+    subject?.id ?? '',
+  ]);
+}
+

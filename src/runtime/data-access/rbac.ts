@@ -254,6 +254,34 @@ export function withRbac(inner: ObjectDataAccess, options: { audit?: AuditSink }
       return strip(record, p?.exclude ?? []);
     },
 
+    async workflowStatus(objectName: string, id: string, ctx: DataAccessContext) {
+      if (ctx.subject === undefined) return inner.workflowStatus(objectName, id, ctx);
+      const def = requireDef(ctx, objectName);
+      const p = resolvePermissionFor(ctx.registry, def, ctx.subject.roles);
+      if (p === undefined || p.read === undefined) {
+        const err = new SchemaError('rbac.denied.read', { object: objectName, role: ctx.subject.roles.join(',') }, ctx.locale);
+        denied(audit, ctx, DATA_ACTIONS.READ, objectName, id, err);
+        throw err;
+      }
+      return inner.workflowStatus(objectName, id, scopedCtx(ctx, objectName, p.read));
+    },
+
+    async acquireWorkflowLock(objectName: string, id: string, ctx: DataAccessContext) {
+      if (ctx.subject === undefined) return inner.acquireWorkflowLock(objectName, id, ctx);
+      const def = requireDef(ctx, objectName);
+      const p = resolvePermissionFor(ctx.registry, def, ctx.subject.roles);
+      if (p === undefined || p.read === undefined) {
+        const err = new SchemaError('rbac.denied.read', { object: objectName, role: ctx.subject.roles.join(',') }, ctx.locale);
+        denied(audit, ctx, DATA_ACTIONS.READ, objectName, id, err);
+        throw err;
+      }
+      return inner.acquireWorkflowLock(objectName, id, scopedCtx(ctx, objectName, p.read));
+    },
+
+    async releaseWorkflowLock(objectName: string, id: string, ctx: DataAccessContext): Promise<void> {
+      return inner.releaseWorkflowLock(objectName, id, ctx);
+    },
+
     async delete(objectName: string, id: string, ctx: DataAccessContext): Promise<void> {
       if (ctx.subject === undefined) return inner.delete(objectName, id, ctx);
       const def = requireDef(ctx, objectName);

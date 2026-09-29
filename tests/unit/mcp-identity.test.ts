@@ -26,6 +26,9 @@ const noopDataAccess: ObjectDataAccess = {
   update: async () => ({}) as never,
   transition: async () => ({}) as never,
   delete: async () => undefined,
+  workflowStatus: async () => ({ state: 'draft', actions: [], workitems: [] }),
+  acquireWorkflowLock: async () => ({ expiresAt: new Date() }),
+  releaseWorkflowLock: async () => undefined,
 };
 
 type IdentitySource = Record<string, IdentitySubject> | ((ref: string) => IdentitySubject | null | Promise<IdentitySubject | null>);

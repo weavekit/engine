@@ -177,7 +177,7 @@
         "schema": {
           "type": "string"
         },
-        "description": "Record primary key."
+        "description": "Record id — the `record_key` encoding of the (possibly composite) primary key; returned as `weave_id`."
       },
       "limit": {
         "name": "limit",
@@ -642,7 +642,7 @@
             "schema": {
               "type": "string"
             },
-            "description": "Record primary key."
+            "description": "Record id — the `record_key` encoding of the (possibly composite) primary key; returned as `weave_id`."
           }
         ],
         "responses": {
@@ -691,7 +691,7 @@
             "schema": {
               "type": "string"
             },
-            "description": "Record primary key."
+            "description": "Record id — the `record_key` encoding of the (possibly composite) primary key; returned as `weave_id`."
           }
         ],
         "requestBody": {
@@ -754,7 +754,7 @@
             "schema": {
               "type": "string"
             },
-            "description": "Record primary key."
+            "description": "Record id — the `record_key` encoding of the (possibly composite) primary key; returned as `weave_id`."
           }
         ],
         "responses": {
@@ -1064,8 +1064,8 @@
           "Workflow"
         ],
         "operationId": "getWorkflow",
-        "summary": "Current state and available transitions",
-        "description": "Returns the record's current state, the object's initial state, and the transitions fireable from that state by the caller's roles. Requires the object to declare `objects/<name>/workflow.json` (otherwise `404`).",
+        "summary": "Workflow status for a record",
+        "description": "Returns the record's workflow instance state, current node, the actions available to the caller, and the caller's open workitems. Requires the object to declare `objects/<name>/workflow.json` (otherwise `404`).",
         "parameters": [
           {
             "name": "name",
@@ -1083,44 +1083,59 @@
             "schema": {
               "type": "string"
             },
-            "description": "Record primary key."
+            "description": "Record id — the `record_key` encoding of the (possibly composite) primary key; returned as `weave_id`."
           }
         ],
         "responses": {
           "200": {
-            "description": "Workflow state.",
+            "description": "Workflow status.",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "required": [
                     "state",
-                    "initial",
                     "actions"
                   ],
                   "properties": {
                     "state": {
+                      "type": "string",
+                      "enum": [
+                        "draft",
+                        "running",
+                        "finished",
+                        "canceled"
+                      ]
+                    },
+                    "node": {
                       "type": "string"
                     },
-                    "initial": {
-                      "type": "string"
+                    "approval": {
+                      "type": "string",
+                      "nullable": true
                     },
                     "actions": {
                       "type": "array",
                       "items": {
+                        "type": "string"
+                      }
+                    },
+                    "workitems": {
+                      "type": "array",
+                      "items": {
                         "type": "object",
                         "properties": {
-                          "action": {
+                          "id": {
                             "type": "string"
                           },
-                          "to": {
+                          "nodeId": {
                             "type": "string"
                           },
-                          "labels": {
-                            "type": "object",
-                            "additionalProperties": {
-                              "type": "string"
-                            }
+                          "kind": {
+                            "type": "string"
+                          },
+                          "state": {
+                            "type": "string"
                           }
                         }
                       }
@@ -1142,14 +1157,14 @@
         }
       }
     },
-    "/api/objects/{name}/{id}/transitions/{action}": {
+    "/api/objects/{name}/{id}/workflow/{action}": {
       "post": {
         "tags": [
           "Workflow"
         ],
-        "operationId": "runWorkflowTransition",
-        "summary": "Fire a workflow transition",
-        "description": "Runs the declared transition `action` from the record's current state: RBAC-scoped, role-gated by the transition, atomic and audited. The state field itself is read-only except through a transition.",
+        "operationId": "runWorkflowAction",
+        "summary": "Run a workflow action",
+        "description": "Runs `submit` | `approve` | `reject` | `withdraw` | `cancel` | `forward`. RBAC-scoped, workitem-gated, atomic and audited. `forward` takes `{ to: { userId } }`; `approve`/`reject`/`withdraw` take `{ comment }`.",
         "parameters": [
           {
             "name": "name",
@@ -1167,7 +1182,7 @@
             "schema": {
               "type": "string"
             },
-            "description": "Record primary key."
+            "description": "Record id — the `record_key` encoding of the (possibly composite) primary key; returned as `weave_id`."
           },
           {
             "name": "action",
@@ -1200,6 +1215,117 @@
             "$ref": "#/components/responses/Error"
           },
           "409": {
+            "$ref": "#/components/responses/Error"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/objects/{name}/{id}/workflow/lock": {
+      "post": {
+        "tags": [
+          "Workflow"
+        ],
+        "operationId": "lockWorkflow",
+        "summary": "Acquire/renew the presence lock",
+        "description": "Acquires a 60s presence lease on the caller's current workitem so withdraw/cancel is blocked while the record is being viewed; call again to renew (heartbeat).",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Object name from `objects/<name>/schema.json`."
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Record id — the `record_key` encoding of the (possibly composite) primary key; returned as `weave_id`."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lock held.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "expiresAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Workflow"
+        ],
+        "operationId": "unlockWorkflow",
+        "summary": "Release the presence lock",
+        "description": "Releases the caller's presence lease (also drops any expired locks for the record).",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Object name from `objects/<name>/schema.json`."
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Record id — the `record_key` encoding of the (possibly composite) primary key; returned as `weave_id`."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Released.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "released": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
             "$ref": "#/components/responses/Error"
           },
           "default": {

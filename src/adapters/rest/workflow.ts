@@ -1,16 +1,25 @@
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { SchemaError } from '../../core/index.js';
 import type { RestDeps, RestOptions } from './plugin.js';
 import { authenticateRequest, checkRateLimit } from './common.js';
 
+/** body → optional transition payload (forward `{ to }`, `{ comment }`) */
+function payloadOf(body: unknown): Record<string, unknown> | undefined {
+  return typeof body === 'object' && body !== null && !Array.isArray(body)
+    ? (body as Record<string, unknown>)
+    : undefined;
+}
+
 /**
  * Workflow routes for objects that declare `objects/<name>/workflow.json`:
- *   GET  {prefix}/objects/:name/:id/workflow            → { nodes: [...] }
- *   POST {prefix}/objects/:name/:id/transitions/:action → the updated record
+ *   GET    {prefix}/objects/:name/:id/workflow            → status (state/node/actions/workitems)
+ *   POST   {prefix}/objects/:name/:id/workflow/:action    → run an action (submit/approve/reject/withdraw/cancel/forward)
+ *   POST   {prefix}/objects/:name/:id/workflow/lock       → acquire/renew the caller's presence lock
+ *   DELETE {prefix}/objects/:name/:id/workflow/lock       → release the caller's presence lock
+ *   POST   {prefix}/objects/:name/:id/transitions/:action → back-compat alias for the action route
  *
- * Phase C note: the instance/step/workitem runtime (and the state/actions in the
- * GET payload) is rebuilt in C1/C2; the GET currently returns the declared node
- * chain and the POST delegates to the (phase-stubbed) transition executor.
+ * All are RBAC-scoped via the data-access layer (read for the status/lock,
+ * update + workitem participation for actions).
  */
 export function registerWorkflowRoutes(
   app: FastifyInstance,
@@ -21,22 +30,46 @@ export function registerWorkflowRoutes(
   const { authenticator, locale, registry, dataAccess, pool } = deps;
   const limiter = options.rateLimiter;
 
-  app.get(`${prefix}/objects/:name/:id/workflow`, async (request) => {
-    checkRateLimit(limiter, request, locale);
-    await authenticateRequest(authenticator, request, locale);
-    const { name } = request.params as { name: string };
+  const requireWorkflow = (name: string) => {
     const def = registry.get(name);
     if (def === undefined) throw new SchemaError('data.objectUnknown', { object: name }, locale);
     if (def.workflow === undefined) throw new SchemaError('http.notFound', {}, locale);
-    return { nodes: def.workflow.nodes };
+    return def;
+  };
+
+  app.get(`${prefix}/objects/:name/:id/workflow`, async (request) => {
+    checkRateLimit(limiter, request, locale);
+    const subject = await authenticateRequest(authenticator, request, locale);
+    const { name, id } = request.params as { name: string; id: string };
+    requireWorkflow(name);
+    return dataAccess.workflowStatus(name, id, { pool, registry, subject, locale });
   });
 
-  app.post(`${prefix}/objects/:name/:id/transitions/:action`, async (request) => {
+  app.post(`${prefix}/objects/:name/:id/workflow/lock`, async (request) => {
+    checkRateLimit(limiter, request, locale);
+    const subject = await authenticateRequest(authenticator, request, locale);
+    const { name, id } = request.params as { name: string; id: string };
+    requireWorkflow(name);
+    return dataAccess.acquireWorkflowLock(name, id, { pool, registry, subject, locale });
+  });
+
+  app.delete(`${prefix}/objects/:name/:id/workflow/lock`, async (request) => {
+    checkRateLimit(limiter, request, locale);
+    const subject = await authenticateRequest(authenticator, request, locale);
+    const { name, id } = request.params as { name: string; id: string };
+    requireWorkflow(name);
+    await dataAccess.releaseWorkflowLock(name, id, { pool, registry, subject, locale });
+    return { released: true };
+  });
+
+  const runAction = async (request: FastifyRequest): Promise<unknown> => {
     checkRateLimit(limiter, request, locale);
     const subject = await authenticateRequest(authenticator, request, locale);
     const { name, id, action } = request.params as { name: string; id: string; action: string };
-    const body = request.body;
-    const payload = typeof body === 'object' && body !== null && !Array.isArray(body) ? (body as Record<string, unknown>) : undefined;
-    return dataAccess.transition(name, id, action, { pool, registry, subject, locale }, payload);
-  });
+    requireWorkflow(name);
+    return dataAccess.transition(name, id, action, { pool, registry, subject, locale }, payloadOf(request.body));
+  };
+
+  app.post(`${prefix}/objects/:name/:id/workflow/:action`, runAction);
+  app.post(`${prefix}/objects/:name/:id/transitions/:action`, runAction);
 }

@@ -176,24 +176,27 @@ route('put', (c) => `${c.prefix}/objects/{name}/scripts/{kind}`, op(OPENAPI_TAGS
 }), (c) => c.projectDir);
 
 // ---- Workflow (objects declaring objects/<name>/workflow.json) ----
-route('get', (c) => `${c.prefix}/objects/{name}/{id}/workflow`, op(OPENAPI_TAGS.WORKFLOW, 'getWorkflow', 'Current state and available transitions', {
-  description: "Returns the record's current state, the object's initial state, and the transitions fireable from that state by the caller's roles. Requires the object to declare `objects/<name>/workflow.json` (otherwise `404`).",
+route('get', (c) => `${c.prefix}/objects/{name}/{id}/workflow`, op(OPENAPI_TAGS.WORKFLOW, 'getWorkflow', 'Workflow status for a record', {
+  description: "Returns the record's workflow instance state, current node, the actions available to the caller, and the caller's open workitems. Requires the object to declare `objects/<name>/workflow.json` (otherwise `404`).",
   parameters: [P.name, P.id],
   responses: {
-    200: ok('Workflow state.', {
+    200: ok('Workflow status.', {
       type: 'object',
-      required: ['state', 'initial', 'actions'],
+      required: ['state', 'actions'],
       properties: {
-        state: { type: 'string' },
-        initial: { type: 'string' },
-        actions: {
+        state: { type: 'string', enum: ['draft', 'running', 'finished', 'canceled'] },
+        node: { type: 'string' },
+        approval: { type: 'string', nullable: true },
+        actions: { type: 'array', items: { type: 'string' } },
+        workitems: {
           type: 'array',
           items: {
             type: 'object',
             properties: {
-              action: { type: 'string' },
-              to: { type: 'string' },
-              labels: { type: 'object', additionalProperties: { type: 'string' } },
+              id: { type: 'string' },
+              nodeId: { type: 'string' },
+              kind: { type: 'string' },
+              state: { type: 'string' },
             },
           },
         },
@@ -202,10 +205,20 @@ route('get', (c) => `${c.prefix}/objects/{name}/{id}/workflow`, op(OPENAPI_TAGS.
     ...errors('403', '404'),
   },
 }));
-route('post', (c) => `${c.prefix}/objects/{name}/{id}/transitions/{action}`, op(OPENAPI_TAGS.WORKFLOW, 'runWorkflowTransition', 'Fire a workflow transition', {
-  description: "Runs the declared transition `action` from the record's current state: RBAC-scoped, role-gated by the transition, atomic and audited. The state field itself is read-only except through a transition.",
+route('post', (c) => `${c.prefix}/objects/{name}/{id}/workflow/{action}`, op(OPENAPI_TAGS.WORKFLOW, 'runWorkflowAction', 'Run a workflow action', {
+  description: "Runs `submit` | `approve` | `reject` | `withdraw` | `cancel` | `forward`. RBAC-scoped, workitem-gated, atomic and audited. `forward` takes `{ to: { userId } }`; `approve`/`reject`/`withdraw` take `{ comment }`.",
   parameters: [P.name, P.id, P.transitionAction],
   responses: { 200: ok('The updated record.', RECORD_REF), ...errors('400', '403', '404', '409') },
+}));
+route('post', (c) => `${c.prefix}/objects/{name}/{id}/workflow/lock`, op(OPENAPI_TAGS.WORKFLOW, 'lockWorkflow', 'Acquire/renew the presence lock', {
+  description: 'Acquires a 60s presence lease on the caller\'s current workitem so withdraw/cancel is blocked while the record is being viewed; call again to renew (heartbeat).',
+  parameters: [P.name, P.id],
+  responses: { 200: ok('Lock held.', { type: 'object', properties: { expiresAt: { type: 'string', format: 'date-time' } } }), ...errors('403', '404') },
+}));
+route('delete', (c) => `${c.prefix}/objects/{name}/{id}/workflow/lock`, op(OPENAPI_TAGS.WORKFLOW, 'unlockWorkflow', 'Release the presence lock', {
+  description: "Releases the caller's presence lease (also drops any expired locks for the record).",
+  parameters: [P.name, P.id],
+  responses: { 200: ok('Released.', { type: 'object', properties: { released: { type: 'boolean' } } }), ...errors('403', '404') },
 }));
 
 // ---- Metadata / permissions / identities ----

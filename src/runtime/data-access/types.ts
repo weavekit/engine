@@ -3,6 +3,7 @@ import type { Locale } from "../../core/index.js";
 import type { ObjectRegistry } from "../../core/index.js";
 import type { IdentitySubject } from "../../core/index.js";
 import type { FilterOp, SortDir } from "./values.js";
+import type { WorkflowStatus } from "./workflow.js";
 
 /** pool or pooled client — anything that can run parameterized queries */
 export type Queryable = Pool | PoolClient;
@@ -111,4 +112,10 @@ export interface ObjectDataAccess {
     payload?: Record<string, unknown>,
   ): Promise<T>;
   delete(objectName: string, id: string, ctx: DataAccessContext): Promise<void>;
+  /** read a record's workflow status (state/node/actions/own workitems) */
+  workflowStatus(objectName: string, id: string, ctx: DataAccessContext): Promise<WorkflowStatus>;
+  /** acquire/renew the caller's presence lock on the current step (TTL lease) */
+  acquireWorkflowLock(objectName: string, id: string, ctx: DataAccessContext): Promise<{ expiresAt: Date }>;
+  /** release the caller's presence lock */
+  releaseWorkflowLock(objectName: string, id: string, ctx: DataAccessContext): Promise<void>;
 }

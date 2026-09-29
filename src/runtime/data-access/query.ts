@@ -10,7 +10,7 @@ import type { PolicyApprovals } from '../tools/policies.js';
 import { buildCountSql, buildFindSql, scopeSuffix, type BuildContext } from './builder.js';
 import { deleteDetailsChildren, insertDetails } from './details.js';
 import { insertLinks, replaceLinks } from './link.js';
-import { runWorkflowTransition } from './workflow.js';
+import { runWorkflowTransition, getWorkflowStatus, acquireWorkflowLock, releaseWorkflowLock, type WorkflowStatus } from './workflow.js';
 import { computeFormulas, type FormulaAuth } from './formula.js';
 import { generateSeqNo } from './seqno.js';
 import type { DataAccessContext, FindOptions, FindResult, ObjectDataAccess } from './types.js';
@@ -740,6 +740,29 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
     }
   }
 
+
+  /**
+   * Read a record's workflow status (state/node/actions/own workitems).
+   */
+  async workflowStatus(objectName: string, id: string, ctx: DataAccessContext): Promise<WorkflowStatus> {
+    const def = requireDef(ctx, objectName);
+    if (def.workflow === undefined) {
+      throw new SchemaError('workflow.transition.unknown', { object: objectName, action: 'status' }, ctx.locale);
+    }
+    return getWorkflowStatus(ctx.client ?? ctx.pool, def, id, ctx.subject);
+  }
+
+  /** Acquire/renew the caller's presence lock on the current step (TTL lease). */
+  async acquireWorkflowLock(objectName: string, id: string, ctx: DataAccessContext): Promise<{ expiresAt: Date }> {
+    const def = requireDef(ctx, objectName);
+    return acquireWorkflowLock(ctx.pool, def, id, ctx.subject, ctx.locale);
+  }
+
+  /** Release the caller's presence lock. */
+  async releaseWorkflowLock(objectName: string, id: string, ctx: DataAccessContext): Promise<void> {
+    const def = requireDef(ctx, objectName);
+    await releaseWorkflowLock(ctx.pool, def, id, ctx.subject);
+  }
 
   /**
    * Upsert a record's sparse metadata side-table row (status/owner/timestamps)

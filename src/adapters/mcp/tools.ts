@@ -218,7 +218,10 @@ export async function workflowTransitionHandler(
     }
     const id = String(args.id ?? '');
     const action = String(args.action ?? '');
-    const record = await ctx.engine.dataAccess.transition(def.name, id, action, ctxWithSubject(ctx, subject));
+    const payload: Record<string, unknown> = {};
+    if (typeof args.comment === 'string') payload.comment = args.comment;
+    if (args.to !== undefined) payload.to = args.to;
+    const record = await ctx.engine.dataAccess.transition(def.name, id, action, ctxWithSubject(ctx, subject), payload);
     return textResult(JSON.stringify(record));
   });
 }
