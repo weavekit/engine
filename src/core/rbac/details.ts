@@ -69,6 +69,10 @@ export function resolvePermissionFor(
  * Row-scope fragment for `def`. A details child is scoped by membership in its
  * (scoped) parent set: `EXISTS (SELECT 1 FROM parent p WHERE <parent scope> AND
  * p.<record_key> = child.parent_id)`.
+ *
+ * `alias` qualifies the child-side column references (the child's `parent_id`),
+ * for embedding the predicate in a correlated subquery over an aliased target
+ * table (e.g. element-level scoping of a `multiRelation` target).
  */
 export function buildRowScopeFor(
   lookup: ObjectLookup,
@@ -77,16 +81,18 @@ export function buildRowScopeFor(
   subject: IdentitySubject,
   roles: readonly string[],
   locale?: Locale,
+  alias?: string,
 ): RowScopeFragment | undefined {
   const parentName = def.detailsParent;
-  if (parentName === undefined) return buildRowScope(def, scope, subject, roles, locale);
+  if (parentName === undefined) return buildRowScope(def, scope, subject, roles, locale, alias);
   const parent = lookup.get(parentName);
-  if (parent === undefined) return buildRowScope(def, scope, subject, roles, locale);
+  if (parent === undefined) return buildRowScope(def, scope, subject, roles, locale, alias);
   const parentFragment = buildRowScope(parent, scope, subject, roles, locale, 'p');
   if (parentFragment === undefined) return undefined;
   const rk = recordKeySql(parent, (field) => `p.${q(field)}`);
+  const childId = alias === undefined ? q(DETAILS_COLUMNS.PARENT_ID) : `${alias}.${q(DETAILS_COLUMNS.PARENT_ID)}`;
   return {
-    sql: `EXISTS (SELECT 1 FROM ${q(parent.name)} p WHERE (${parentFragment.sql}) AND ${rk} = ${q(DETAILS_COLUMNS.PARENT_ID)})`,
+    sql: `EXISTS (SELECT 1 FROM ${q(parent.name)} p WHERE (${parentFragment.sql}) AND ${rk} = ${childId})`,
     params: parentFragment.params,
   };
 }

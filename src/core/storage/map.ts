@@ -114,7 +114,9 @@ export function pgType(
       // scale follows the ISO 4217 code when declared (USD=2, JPY=0); absent → 2
       const code = (field as { currency?: string }).currency;
       const scale = code === undefined ? 2 : currencyMinorUnits(code);
-      return `NUMERIC(12,${scale})`;
+      // precision is configurable for large amounts; default 12
+      const precision = (field as { precision?: number }).precision ?? 12;
+      return `NUMERIC(${precision},${scale})`;
     }
     case FIELD_TYPES.BOOLEAN:
       return 'BOOLEAN';

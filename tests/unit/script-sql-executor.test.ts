@@ -86,7 +86,7 @@ describe('executeRestrictedSql — restricted SQL gate', () => {
     const seq = calls.map((c) => c.sql);
     expect(seq[0]).toBe('BEGIN');
     expect(seq[1]).toContain('SET LOCAL statement_timeout = 1500');
-    expect(seq[2]).toBe('SET LOCAL ROLE weavekit_query');
+    expect(seq[2]).toBe('SET LOCAL ROLE "weavekit_query"');
     expect(seq[3]).toBe("SET LOCAL weavekit.actor_id = 'u''1'");
     expect(seq[4]).toBe("SET LOCAL weavekit.roles = 'sales,admin'");
     expect(seq[5]).toBe("SET LOCAL weavekit.department_id = 't1'");

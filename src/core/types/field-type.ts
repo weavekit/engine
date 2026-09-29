@@ -77,8 +77,11 @@ export interface FieldTypeRegistration {
   namespace?: string;
   /** the primitive this type inherits from; `undefined` = engine primitive/structural */
   base?: FieldType;
-  /** scalar (can be a primary key). Defaults from `base`. */
+  /** a scalar value type (usable as a value; see `keyEligible` for PK use). Defaults from `base`. */
   scalar?: boolean;
+  /** eligible as a primary key. Defaults from `base` (a scalar-only override for
+   *  value scalars PG cannot key on, e.g. json/jsonb/real/double/interval). */
+  keyEligible?: boolean;
   /** relation-like (carries `target`). Defaults from `base`. */
   relationLike?: boolean;
   /** frontend hints (consumed by `@weave-kit/ui`) */

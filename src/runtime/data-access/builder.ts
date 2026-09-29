@@ -1,4 +1,4 @@
-import type { Locale, ObjectDefinition } from "../../core/index.js";
+import type { IdentitySubject, Locale, ObjectDefinition } from "../../core/index.js";
 import { SchemaError } from "../../core/index.js";
 import { DETAILS_COLUMNS } from "../../core/index.js";
 import { FIELD_TYPES } from "../../core/index.js";
@@ -14,6 +14,8 @@ import {
   linkOwnerColumn,
   linkTargetColumn,
   LINK_IDX_COLUMN,
+  resolvePermissionFor,
+  buildRowScopeFor,
 } from "../../core/index.js";
 import type { Filter, FindOptions, FilterValue, Sort } from "./types.js";
 import type { FilterOp } from "./values.js";
@@ -25,6 +27,8 @@ const q = (id: string) => `"${id}"`;
 const T = "t";
 /** the join alias of the record-metadata side table */
 const M = "m";
+/** the alias of a `multiRelation` target table inside a link subquery */
+const TT = "tt";
 
 const PARENT_COLUMNS = new Set<string>(Object.values(DETAILS_COLUMNS));
 
@@ -54,6 +58,8 @@ export interface BuildContext {
   meta?: { table: string };
   /** object lookup to resolve `multiRelation` targets (link-table expressions) */
   lookup?: { get(name: string): ObjectDefinition | undefined };
+  /** the authenticated subject; when present, `multiRelation` reads/filters are scoped to readable targets */
+  subject?: IdentitySubject;
 }
 
 /** qualified reference to a customer-model column (alias `t` when a side table is joined) */
@@ -120,12 +126,80 @@ function multiRelationCorrelation(object: ObjectDefinition, ctx: BuildContext): 
     .join(" AND ");
 }
 
+/** element-level read visibility over a `multiRelation` target */
+type TargetVisibility =
+  | { kind: "all" }
+  | { kind: "denied" }
+  | { kind: "scope"; sql: string; params: unknown[] };
+
+/**
+ * Resolve the subject's element-level visibility over a `multiRelation` target:
+ * `all` (unrestricted), `denied` (no read permission ⇒ no element visible), or
+ * the target object's row scope (`own`/`department`). No subject = internal/admin
+ * path, unrestricted (mirrors `withRbac` pass-through).
+ */
+function multiRelationVisibility(target: ObjectDefinition, ctx: BuildContext): TargetVisibility {
+  const subject = ctx.subject;
+  if (subject === undefined || ctx.lookup === undefined) return { kind: "all" };
+  const permission = resolvePermissionFor(ctx.lookup, target, subject.roles);
+  if (permission === undefined || permission.read === undefined) return { kind: "denied" };
+  const fragment = buildRowScopeFor(
+    ctx.lookup,
+    target,
+    permission.read,
+    subject,
+    subject.roles,
+    ctx.locale,
+    TT,
+  );
+  return fragment === undefined
+    ? { kind: "all" }
+    : { kind: "scope", sql: fragment.sql, params: fragment.params };
+}
+
+/**
+ * `EXISTS (SELECT 1 FROM "<target>" tt WHERE <pk join> AND (<scope>))` binding a
+ * link row to a target row the subject may read, or `undefined` when
+ * unrestricted. Scope params are appended to `params` once (renumbered from
+ * `paramOffset`); the returned predicate is reusable across subqueries.
+ */
+function multiRelationVisiblePredicate(
+  target: ObjectDefinition,
+  visibility: TargetVisibility,
+  params: unknown[],
+  paramOffset: number,
+): string | undefined {
+  if (visibility.kind === "all") return undefined;
+  if (visibility.kind === "denied") return "FALSE";
+  const scope = scopeSuffix(
+    { sql: visibility.sql, params: visibility.params },
+    paramOffset + params.length,
+  );
+  const join = primaryFieldsOf(target)
+    .map((pk) => `${TT}.${q(pk.name)} = l.${q(linkTargetColumn(pk.name))}`)
+    .join(" AND ");
+  params.push(...scope.params);
+  return `EXISTS (SELECT 1 FROM ${q(target.name)} ${TT} WHERE ${join} AND (${scope.sql}))`;
+}
+
 /** read expression: the owner's multiRelation value as an ordered array of target ids */
-function multiRelationExpr(object: ObjectDefinition, ctx: BuildContext, field: { name: string; target: string }): string {
+function multiRelationExpr(
+  object: ObjectDefinition,
+  ctx: BuildContext,
+  field: { name: string; target: string },
+  params: unknown[],
+  paramOffset: number,
+): string {
   const target = ctx.lookup?.get(field.target);
   if (target === undefined) return "NULL";
+  const visibility = multiRelationVisibility(target, ctx);
+  if (visibility.kind === "denied") return "NULL";
   const link = linkTableName(object.name, field.name);
-  return `(SELECT array_agg(${multiRelationTargetExpr(target)} ORDER BY l.${q(LINK_IDX_COLUMN)}) FROM ${q(link)} l WHERE ${multiRelationCorrelation(object, ctx)})`;
+  const visible = multiRelationVisiblePredicate(target, visibility, params, paramOffset);
+  const where = [multiRelationCorrelation(object, ctx), visible]
+    .filter((s): s is string => s !== undefined)
+    .join(" AND ");
+  return `(SELECT array_agg(${multiRelationTargetExpr(target)} ORDER BY l.${q(LINK_IDX_COLUMN)}) FROM ${q(link)} l WHERE ${where})`;
 }
 
 /** link-table filter for contains (superset) / in (intersection) / eq / ne (set equality) */
@@ -135,12 +209,22 @@ function multiRelationFilterClause(
   field: { name: string; target: string },
   rawValue: unknown,
   params: unknown[],
+  paramOffset: number,
 ): string {
   const target = ctx.lookup?.get(field.target);
   if (target === undefined) return "";
   const link = q(linkTableName(object.name, field.name));
   const correl = multiRelationCorrelation(object, ctx);
   const valueExpr = multiRelationTargetExpr(target);
+  const visible = multiRelationVisiblePredicate(
+    target,
+    multiRelationVisibility(target, ctx),
+    params,
+    paramOffset,
+  );
+  /** correl + optional target visibility + optional extra, AND-joined */
+  const scopeOf = (extra?: string): string =>
+    [correl, extra, visible].filter((s): s is string => s !== undefined && s !== "").join(" AND ");
 
   const ops: Array<[FilterOp, unknown]> = isFilterValue(rawValue)
     ? (Object.entries(rawValue) as Array<[FilterOp, unknown]>)
@@ -151,33 +235,33 @@ function multiRelationFilterClause(
     if (op !== FILTER_OPS.CONTAINS && op !== FILTER_OPS.IN && op !== FILTER_OPS.EQ && op !== FILTER_OPS.NE) continue;
     const list = Array.isArray(value) ? value : [value];
     const distinct = [...new Map(list.map((v) => [String(v), v])).values()];
-    const countAll = `(SELECT count(*) FROM ${link} l WHERE ${correl})`;
+    const countAll = `(SELECT count(*) FROM ${link} l WHERE ${scopeOf()})`;
     if (op === FILTER_OPS.CONTAINS) {
       if (distinct.length === 0) {
         pieces.push("TRUE");
         continue;
       }
-      const p = `$${params.length + 1}`;
+      const p = `$${paramOffset + params.length + 1}`;
       params.push(distinct);
       pieces.push(
-        `(SELECT count(DISTINCT ${valueExpr}) FROM ${link} l WHERE ${correl} AND ${valueExpr} = ANY(${p})) = ${distinct.length}`,
+        `(SELECT count(DISTINCT ${valueExpr}) FROM ${link} l WHERE ${scopeOf(`${valueExpr} = ANY(${p})`)}) = ${distinct.length}`,
       );
     } else if (op === FILTER_OPS.IN) {
       if (distinct.length === 0) {
         pieces.push("FALSE");
         continue;
       }
-      const p = `$${params.length + 1}`;
+      const p = `$${paramOffset + params.length + 1}`;
       params.push(distinct);
-      pieces.push(`EXISTS (SELECT 1 FROM ${link} l WHERE ${correl} AND ${valueExpr} = ANY(${p}))`);
+      pieces.push(`EXISTS (SELECT 1 FROM ${link} l WHERE ${scopeOf(`${valueExpr} = ANY(${p})`)})`);
     } else {
       const eq =
         distinct.length === 0
           ? `${countAll} = 0`
           : (() => {
-              const p = `$${params.length + 1}`;
+              const p = `$${paramOffset + params.length + 1}`;
               params.push(distinct);
-              return `(${countAll} = ${distinct.length} AND (SELECT count(DISTINCT ${valueExpr}) FROM ${link} l WHERE ${correl} AND ${valueExpr} = ANY(${p})) = ${distinct.length})`;
+              return `(${countAll} = ${distinct.length} AND (SELECT count(DISTINCT ${valueExpr}) FROM ${link} l WHERE ${scopeOf(`${valueExpr} = ANY(${p})`)}) = ${distinct.length})`;
             })();
       pieces.push(op === FILTER_OPS.EQ ? eq : `NOT ${eq}`);
     }
@@ -256,11 +340,12 @@ function buildFieldClause(
   rawValue: unknown,
   ctx: BuildContext,
   params: unknown[],
+  paramOffset: number,
 ): string {
   if (!isKnown(object, ctx, name)) fail(ctx, name);
   const field = fieldOf(object, name);
   if (field !== undefined && field.type === FIELD_TYPES.MULTI_RELATION) {
-    return multiRelationFilterClause(object, ctx, field, rawValue, params);
+    return multiRelationFilterClause(object, ctx, field, rawValue, params, paramOffset);
   }
   const colExpr = virtualRef(object, ctx, name) ?? colRef(ctx, name);
   // parent_* columns and virtual fields have no field definition; treat as plain string columns
@@ -281,7 +366,7 @@ function buildFieldClause(
     ops = [[FILTER_OPS.EQ, rawValue]];
   }
 
-  const baseIdx = params.length + 1;
+  const baseIdx = paramOffset + params.length + 1;
   const pieces: string[] = [];
   for (const [op, value] of ops) {
     const { sql, params: p } = conditionSql(colExpr, op, value, baseIdx + pieces.length);
@@ -298,6 +383,7 @@ export function buildWhere(
   filter: Filter | undefined,
   ctx: BuildContext,
   rowScope?: RowScope,
+  paramOffset = 0,
 ): BuiltQuery {
   const clauses: string[] = [];
   const params: unknown[] = [];
@@ -309,7 +395,7 @@ export function buildWhere(
       for (const group of orGroups) {
         const inner: string[] = [];
         for (const [name, rawValue] of Object.entries(group)) {
-          const sql = buildFieldClause(object, name, rawValue, ctx, params);
+          const sql = buildFieldClause(object, name, rawValue, ctx, params, paramOffset);
           if (sql !== "") inner.push(sql);
         }
         if (inner.length > 0) orClauses.push(`(${inner.join(" AND ")})`);
@@ -319,13 +405,13 @@ export function buildWhere(
 
     for (const [name, rawValue] of Object.entries(filter)) {
       if (name === "$or") continue;
-      const sql = buildFieldClause(object, name, rawValue, ctx, params);
+      const sql = buildFieldClause(object, name, rawValue, ctx, params, paramOffset);
       if (sql !== "") clauses.push(sql);
     }
   }
 
   if (rowScope !== undefined) {
-    const scope = scopeSuffix(rowScope, params.length);
+    const scope = scopeSuffix(rowScope, paramOffset + params.length);
     clauses.push(`(${scope.sql})`);
     params.push(...scope.params);
   }
@@ -358,7 +444,9 @@ export function buildColumns(
   fields: string[] | undefined,
   ctx: BuildContext,
   exclude?: readonly string[],
-): string {
+  paramOffset = 0,
+): BuiltQuery {
+  const params: unknown[] = [];
   const multiByName = new Map<string, { name: string; target: string }>();
   for (const f of object.fields) {
     if (f.type === FIELD_TYPES.MULTI_RELATION) multiByName.set(f.name, f);
@@ -377,15 +465,16 @@ export function buildColumns(
       ...object.fields.filter((f) => f.type !== FIELD_TYPES.DETAILS).map((f) => f.name),
       ...(ctx.allowParentCols === true ? [...PARENT_COLUMNS] : []),
     ];
-    return names
+    const sql = names
       .filter((c) => !isExcluded(c))
       .map((c) => {
         const multi = multiByName.get(c);
         return multi === undefined
           ? colRef(ctx, c)
-          : `${multiRelationExpr(object, ctx, multi)} AS ${q(c)}`;
+          : `${multiRelationExpr(object, ctx, multi, params, paramOffset)} AS ${q(c)}`;
       })
       .join(", ");
+    return { sql, params };
   }
   const parts: string[] = [];
   for (const name of fields) {
@@ -396,14 +485,16 @@ export function buildColumns(
     }
     const multi = multiByName.get(name);
     if (multi !== undefined) {
-      if (!isExcluded(name)) parts.push(`${multiRelationExpr(object, ctx, multi)} AS ${q(name)}`);
+      if (!isExcluded(name)) {
+        parts.push(`${multiRelationExpr(object, ctx, multi, params, paramOffset)} AS ${q(name)}`);
+      }
       continue;
     }
     if (!allCols.includes(name)) fail(ctx, name);
     if (isExcluded(name)) continue;
     parts.push(colRef(ctx, name));
   }
-  return parts.join(", ");
+  return { sql: parts.join(", "), params };
 }
 
 /** resolve pagination with defaults/caps */
@@ -430,10 +521,17 @@ export function buildFindSql(
 ): BuiltQuery {
   const table = fromClause(object, ctx);
   const cols = buildColumns(object, opts.fields, ctx, exclude);
-  const select = [cols, ...(extraSelect ?? [])].filter((s) => s.length > 0).join(", ");
-  const { sql: where, params } = buildWhere(object, opts.filter, ctx, rowScope);
+  const select = [cols.sql, ...(extraSelect ?? [])].filter((s) => s.length > 0).join(", ");
+  const { sql: where, params: whereParams } = buildWhere(
+    object,
+    opts.filter,
+    ctx,
+    rowScope,
+    cols.params.length,
+  );
   const orderBy = buildOrderBy(object, opts.sort, ctx);
   const { limit, offset } = resolvePagination(opts);
+  const params = [...cols.params, ...whereParams];
   const sql = `SELECT ${select} FROM ${table} ${where}${orderBy} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
   return { sql, params: [...params, limit, offset] };
 }

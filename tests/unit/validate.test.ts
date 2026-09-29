@@ -88,6 +88,14 @@ describe('validateObject — primary key rules', () => {
     };
     expect(() => validateObject(detailsPrimary)).toThrow(/scalar/);
   });
+
+  it('scalar value types PG cannot key on are rejected as primary (notAllowed)', () => {
+    for (const type of ['json', 'jsonb', 'interval', 'real', 'double']) {
+      expect(() =>
+        validateObject({ ...base, fields: [{ name: 'id', type, primary: true }] }),
+      ).toThrow(/cannot be a primary key/);
+    }
+  });
 });
 
 describe('validateObject — field level', () => {
@@ -544,6 +552,27 @@ describe('validateObject — currency code', () => {
         ],
       }),
     ).toThrow(SchemaError);
+  });
+
+  it('accepts a precision greater than the scale; rejects one at or below it', () => {
+    const def = validateObject({
+      name: 'inv',
+      fields: [
+        { name: 'id', type: 'string', primary: true },
+        { name: 'amount', type: 'currency', currency: 'USD', precision: 18 },
+      ],
+    });
+    expect(def.fields.find((f) => f.name === 'amount')).toMatchObject({ precision: 18 });
+
+    expect(() =>
+      validateObject({
+        name: 'inv',
+        fields: [
+          { name: 'id', type: 'string', primary: true },
+          { name: 'amount', type: 'currency', currency: 'USD', precision: 1 },
+        ],
+      }),
+    ).toThrow(/precision/);
   });
 });
 

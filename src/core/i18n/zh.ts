@@ -77,6 +77,7 @@ export const zh: Record<MessageKey, string> = {
   'field.default.optionsFrom': '对象 "{object}"：enum 选项来自数据源时不支持 default',
   'field.minGtMax': '对象 "{object}"：min 不能大于 max',
   'field.currency.invalid': '对象 "{object}"：币种 "{currency}" 不是有效的 ISO 4217 代码',
+  'field.currency.precision': '对象 "{object}"：币种精度 {precision} 必须大于其小数位 {scale}',
   'graph.details.multiParent': '对象 "{object}"：details 子表只能属于一个父对象（已属于 "{parent}"，又被 "{other}" 引用）',
   'permission.detailsChild.broader': '对象 "{object}"：角色 "{role}" 声明的权限比其 details 父对象 "{parent}" 更宽',
   'mcp.impersonation.denied': 'MCP 调用级身份模拟已禁用（可通过 mcp.impersonation 开启）',

@@ -54,6 +54,7 @@ export {
   fieldUiVisual,
   isRelationLike,
   isScalarFieldType,
+  isKeyEligible,
   PRIMITIVE_FIELD_TYPES,
   OPT_IN_FIELD_TYPES,
 } from './registry.js';

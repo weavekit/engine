@@ -149,6 +149,8 @@ export interface CurrencyField extends FieldBase {
   formula?: string;
   /** ISO 4217 code (optional; drives the column scale; absent → 2 minor units) */
   currency?: string;
+  /** NUMERIC precision (`NUMERIC(p,scale)`); defaults to 12. Must exceed the scale. */
+  precision?: number;
 }
 
 export interface BooleanField extends FieldBase {

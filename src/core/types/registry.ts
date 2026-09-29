@@ -21,6 +21,18 @@ function define(descriptor: FieldTypeRegistration): void {
 // ---- PG-native value primitives (value scalars; PK-eligible as a base) ----
 for (const name of Object.values(PG_FIELD_TYPES)) define({ name, scalar: true });
 
+// value scalars PostgreSQL cannot use as a primary key: json/jsonb are not
+// comparable for a key and real/double/interval have no natural equality. They
+// stay scalar (usable as values, e.g. formula refs) but are not key-eligible.
+const KEY_INELIGIBLE: readonly FieldType[] = [
+  FIELD_TYPES.JSON,
+  FIELD_TYPES.JSONB,
+  FIELD_TYPES.INTERVAL,
+  FIELD_TYPES.REAL,
+  FIELD_TYPES.DOUBLE,
+];
+for (const name of KEY_INELIGIBLE) define({ name, scalar: true, keyEligible: false });
+
 // ---- engine custom primitives (each may carry its own rules) ----
 define({ name: FIELD_TYPES.ENUM, scalar: true });
 define({ name: FIELD_TYPES.RELATION, relationLike: true });
@@ -67,11 +79,20 @@ export function isRelationLike(registry: FieldTypeRegistry, type: FieldType): bo
   return registry.get(fieldBase(registry, type))?.relationLike === true;
 }
 
-/** true for a field type that can be a primary key */
+/** true for a scalar value type (see `isKeyEligible` for primary-key use) */
 export function isScalarFieldType(registry: FieldTypeRegistry, type: FieldType): boolean {
   const desc = registry.get(type);
   if (desc?.scalar !== undefined) return desc.scalar;
   return registry.get(fieldBase(registry, type))?.scalar === true;
+}
+
+/** true for a field type eligible as a primary key (scalar + key-eligible) */
+export function isKeyEligible(registry: FieldTypeRegistry, type: FieldType): boolean {
+  const desc = registry.get(type);
+  if (desc?.keyEligible !== undefined) return desc.keyEligible;
+  const base = desc?.base;
+  if (base !== undefined) return registry.get(base)?.keyEligible !== false;
+  return isScalarFieldType(registry, type);
 }
 
 /** the frontend visual hint for a type (single source) */

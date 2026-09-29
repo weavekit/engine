@@ -78,6 +78,7 @@ export const zhHant: Record<MessageKey, string> = {
   'field.default.optionsFrom': '物件 "{object}"：enum 選項來自資料來源時不支援 default',
   'field.minGtMax': '物件「{object}」：min 不能大於 max',
   'field.currency.invalid': '物件 "{object}"：幣種 "{currency}" 不是有效的 ISO 4217 代碼',
+  'field.currency.precision': '物件 "{object}"：幣種精度 {precision} 必須大於其小數位 {scale}',
   'graph.details.multiParent': '物件 "{object}"：details 子表只能屬於一個父物件（已屬於 "{parent}"，又被 "{other}" 引用）',
   'permission.detailsChild.broader': '物件 "{object}"：角色 "{role}" 宣告的權限比其 details 父物件 "{parent}" 更寬',
   'mcp.impersonation.denied': 'MCP 呼叫級身分模擬已停用（可透過 mcp.impersonation 開啟）',

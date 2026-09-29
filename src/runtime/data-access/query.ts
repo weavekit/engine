@@ -147,6 +147,7 @@ function bctx(ctx: DataAccessContext, objectName: string): BuildContext {
     locale: ctx.locale,
     allowParentCols: isDetailsChild(ctx.registry, objectName),
     lookup: ctx.registry,
+    ...(ctx.subject === undefined ? {} : { subject: ctx.subject }),
   };
 }
 

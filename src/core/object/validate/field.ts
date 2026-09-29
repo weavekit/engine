@@ -10,7 +10,7 @@ import {
   type FieldTypeRegistry,
 } from '../../types/index.js';
 import { FIELD_TYPES, IDENTITY_OBJECT_NAMES, ROW_SCOPE_MARKERS, SCOPE_SOURCES } from '../../types/values.js';
-import { isCurrencyCode } from '../../types/currency.js';
+import { isCurrencyCode, currencyMinorUnits } from '../../types/currency.js';
 import type { ScopeSource } from '../../types/values.js';
 import { validateLabels } from './labels.js';
 import {
@@ -51,7 +51,7 @@ const EXTRA_KEYS: Record<FieldType, readonly string[]> = {
   number: ['min', 'max', 'precision', 'scale', 'required', 'unique', 'default', 'formula'],
   real: ['min', 'max', 'required', 'unique', 'default', 'formula'],
   double: ['min', 'max', 'required', 'unique', 'default', 'formula'],
-  currency: ['min', 'max', 'currency', 'required', 'unique', 'default', 'formula'],
+  currency: ['min', 'max', 'currency', 'precision', 'required', 'unique', 'default', 'formula'],
   boolean: ['required', 'unique', 'default', 'formula'],
   date: ['required', 'unique', 'default'],
   time: ['required', 'unique', 'default'],
@@ -397,6 +397,11 @@ export function validateField(raw: unknown, vc: Vc, options: FieldValidateOption
       if (min !== undefined && max !== undefined && min > max) fail(vc, 'field.minGtMax');
       const currency = expectString(raw, 'currency', vc);
       if (currency !== undefined && !isCurrencyCode(currency)) fail(vc, 'field.currency.invalid', { currency });
+      const precision = expectPositiveInt(raw, 'precision', vc);
+      const scale = currency === undefined ? 2 : currencyMinorUnits(currency);
+      if (precision !== undefined && precision <= scale) {
+        fail(vc, 'field.currency.precision', { precision, scale });
+      }
       validateDefault(raw.default, type, vc);
       return {
         ...base,
@@ -408,6 +413,7 @@ export function validateField(raw: unknown, vc: Vc, options: FieldValidateOption
         unique,
         default: raw.default as number | undefined,
         currency,
+        precision,
       };
     }
     case FIELD_TYPES.BOOLEAN:

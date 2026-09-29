@@ -1,5 +1,5 @@
 import type { Pool } from 'pg';
-import { isSafeRlsRole, SchemaError } from '../../core/index.js';
+import { isSafeRlsRole, sqlIdent, SchemaError } from '../../core/index.js';
 import type { Locale } from '../../core/index.js';
 import { createSqlAnalyzer } from '../sql-analyzer/index.js';
 import type { SqlAnalyzer } from '../sql-analyzer/index.js';
@@ -59,7 +59,9 @@ function defaultAnalyzer(): SqlAnalyzer {
  * - SELECT-only — enforced by the AST analyzer (`analyzeSelect`), which is the
  *   single source: exactly one statement, a `SelectStmt` root, no nested DML,
  *   no denied functions, bounded AST. A raw regex is not used (it is both
- *   bypassable and over-restrictive).
+ *   bypassable and over-restrictive). The script bridge runs `analyzeSelect`
+ *   too, but for a different purpose (its RBAC table/column gate); the executor
+ *   re-runs it so a direct caller cannot bypass the SELECT-only boundary.
  * - row cap — the query is wrapped in a subquery and the outer LIMIT is
  *   clamped to `maxRows`, so a runaway result can never flood the response
  * - server-side timeout — runs on a dedicated pooled client with
@@ -98,7 +100,7 @@ export async function executeRestrictedSql(
     await client.query(`SET LOCAL statement_timeout = ${Math.max(1, Math.floor(timeoutMs))}`);
     if (options.rls !== undefined) {
       const { role, subject } = options.rls;
-      await client.query(`SET LOCAL ROLE ${role}`);
+      await client.query(`SET LOCAL ROLE ${sqlIdent(role)}`);
       await client.query(`SET LOCAL weavekit.actor_id = ${gucLiteral(subject.id)}`);
       await client.query(`SET LOCAL weavekit.roles = ${gucLiteral(subject.roles.join(','))}`);
       if (subject.departmentId !== undefined) {

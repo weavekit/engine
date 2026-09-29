@@ -78,6 +78,7 @@ export const es: Record<MessageKey, string> = {
   'field.default.optionsFrom': 'objeto "{object}": default no se admite cuando las opciones enum provienen de una fuente de datos',
   'field.minGtMax': 'objeto "{object}": min no debe ser mayor que max',
   'field.currency.invalid': 'object "{object}": currency "{currency}" is not a valid ISO 4217 code',
+  'field.currency.precision': 'object "{object}": currency precision {precision} must be greater than its scale {scale}',
   'graph.details.multiParent': 'object "{object}": a details child can belong to only one parent (already "{parent}", also targeted by "{other}")',
   'permission.detailsChild.broader': 'object "{object}": role "{role}" declares broader permissions than its details parent "{parent}"',
   'mcp.impersonation.denied': 'MCP call-level impersonation is disabled (enable it via mcp.impersonation)',

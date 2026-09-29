@@ -11,7 +11,7 @@ import { buildLinkTables } from './link-table.js';
 import { setMeta } from './meta.js';
 import { createPool } from './pool.js';
 import { buildRecordMetaTable } from './record-meta.js';
-import { sqlLiteral } from './sql-literals.js';
+import { sqlIdent, sqlLiteral } from './sql-literals.js';
 import { SYSTEM_TABLES, buildSystemTables, systemHardeningStatements } from './system-tables.js';
 import { isSafeRlsRole } from '../rbac/index.js';
 
@@ -103,16 +103,18 @@ async function provisionRlsRole(pool: import('pg').Pool, role: string, warnings:
   const existing = await pool.query('SELECT 1 FROM pg_roles WHERE rolname = $1', [role]);
   if (existing.rows.length === 0) {
     try {
-      await pool.query(`CREATE ROLE ${role}`);
+      await pool.query(`CREATE ROLE ${sqlIdent(role)}`);
     } catch {
       warnings.push(`could not create role "${role}" (needs CREATEROLE) — create it manually to enable RLS`);
       return false;
     }
   }
   try {
-    await pool.query(
-      `DO $$ BEGIN IF NOT pg_has_role(current_user, '${role}', 'MEMBER') THEN EXECUTE 'GRANT ${role} TO current_user'; END IF; END $$;`,
-    );
+    // no dynamic SQL: decide membership in JS, then GRANT with a quoted identifier
+    const res = await pool.query(`SELECT pg_has_role(current_user, $1, 'MEMBER') AS member`, [role]);
+    if ((res.rows[0] as { member: boolean }).member !== true) {
+      await pool.query(`GRANT ${sqlIdent(role)} TO current_user`);
+    }
   } catch (error) {
     warnings.push(`could not grant role "${role}" to current user: ${String((error as Error).message)}`);
   }
@@ -184,7 +186,8 @@ export async function migrate(registry: ObjectRegistry, options: MigrateOptions 
 
     // engine-owned many-to-many link tables for every `multiRelation` field:
     // one per (object, field), created idempotently regardless of `alter`.
-    const linkStatements = diffAll(buildLinkTables(defs, registry.fieldTypes), actual);
+    const linkTables = buildLinkTables(defs, registry.fieldTypes);
+    const linkStatements = diffAll(linkTables, actual);
 
     // engine-owned system tables (metadata cache / seq / audit / approvals /
     // timers / counters) + their ACL hardening: provisioned here (and only
@@ -241,6 +244,15 @@ export async function migrate(registry: ObjectRegistry, options: MigrateOptions 
             continue;
           }
           rlsStatements = rlsStatements.concat(diffRls(def, actualTable, options.rls.role));
+        }
+        // link tables are engine plumbing (never registry-visible): enable
+        // RLS with no policy so the restricted role reads 0 rows even if it is
+        // ever granted, a second layer behind the sql-gate. The engine runs as
+        // the owner and bypasses RLS, so its own reads are unaffected.
+        for (const table of linkTables) {
+          if (actual.get(table.name)?.rlsEnabled !== true) {
+            rlsStatements.push(`ALTER TABLE ${q(table.name)} ENABLE ROW LEVEL SECURITY;`);
+          }
         }
       }
     }

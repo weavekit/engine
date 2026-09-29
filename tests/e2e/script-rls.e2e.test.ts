@@ -40,7 +40,7 @@ maybe('Script restricted SQL RLS E2E (native PG RLS + real PG)', () => {
       expect(migration.warnings).toEqual([]);
       expect(migration.statements.some((s) => s.includes('ENABLE ROW LEVEL SECURITY'))).toBe(true);
       expect(migration.statements.some((s) => s.includes('CREATE POLICY weavekit_read_lead'))).toBe(true);
-      expect(migration.statements.some((s) => s.includes(`GRANT SELECT ON "lead" TO ${RLS_ROLE}`))).toBe(true);
+      expect(migration.statements.some((s) => s.includes(`GRANT SELECT ON "lead" TO "${RLS_ROLE}"`))).toBe(true);
 
       const rlsOn = await pool.query("SELECT relrowsecurity FROM pg_class WHERE relname = 'lead'");
       expect(rlsOn.rows[0].relrowsecurity).toBe(true);

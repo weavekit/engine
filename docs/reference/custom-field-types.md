@@ -40,7 +40,8 @@ export default [
 | `namespace` | prefix auto-applied to `name` (`acme` + `money` → `acme_money`) |
 | `name` | the type name (without the namespace, or already prefixed) |
 | `base` | **required**; the built-in primitive to inherit from (a value primitive, or `relation`) |
-| `scalar` | can be a primary key (defaults from `base`) |
+| `scalar` | a scalar value type (defaults from `base`) |
+| `keyEligible` | eligible as a primary key (defaults from `base`; `json`/`jsonb`/`interval`/`real`/`double` are scalar but not key-eligible) |
 | `relationLike` | carries a `target` (defaults from `base`) |
 | `ui` | frontend hint, e.g. `{ visual: 'image' }` (never a widget — the engine is headless) |
 | `openApiFormat` | OpenAPI `format` keyword for string-based types (`email`, `uri`, …) |

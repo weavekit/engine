@@ -1,6 +1,7 @@
 import type { ObjectDefinition } from '../types/index.js';
 import { READ_SCOPES, ROW_SCOPE_MARKERS } from '../types/index.js';
 import type { RowScopeMarker } from '../types/index.js';
+import { sqlIdent } from '../storage/sql-literals.js';
 
 const q = (id: string) => `"${id}"`;
 
@@ -85,29 +86,47 @@ export function buildRlsPolicyDdl(def: ObjectDefinition): string[] {
 
 /** GRANT the restricted-SQL role read access to one object */
 export function buildRlsGrantDdl(def: ObjectDefinition, role: string): string {
-  return `GRANT SELECT ON ${q(def.name)} TO ${role};`;
+  return `GRANT SELECT ON ${q(def.name)} TO ${sqlIdent(role)};`;
 }
 
 /** the restricted-SQL role name shape (`weavekit_query`, …) */
 const RLS_ROLE_RE = /^[a-z_][a-z0-9_]*$/;
 
-/** PostgreSQL keywords/pseudo-roles a custom RLS role name must never be */
-const RESERVED_ROLE_NAMES: ReadonlySet<string> = new Set<string>([
-  'user',
-  'public',
-  'current_user',
-  'session_user',
-  'current_role',
-  'current_catalog',
-  'current_schema',
-  'all',
-  'none',
+/**
+ * PostgreSQL reserved keywords (Appendix C, "reserved" + "reserved, can be
+ * function or type name"). Rejected as a role name so a config typo can never
+ * produce an ambiguous DDL token; identifiers are also quoted below, so an
+ * accepted name is always emitted safely.
+ */
+const RESERVED_SQL_KEYWORDS: ReadonlySet<string> = new Set<string>([
+  'all', 'analyse', 'analyze', 'and', 'any', 'array', 'as', 'asc', 'asymmetric',
+  'authorization', 'binary', 'both', 'case', 'cast', 'check', 'collate',
+  'collation', 'column', 'concurrently', 'constraint', 'create', 'cross',
+  'current_catalog', 'current_date', 'current_role', 'current_schema',
+  'current_time', 'current_timestamp', 'current_user', 'default', 'deferrable',
+  'desc', 'distinct', 'do', 'else', 'end', 'except', 'false', 'fetch', 'for',
+  'foreign', 'freeze', 'from', 'full', 'grant', 'group', 'having', 'ilike',
+  'in', 'initially', 'inner', 'intersect', 'into', 'is', 'isnull', 'join',
+  'lateral', 'leading', 'left', 'like', 'limit', 'localtime', 'localtimestamp',
+  'natural', 'not', 'notnull', 'null', 'offset', 'on', 'only', 'or', 'order',
+  'outer', 'over', 'overlaps', 'placing', 'primary', 'references', 'returning',
+  'right', 'select', 'session_user', 'similar', 'some', 'symmetric', 'table',
+  'tablesample', 'then', 'to', 'trailing', 'true', 'union', 'unique', 'user',
+  'using', 'variadic', 'verbose', 'when', 'where', 'window', 'with',
+]);
+
+/** PostgreSQL pseudo-roles that cannot be created / used as a target role */
+const PSEUDO_ROLES: ReadonlySet<string> = new Set<string>([
+  'public', 'current_user', 'session_user', 'current_role', 'current_catalog',
+  'current_schema', 'none', 'group',
 ]);
 
 /**
  * True when `role` is a safe, non-reserved identifier for `SET LOCAL ROLE` /
- * `CREATE ROLE` (the name is interpolated into DDL after this check).
+ * `CREATE ROLE`. The name is always emitted quoted (`sqlIdent`), so this guards
+ * against pseudo-roles and reserved keywords rather than injection.
  */
 export function isSafeRlsRole(role: string): boolean {
-  return RLS_ROLE_RE.test(role) && !RESERVED_ROLE_NAMES.has(role.toLowerCase());
+  const lower = role.toLowerCase();
+  return RLS_ROLE_RE.test(role) && !RESERVED_SQL_KEYWORDS.has(lower) && !PSEUDO_ROLES.has(lower);
 }

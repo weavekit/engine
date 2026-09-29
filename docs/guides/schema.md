@@ -58,7 +58,7 @@ If a file declares a version **newer** than the engine supports, the engine reje
 | `number` | NUMERIC | `min`/`max`/`precision`/`scale` |
 | `real` | REAL | 4-byte float |
 | `double` | DOUBLE PRECISION | 8-byte float |
-| `currency` | NUMERIC(12,scale) | money; optional ISO 4217 `currency` code sets the scale (USD=2, JPY=0), default 2 |
+| `currency` | NUMERIC(precision,scale) | money; optional ISO 4217 `currency` code sets the scale (USD=2, JPY=0, default 2) and optional `precision` sets the column precision (default 12, must exceed the scale) |
 | `boolean` | BOOLEAN | |
 | `date` | DATE | canonical `YYYY-MM-DD` |
 | `time` | TIME | wall-clock time (no zone) |
@@ -164,7 +164,12 @@ keys and carries a **real foreign key per side** with `ON DELETE CASCADE` — de
 or target) removes the link rows. Reads return the ordered array of target ids. Filters:
 `contains` (superset), `in` (intersection), `eq`/`ne` (set equality). `weave migrate` creates the
 link table; it is engine plumbing (like `weavekit_record__<object>`) and is not visible to the
-restricted-SQL/script surface.
+restricted-SQL/script surface (RLS-denied as defense-in-depth).
+
+When the request carries an authenticated subject, the returned ids are **scoped to the targets the
+subject may read** — a target object with `read: own`/`department` only contributes ids the subject
+can see, and its filters are scoped the same way (a hidden id can neither be read nor probed). This
+is element-level visibility, applied on top of the target object's row scope.
 
 ### `seq_no` — sequence numbers
 
