@@ -73,7 +73,7 @@ If a file declares a version **newer** than the engine supports, the engine reje
 | `seq_no` | VARCHAR | formatted sequence number |
 | `relation` | target PK column + FK | weak reference (belongsTo) |
 | `details` | child table | strong 1:N ownership |
-| `multiRelation` | TEXT[] + GIN | multi-select reference |
+| `multiRelation` | link table + FKs | multi-select reference |
 
 Types come in two buckets: **PG-native value types** (`string`…`jsonb`, whose column maps near 1:1 to
 a PostgreSQL type) and **engine-shipped custom types** (`enum`/`seq_no`/`relation`/`details`/
@@ -159,7 +159,12 @@ Deleting a parent cascades to its children, and children are managed through the
 { "name": "tag_ids", "type": "multiRelation", "target": "tag" }
 ```
 
-Stored as `TEXT[]` + a GIN index. Integrity is your application's concern.
+Stored in an engine-owned link table (`weavekit_m2m__<object>__<field>`) that mirrors both primary
+keys and carries a **real foreign key per side** with `ON DELETE CASCADE` — deleting a record (owner
+or target) removes the link rows. Reads return the ordered array of target ids. Filters:
+`contains` (superset), `in` (intersection), `eq`/`ne` (set equality). `weave migrate` creates the
+link table; it is engine plumbing (like `weavekit_record__<object>`) and is not visible to the
+restricted-SQL/script surface.
 
 ### `seq_no` — sequence numbers
 

@@ -46,6 +46,17 @@ export type {
 export { setMeta, getMeta } from './meta.js';
 export { applyStatements } from './apply.js';
 export { sqlLiteral, sqlIdent } from './sql-literals.js';
+export {
+  LINK_TABLE_PREFIX,
+  LINK_IDX_COLUMN,
+  linkTableName,
+  isLinkTable,
+  linkOwnerColumn,
+  linkTargetColumn,
+  multiRelationsOf,
+  buildLinkTable,
+  buildLinkTables,
+} from './link-table.js';
 export { SYSTEM_TABLES, SYSTEM_TABLE_NAMES, buildSystemTables, systemHardeningStatements } from './system-tables.js';
 export { migrate } from './migrate.js';
 export type { MigrateOptions, MigrationResult } from './migrate.js';

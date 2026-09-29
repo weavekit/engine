@@ -30,7 +30,7 @@ describe('buildExpectedTable — expected table construction', () => {
     const t = buildExpectedTable(reg.get('order')!, defsOf(reg));
     expect(t.name).toBe('order');
     expect(t.fks).toEqual([
-      { column: 'supplier_id', refTable: 'supplier', refColumn: 'id', onDelete: 'restrict' },
+      { columns: ['supplier_id'], refTable: 'supplier', refColumns: ['id'], onDelete: 'restrict' },
     ]);
     expect(t.indexes.map((i) => i.columns)).toContainEqual(['supplier_id']);
     expect(t.columns.find((c) => c.name === 'code')?.unique).toBe(true);
@@ -51,8 +51,8 @@ describe('buildExpectedTable — expected table construction', () => {
     const t = buildExpectedTable(reg.get('employee')!, defs);
     expect(t.columns.find((c) => c.name === 'manager_id')?.type).toBe('UUID');
     expect(t.columns.find((c) => c.name === 'dept_id')?.type).toBe('UUID');
-    expect(t.fks).toContainEqual({ column: 'manager_id', refTable: 'weavekit_user', refColumn: 'id', onDelete: 'restrict' });
-    expect(t.fks).toContainEqual({ column: 'dept_id', refTable: 'weavekit_department', refColumn: 'id', onDelete: 'restrict' });
+    expect(t.fks).toContainEqual({ columns: ['manager_id'], refTable: 'weavekit_user', refColumns: ['id'], onDelete: 'restrict' });
+    expect(t.fks).toContainEqual({ columns: ['dept_id'], refTable: 'weavekit_department', refColumns: ['id'], onDelete: 'restrict' });
   });
 
   it('details child table auto three columns + composite index', () => {

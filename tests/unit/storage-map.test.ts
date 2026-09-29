@@ -65,8 +65,14 @@ describe('pgType — type mapping', () => {
     expect(pgType(f({ name: 'dept', type: 'department', target: 'weavekit_department' }), undefined)).toBe('VARCHAR(255)');
   });
 
-  it('multiRelation/seq_no', () => {
-    expect(pgType(f({ name: 'c', type: 'multiRelation', target: 'contact' }), undefined)).toBe('TEXT[]');
+  it('multiRelation has no column (link table); seq_no maps to VARCHAR', () => {
+    let threw = false;
+    try {
+      pgType(f({ name: 'c', type: 'multiRelation', target: 'contact' }), undefined);
+    } catch {
+      threw = true;
+    }
+    expect(threw).toBe(true);
     expect(pgType(f({ name: 'no', type: 'seq_no', format: '{seq}' }), undefined)).toBe('VARCHAR(255)');
   });
 });

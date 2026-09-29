@@ -9,6 +9,7 @@ import { NOOP_SCRIPT_DISPATCHER, SCRIPT_HOOKS, type GuardrailContext, type Guard
 import { evaluateTransition, type PolicyApprovals } from '../tools/policies.js';
 import { buildCountSql, buildFindSql, scopeSuffix, type BuildContext } from './builder.js';
 import { deleteDetailsChildren, insertDetails } from './details.js';
+import { insertLinks, replaceLinks } from './link.js';
 import { computeFormulas, type FormulaAuth } from './formula.js';
 import { generateSeqNo } from './seqno.js';
 import type { DataAccessContext, FindOptions, FindResult, ObjectDataAccess } from './types.js';
@@ -141,7 +142,12 @@ function requireDef(ctx: DataAccessContext, objectName: string): ObjectDefinitio
 }
 
 function bctx(ctx: DataAccessContext, objectName: string): BuildContext {
-  return { object: objectName, locale: ctx.locale, allowParentCols: isDetailsChild(ctx.registry, objectName) };
+  return {
+    object: objectName,
+    locale: ctx.locale,
+    allowParentCols: isDetailsChild(ctx.registry, objectName),
+    lookup: ctx.registry,
+  };
 }
 
 /** hidden select column carrying the SQL-computed record_key for a fetched row */
@@ -506,7 +512,9 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
       }
 
       const cols = [
-        ...def.fields.filter((f) => f.type !== FIELD_TYPES.DETAILS).map((f) => f.name),
+        ...def.fields
+          .filter((f) => f.type !== FIELD_TYPES.DETAILS && f.type !== FIELD_TYPES.MULTI_RELATION)
+          .map((f) => f.name),
         ...(child ? [...PARENT_COLUMNS] : []),
       ];
       const fieldByName = new Map(def.fields.map((f) => [f.name, f]));
@@ -524,6 +532,14 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
       record[RECORD_META_ID_FIELD] = externalId;
 
       await insertDetails(client, def, externalId, payload, ctx.registry, ctx.locale);
+      await insertLinks(
+        client,
+        def,
+        primaryFieldsOf(def).map((f) => record[f.name]),
+        payload,
+        ctx.registry,
+        ctx.locale,
+      );
 
       // compute formula fields AFTER children exist (aggregates see them), then persist
       await computeFormulas(def, record, client, ctx.registry, now, externalId, formulaAuth(ctx));
@@ -637,7 +653,9 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
           continue;
         }
         const field = def.fields.find((f) => f.name === key);
-        if (field !== undefined && field.type !== FIELD_TYPES.DETAILS) settable.add(key);
+        if (field !== undefined && field.type !== FIELD_TYPES.DETAILS && field.type !== FIELD_TYPES.MULTI_RELATION) {
+          settable.add(key);
+        }
       }
       for (const field of def.fields) {
         if ((field as { formula?: string }).formula !== undefined) settable.add(field.name);
@@ -659,6 +677,7 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
       }
 
       await this.writeRecordMeta(client, def, metaKey, ctx, now, false);
+      await replaceLinks(client, def, pkValues, payload, ctx.registry, ctx.locale);
       if (owned) await client.query('COMMIT');
       auditWrite(this.audit, ctx, DATA_ACTIONS.UPDATE, objectName, id, payload, undefined, this.replay ? existing : undefined, this.replay ? record : undefined);
       this.events?.publishRecordChange('updated', objectName, id);

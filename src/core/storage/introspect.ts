@@ -4,6 +4,7 @@ import { DEFAULT_FIELD_TYPE_REGISTRY, type FieldTypeRegistry } from '../types/in
 import { FIELD_TYPES, ON_DELETE_ACTIONS } from '../types/values.js';
 import type { FieldDefinition, FieldType, ObjectDefinition } from '../types/index.js';
 import type { ActualColumn, ActualTable } from './inspect.js';
+import { isLinkTable } from './link-table.js';
 import { pgTypeMatches } from './map.js';
 
 /** one object produced by reverse modeling (already validated) */
@@ -162,7 +163,7 @@ function mapColumn(
   const required = col.isNullable ? undefined : true;
   const unique = table.uniqueColumns?.includes(col.name) === true && !table.pk.includes(col.name);
 
-  const fk = table.fks.find((f) => f.column === col.name);
+  const fk = table.fks.find((f) => f.columns.length === 1 && f.columns[0] === col.name);
   if (fk !== undefined) {
     if (!SNAKE_CASE.test(fk.refTable)) {
       warnings.push(`column "${table.name}.${col.name}": FK target table "${fk.refTable}" is not a valid object name — skipped`);
@@ -287,6 +288,11 @@ export function mapToSchema(tables: Map<string, ActualTable>, options: Introspec
   for (const name of [...tables.keys()].sort()) {
     if (include !== undefined && !include.has(name)) continue;
     if (exclude?.has(name) === true) continue;
+    // engine-owned multiRelation link tables are plumbing, never customer objects
+    if (isLinkTable(name)) {
+      skipped.push({ table: name, reason: 'engine-owned multiRelation link table' });
+      continue;
+    }
     const table = tables.get(name);
     if (table === undefined) continue;
 

@@ -1,7 +1,8 @@
 import type { Locale, ObjectDefinition, ObjectRegistry } from '../../core/index.js';
 import { SchemaError } from '../../core/index.js';
-import { DETAILS_COLUMNS, FIELD_TYPES } from '../../core/index.js';
+import { DETAILS_COLUMNS, FIELD_TYPES, primaryFieldsOf } from '../../core/index.js';
 import type { Queryable } from './types.js';
+import { insertLinks } from './link.js';
 import { validateRecord } from './validate.js';
 import { WRITE_MODES } from './values.js';
 
@@ -36,7 +37,9 @@ export async function insertDetails(
     const child = childDef(registry, (df as { target: string }).target);
     if (child === undefined) continue;
     const table = child.name;
-    const modelCols = child.fields.filter((f) => f.type !== FIELD_TYPES.DETAILS).map((f) => f.name);
+    const modelCols = child.fields
+      .filter((f) => f.type !== FIELD_TYPES.DETAILS && f.type !== FIELD_TYPES.MULTI_RELATION)
+      .map((f) => f.name);
     const cols = [...modelCols, DETAILS_COLUMNS.PARENT_ID, DETAILS_COLUMNS.PARENT_TYPE, DETAILS_COLUMNS.PARENT_IDX];
 
     for (let i = 0; i < rows.length; i++) {
@@ -52,6 +55,8 @@ export async function insertDetails(
       const values = [...modelCols.map((c) => record[c] ?? null), parentPk, parent.name, i + 1];
       const placeholders = cols.map((_, idx) => `$${idx + 1}`).join(', ');
       await db.query(`INSERT INTO ${q(table)} (${cols.map(q).join(', ')}) VALUES (${placeholders})`, values);
+      const childPkValues = primaryFieldsOf(child).map((p) => record[p.name]);
+      await insertLinks(db, child, childPkValues, record, registry, locale);
     }
   }
 }

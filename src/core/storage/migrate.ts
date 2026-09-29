@@ -7,6 +7,7 @@ import { applyStatements } from './apply.js';
 import { buildExpectedTable, diffAll, diffRls, diffTable } from './diff.js';
 import type { ExpectedTable } from './diff.js';
 import { inspectSchema } from './inspect.js';
+import { buildLinkTables } from './link-table.js';
 import { setMeta } from './meta.js';
 import { createPool } from './pool.js';
 import { buildRecordMetaTable } from './record-meta.js';
@@ -181,6 +182,10 @@ export async function migrate(registry: ObjectRegistry, options: MigrateOptions 
     const metaTables = [...defs.keys()].map((name) => buildRecordMetaTable(name));
     const metaStatements = diffAll(metaTables, actual);
 
+    // engine-owned many-to-many link tables for every `multiRelation` field:
+    // one per (object, field), created idempotently regardless of `alter`.
+    const linkStatements = diffAll(buildLinkTables(defs, registry.fieldTypes), actual);
+
     // engine-owned system tables (metadata cache / seq / audit / approvals /
     // timers / counters) + their ACL hardening: provisioned here (and only
     // here) so the runtime never runs DDL and can be least-privileged.
@@ -204,8 +209,9 @@ export async function migrate(registry: ObjectRegistry, options: MigrateOptions 
       if (def.alter === true) continue;
       for (const field of def.fields) {
         // details fields have no column on the parent (the child table carries
-        // parent_id/parent_type/parent_idx) — never a ghost-column check
-        if (field.type === FIELD_TYPES.DETAILS) continue;
+        // parent_id/parent_type/parent_idx); multiRelation fields have no column
+        // either (a link table carries the pairs) — never ghost-column checks
+        if (field.type === FIELD_TYPES.DETAILS || field.type === FIELD_TYPES.MULTI_RELATION) continue;
         if (!cols.has(field.name)) {
           throw new SchemaError('object.field.columnMissing', { object: def.name, table: def.name, field: field.name });
         }
@@ -243,6 +249,7 @@ export async function migrate(registry: ObjectRegistry, options: MigrateOptions 
       ...enumStatements,
       ...statements,
       ...metaStatements,
+      ...linkStatements,
       ...systemStatements,
       ...rlsStatements,
       ...hardening,

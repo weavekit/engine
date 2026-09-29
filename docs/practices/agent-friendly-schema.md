@@ -76,7 +76,8 @@ Relations are how the agent navigates the domain, so get the targets and cardina
   `record_key` (composite-key target).
 - **`details`** — strong 1:N ownership managed through the child object's own CRUD, not nested
   writes.
-- **`multiRelation`** — a multi-select of references (stored as an array).
+- **`multiRelation`** — a multi-select of references (an engine-managed link table with per-side FKs;
+  reads return the target-id array).
 
 Name relation fields after their target (`customer_id`, not `cust`) and mark the required ones; the
 agent reads cardinality from the relation list in `describe_object`.

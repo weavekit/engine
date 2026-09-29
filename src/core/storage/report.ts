@@ -8,6 +8,11 @@ import type { ExpectedFk } from './diff.js';
 import type { ActualColumn, ActualTable } from './inspect.js';
 import { pgTypeMatches } from './map.js';
 
+/** exact, order-sensitive column-list equality (FK columns are ordered) */
+function sameColumns(a: readonly string[], b: readonly string[]): boolean {
+  return a.length === b.length && a.every((c, i) => c === b[i]);
+}
+
 /**
  * Read-only schema ↔ table mapping report (`weave schema:map`): pairs every
  * declared schema field with its expected PostgreSQL column, its constraints,
@@ -143,7 +148,7 @@ function schemaTypeOf(field: FieldDefinition, fk: ExpectedFk | undefined): strin
     case FIELD_TYPES.RELATION:
     case FIELD_TYPES.USER:
     case FIELD_TYPES.DEPARTMENT:
-      return fk === undefined ? field.type : `${field.type} → ${fk.refTable}.${fk.refColumn}`;
+      return fk === undefined ? field.type : `${field.type} → ${fk.refTable}.${fk.refColumns.join(', ')}`;
     case FIELD_TYPES.MULTI_RELATION:
       return `${field.type} → ${field.target}`;
     case FIELD_TYPES.ENUM:
@@ -189,7 +194,7 @@ export function buildMappingReport(
     for (const col of expected.columns) {
       covered.add(col.name);
       const field = fieldByName.get(col.name);
-      const fk = expected.fks.find((f) => f.column === col.name);
+      const fk = expected.fks.find((f) => f.columns.length === 1 && f.columns[0] === col.name);
       const index = indexByName.get(`${def.name}_${col.name}_idx`);
       const actualCol = actualTable?.columns.find((c) => c.name === col.name);
 
@@ -217,7 +222,7 @@ export function buildMappingReport(
         primary: col.primary,
         unique: col.unique,
         default: col.default,
-        fk: fk === undefined ? undefined : { table: fk.refTable, column: fk.refColumn, onDelete: fk.onDelete },
+        fk: fk === undefined ? undefined : { table: fk.refTable, column: fk.refColumns.join(', '), onDelete: fk.onDelete },
         index: index === undefined ? undefined : { name: index.name, method: index.method },
         auto: field === undefined ? true : undefined,
         actual: actualInfo,
@@ -255,8 +260,12 @@ export function buildMappingReport(
       present: actualTable?.indexNames.includes(idx.name) === true,
     }));
     const fks: MappingFk[] = expected.fks.map((fk) => ({
-      ...fk,
-      present: actualTable?.fks.some((a) => a.column === fk.column && a.refTable === fk.refTable) === true,
+      column: fk.columns.join(', '),
+      refTable: fk.refTable,
+      refColumn: fk.refColumns.join(', '),
+      onDelete: fk.onDelete,
+      present:
+        actualTable?.fks.some((a) => a.refTable === fk.refTable && sameColumns(a.columns, fk.columns)) === true,
     }));
     const constraints: MappingConstraint[] = expected.uniques.map((u) => ({
       name: u.name,

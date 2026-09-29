@@ -38,7 +38,7 @@ maybe('Composite-target relation E2E (local PG)', () => {
       const actual = await inspectSchema(pool);
       const refTable = actual.get(ref)!;
       // a composite target is referenced by record_key text — no real FK
-      expect(refTable.fks.some((f) => f.column === 'target')).toBe(false);
+      expect(refTable.fks.some((f) => f.columns.includes('target'))).toBe(false);
 
       const dataAccess = createDataAccess();
       const ctx = { pool, registry: reg };

@@ -153,7 +153,9 @@ export function pgType(
     case FIELD_TYPES.RELATION:
       return targetPkType ?? 'VARCHAR(255)';
     case FIELD_TYPES.MULTI_RELATION:
-      return 'TEXT[]';
+      // multiRelation fields have no column — they are backed by an engine link
+      // table (`core/storage/link-table.ts`), never mapped to a column type
+      throw new Error('multiRelation fields do not create a column (link table)');
     case FIELD_TYPES.SEQ_NO:
       return 'VARCHAR(255)';
     case FIELD_TYPES.DETAILS:

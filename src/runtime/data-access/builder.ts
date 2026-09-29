@@ -9,6 +9,11 @@ import {
   RECORD_META_VIRTUAL_PREFIX,
   isRecordMetaVirtualField,
   recordKeySql,
+  primaryFieldsOf,
+  linkTableName,
+  linkOwnerColumn,
+  linkTargetColumn,
+  LINK_IDX_COLUMN,
 } from "../../core/index.js";
 import type { Filter, FindOptions, FilterValue, Sort } from "./types.js";
 import type { FilterOp } from "./values.js";
@@ -47,6 +52,8 @@ export interface BuildContext {
   allowParentCols?: boolean;
   /** when present, LEFT JOIN the record-metadata side table and expose `weave_*` fields */
   meta?: { table: string };
+  /** object lookup to resolve `multiRelation` targets (link-table expressions) */
+  lookup?: { get(name: string): ObjectDefinition | undefined };
 }
 
 /** qualified reference to a customer-model column (alias `t` when a side table is joined) */
@@ -93,10 +100,90 @@ function fail(ctx: BuildContext, field: string): never {
 
 function isArrayColumn(field: ObjectDefinition["fields"][number]): boolean {
   return (
-    field.type === FIELD_TYPES.MULTI_RELATION ||
     (field.type === FIELD_TYPES.ENUM && field.multiple === true) ||
     (field.type === FIELD_TYPES.IMAGE && field.multiple === true)
   );
+}
+
+/** the SQL expression for one target value inside a link-table subquery: the raw
+ *  PK value for a single-column target, or the target record_key for a composite one */
+function multiRelationTargetExpr(target: ObjectDefinition): string {
+  const pks = primaryFieldsOf(target);
+  if (pks.length === 1) return `l.${q(linkTargetColumn(pks[0]!.name))}`;
+  return recordKeySql(target, (name) => `l.${q(linkTargetColumn(name))}`);
+}
+
+/** correlated predicate binding a link-table row to the outer owner row */
+function multiRelationCorrelation(object: ObjectDefinition, ctx: BuildContext): string {
+  return primaryFieldsOf(object)
+    .map((pk) => `l.${q(linkOwnerColumn(pk.name))} = ${colRef(ctx, pk.name)}`)
+    .join(" AND ");
+}
+
+/** read expression: the owner's multiRelation value as an ordered array of target ids */
+function multiRelationExpr(object: ObjectDefinition, ctx: BuildContext, field: { name: string; target: string }): string {
+  const target = ctx.lookup?.get(field.target);
+  if (target === undefined) return "NULL";
+  const link = linkTableName(object.name, field.name);
+  return `(SELECT array_agg(${multiRelationTargetExpr(target)} ORDER BY l.${q(LINK_IDX_COLUMN)}) FROM ${q(link)} l WHERE ${multiRelationCorrelation(object, ctx)})`;
+}
+
+/** link-table filter for contains (superset) / in (intersection) / eq / ne (set equality) */
+function multiRelationFilterClause(
+  object: ObjectDefinition,
+  ctx: BuildContext,
+  field: { name: string; target: string },
+  rawValue: unknown,
+  params: unknown[],
+): string {
+  const target = ctx.lookup?.get(field.target);
+  if (target === undefined) return "";
+  const link = q(linkTableName(object.name, field.name));
+  const correl = multiRelationCorrelation(object, ctx);
+  const valueExpr = multiRelationTargetExpr(target);
+
+  const ops: Array<[FilterOp, unknown]> = isFilterValue(rawValue)
+    ? (Object.entries(rawValue) as Array<[FilterOp, unknown]>)
+    : [[FILTER_OPS.EQ, rawValue]];
+
+  const pieces: string[] = [];
+  for (const [op, value] of ops) {
+    if (op !== FILTER_OPS.CONTAINS && op !== FILTER_OPS.IN && op !== FILTER_OPS.EQ && op !== FILTER_OPS.NE) continue;
+    const list = Array.isArray(value) ? value : [value];
+    const distinct = [...new Map(list.map((v) => [String(v), v])).values()];
+    const countAll = `(SELECT count(*) FROM ${link} l WHERE ${correl})`;
+    if (op === FILTER_OPS.CONTAINS) {
+      if (distinct.length === 0) {
+        pieces.push("TRUE");
+        continue;
+      }
+      const p = `$${params.length + 1}`;
+      params.push(distinct);
+      pieces.push(
+        `(SELECT count(DISTINCT ${valueExpr}) FROM ${link} l WHERE ${correl} AND ${valueExpr} = ANY(${p})) = ${distinct.length}`,
+      );
+    } else if (op === FILTER_OPS.IN) {
+      if (distinct.length === 0) {
+        pieces.push("FALSE");
+        continue;
+      }
+      const p = `$${params.length + 1}`;
+      params.push(distinct);
+      pieces.push(`EXISTS (SELECT 1 FROM ${link} l WHERE ${correl} AND ${valueExpr} = ANY(${p}))`);
+    } else {
+      const eq =
+        distinct.length === 0
+          ? `${countAll} = 0`
+          : (() => {
+              const p = `$${params.length + 1}`;
+              params.push(distinct);
+              return `(${countAll} = ${distinct.length} AND (SELECT count(DISTINCT ${valueExpr}) FROM ${link} l WHERE ${correl} AND ${valueExpr} = ANY(${p})) = ${distinct.length})`;
+            })();
+      pieces.push(op === FILTER_OPS.EQ ? eq : `NOT ${eq}`);
+    }
+  }
+  if (pieces.length === 0) return "";
+  return pieces.length === 1 ? pieces[0]! : `(${pieces.join(" AND ")})`;
 }
 
 const FILTER_OP_VALUES: readonly string[] = Object.values(FILTER_OPS);
@@ -172,6 +259,9 @@ function buildFieldClause(
 ): string {
   if (!isKnown(object, ctx, name)) fail(ctx, name);
   const field = fieldOf(object, name);
+  if (field !== undefined && field.type === FIELD_TYPES.MULTI_RELATION) {
+    return multiRelationFilterClause(object, ctx, field, rawValue, params);
+  }
   const colExpr = virtualRef(object, ctx, name) ?? colRef(ctx, name);
   // parent_* columns and virtual fields have no field definition; treat as plain string columns
   const effective: ObjectDefinition["fields"][number] =
@@ -269,19 +359,32 @@ export function buildColumns(
   ctx: BuildContext,
   exclude?: readonly string[],
 ): string {
-  const modelCols = object.fields
-    .filter((f) => f.type !== FIELD_TYPES.DETAILS)
+  const multiByName = new Map<string, { name: string; target: string }>();
+  for (const f of object.fields) {
+    if (f.type === FIELD_TYPES.MULTI_RELATION) multiByName.set(f.name, f);
+  }
+  const plainCols = object.fields
+    .filter((f) => f.type !== FIELD_TYPES.DETAILS && f.type !== FIELD_TYPES.MULTI_RELATION)
     .map((f) => f.name);
   const allCols = [
-    ...modelCols,
+    ...plainCols,
     ...(ctx.allowParentCols === true ? [...PARENT_COLUMNS] : []),
   ];
   const isExcluded = (name: string) =>
     exclude !== undefined && exclude.includes(name);
   if (fields === undefined) {
-    return allCols
+    const names = [
+      ...object.fields.filter((f) => f.type !== FIELD_TYPES.DETAILS).map((f) => f.name),
+      ...(ctx.allowParentCols === true ? [...PARENT_COLUMNS] : []),
+    ];
+    return names
       .filter((c) => !isExcluded(c))
-      .map((c) => colRef(ctx, c))
+      .map((c) => {
+        const multi = multiByName.get(c);
+        return multi === undefined
+          ? colRef(ctx, c)
+          : `${multiRelationExpr(object, ctx, multi)} AS ${q(c)}`;
+      })
       .join(", ");
   }
   const parts: string[] = [];
@@ -289,6 +392,11 @@ export function buildColumns(
     const vref = virtualRef(object, ctx, name);
     if (vref !== undefined) {
       parts.push(`${vref} AS ${q(name)}`);
+      continue;
+    }
+    const multi = multiByName.get(name);
+    if (multi !== undefined) {
+      if (!isExcluded(name)) parts.push(`${multiRelationExpr(object, ctx, multi)} AS ${q(name)}`);
       continue;
     }
     if (!allCols.includes(name)) fail(ctx, name);

@@ -22,10 +22,12 @@ export interface ActualColumn {
 }
 
 export interface ActualFk {
-  column: string;
+  /** referencing columns (single-column for `relation`, multi-column for link tables) */
+  columns: string[];
   refTable: string;
-  refColumn: string;
-  /** FK ON DELETE action (detail only): cascade | set_null | restrict | no_action | set_default */
+  /** referenced columns (aligned by index with `columns`) */
+  refColumns: string[];
+  /** FK ON DELETE action: cascade | set_null | restrict | no_action | set_default */
   onDelete?: string;
 }
 
@@ -126,24 +128,34 @@ export async function inspectSchema(pool: Pool, options: InspectOptions = {}): P
   }
 
   const fkRows = await pool.query(
-    `SELECT tc.table_name, kcu.column_name, ccu.table_name AS ref_table, ccu.column_name AS ref_column
-       FROM information_schema.table_constraints tc
-       JOIN information_schema.key_column_usage kcu
-         ON tc.constraint_name = kcu.constraint_name AND tc.constraint_schema = kcu.constraint_schema
-       JOIN information_schema.constraint_column_usage ccu
-         ON tc.constraint_name = ccu.constraint_name AND tc.constraint_schema = ccu.constraint_schema
-      WHERE tc.constraint_type = 'FOREIGN KEY' AND tc.table_schema = current_schema()`,
+    `SELECT c.relname AS table_name,
+            rc.relname AS ref_table,
+            con.confdeltype,
+            array_agg(a.attname::text ORDER BY k.ord) AS columns,
+            array_agg(fa.attname::text ORDER BY k.ord) AS ref_columns
+       FROM pg_constraint con
+       JOIN pg_class c ON c.oid = con.conrelid
+       JOIN pg_class rc ON rc.oid = con.confrelid
+       JOIN pg_namespace n ON n.oid = c.relnamespace
+       JOIN unnest(con.conkey) WITH ORDINALITY AS k(attnum, ord) ON true
+       JOIN pg_attribute a ON a.attrelid = con.conrelid AND a.attnum = k.attnum
+       JOIN unnest(con.confkey) WITH ORDINALITY AS fk(attnum, ord) ON fk.ord = k.ord
+       JOIN pg_attribute fa ON fa.attrelid = con.confrelid AND fa.attnum = fk.attnum
+      WHERE con.contype = 'f' AND n.nspname = current_schema()
+      GROUP BY c.relname, rc.relname, con.conname, con.confdeltype`,
   );
   for (const row of fkRows.rows as {
     table_name: string;
-    column_name: string;
     ref_table: string;
-    ref_column: string;
+    confdeltype: string;
+    columns: string[];
+    ref_columns: string[];
   }[]) {
     tables.get(row.table_name)?.fks.push({
-      column: row.column_name,
+      columns: row.columns,
       refTable: row.ref_table,
-      refColumn: row.ref_column,
+      refColumns: row.ref_columns,
+      onDelete: FK_DELETE_ACTIONS[row.confdeltype] ?? 'restrict',
     });
   }
 
@@ -279,18 +291,5 @@ async function loadDetail(pool: Pool, tables: Map<string, ActualTable>): Promise
   for (const row of uniqueRows.rows as { table_name: string; column_name: string }[]) {
     const t = tables.get(row.table_name);
     if (t !== undefined) (t.uniqueColumns ??= []).push(row.column_name);
-  }
-
-  const fkDeleteRows = await pool.query(
-    `SELECT c.relname AS table_name, a.attname AS column_name, con.confdeltype
-       FROM pg_constraint con
-       JOIN pg_class c ON con.conrelid = c.oid
-       JOIN pg_namespace n ON c.relnamespace = n.oid
-       JOIN pg_attribute a ON a.attrelid = con.conrelid AND a.attnum = ANY(con.conkey)
-      WHERE con.contype = 'f' AND n.nspname = current_schema()`,
-  );
-  for (const row of fkDeleteRows.rows as { table_name: string; column_name: string; confdeltype: string }[]) {
-    const fk = tables.get(row.table_name)?.fks.find((f) => f.column === row.column_name);
-    if (fk !== undefined) fk.onDelete = FK_DELETE_ACTIONS[row.confdeltype] ?? 'restrict';
   }
 }

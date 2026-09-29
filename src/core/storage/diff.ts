@@ -9,6 +9,11 @@ import type { ActualTable } from './inspect.js';
 
 const q = (id: string) => `"${id}"`;
 
+/** exact, order-sensitive column-list equality (FK columns are ordered) */
+function sameColumns(a: readonly string[], b: readonly string[]): boolean {
+  return a.length === b.length && a.every((c, i) => c === b[i]);
+}
+
 export interface ExpectedColumn {
   name: string;
   type: string;
@@ -19,9 +24,11 @@ export interface ExpectedColumn {
 }
 
 export interface ExpectedFk {
-  column: string;
+  /** referencing columns (single-column for `relation`, multi-column for link tables) */
+  columns: string[];
   refTable: string;
-  refColumn: string;
+  /** referenced columns (aligned by index with `columns`) */
+  refColumns: string[];
   onDelete: string;
 }
 
@@ -66,7 +73,7 @@ export function buildExpectedTable(
   const indexes: ExpectedIndex[] = [];
 
   for (const field of def.fields) {
-    if (field.type === FIELD_TYPES.DETAILS) continue;
+    if (field.type === FIELD_TYPES.DETAILS || field.type === FIELD_TYPES.MULTI_RELATION) continue;
 
     let type: string;
     if (field.type === FIELD_TYPES.RELATION || field.type === FIELD_TYPES.USER || field.type === FIELD_TYPES.DEPARTMENT) {
@@ -91,9 +98,9 @@ export function buildExpectedTable(
       // a composite target is referenced by its record_key (text) — no real FK
       if (targetDef !== undefined && targetPks.length === 1) {
         fks.push({
-          column: field.name,
+          columns: [field.name],
           refTable: targetDef.name,
-          refColumn: targetPks[0]!.name,
+          refColumns: [targetPks[0]!.name],
           onDelete: field.onDelete ?? 'restrict',
         });
       }
@@ -112,8 +119,6 @@ export function buildExpectedTable(
         method: multiple ? 'gin' : 'btree',
         columns: [field.name],
       });
-    } else if (field.type === FIELD_TYPES.MULTI_RELATION) {
-      indexes.push({ name: `${name}_${field.name}_idx`, method: 'gin', columns: [field.name] });
     }
   }
 
@@ -212,11 +217,13 @@ export function diffTable(t: ExpectedTable, actual: ActualTable | undefined, loc
   }
 
   for (const fk of t.fks) {
-    const hasFk = actual !== undefined && actual.fks.some((a) => a.column === fk.column && a.refTable === fk.refTable);
+    const hasFk =
+      actual !== undefined &&
+      actual.fks.some((a) => a.refTable === fk.refTable && sameColumns(a.columns, fk.columns));
     if (!hasFk) {
       constraintAdds.push(
-        `ALTER TABLE ${q(t.name)} ADD CONSTRAINT ${q(`${t.name}_${fk.column}_fkey`)} ` +
-          `FOREIGN KEY (${q(fk.column)}) REFERENCES ${q(fk.refTable)}(${q(fk.refColumn)}) ON DELETE ${onDeleteClause(fk.onDelete)}`,
+        `ALTER TABLE ${q(t.name)} ADD CONSTRAINT ${q(`${t.name}_${fk.columns.join('_')}_fkey`)} ` +
+          `FOREIGN KEY (${fk.columns.map(q).join(', ')}) REFERENCES ${q(fk.refTable)}(${fk.refColumns.map(q).join(', ')}) ON DELETE ${onDeleteClause(fk.onDelete)}`,
       );
     }
   }

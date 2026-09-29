@@ -32,7 +32,7 @@ maybe('Migration E2E (local PG)', () => {
 
       const order = actual.get('order')!;
       expect(order.pk).toEqual(['id']);
-      expect(order.fks.some((f) => f.column === 'supplier_id' && f.refTable === 'supplier')).toBe(true);
+      expect(order.fks.some((f) => f.columns.includes('supplier_id') && f.refTable === 'supplier')).toBe(true);
 
       const line = actual.get('line')!;
       expect(line.columns.map((c) => c.name)).toEqual(

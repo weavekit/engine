@@ -63,7 +63,7 @@ describe('mapToSchema — DB reverse modeling', () => {
               numericScale: 2,
             },
           ],
-          fks: [{ column: 'customer_id', refTable: 'customers', refColumn: 'id', onDelete: 'cascade' }],
+          fks: [{ columns: ['customer_id'], refTable: 'customers', refColumns: ['id'], onDelete: 'cascade' }],
         }),
       ],
       [
