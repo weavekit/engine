@@ -5,8 +5,8 @@ import { DETAILS_COLUMNS, FIELD_TYPES, isSideTableVirtualField, RECORD_META_ID_F
 import type { AuditEvent, AuditSink } from '../../core/audit/index.js';
 import { AUDIT_ACTOR_TYPES, DATA_ACTIONS } from '../../core/audit/index.js';
 import type { EventPublisher } from '../../core/provider/event/index.js';
-import { NOOP_SCRIPT_DISPATCHER, SCRIPT_HOOKS, type GuardrailContext, type GuardrailPolicy, type ScriptDispatcher, type ScriptHook, type ScriptUser, type ToolDataAccess, type WorkflowTimerSync } from '../../core/index.js';
-import { evaluateTransition, type PolicyApprovals } from '../tools/policies.js';
+import { NOOP_SCRIPT_DISPATCHER, SCRIPT_HOOKS, type GuardrailPolicy, type ScriptDispatcher, type ScriptHook, type ScriptUser, type WorkflowTimerSync } from '../../core/index.js';
+import type { PolicyApprovals } from '../tools/policies.js';
 import { buildCountSql, buildFindSql, scopeSuffix, type BuildContext } from './builder.js';
 import { deleteDetailsChildren, insertDetails } from './details.js';
 import { insertLinks, replaceLinks } from './link.js';
@@ -230,22 +230,6 @@ function needsSideTable(opts: FindOptions): boolean {
     }
   }
   return false;
-}
-
-/**
- * Narrow `ToolDataAccess` over this data-access for guardrail policies: a policy
- * calls `ctx.dataAccess.find(obj, opts, { subject? })` with no pool/registry, so
- * those are injected from the execution context (mirrors the tool executor's
- * wrapper; `...c` lets a policy override the subject per call).
- */
-function toolDataAccessOver(inner: ObjectDataAccess, base: DataAccessContext): ToolDataAccess {
-  return {
-    find: (n, o, c) => inner.find(n, o as unknown as FindOptions, { ...base, ...c }),
-    findOne: (n, id, c) => inner.findOne(n, id, { ...base, ...c }),
-    create: (n, d, c) => inner.create(n, d, { ...base, ...c }),
-    update: (n, id, changes, c) => inner.update(n, id, changes, { ...base, ...c }),
-    delete: (n, id, c) => inner.delete(n, id, { ...base, ...c }),
-  } as ToolDataAccess;
 }
 
 /**
@@ -488,12 +472,6 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
       }
       Object.assign(record, payload);
 
-      // workflow-managed state: new records always start in the declared initial
-      // state (engine-managed — a hook cannot seed a different state)
-      if (def.workflow !== undefined) {
-        record[def.workflow.stateField] = def.workflow.initial;
-      }
-
       const seqFields = def.fields.filter((f) => f.type === FIELD_TYPES.SEQ_NO);
       if (seqFields.length > 0) {
         for (const f of seqFields) record[f.name] = await generateSeqNo(client, def.name, f, now);
@@ -564,12 +542,6 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
       if (owned) await client.query('COMMIT');
       auditWrite(this.audit, ctx, DATA_ACTIONS.CREATE, objectName, externalId, record);
       this.events?.publishRecordChange('created', objectName, externalId);
-      if (def.workflow !== undefined) {
-        const createdState = record[def.workflow.stateField];
-        await this.workflowTimers
-          ?.sync(objectName, externalId, typeof createdState === 'string' ? createdState : def.workflow.initial)
-          .catch(() => {});
-      }
       await this.runAfterHook(SCRIPT_HOOKS.AFTER_UPDATE, DATA_ACTIONS.CREATE, objectName, record, payload, ctx, warnings, externalId);
       if (warnings.length > 0) ctx.onWarnings?.(warnings);
       const loaded = await this.runOnLoad(objectName, [record], ctx);
@@ -633,15 +605,6 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
         }
       }
 
-      // the workflow state is transition-only: a beforeUpdate hook may not move it
-      if (
-        def.workflow !== undefined &&
-        payload[def.workflow.stateField] !== undefined &&
-        payload[def.workflow.stateField] !== existing[def.workflow.stateField]
-      ) {
-        throw new SchemaError('workflow.transition.required', { object: objectName, field: def.workflow.stateField }, ctx.locale);
-      }
-
       const now = new Date();
       const record = { ...existing, ...payload };
       record[RECORD_META_ID_FIELD] = metaKey;
@@ -696,213 +659,25 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
   }
 
   /**
-   * Fire a declared workflow transition: read the current state, resolve the
-   * transition for `(from, action)`, run the before-hook, write the target state
-   * (plus any hook-returned changes) guarded by an optimistic `WHERE state = from`,
-   * then run the after/onExit/onEnter hooks. The state field is otherwise
-   * read-only, so this is the only path that moves a record between states.
+   * Fire a workflow action.
+   *
+   * Phase C note: the transition executor is being rebuilt on the three-layer
+   * model (instance/step/workitem) in C1/C2. Until then any request is rejected
+   * so a stale client cannot mutate the (removed) state field.
    */
   async transition<T = Record<string, unknown>>(
     objectName: string,
-    id: string,
+    _id: string,
     action: string,
     ctx: DataAccessContext,
   ): Promise<T> {
-    const def = requireDef(ctx, objectName);
-    const wf = def.workflow;
-    if (wf === undefined) {
-      throw new SchemaError('workflow.transition.unknown', { object: objectName, action }, ctx.locale);
-    }
-    if (primaryNames(def).length === 0) {
-      throw new SchemaError('data.recordNotFound', { object: objectName, id }, ctx.locale);
-    }
-    const pkValues = pkValuesOf(def, id, ctx);
-    let client: PoolClient;
-    let owned = false;
-    if (ctx.client !== undefined) {
-      client = ctx.client;
-    } else {
-      owned = true;
-      client = await ctx.pool.connect();
-    }
-    const warnings: string[] = [];
-    try {
-      if (owned) await client.query('BEGIN');
-      const { sql, params } = buildFindSql(def, { filter: pkFilter(def, pkValues), limit: 1 }, bctx(ctx, objectName), ctx.rowScope, undefined, [recordKeySelect(def)]);
-      const { rows } = await runTableQuery(client, objectName, sql, params, ctx.locale);
-      const raw = rows[0] as Record<string, unknown> | undefined;
-      if (raw === undefined) {
-        throw new SchemaError('data.recordNotFound', { object: objectName, id }, ctx.locale);
-      }
-      const metaKey = String(raw[META_KEY_COL] ?? '');
-      const existing = { ...raw };
-      delete existing[META_KEY_COL];
-
-      const rawState = existing[wf.stateField];
-      const currentState = typeof rawState === 'string' ? rawState : String(rawState ?? '');
-      const transition = wf.transitions.find((t) => t.action === action && t.from === currentState);
-      if (transition === undefined) {
-        const known = wf.transitions.some((t) => t.action === action);
-        throw new SchemaError(
-          known ? 'workflow.transition.notAllowed' : 'workflow.transition.unknown',
-          { object: objectName, action, from: currentState },
-          ctx.locale,
-        );
-      }
-      const subject = ctx.subject;
-      if (transition.roles !== undefined && subject !== undefined) {
-        if (!transition.roles.some((role) => subject.roles.includes(role))) {
-          throw new SchemaError(
-            'workflow.transition.denied',
-            { object: objectName, role: subject.roles.join(','), action },
-            ctx.locale,
-          );
-        }
-      }
-
-      // guardrail policy gate + optional approval (shared policy set with the open-contract)
-      if (this.policies.length > 0 || transition.requiresApproval === true) {
-        const actorId = subject?.id ?? 'system';
-        const guardrailCtx: GuardrailContext = {
-          actor: { key: actorId, label: actorId, onBehalfOf: actorId },
-          subject: subject ?? { id: 'system', roles: [] },
-          action: `workflow.transition.${def.name}.${action}`,
-          args: { object: def.name, id, action, from: transition.from, to: transition.to },
-          dataAccess: toolDataAccessOver(this, {
-            pool: ctx.pool,
-            registry: ctx.registry,
-            ...(ctx.locale === undefined ? {} : { locale: ctx.locale }),
-            ...(ctx.client === undefined ? {} : { client: ctx.client }),
-            ...(subject === undefined ? {} : { subject }),
-          }),
-        };
-        const gate = await evaluateTransition(
-          this.policies,
-          this.approvals,
-          guardrailCtx,
-          transition.requiresApproval === true,
-        );
-        if (gate.kind === 'deny') {
-          throw new SchemaError(
-            gate.code,
-            { object: objectName, action, reason: gate.reason ?? '' },
-            ctx.locale,
-          );
-        }
-        if (gate.kind === 'pending') {
-          throw new SchemaError(
-            'workflow.transition.pending',
-            { object: objectName, action, approvalKey: gate.approvalKey },
-            ctx.locale,
-          );
-        }
-      }
-
-      const transitionInfo = { from: transition.from, to: transition.to };
-      const before = await this.runBeforeHook(
-        SCRIPT_HOOKS.BEFORE_TRANSITION,
-        objectName,
-        existing,
-        { [wf.stateField]: transition.to },
-        ctx,
-        { transition: transitionInfo, state: transition.to },
-      );
-      const payload: Record<string, unknown> = {
-        ...(before ?? {}),
-        [wf.stateField]: transition.to,
-      };
-
-      const now = new Date();
-      const record = { ...existing, ...payload };
-      record[RECORD_META_ID_FIELD] = metaKey;
-      await computeFormulas(def, record, client, ctx.registry, now, metaKey, formulaAuth(ctx));
-
-      const settable = new Set<string>();
-      for (const key of Object.keys(payload)) {
-        const field = def.fields.find((f) => f.name === key);
-        if (field !== undefined && field.type !== FIELD_TYPES.DETAILS) settable.add(key);
-      }
-      for (const field of def.fields) {
-        if ((field as { formula?: string }).formula !== undefined) settable.add(field.name);
-      }
-      for (const name of primaryNames(def)) settable.delete(name);
-      settable.add(wf.stateField);
-
-      const cols = [...settable];
-      const setSql = cols.map((c, i) => `${q(c)} = $${i + 1}`).join(', ');
-      const values = cols.map((c) => dbJsonValue(def.fields.find((f) => f.name === c), record[c] ?? null));
-      const stateParam = cols.length + pkValues.length + 1;
-      const scope = ctx.rowScope !== undefined ? scopeSuffix(ctx.rowScope, stateParam) : undefined;
-      const res = await runTableQuery(
-        client,
-        objectName,
-        `UPDATE ${q(def.name)} SET ${setSql} WHERE ${pkWhereSql(def, cols.length + 1)} AND ${q(wf.stateField)} = $${stateParam}${scope !== undefined ? ` AND (${scope.sql})` : ''}`,
-        [...values, ...pkValues, currentState, ...(scope?.params ?? [])],
-        ctx.locale,
-      );
-      if (res.rowCount === 0) {
-        throw new SchemaError(
-          'http.conflict',
-          { detail: `record "${id}" changed state during the transition` },
-          ctx.locale,
-        );
-      }
-
-      await this.writeRecordMeta(client, def, metaKey, ctx, now, false);
-      if (owned) await client.query('COMMIT');
-      const updated = record;
-      auditWrite(
-        this.audit,
-        ctx,
-        DATA_ACTIONS.TRANSITION,
-        objectName,
-        id,
-        {
-          transition: action,
-          from: transition.from,
-          to: transition.to,
-          changes: payload,
-          ...(wf.version === undefined ? {} : { workflowVersion: wf.version }),
-          ...(def.workflowHash === undefined ? {} : { workflowHash: def.workflowHash }),
-        },
-        undefined,
-        this.replay ? existing : undefined,
-        this.replay ? updated : undefined,
-      );
-      this.events?.publishRecordChange('updated', objectName, id);
-      this.events?.publishRecordTransitioned(
-        objectName,
-        id,
-        transition.from,
-        transition.to,
-        action,
-        wf.version,
-        def.workflowHash,
-      );
-      await this.workflowTimers?.sync(objectName, id, transition.to).catch(() => {});
-      await this.runAfterHook(SCRIPT_HOOKS.ON_EXIT, DATA_ACTIONS.TRANSITION, objectName, existing, {}, ctx, warnings, id, {
-        transition: transitionInfo,
-        state: transition.from,
-      });
-      await this.runAfterHook(SCRIPT_HOOKS.ON_ENTER, DATA_ACTIONS.TRANSITION, objectName, updated, payload, ctx, warnings, id, {
-        transition: transitionInfo,
-        state: transition.to,
-      });
-      await this.runAfterHook(SCRIPT_HOOKS.AFTER_TRANSITION, DATA_ACTIONS.TRANSITION, objectName, updated, payload, ctx, warnings, id, {
-        transition: transitionInfo,
-        state: transition.to,
-      });
-      if (warnings.length > 0) ctx.onWarnings?.(warnings);
-      const loaded = await this.runOnLoad(objectName, [updated], ctx);
-      return loaded[0] as T;
-    } catch (err) {
-      if (owned) await client.query('ROLLBACK');
-      auditWrite(this.audit, ctx, DATA_ACTIONS.TRANSITION, objectName, id, { transition: action }, err);
-      throw err;
-    } finally {
-      if (owned) client.release();
-    }
+    requireDef(ctx, objectName);
+    // guardrail policies + approvals are consumed by the C2 transition executor
+    void this.policies;
+    void this.approvals;
+    throw new SchemaError('workflow.transition.unknown', { object: objectName, action }, ctx.locale);
   }
+
 
   /**
    * Upsert a record's sparse metadata side-table row (status/owner/timestamps)

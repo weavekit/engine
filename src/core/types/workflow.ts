@@ -1,54 +1,76 @@
 /**
- * Declarative per-object state machine (`objects/<name>/workflow.json`).
+ * Declarative single-line node-chain workflow (`objects/<name>/workflow.json`).
  * Pure types — zero runtime dependencies (core contract layer).
+ *
+ * Format v2 replaces the v1 state-marker machine (`stateField` + `states[]` +
+ * `transitions[]`) with an ordered `nodes[]` chain driven by an implicit start
+ * node. Instance/step/workitem state lives in engine tables, never in the
+ * customer's columns (see the C-phase plan).
  */
 
 /** on-disk `workflow.json` format version (single source of truth) */
-export const WORKFLOW_FORMAT_VERSION = 1 as const;
+export const WORKFLOW_FORMAT_VERSION = 2 as const;
 
-/** how long a state may be held before its timeout fires, and what to do then */
+/** synthetic node id of the implicit start (发起) node — never authored */
+export const WORKFLOW_START_NODE = '__start__';
+
+/** node kinds (single source of truth) */
+export const WORKFLOW_NODE_KINDS = {
+  APPROVE: 'approve',
+  NOTIFY: 'notify',
+} as const;
+export type WorkflowNodeKind = (typeof WORKFLOW_NODE_KINDS)[keyof typeof WORKFLOW_NODE_KINDS];
+
+/** how a node's assignees complete it (single source of truth) */
+export const WORKFLOW_ASSIGN_MODES = {
+  /** 或签: the first decision settles the node */
+  ANY: 'any',
+  /** 会签: every assignee must approve */
+  ALL: 'all',
+} as const;
+export type WorkflowAssignMode = (typeof WORKFLOW_ASSIGN_MODES)[keyof typeof WORKFLOW_ASSIGN_MODES];
+
+/** the actions a node timeout may auto-fire (single source of truth) */
+export const WORKFLOW_TIMEOUT_ACTIONS = {
+  APPROVE: 'approve',
+  REJECT: 'reject',
+} as const;
+export type WorkflowTimeoutAction =
+  (typeof WORKFLOW_TIMEOUT_ACTIONS)[keyof typeof WORKFLOW_TIMEOUT_ACTIONS];
+
+/** how long a node may be held before its timeout fires, and what to do then */
 export interface WorkflowTimeout {
   /** duration string: `<n>` with optional unit `ms|s|m|h|d|w` (bare number = ms) */
   after: string;
-  /** transition action to auto-fire on expiry; absent = only dispatch the `onTimeout` hook */
-  action?: string;
+  /** action auto-fired on expiry; absent = only dispatch the `onTimeout` hook */
+  action?: WorkflowTimeoutAction;
 }
 
-/** one named state a record can be in (must be one of the state field's enum options) */
-export interface WorkflowState {
-  /** snake_case state name; must exist in the state field's inline options */
-  name: string;
-  /** display names keyed by locale, e.g. { en: 'Draft', zh: '草稿' } */
-  labels?: Record<string, string>;
+/** who acts at a node and how the node completes */
+export interface WorkflowAssign {
+  /** roles whose members resolve to the node's assignees (required, non-empty) */
+  roles: string[];
+  /** 或签 (`any`, default) | 会签 (`all`); `notify` nodes keep `any` */
+  mode?: WorkflowAssignMode;
+}
+
+/** one node in the single-line chain */
+export interface WorkflowNode {
+  /** snake_case node id, unique within the chain */
+  id: string;
+  /** `approve` (default) | `notify` (抄送: no quorum, advances immediately) */
+  kind?: WorkflowNodeKind;
+  /** display names keyed by locale, e.g. { en: 'Finance', zh: '财务审批' } */
+  name?: Record<string, string>;
   description?: string;
-  /** optional timeout: the clock starts when the state is entered */
+  /** roles that resolve to the node's assignees (required) */
+  assign: WorkflowAssign;
+  /** on reject, roll back to this earlier node id; absent = the start node */
+  onReject?: string;
+  /** on withdraw, roll back to this earlier node id; absent = the start node */
+  onWithdraw?: string;
+  /** node-level timeout (approve nodes only) */
   onTimeout?: WorkflowTimeout;
-}
-
-/** one guarded edge between two states */
-export interface WorkflowTransition {
-  /** snake_case action name, unique within a `from` state */
-  action: string;
-  /** source state name */
-  from: string;
-  /** target state name */
-  to: string;
-  labels?: Record<string, string>;
-  /** roles allowed to fire this transition; absent = any identity allowed to update */
-  roles?: string[];
-  /** when true, the transition must be approved through the approval queue before it fires */
-  requiresApproval?: boolean;
-}
-
-/**
- * An evolution remap: records still sitting in the removed/renamed `from` state
- * are moved to `to` by `weave workflow:migrate`. `from` must be a value of the
- * state field's enum that is no longer a declared state (so the enum option can
- * be left in place — no destructive DDL); `to` must be a declared state.
- */
-export interface WorkflowStateMigration {
-  from: string;
-  to: string;
 }
 
 /** validated workflow definition attached to an object */
@@ -59,18 +81,11 @@ export interface WorkflowDefinition {
    * author-managed definition revision (an arbitrary positive integer, distinct
    * from the on-disk `schemaVersion`). Surfaced in the descriptor / transition
    * events + audit so history stays interpretable after a definition changes.
-   * The engine does not run multiple revisions concurrently — it is a single
-   * live definition; see `workflowHash` for the exact content identity.
+   * See `workflowHash` for the exact content identity (instance pinning).
    */
   version?: number;
-  /** enum field on the object that carries the current state */
-  stateField: string;
-  /** state assigned to new records */
-  initial: string;
-  states: WorkflowState[];
-  transitions: WorkflowTransition[];
-  /** evolution remaps applied to existing records by `weave workflow:migrate` */
-  migrations?: WorkflowStateMigration[];
+  /** the ordered single-line node chain (the start node is implicit) */
+  nodes: WorkflowNode[];
 }
 
 /** `weavekit.config.ts -> subsystems.workflow` */
@@ -90,7 +105,7 @@ export const WORKFLOW_TIMER_DEFAULTS = {
   batchSize: 50,
 } as const;
 
-/** one armed timeout for a record's current state */
+/** one armed timeout for a record's current step */
 export interface WorkflowTimer {
   object: string;
   id: string;
@@ -126,11 +141,11 @@ export interface WorkflowBackend {
 
 /**
  * Narrow timer handle injected into data-access: writes re-arm/cancel the
- * record's timer on state changes without knowing the scheduler/backend. The
+ * record's timer on node changes without knowing the scheduler/backend. The
  * engine wires the real scheduler at assembly (a no-op proxy before it exists).
  */
 export interface WorkflowTimerSync {
-  /** (re)arm the timer for the record's new state, or cancel when it has no `onTimeout` */
+  /** (re)arm the timer for the record's new node/state, or cancel when it has no `onTimeout` */
   sync(object: string, id: string, state: string): Promise<void>;
   /** cancel any timer for the record */
   cancel(object: string, id: string): Promise<void>;

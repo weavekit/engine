@@ -12,19 +12,16 @@ function canonical(value: unknown): string {
 }
 
 /**
- * Content-addressed identity of a workflow's runtime semantics (state field,
- * initial, states, transitions and the author's `version`). The on-disk
- * `schemaVersion` (format) and V3 `migrations` (data-only) are excluded, so the
- * hash changes only when a transition/timeout could behave differently. Written
- * into the descriptor, transition events, audit and timers as a traceability anchor.
+ * Content-addressed identity of a workflow's runtime semantics (the author's
+ * `version` and the ordered `nodes` chain). The on-disk `schemaVersion` (format)
+ * is excluded, so the hash changes only when a node/assign/rollback/timeout
+ * could behave differently. Written into the descriptor, transition events,
+ * audit and timers as a traceability anchor; instances pin it at submit.
  */
 export function hashWorkflow(workflow: WorkflowDefinition): string {
   const semantic = {
     ...(workflow.version === undefined ? {} : { version: workflow.version }),
-    stateField: workflow.stateField,
-    initial: workflow.initial,
-    states: workflow.states,
-    transitions: workflow.transitions,
+    nodes: workflow.nodes,
   };
   return createHash('sha256').update(canonical(semantic), 'utf8').digest('hex');
 }

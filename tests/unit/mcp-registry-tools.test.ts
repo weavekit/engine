@@ -29,10 +29,7 @@ const TICKET: ObjectDefinition = {
   ],
   workflowEnabled: true,
   workflow: {
-    initial: 'draft',
-    stateField: 'status',
-    states: [{ name: 'draft' }, { name: 'open' }],
-    transitions: [{ action: 'open', from: 'draft', to: 'open' }],
+    nodes: [{ id: 'open', assign: { roles: ['sales'] } }],
   },
   permissions: { sales: { read: 'all', update: true } },
 };

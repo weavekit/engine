@@ -22,10 +22,8 @@ const LEAD_WF = JSON.stringify({
 });
 
 const LEAD_WORKFLOW = JSON.stringify({
-  initial: 'draft',
-  stateField: 'status',
-  states: [{ name: 'draft' }, { name: 'approved' }],
-  transitions: [{ action: 'approve', from: 'draft', to: 'approved' }],
+  schemaVersion: 2,
+  nodes: [{ id: 'approve', assign: { roles: ['manager'] } }],
 });
 
 async function withProjectDir(fn: (root: string) => Promise<void>): Promise<void> {
@@ -83,8 +81,7 @@ describe('loadSchemaDir — objects/<name>/schema.json directory layout', () => 
       const { files } = await loadSchemaDir(root);
       expect(files).toHaveLength(1);
       expect(files[0]!.name).toBe('lead');
-      expect(files[0]!.object.workflow?.stateField).toBe('status');
-      expect(files[0]!.object.workflow?.transitions).toHaveLength(1);
+      expect(files[0]!.object.workflow?.nodes.map((n) => n.id)).toEqual(['approve']);
     });
   });
 

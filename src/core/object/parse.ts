@@ -1,6 +1,7 @@
 import { SchemaError } from '../types/errors.js';
 import type { ObjectDefinition } from '../types/index.js';
 import { migrateSchemaObject } from './migrations.js';
+import { isWorkflowObject, migrateWorkflowObject } from './workflow-migrations.js';
 import { validateObject, type ValidateOptions } from './validate.js';
 
 /**
@@ -49,6 +50,10 @@ export function parseObject(
       workflow = JSON.parse(workflowJson);
     } catch {
       throw new SchemaError('parse.json.invalid');
+    }
+    // normalize older on-disk formats (v0/v1) to the current node-chain shape
+    if (isWorkflowObject(workflow)) {
+      workflow = migrateWorkflowObject(workflow, options?.locale).workflow;
     }
     (migrated as Record<string, unknown>).workflow = workflow;
   }

@@ -9,6 +9,73 @@ function isRecord(value: unknown): value is RawWorkflow {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+function asArray(value: unknown): RawWorkflow[] {
+  return Array.isArray(value) ? value.filter(isRecord) : [];
+}
+
+function rolesOf(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((r): r is string => typeof r === 'string' && r.length > 0) : [];
+}
+
+/**
+ * Best-effort linearization of a v1 state machine (`states[]` + `transitions[]`)
+ * into a v2 single-line `nodes[]`. The implicit start node replaces the old
+ * `initial` state. Roles are gathered from the transitions touching each state;
+ * a state with no derivable roles falls back to `['*']` (fail-closed at runtime
+ * until the author edits it). There are no v1 users in the wild, so this path is
+ * exercised only by tests / deliberate upgrades.
+ */
+function linearizeV1(raw: RawWorkflow): RawWorkflow[] {
+  const initial = typeof raw.initial === 'string' ? raw.initial : undefined;
+  const states = asArray(raw.states);
+  const transitions = asArray(raw.transitions);
+  const allRoles = [...new Set(transitions.flatMap((t) => rolesOf(t.roles)))];
+
+  const rolesFor = (name: string): string[] => {
+    const into = transitions.find((t) => t.to === name && rolesOf(t.roles).length > 0);
+    if (into !== undefined) return rolesOf(into.roles);
+    const out = transitions.find((t) => t.from === name && rolesOf(t.roles).length > 0);
+    if (out !== undefined) return rolesOf(out.roles);
+    return allRoles.length > 0 ? allRoles : ['*'];
+  };
+
+  const order = states
+    .map((s) => s.name)
+    .filter((n): n is string => typeof n === 'string' && n !== initial);
+  const position = new Map(order.map((n, idx) => [n, idx]));
+
+  return order.map((name) => {
+    const state = states.find((s) => s.name === name);
+    const labels = isRecord(state?.labels) ? state.labels : undefined;
+    const reject = transitions.find(
+      (t) => t.from === name && typeof t.action === 'string' && t.action.includes('reject'),
+    );
+    const onReject =
+      reject !== undefined &&
+      typeof reject.to === 'string' &&
+      reject.to !== initial &&
+      position.has(reject.to) &&
+      (position.get(reject.to) as number) < (position.get(name) as number)
+        ? reject.to
+        : undefined;
+    const timeout = isRecord(state?.onTimeout) && typeof state.onTimeout.after === 'string'
+      ? {
+          after: state.onTimeout.after,
+          action: typeof state.onTimeout.action === 'string' && state.onTimeout.action.includes('reject')
+            ? ('reject' as const)
+            : ('approve' as const),
+        }
+      : undefined;
+    return {
+      id: name,
+      ...(labels === undefined ? {} : { name: labels }),
+      assign: { roles: rolesFor(name) },
+      ...(onReject === undefined ? {} : { onReject }),
+      ...(timeout === undefined ? {} : { onTimeout: timeout }),
+    };
+  });
+}
+
 /**
  * On-disk `workflow.json` format migrations: `from`-version → a transform
  * producing version+1. Mirror of `core/object/migrations.ts` for the sibling
@@ -18,6 +85,12 @@ function isRecord(value: unknown): value is RawWorkflow {
 const WORKFLOW_MIGRATIONS: Record<number, (raw: RawWorkflow) => RawWorkflow> = {
   // v0 (unversioned) → v1: make the format version explicit.
   0: (raw) => ({ ...raw, schemaVersion: 1 }),
+  // v1 (states/transitions) → v2 (single-line nodes chain).
+  1: (raw) => ({
+    schemaVersion: 2,
+    ...(raw.version === undefined ? {} : { version: raw.version }),
+    nodes: linearizeV1(raw),
+  }),
 };
 
 /** the declared format version of a raw `workflow.json` (absent = legacy 0) */
@@ -52,8 +125,7 @@ export interface MigratedWorkflow {
 
 /**
  * Bring a raw `workflow.json` up to the current on-disk format (pure). Used by
- * `weave workflow:upgrade` (the loader reads older files directly — the runtime
- * validator is permissive about the on-disk format version).
+ * the loader (read-time normalization of older files) and `weave workflow:upgrade`.
  */
 export function migrateWorkflowObject(
   raw: RawWorkflow,

@@ -2,15 +2,10 @@ import { describe, it, expect } from '../helpers/test.js';
 import { validateObject, SchemaError, parseDuration, hashWorkflow, migrateWorkflowObject } from '../../src/core/index.js';
 import type { ObjectDefinition } from '../../src/core/index.js';
 
-const STATES = ['draft', 'pending', 'approved', 'rejected'];
-
 function objectWith(workflow: unknown): Record<string, unknown> {
   return {
     name: 'lead',
-    fields: [
-      { name: 'id', type: 'string', primary: true },
-      { name: 'status', type: 'enum', options: STATES },
-    ],
+    fields: [{ name: 'id', type: 'string', primary: true }],
     ...(workflow === undefined ? {} : { workflowEnabled: true }),
     workflow,
   };
@@ -18,13 +13,9 @@ function objectWith(workflow: unknown): Record<string, unknown> {
 
 function validWorkflow(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
-    initial: 'draft',
-    stateField: 'status',
-    states: [{ name: 'draft' }, { name: 'pending' }, { name: 'approved' }, { name: 'rejected' }],
-    transitions: [
-      { action: 'submit', from: 'draft', to: 'pending' },
-      { action: 'approve', from: 'pending', to: 'approved' },
-      { action: 'reject', from: 'pending', to: 'rejected' },
+    nodes: [
+      { id: 'review', assign: { roles: ['reviewer'] } },
+      { id: 'approve', assign: { roles: ['manager'], mode: 'all' } },
     ],
     ...overrides,
   };
@@ -43,13 +34,12 @@ function def(workflow: unknown): ObjectDefinition {
   return validateObject(objectWith(workflow));
 }
 
-describe('validateWorkflow — declarative state machine on objects/<name>/workflow.json', () => {
-  it('accepts a valid workflow and attaches it to the object', () => {
+describe('validateWorkflow — single-line node chain on objects/<name>/workflow.json', () => {
+  it('accepts a valid workflow and attaches the node chain', () => {
     const result = def(validWorkflow());
-    expect(result.workflow?.stateField).toBe('status');
-    expect(result.workflow?.initial).toBe('draft');
-    expect(result.workflow?.states.map((s) => s.name)).toEqual(STATES);
-    expect(result.workflow?.transitions).toHaveLength(3);
+    expect(result.workflow?.nodes.map((n) => n.id)).toEqual(['review', 'approve']);
+    expect(result.workflow?.nodes[1]?.assign.roles).toEqual(['manager']);
+    expect(result.workflow?.nodes[1]?.assign.mode).toBe('all');
   });
 
   it('no workflow declared → undefined', () => {
@@ -60,99 +50,114 @@ describe('validateWorkflow — declarative state machine on objects/<name>/workf
     expect(codeOf(() => def('nope'))).toBe('workflow.notObject');
   });
 
-  it('stateField missing / not an enum → workflow.stateField.enum', () => {
-    expect(codeOf(() => def(validWorkflow({ stateField: 'title' })))).toBe('workflow.stateField.enum');
-    expect(codeOf(() => def(validWorkflow({ stateField: 'nope' })))).toBe('workflow.stateField.enum');
+  it('empty or missing nodes → workflow.nodes.required', () => {
+    expect(codeOf(() => def(validWorkflow({ nodes: [] })))).toBe('workflow.nodes.required');
+    expect(codeOf(() => def({}))).toBe('workflow.nodes.required');
   });
 
-  it('states must be non-empty → workflow.states.required', () => {
-    expect(codeOf(() => def(validWorkflow({ states: [] })))).toBe('workflow.states.required');
-  });
-
-  it('unknown or duplicate state → workflow.state.invalid', () => {
-    expect(codeOf(() => def(validWorkflow({ states: [{ name: 'ghost' }] })))).toBe('workflow.state.invalid');
+  it('bad or duplicate node id → workflow.node.invalid', () => {
+    expect(codeOf(() => def(validWorkflow({ nodes: [{ id: 'Bad' }, { id: 'Bad' }] })))).toBe('workflow.node.invalid');
     expect(
-      codeOf(() => def(validWorkflow({ states: [{ name: 'draft' }, { name: 'draft' }] }))),
-    ).toBe('workflow.state.invalid');
+      codeOf(() => def(validWorkflow({ nodes: [{ id: 'a' }, { id: 'a' }] }))),
+    ).toBe('workflow.node.invalid');
   });
 
-  it('transitions must be non-empty → workflow.transitions.required', () => {
-    expect(codeOf(() => def(validWorkflow({ transitions: [] })))).toBe('workflow.transitions.required');
+  it('unknown kind → workflow.node.invalid', () => {
+    expect(
+      codeOf(() => def(validWorkflow({ nodes: [{ id: 'a', kind: 'branch', assign: { roles: ['r'] } }] }))),
+    ).toBe('workflow.node.invalid');
   });
 
-  it('unknown from/to state or duplicate (from, action) → workflow.transition.invalid', () => {
+  it('missing/empty assign.roles → workflow.node.invalid', () => {
+    expect(codeOf(() => def(validWorkflow({ nodes: [{ id: 'a' }] })))).toBe('workflow.node.invalid');
+    expect(
+      codeOf(() => def(validWorkflow({ nodes: [{ id: 'a', assign: { roles: [] } }] }))),
+    ).toBe('workflow.node.invalid');
+  });
+
+  it('invalid assign.mode → workflow.node.invalid', () => {
+    expect(
+      codeOf(() => def(validWorkflow({ nodes: [{ id: 'a', assign: { roles: ['r'], mode: 'some' } }] }))),
+    ).toBe('workflow.node.invalid');
+  });
+
+  it('notify node with 会签 (all) → workflow.node.invalid', () => {
     expect(
       codeOf(() =>
-        def(validWorkflow({ transitions: [{ action: 'submit', from: 'draft', to: 'ghost' }] })),
+        def(validWorkflow({ nodes: [{ id: 'cc', kind: 'notify', assign: { roles: ['r'], mode: 'all' } }] })),
       ),
-    ).toBe('workflow.transition.invalid');
+    ).toBe('workflow.node.invalid');
+  });
+
+  it('rollback targets must name an earlier node → workflow.rollback.notEarlier', () => {
     expect(
       codeOf(() =>
         def(
           validWorkflow({
-            transitions: [
-              { action: 'submit', from: 'draft', to: 'pending' },
-              { action: 'submit', from: 'draft', to: 'approved' },
+            nodes: [
+              { id: 'first', assign: { roles: ['r'] }, onReject: 'second' },
+              { id: 'second', assign: { roles: ['r'] } },
             ],
           }),
         ),
       ),
-    ).toBe('workflow.transition.invalid');
+    ).toBe('workflow.rollback.notEarlier');
+    expect(
+      codeOf(() =>
+        def(
+          validWorkflow({
+            nodes: [
+              { id: 'first', assign: { roles: ['r'] }, onWithdraw: 'ghost' },
+              { id: 'second', assign: { roles: ['r'] } },
+            ],
+          }),
+        ),
+      ),
+    ).toBe('workflow.rollback.notEarlier');
   });
 
-  it('initial must be a declared state → workflow.initial.unknown', () => {
-    expect(codeOf(() => def(validWorkflow({ initial: 'ghost' })))).toBe('workflow.initial.unknown');
+  it('accepts an earlier rollback target', () => {
+    const result = def(
+      validWorkflow({
+        nodes: [
+          { id: 'first', assign: { roles: ['r'] } },
+          { id: 'second', assign: { roles: ['r'] }, onReject: 'first', onWithdraw: 'first' },
+        ],
+      }),
+    );
+    expect(result.workflow?.nodes[1]).toMatchObject({ onReject: 'first', onWithdraw: 'first' });
   });
 
   it('future workflow schemaVersion → schema.version.unsupported', () => {
     expect(codeOf(() => def(validWorkflow({ schemaVersion: 99 })))).toBe('schema.version.unsupported');
   });
 
-  it('accepts requiresApproval on a transition; rejects a non-boolean', () => {
-    const ok = def(
-      validWorkflow({ transitions: [{ action: 'submit', from: 'draft', to: 'pending', requiresApproval: true }] }),
-    );
-    expect(ok.workflow?.transitions[0]?.requiresApproval).toBe(true);
-    expect(
-      codeOf(() =>
-        def(validWorkflow({ transitions: [{ action: 'submit', from: 'draft', to: 'pending', requiresApproval: 'yes' }] })),
-      ),
-    ).toBe('workflow.transition.invalid');
-  });
-
-  it('accepts a state onTimeout whose action is a transition from that state', () => {
+  it('accepts a node onTimeout with a valid duration + action', () => {
     const ok = def(
       validWorkflow({
-        states: [
-          { name: 'draft', onTimeout: { after: '7d', action: 'submit' } },
-          { name: 'pending' },
-          { name: 'approved' },
-          { name: 'rejected' },
-        ],
+        nodes: [{ id: 'review', assign: { roles: ['r'] }, onTimeout: { after: '7d', action: 'reject' } }],
       }),
     );
-    expect(ok.workflow?.states.find((s) => s.name === 'draft')?.onTimeout?.after).toBe('7d');
+    expect(ok.workflow?.nodes[0]?.onTimeout?.after).toBe('7d');
+    expect(ok.workflow?.nodes[0]?.onTimeout?.action).toBe('reject');
   });
 
-  it('rejects an invalid onTimeout duration or a non-transition action', () => {
+  it('rejects an invalid onTimeout (duration / action / notify node)', () => {
+    const bad = (onTimeout: unknown): string =>
+      codeOf(() => def(validWorkflow({ nodes: [{ id: 'review', assign: { roles: ['r'] }, onTimeout }] })));
+    expect(bad({ after: 'soon' })).toBe('workflow.timeout.invalid');
+    expect(bad({ after: '7d', action: 'submit' })).toBe('workflow.timeout.invalid');
     expect(
       codeOf(() =>
-        def(
-          validWorkflow({
-            states: [{ name: 'draft', onTimeout: { after: 'soon' } }, { name: 'pending' }, { name: 'approved' }, { name: 'rejected' }],
-          }),
-        ),
+        def(validWorkflow({ nodes: [{ id: 'cc', kind: 'notify', assign: { roles: ['r'] }, onTimeout: { after: '7d' } }] })),
       ),
     ).toBe('workflow.timeout.invalid');
-    expect(
-      codeOf(() =>
-        def(
-          validWorkflow({
-            states: [{ name: 'draft', onTimeout: { after: '7d', action: 'approve' } }, { name: 'pending' }, { name: 'approved' }, { name: 'rejected' }],
-          }),
-        ),
-      ),
-    ).toBe('workflow.timeout.invalid');
+  });
+
+  it('rejects a non-positive-integer version → workflow.version.invalid', () => {
+    expect(codeOf(() => def(validWorkflow({ version: 0 })))).toBe('workflow.version.invalid');
+    expect(codeOf(() => def(validWorkflow({ version: 1.5 })))).toBe('workflow.version.invalid');
+    expect(codeOf(() => def(validWorkflow({ version: 'v2' })))).toBe('workflow.version.invalid');
   });
 });
 
@@ -160,10 +165,7 @@ describe('workflowEnabled — the schema.json opt-in switch', () => {
   function bare(extra: Record<string, unknown>): Record<string, unknown> {
     return {
       name: 'lead',
-      fields: [
-        { name: 'id', type: 'string', primary: true },
-        { name: 'status', type: 'enum', options: STATES },
-      ],
+      fields: [{ name: 'id', type: 'string', primary: true }],
       ...extra,
     };
   }
@@ -181,7 +183,7 @@ describe('workflowEnabled — the schema.json opt-in switch', () => {
   it('workflowEnabled: true → validated and attached', () => {
     const result = validateObject(bare({ workflowEnabled: true, workflow: validWorkflow() }));
     expect(result.workflowEnabled).toBe(true);
-    expect(result.workflow?.stateField).toBe('status');
+    expect(result.workflow?.nodes).toHaveLength(2);
   });
 
   it('workflowEnabled: true without a definition → workflow.definition.missing', () => {
@@ -210,75 +212,37 @@ describe('workflow definition identity (version + semantic hash)', () => {
     expect(def(validWorkflow({ schemaVersion: 1 })).workflowHash).toBe(base);
     const withRoles = def(
       validWorkflow({
-        transitions: [
-          { action: 'submit', from: 'draft', to: 'pending', roles: ['manager'] },
-          { action: 'approve', from: 'pending', to: 'approved' },
-          { action: 'reject', from: 'pending', to: 'rejected' },
+        nodes: [
+          { id: 'review', assign: { roles: ['reviewer'] } },
+          { id: 'approve', assign: { roles: ['director'], mode: 'all' } },
         ],
       }),
     ).workflowHash;
     expect(withRoles).not.toBe(base);
     expect(def(validWorkflow({ version: 2 })).workflowHash).not.toBe(base);
   });
-
-  it('rejects a non-positive-integer version → workflow.version.invalid', () => {
-    expect(codeOf(() => def(validWorkflow({ version: 0 })))).toBe('workflow.version.invalid');
-    expect(codeOf(() => def(validWorkflow({ version: 1.5 })))).toBe('workflow.version.invalid');
-    expect(codeOf(() => def(validWorkflow({ version: 'v2' })))).toBe('workflow.version.invalid');
-  });
-});
-
-describe('workflow migrations (evolution remap DSL)', () => {
-  function withMigrations(migrations: unknown): Record<string, unknown> {
-    return {
-      name: 'lead',
-      fields: [
-        { name: 'id', type: 'string', primary: true },
-        { name: 'status', type: 'enum', options: [...STATES, 'old'] },
-      ],
-      workflowEnabled: true,
-      workflow: validWorkflow({ migrations }),
-    };
-  }
-
-  it('accepts a remap from a removed enum option to a live state', () => {
-    const result = validateObject(withMigrations([{ from: 'old', to: 'draft' }]));
-    expect(result.workflow?.migrations).toEqual([{ from: 'old', to: 'draft' }]);
-  });
-
-  it('rejects a bad target, a live `from`, an unknown `from`, or a duplicate', () => {
-    expect(codeOf(() => validateObject(withMigrations([{ from: 'old', to: 'ghost' }])))).toBe(
-      'workflow.migrations.invalid',
-    );
-    expect(codeOf(() => validateObject(withMigrations([{ from: 'draft', to: 'approved' }])))).toBe(
-      'workflow.migrations.invalid',
-    );
-    expect(codeOf(() => validateObject(withMigrations([{ from: 'ghost', to: 'draft' }])))).toBe(
-      'workflow.migrations.invalid',
-    );
-    expect(
-      codeOf(() =>
-        validateObject(
-          withMigrations([
-            { from: 'old', to: 'draft' },
-            { from: 'old', to: 'pending' },
-          ]),
-        ),
-      ),
-    ).toBe('workflow.migrations.invalid');
-  });
 });
 
 describe('workflow.json format migrations', () => {
-  it('stamps an unversioned file up to the current format', () => {
-    const { workflow, from, migrated } = migrateWorkflowObject({ stateField: 'status', initial: 'draft' });
+  it('linearizes a v1 state machine into a node chain', () => {
+    const { workflow, from, migrated } = migrateWorkflowObject({
+      stateField: 'status',
+      initial: 'draft',
+      states: [{ name: 'draft' }, { name: 'pending' }, { name: 'approved' }],
+      transitions: [
+        { action: 'submit', from: 'draft', to: 'pending', roles: ['reviewer'] },
+        { action: 'approve', from: 'pending', to: 'approved', roles: ['manager'] },
+        { action: 'reject', from: 'pending', to: 'draft' },
+      ],
+    });
     expect(from).toBe(0);
     expect(migrated).toBe(true);
-    expect(workflow.schemaVersion).toBe(1);
+    expect(workflow.schemaVersion).toBe(2);
+    expect((workflow.nodes as Array<{ id: string }>).map((n) => n.id)).toEqual(['pending', 'approved']);
   });
 
   it('is a no-op at the current version and rejects a future one', () => {
-    expect(migrateWorkflowObject({ schemaVersion: 1, stateField: 'status' }).migrated).toBe(false);
+    expect(migrateWorkflowObject({ schemaVersion: 2, nodes: [] }).migrated).toBe(false);
     expect(codeOf(() => migrateWorkflowObject({ schemaVersion: 99 }))).toBe('schema.version.unsupported');
   });
 });

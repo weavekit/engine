@@ -470,8 +470,7 @@ export async function buildEngineFromRegistry(
     const needsApprovals =
       config.tools.approvals !== undefined ||
       config.tools.toolsDir !== undefined ||
-      policies.length > 0 ||
-      registry.list().some((d) => d.workflow?.transitions.some((t) => t.requiresApproval === true));
+      policies.length > 0;
     if (needsApprovals) {
       // persisted approvals by default (PG — the engine's mandated DB); opt out
       // with `approvals.backend: 'memory'`. The approval queue must be durable /

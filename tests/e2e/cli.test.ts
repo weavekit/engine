@@ -388,7 +388,7 @@ maybe("CLI weave E2E (spawn + local PG + .tmp/weavekit-project)", () => {
     }
   }, 120000);
 
-  it("workflow:open/close: enable the state machine (starter or reused enum) + autoCommit", async () => {
+  it("workflow:open/close: enable the node-chain workflow + autoCommit", async () => {
     await rmProjectDir();
     await mkdir(PROJECT_DIR, { recursive: true });
     try {
@@ -397,19 +397,12 @@ maybe("CLI weave E2E (spawn + local PG + .tmp/weavekit-project)", () => {
       await gitIn(["init"]);
       await runCli(["object:create", "purchase_order"]);
 
-      // open with a fresh status field
+      // open scaffolds a node-chain workflow.json (no customer enum field added)
       const open = await runCli(["workflow:open", "purchase_order", "--json"]);
       expect(open.code).toBe(0);
-      const openJson = JSON.parse(open.stdout) as {
-        enabled: boolean;
-        stateField: string;
-        states: string[];
-        addedField: boolean;
-      };
+      const openJson = JSON.parse(open.stdout) as { enabled: boolean; nodes: string[] };
       expect(openJson.enabled).toBe(true);
-      expect(openJson.stateField).toBe("status");
-      expect(openJson.addedField).toBe(true);
-      expect(openJson.states).toEqual(["draft", "pending", "approved", "archived"]);
+      expect(openJson.nodes).toEqual(["review"]);
 
       const schemaPath = join(
         PROJECT_DIR,
@@ -425,32 +418,19 @@ maybe("CLI weave E2E (spawn + local PG + .tmp/weavekit-project)", () => {
       );
       const schema = JSON.parse(await readFile(schemaPath, "utf8")) as {
         workflowEnabled: boolean;
-        fields: Array<{ name: string; type: string; options?: string[] }>;
+        fields: Array<{ name: string; type: string }>;
       };
       expect(schema.workflowEnabled).toBe(true);
-      const statusField = schema.fields.find((f) => f.name === "status");
-      expect(statusField?.type).toBe("enum");
-      expect(statusField?.options).toEqual([
-        "draft",
-        "pending",
-        "approved",
-        "archived",
-      ]);
+      // the workflow never adds a state field to the customer schema
+      expect(schema.fields.some((f) => f.name === "status")).toBe(false);
 
       const wf = JSON.parse(await readFile(workflowPath, "utf8")) as {
-        stateField: string;
-        initial: string;
-        transitions: Array<{ action: string }>;
+        schemaVersion: number;
+        nodes: Array<{ id: string; assign: { roles: string[] } }>;
       };
-      expect(wf.stateField).toBe("status");
-      expect(wf.initial).toBe("draft");
-      expect(wf.transitions.map((t) => t.action)).toEqual([
-        "submit",
-        "approve",
-        "reject",
-        "archive",
-        "reopen",
-      ]);
+      expect(wf.schemaVersion).toBe(2);
+      expect(wf.nodes.map((n) => n.id)).toEqual(["review"]);
+      expect(wf.nodes[0]?.assign.roles).toEqual(["approver"]);
 
       // schema + workflow validate through the loader
       const check = await runCli(["field-type:check", "--json"]);
@@ -477,125 +457,34 @@ maybe("CLI weave E2E (spawn + local PG + .tmp/weavekit-project)", () => {
       expect(reopen.code).toBe(0);
       expect(await readFile(workflowPath, "utf8")).toBe(before);
 
-      // reuse an existing enum field (no new field added)
+      // --roles sets the starter node's roles
       await runCli(["object:create", "order2"]);
-      const addField = await runCli([
-        "field:add",
-        "order2",
-        "--name",
-        "stage",
-        "--type",
-        "enum",
-        "--options",
-        "a,b,c",
-      ]);
-      expect(addField.code).toBe(0);
-      const reuse = await runCli([
-        "workflow:open",
-        "order2",
-        "--state-field",
-        "stage",
-        "--states",
-        "a,b",
-        "--json",
-      ]);
-      expect(reuse.code).toBe(0);
-      const reuseJson = JSON.parse(reuse.stdout) as {
-        stateField: string;
-        addedField: boolean;
-      };
-      expect(reuseJson.stateField).toBe("stage");
-      expect(reuseJson.addedField).toBe(false);
+      const roles = await runCli(["workflow:open", "order2", "--roles", "manager,finance", "--json"]);
+      expect(roles.code).toBe(0);
       const wf2 = JSON.parse(
         await readFile(join(PROJECT_DIR, "objects", "order2", "workflow.json"), "utf8"),
-      ) as { stateField: string; transitions: Array<{ action: string; from: string; to: string }> };
-      expect(wf2.stateField).toBe("stage");
-      expect(wf2.transitions[0]?.action).toBe("advance");
-      expect(wf2.transitions[0]?.from).toBe("a");
-      expect(wf2.transitions[0]?.to).toBe("b");
+      ) as { nodes: Array<{ assign: { roles: string[] } }> };
+      expect(wf2.nodes[0]?.assign.roles).toEqual(["manager", "finance"]);
     } finally {
       await rmProjectDir();
     }
   }, 120000);
 
-  it("workflow:migrate applies state remaps (audit + idempotent); workflow:upgrade stamps legacy files", async () => {
+  it("workflow:upgrade linearizes a legacy (v1) workflow.json to format v2", async () => {
     await rmProjectDir();
     await mkdir(PROJECT_DIR, { recursive: true });
-    const pool = createPool(url!);
     try {
-      await pool.query(
-        "DROP TABLE IF EXISTS wf_flow, weavekit_workflow_timers, weavekit_audit, weavekit_metadata, weavekit_meta CASCADE",
-      );
       await scaffoldProject(PROJECT_DIR);
       await linkEngineModule();
       await gitIn(["init"]);
-
       await runCli(["object:create", "wf_flow"]);
-      const open = await runCli(["workflow:open", "wf_flow", "--json"]);
-      expect(open.code).toBe(0);
-      expect((await runCli(["migrate", "--json"])).code).toBe(0);
-      await pool.query(
-        `INSERT INTO "wf_flow" ("id", "title", "status") VALUES ('r1', 't', 'draft')`,
-      );
 
-      // evolve: drop 'draft' from states, remap it to 'pending'
-      const evolved = {
-        schemaVersion: 1,
-        version: 2,
-        stateField: "status",
-        initial: "pending",
-        states: [{ name: "pending" }, { name: "approved" }, { name: "archived" }],
-        transitions: [
-          { action: "approve", from: "pending", to: "approved" },
-          { action: "archive", from: "approved", to: "archived" },
-        ],
-        migrations: [{ from: "draft", to: "pending" }],
-      };
-      await writeFile(
-        join(PROJECT_DIR, "objects", "wf_flow", "workflow.json"),
-        JSON.stringify(evolved, null, 2),
-      );
-
-      const dry = await runCli(["workflow:migrate", "wf_flow", "--dry-run", "--json"]);
-      expect(dry.code).toBe(0);
-      expect(
-        (JSON.parse(dry.stdout) as { remapped: unknown }).remapped,
-      ).toEqual([{ from: "draft", to: "pending", rows: 1 }]);
-      const before = await pool.query(`SELECT "status" FROM "wf_flow" WHERE "id" = 'r1'`);
-      expect(before.rows[0]?.status).toBe("draft");
-
-      const apply = await runCli(["workflow:migrate", "wf_flow", "--json"]);
-      expect(apply.code).toBe(0);
-      const applyJson = JSON.parse(apply.stdout) as {
-        remapped: unknown;
-        orphans: unknown;
-        workflowVersion: number | null;
-      };
-      expect(applyJson.remapped).toEqual([{ from: "draft", to: "pending", rows: 1 }]);
-      expect(applyJson.orphans).toEqual([]);
-      expect(applyJson.workflowVersion).toBe(2);
-      const after = await pool.query(`SELECT "status" FROM "wf_flow" WHERE "id" = 'r1'`);
-      expect(after.rows[0]?.status).toBe("pending");
-
-      const audit = await pool.query(
-        `SELECT action FROM "weavekit_audit" WHERE "object" = 'wf_flow' AND action = 'workflow.migrated'`,
-      );
-      expect(audit.rows).toHaveLength(1);
-
-      // idempotent
-      const again = await runCli(["workflow:migrate", "wf_flow", "--json"]);
-      expect(again.code).toBe(0);
-      expect(
-        (JSON.parse(again.stdout) as { remapped: unknown }).remapped,
-      ).toEqual([{ from: "draft", to: "pending", rows: 0 }]);
-
-      // workflow:upgrade stamps an unversioned (legacy) workflow.json
       const legacy = {
         stateField: "status",
         initial: "pending",
         states: [{ name: "pending" }, { name: "approved" }, { name: "archived" }],
         transitions: [
-          { action: "approve", from: "pending", to: "approved" },
+          { action: "approve", from: "pending", to: "approved", roles: ["manager"] },
           { action: "archive", from: "approved", to: "archived" },
         ],
       };
@@ -603,20 +492,19 @@ maybe("CLI weave E2E (spawn + local PG + .tmp/weavekit-project)", () => {
         join(PROJECT_DIR, "objects", "wf_flow", "workflow.json"),
         JSON.stringify(legacy, null, 2),
       );
+
       const upDry = await runCli(["workflow:upgrade", "--dry-run", "--json"]);
       expect(upDry.code).toBe(0);
       expect((JSON.parse(upDry.stdout) as { upgraded: unknown }).upgraded).toEqual(["wf_flow"]);
+
       const up = await runCli(["workflow:upgrade", "--json"]);
       expect(up.code).toBe(0);
       const stamped = JSON.parse(
         await readFile(join(PROJECT_DIR, "objects", "wf_flow", "workflow.json"), "utf8"),
-      ) as { schemaVersion?: number };
-      expect(stamped.schemaVersion).toBe(1);
+      ) as { schemaVersion?: number; nodes: Array<{ id: string }> };
+      expect(stamped.schemaVersion).toBe(2);
+      expect(stamped.nodes.map((n) => n.id)).toEqual(["approved", "archived"]);
     } finally {
-      await pool.query(
-        "DROP TABLE IF EXISTS wf_flow, weavekit_workflow_timers, weavekit_audit, weavekit_metadata, weavekit_meta CASCADE",
-      );
-      await pool.end();
       await rmProjectDir();
     }
   }, 120000);

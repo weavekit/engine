@@ -125,7 +125,7 @@ export interface ObjectDescriptor {
   permissions: MetadataPermissions;
   /** present only when the object declares the switch; `false` = definition kept but disabled */
   workflowEnabled?: boolean;
-  /** declared state machine (states + transitions), when the object has a workflow */
+  /** declared single-line node chain, when the object has a workflow */
   workflow?: WorkflowDefinition;
   /** content-addressed identity of the active workflow definition */
   workflowHash?: string;

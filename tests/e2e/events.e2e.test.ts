@@ -32,10 +32,7 @@ const TICKET: ObjectDefinition = {
   ],
   workflowEnabled: true,
   workflow: {
-    initial: 'draft',
-    stateField: 'status',
-    states: [{ name: 'draft' }, { name: 'open' }],
-    transitions: [{ action: 'open', from: 'draft', to: 'open' }],
+    nodes: [{ id: 'open', assign: { roles: ['sales'] } }],
   },
   permissions: { sales: { read: 'all', create: true, update: true } },
 };
@@ -168,27 +165,6 @@ maybe('realtime channel E2E (SSE + subscription filtering + replay, local PG + r
       await dataAccess.delete('lead', encodeRecordKey(['E1']), sctx);
       const deleted = await readUntil(sales, 'record.deleted');
       expect(deleted.target).not.toBeNull();
-
-      // ── 2b. workflow transition → record.transitioned (from/to/action) ──
-      await dataAccess.create('ticket', { id: 'T1' }, sctx);
-      await readUntil(sales, 'record.created');
-      await dataAccess.transition('ticket', encodeRecordKey(['T1']), 'open', sctx);
-      const transitioned = await readUntil(sales, 'record.transitioned');
-      expect(transitioned.target).not.toBeNull();
-      const transitionPayload = JSON.parse(transitioned.target!.data!).payload as {
-        object: string;
-        id: string;
-        from: string;
-        to: string;
-        action: string;
-        workflowHash?: string;
-      };
-      expect(transitionPayload.object).toBe('ticket');
-      expect(transitionPayload.id).toBe(encodeRecordKey(['T1']));
-      expect(transitionPayload.from).toBe('draft');
-      expect(transitionPayload.to).toBe('open');
-      expect(transitionPayload.action).toBe('open');
-      expect(transitionPayload.workflowHash).toMatch(/^[0-9a-f]{64}$/);
 
       // ── 3. events for unreadable objects invisible to denied subscribers (ghost only sees schema.changed broadcast) ──
       const ghost = await openSse(baseUrl, { authorization: 'Bearer key-ghost' });

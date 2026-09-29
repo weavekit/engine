@@ -96,22 +96,13 @@ export interface ModuleOptions {
 
 /** `weave workflow:open` options */
 export interface WorkflowOpenOptions {
-  /** reuse an existing single-valued enum field as the state field */
-  stateField?: string;
-  /** comma-separated state names (order matters; first = initial) */
-  states?: string;
+  /** roles assigned to the scaffolded starter node (default: `approver`) */
+  roles?: string;
   printer: CliPrinter;
 }
 
 /** `weave workflow:close` options */
 export interface WorkflowCloseOptions {
-  printer: CliPrinter;
-}
-
-/** `weave workflow:migrate` options */
-export interface WorkflowMigrateOptions {
-  /** report which records would move without writing */
-  dryRun?: boolean;
   printer: CliPrinter;
 }
 

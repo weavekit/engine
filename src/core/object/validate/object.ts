@@ -143,7 +143,7 @@ export function validateObject(raw: unknown, options?: ValidateOptions): ObjectD
     fail(vc, 'object.workflowEnabled.boolean');
   }
   const workflowEnabled = raw.workflowEnabled === true;
-  const workflow = workflowEnabled ? validateWorkflow(raw.workflow, fields, vc) : undefined;
+  const workflow = workflowEnabled ? validateWorkflow(raw.workflow, vc) : undefined;
   if (workflowEnabled && workflow === undefined) fail(vc, 'workflow.definition.missing');
   const workflowHash = workflow === undefined ? undefined : hashWorkflow(workflow);
 

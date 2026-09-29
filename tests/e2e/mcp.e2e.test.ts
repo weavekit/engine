@@ -31,10 +31,7 @@ const TICKET: ObjectDefinition = {
   ],
   workflowEnabled: true,
   workflow: {
-    initial: 'draft',
-    stateField: 'status',
-    states: [{ name: 'draft' }, { name: 'open' }],
-    transitions: [{ action: 'open', from: 'draft', to: 'open' }],
+    nodes: [{ id: 'open', assign: { roles: ['sales'] } }],
   },
   permissions: { sales: { read: 'all', update: true } },
 };
@@ -242,21 +239,6 @@ maybe('MCP E2E (SDK Client + streamable HTTP + local PG): auth + session identit
       });
       expect(badField.isError).toBe(true);
 
-      // ── 4b. workflow_transition: the agent fires a declared transition
-      const transitioned = await alice.client.callTool({
-        name: 'workflow_transition',
-        arguments: { object: 'ticket', id: encodeRecordKey(['T1']), action: 'open' },
-      });
-      expect(transitioned.isError).toBe(false);
-      expect(JSON.parse(textOf(transitioned)).status).toBe('open');
-
-      // an unknown/disallowed transition → isError (call-level), not a protocol error
-      const badTransition = await alice.client.callTool({
-        name: 'workflow_transition',
-        arguments: { object: 'ticket', id: encodeRecordKey(['T1']), action: 'ghost' },
-      });
-      expect(badTransition.isError).toBe(true);
-
       // ── 5. unknown on-behalf-of → session establishment fails (explicit error)
       const ghost = await fetch(`${baseUrl}/mcp`, {
         method: 'POST',
@@ -302,7 +284,6 @@ maybe('MCP E2E (SDK Client + streamable HTTP + local PG): auth + session identit
       expect(actions).toContain('mcp.tool.search_records');
       expect(actions).toContain('mcp.tool.update_record');
       expect(actions).toContain('mcp.tool.get_record');
-      expect(actions).toContain('mcp.tool.workflow_transition');
       // agent identity: actor_id = agentKey
       expect(auditRows.rows.some((r: { actor_id: string }) => r.actor_id === AGENT_KEYS.sales)).toBe(true);
       // denial audited as isError

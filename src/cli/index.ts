@@ -21,7 +21,6 @@ import { schemaUpgrade } from './commands/schema-upgrade.js';
 import { test } from './commands/test.js';
 import { types } from './commands/types.js';
 import { workflowClose } from './commands/workflow-close.js';
-import { workflowMigrate } from './commands/workflow-migrate.js';
 import { workflowOpen } from './commands/workflow-open.js';
 import { workflowUpgrade } from './commands/workflow-upgrade.js';
 import { createPrinter } from './render.js';
@@ -270,14 +269,12 @@ program
 
 program
   .command(`${WEAVE_COMMANDS.WORKFLOW_OPEN} <object>`)
-  .description('enable the object workflow (scaffolds workflow.json + a status enum field when absent) and auto-commit')
-  .option('--state-field <field>', 'reuse an existing single-valued enum field as the state field')
-  .option('--states <a,b,c>', 'comma-separated state names, first = initial (default: draft,pending,approved,archived)')
-  .action(async (object: string, opts: { stateField?: string; states?: string }) => {
+  .description('enable the object workflow (scaffolds a node-chain workflow.json) and auto-commit')
+  .option('--roles <a,b>', 'roles assigned to the scaffolded starter node (default: approver)')
+  .action(async (object: string, opts: { roles?: string }) => {
     await runAction(() =>
       workflowOpen(process.cwd(), object, {
-        stateField: opts.stateField,
-        states: opts.states,
+        roles: opts.roles,
         printer: printer(),
       }),
     );
@@ -285,19 +282,9 @@ program
 
 program
   .command(`${WEAVE_COMMANDS.WORKFLOW_CLOSE} <object>`)
-  .description('disable the object workflow (keeps workflow.json; the state field becomes a plain enum) and auto-commit')
+  .description('disable the object workflow (keeps workflow.json) and auto-commit')
   .action(async (object: string) => {
     await runAction(() => workflowClose(process.cwd(), object, { printer: printer() }));
-  });
-
-program
-  .command(`${WEAVE_COMMANDS.WORKFLOW_MIGRATE} <object>`)
-  .description('apply workflow.json state-remap migrations to existing records (reports uncovered orphan states)')
-  .option('--dry-run', 'report which records would move without writing')
-  .action(async (object: string, opts: { dryRun?: boolean }) => {
-    await runAction(() =>
-      workflowMigrate(process.cwd(), object, { dryRun: opts.dryRun, printer: printer() }),
-    );
   });
 
 program
