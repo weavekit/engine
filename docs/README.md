@@ -1,5 +1,4 @@
 ---
-title: WeaveKit Engine
 description: "Documentation for `@weave-kit/engine` — let AI agents operate your data, safely."
 ---
 
