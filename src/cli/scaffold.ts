@@ -134,6 +134,7 @@ function renderPackageJson(name: string): string {
       name,
       private: true,
       type: 'module',
+      engines: { node: '>=22' },
       scripts: {
         dev: 'weave dev',
         migrate: 'weave migrate',

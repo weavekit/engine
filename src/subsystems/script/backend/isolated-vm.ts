@@ -18,7 +18,7 @@ import type { RpcExecutor, SandboxBackend, SandboxCallResult, SandboxEntry, Sand
  *   resumes synchronously
  * - wall-clock timeout is enforced host-side (race → `worker.terminate()`); the
  *   isolate eval timeout additionally kills CPU-bound sync loops
- * - v7.0.1 resolves `evalClosure` with `undefined` for a promise that never
+ * - isolated-vm resolves `evalClosure` with `undefined` for a promise that never
  *   settles, so hook completion is tracked with an in-isolate `__done` sentinel
  *   instead of the completion value alone — a hook still pending when evalClosure
  *   returns can never resolve (no timers/IO in the sandbox), so it is reported
@@ -116,10 +116,10 @@ async function callHook(hook, args) {
     { arguments: { copy: true } },
   );
   const hookRef = await exportsRef.get(hook, { reference: true });
-  // v7.0.1 returns a Reference even for missing properties — verify it is a function
+  // a missing property's get also returns a Reference — verify it is a function
   if (!hookRef || hookRef.typeof !== 'function') return { ok: false, error: { message: 'no hook: ' + hook } };
   try {
-    // isolated-vm v7.0.1 resolves evalClosure with undefined for a promise that
+    // isolated-vm resolves evalClosure with undefined for a promise that
     // never settles, so the completion value alone is ambiguous — record completion
     // inside the isolate and read the __done sentinel back
     await context.evalClosure(

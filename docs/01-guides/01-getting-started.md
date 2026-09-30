@@ -9,7 +9,7 @@ the engine with hot reload, generate TypeScript types, and consume the API from 
 
 ## Prerequisites
 
-- **Node 24+**
+- **Node 22+**
 - **PostgreSQL** reachable at a `DATABASE_URL` connection string
 
 ## 1. Scaffold a project

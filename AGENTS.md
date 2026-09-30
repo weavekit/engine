@@ -3,7 +3,7 @@
 This file is the entry point for contributors and coding agents: the invariants that are easy to
 break. User-facing docs live in [`docs/`](docs/README.md); deeper rationale is in code comments.
 
-Runtime/build constraints: Node 24 LTS; ESM (`"type": "module"`); build `tsc`→`dist`; Conventional
+Runtime/build constraints: Node 22+; ESM (`"type": "module"`); build `tsc`→`dist`; Conventional
 Commits.
 
 ## Positioning (hard constraint)

@@ -25,7 +25,7 @@
   },
   "license": "MIT",
   "engines": {
-    "node": ">=24"
+    "node": ">=22"
   },
   "files": [
     "dist",
@@ -99,6 +99,6 @@
     "tsx": "^4.20.0"
   },
   "optionalDependencies": {
-    "isolated-vm": "^7.0.1"
+    "isolated-vm": "^6.2.0"
   }
 }

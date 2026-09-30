@@ -63,7 +63,7 @@ write.
 
 ## Requirements
 
-- Node.js 24 LTS
+- Node.js 22+
 - PostgreSQL
 
 ## Quick start
