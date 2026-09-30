@@ -3,6 +3,21 @@
 All notable changes to `@weave-kit/engine`. Format follows [Keep a Changelog](https://keepachangelog.com/);
 the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.7.0]
+
+### Added
+
+- **Node 22 support.** The engine, CLI and scaffolded projects now run on Node **22+** (verified on
+  Node 22 and Node 24). `engines.node` is `>=22`; generated projects declare the same.
+
+### Changed
+
+- `isolated-vm` — the optional native dependency behind the script sandbox — is pinned to
+  **`^6.2.0`**, which ships prebuilt binaries for both Node 22 and Node 24 (7.x drops Node 22).
+  Behavior is unchanged (the sandbox, RPC bridge and timeout/`__done` handling are covered by the
+  same tests on both runtimes). Note: prebuilds are no longer published for Node 26 — on that
+  runtime the script sandbox may fall back to a source build.
+
 ## [0.6.0]
 
 A breaking release. The data model, access control and workflow were reworked end to end. Read the
