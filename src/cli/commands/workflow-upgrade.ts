@@ -29,8 +29,10 @@ async function collectWorkflowFiles(dir: string, out: string[] = []): Promise<st
 /**
  * `weave workflow:upgrade [--dry-run]` — bring every `objects/<name>/workflow.json`
  * up to the current on-disk format (see `core/object/workflow-migrations.ts`).
- * Unversioned files are stamped with the current `schemaVersion`; future/unsupported
- * versions abort. Writes are explicit (`--dry-run` reports only) and auto-committed.
+ * Legacy (state-machine) files are migrated and stamped with the current
+ * `schemaVersion`; an unversioned `nodes[]` file is already the current format
+ * and is left untouched; future/unsupported versions abort. Writes are explicit
+ * (`--dry-run` reports only) and auto-committed.
  * Independent of `weave schema:upgrade`, which never touches `workflow.json`.
  */
 export async function workflowUpgrade(

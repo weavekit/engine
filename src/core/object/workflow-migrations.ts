@@ -93,10 +93,18 @@ const WORKFLOW_MIGRATIONS: Record<number, (raw: RawWorkflow) => RawWorkflow> = {
   }),
 };
 
-/** the declared format version of a raw `workflow.json` (absent = legacy 0) */
+/**
+ * The declared format version of a raw `workflow.json`. When `schemaVersion` is
+ * absent the shape decides: a `nodes[]` chain is the current format (v2), while
+ * a state machine (`states`/`transitions`) or anything else is legacy 0. This
+ * keeps a v2 file that omits `schemaVersion` from being misread as v1 (which
+ * would linearize its absent states into an empty chain).
+ */
 export function workflowFormatVersionOf(raw: RawWorkflow, locale: Locale = DEFAULT_LOCALE): number {
   const value = raw.schemaVersion;
-  if (value === undefined) return 0;
+  if (value === undefined) {
+    return Array.isArray(raw.nodes) ? WORKFLOW_FORMAT_VERSION : 0;
+  }
   if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) {
     throw new SchemaError(
       'schema.version.unsupported',

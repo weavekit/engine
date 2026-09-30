@@ -509,6 +509,32 @@ maybe("CLI weave E2E (spawn + local PG + .tmp/weavekit-project)", () => {
     }
   }, 120000);
 
+  it("workflow:upgrade leaves an unversioned nodes[] chain untouched", async () => {
+    await rmProjectDir();
+    await mkdir(PROJECT_DIR, { recursive: true });
+    try {
+      await scaffoldProject(PROJECT_DIR);
+      await linkEngineModule();
+      await gitIn(["init"]);
+      await runCli(["object:create", "wf_nodes"]);
+
+      const workflowPath = join(PROJECT_DIR, "objects", "wf_nodes", "workflow.json");
+      const source = `${JSON.stringify(
+        { nodes: [{ id: "review", assign: { roles: ["approver"] } }] },
+        null,
+        2,
+      )}\n`;
+      await writeFile(workflowPath, source);
+
+      const up = await runCli(["workflow:upgrade", "--json"]);
+      expect(up.code).toBe(0);
+      expect((JSON.parse(up.stdout) as { upgraded: unknown }).upgraded).toEqual([]);
+      expect(await readFile(workflowPath, "utf8")).toBe(source);
+    } finally {
+      await rmProjectDir();
+    }
+  }, 120000);
+
   it("workflow:switch restores a registered revision into workflow.json", async () => {
     await rmProjectDir();
     await mkdir(PROJECT_DIR, { recursive: true });

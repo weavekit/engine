@@ -1,5 +1,5 @@
 import { describe, it, expect } from '../helpers/test.js';
-import { validateObject, SchemaError, parseDuration, hashWorkflow, migrateWorkflowObject } from '../../src/core/index.js';
+import { validateObject, SchemaError, parseDuration, hashWorkflow, migrateWorkflowObject, parseObject } from '../../src/core/index.js';
 import type { ObjectDefinition } from '../../src/core/index.js';
 
 function objectWith(workflow: unknown): Record<string, unknown> {
@@ -244,6 +244,37 @@ describe('workflow.json format migrations', () => {
   it('is a no-op at the current version and rejects a future one', () => {
     expect(migrateWorkflowObject({ schemaVersion: 2, nodes: [] }).migrated).toBe(false);
     expect(codeOf(() => migrateWorkflowObject({ schemaVersion: 99 }))).toBe('schema.version.unsupported');
+  });
+
+  it('infers v2 from a nodes[] chain that omits schemaVersion', () => {
+    const nodes = [{ id: 'review', assign: { roles: ['reviewer'] } }];
+    const { workflow, from, migrated } = migrateWorkflowObject({ nodes });
+    expect(from).toBe(2);
+    expect(migrated).toBe(false);
+    expect(workflow.schemaVersion).toBeUndefined();
+    expect(workflow.nodes).toEqual(nodes);
+  });
+
+  it('still treats an unversioned state machine as legacy 0', () => {
+    const { from, migrated } = migrateWorkflowObject({
+      stateField: 'status',
+      initial: 'draft',
+      states: [{ name: 'draft' }, { name: 'pending' }],
+      transitions: [{ action: 'submit', from: 'draft', to: 'pending', roles: ['reviewer'] }],
+    });
+    expect(from).toBe(0);
+    expect(migrated).toBe(true);
+  });
+
+  it('the loader keeps a nodes[] chain when schemaVersion is omitted', () => {
+    const schema = JSON.stringify({
+      name: 'lead',
+      workflowEnabled: true,
+      fields: [{ name: 'id', type: 'string', primary: true }],
+    });
+    const workflow = JSON.stringify({ nodes: [{ id: 'review', assign: { roles: ['reviewer'] } }] });
+    const parsed = parseObject(schema, workflow);
+    expect(parsed.workflow?.nodes.map((n) => n.id)).toEqual(['review']);
   });
 });
 
