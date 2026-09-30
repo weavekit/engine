@@ -37,7 +37,7 @@ describe('readyScreen — weave dev value screen', () => {
     expect(screen.nextSteps[0]).toContain('Bearer sk-admin');
     expect(screen.nextSteps[0]).toContain('/api/objects/customers');
     expect(screen.nextSteps.join('\n')).toContain('weave mcp:config');
-    expect(screen.nextSteps.join('\n')).toContain('docs/practices/connect-agent.md');
+    expect(screen.nextSteps.join('\n')).toContain('docs/03-practices/01-agent/04-connect-agent.md');
   });
 
   it('guides first-run (introspect / object:create) when there are no objects', () => {

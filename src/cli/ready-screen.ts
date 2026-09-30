@@ -60,7 +60,7 @@ export function readyScreen(input: ReadyScreenInput): ReadyScreen {
       ]
     : [
         `Try the API:      curl -H "Authorization: Bearer ${key}" ${base}${input.restPrefix}/objects/${input.objects[0]!}`,
-        'Connect an agent: `weave mcp:config` (guide: docs/practices/connect-agent.md)',
+        'Connect an agent: `weave mcp:config` (guide: docs/03-practices/01-agent/04-connect-agent.md)',
         'Edit schema:      objects/<name>/schema.json — save to hot-reload',
       ];
 

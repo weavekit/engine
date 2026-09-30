@@ -95,12 +95,12 @@ weave mcp:config          # ready-to-paste config for Claude Code / Cursor / VS 
 Full documentation: **[docs.weavekit.io/engine](https://docs.weavekit.io/engine)**
 
 - [Getting started](https://docs.weavekit.io/engine/guides/getting-started) — scaffold, migrate, run, consume
-- [Git-versioned metadata](https://docs.weavekit.io/engine/guides/git-versioned-metadata) — your data model as reviewable Git commits
-- [Schema guide](https://docs.weavekit.io/engine/guides/schema) · [RBAC](https://docs.weavekit.io/engine/guides/rbac) · [Formulas](https://docs.weavekit.io/engine/guides/formulas) · [Audit](https://docs.weavekit.io/engine/guides/audit)
-- [CLI reference](https://docs.weavekit.io/engine/guides/cli) · [MCP](https://docs.weavekit.io/engine/guides/mcp) · [Script hooks](https://docs.weavekit.io/engine/guides/script-hooks)
-- [Custom tools & guardrails](https://docs.weavekit.io/engine/guides/custom-tools-and-guardrails) · [Custom field types](https://docs.weavekit.io/engine/reference/custom-field-types) · [Quotas](https://docs.weavekit.io/engine/guides/quotas) · [Inbound events](https://docs.weavekit.io/engine/guides/ingress)
-- [Public API & dependency budget](https://docs.weavekit.io/engine/reference/public-api)
-- [Practices & operations](https://docs.weavekit.io/engine/practices/existing-crm-to-mcp) — real integration and deployment walkthroughs
+- [Git-versioned metadata](https://docs.weavekit.io/engine/guides/model/git-versioned-metadata) — your data model as reviewable Git commits
+- [Schema guide](https://docs.weavekit.io/engine/guides/model/schema) · [RBAC](https://docs.weavekit.io/engine/guides/access/rbac) · [Formulas](https://docs.weavekit.io/engine/guides/model/formulas) · [Audit](https://docs.weavekit.io/engine/guides/platform/audit)
+- [CLI reference](https://docs.weavekit.io/engine/guides/platform/cli) · [MCP](https://docs.weavekit.io/engine/guides/agents/mcp) · [Script hooks](https://docs.weavekit.io/engine/guides/automation/script-hooks)
+- [Custom tools & guardrails](https://docs.weavekit.io/engine/guides/agents/custom-tools-and-guardrails) · [Custom field types](https://docs.weavekit.io/engine/reference/schema/custom-field-types) · [Quotas](https://docs.weavekit.io/engine/guides/automation/quotas) · [Inbound events](https://docs.weavekit.io/engine/guides/integration/ingress)
+- [Public API & dependency budget](https://docs.weavekit.io/engine/reference/api/public-api)
+- [Practices & operations](https://docs.weavekit.io/engine/practices/agent/existing-crm-to-mcp) — real integration and deployment walkthroughs
 
 The Markdown sources live in [`docs/`](https://github.com/weavekit/engine/tree/main/docs).
 

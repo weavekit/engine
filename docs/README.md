@@ -1,53 +1,43 @@
 ---
-description: "Guides, operations, practices and reference for `@weave-kit/engine` — and where to start if you're new."
+description: "Documentation for `@weave-kit/engine` — let AI agents operate your data, safely."
 ---
 
 # Overview
 
-Topic-focused documentation for `@weave-kit/engine`. New to the engine? Read
-[Getting started](guides/getting-started.md) first, then [MCP](guides/mcp.md) to put an agent on your
-data. Your data model is versioned in Git — see
-[Git-versioned metadata](guides/git-versioned-metadata.md). The project pitch and quick start live in
-the [repository README](../README.md).
+**Let AI agents operate your data — safely.** `@weave-kit/engine` compiles a `schema.json` into
+PostgreSQL tables, a governed REST API, and a per-identity MCP tool surface — with row/field RBAC, an
+immutable audit log, and Git-versioned metadata.
+
+Start here:
+
+- [Getting started](01-guides/01-getting-started.md) — scaffold, migrate, run, call the API
+- [Connect an agent](03-practices/01-agent/04-connect-agent.md) — a local first run in five minutes
+
+Scaffolding a preset? `--type=agent|governance|service|business` → [Project types](01-guides/02-project-types/01-overview.md).
 
 ## Guides
 
-- [Getting started](guides/getting-started.md) — scaffold, migrate, run, and consume the API
-- [Git-versioned metadata](guides/git-versioned-metadata.md) — your data model as reviewable Git commits
-- [Schema guide](guides/schema.md) — fields, relations, computed fields and validation
-- [RBAC](guides/rbac.md) — roles, permissions and row scopes
-- [Identity](guides/identity.md) — the engine identity directory and source sync
-- [Formulas](guides/formulas.md) — operators, functions, aggregations and null semantics
-- [Audit](guides/audit.md) — the immutable event log and diff replay
-- [CLI reference](guides/cli.md) — every `weave` command
-- [MCP](guides/mcp.md) — expose objects as agent tools, per identity
-- [Script subsystem](guides/script-hooks.md) — sandboxed `*.server.js` lifecycle hooks
-- [Custom tools, guardrails & audit replay](guides/custom-tools-and-guardrails.md) — the open contract
-- [Quotas](guides/quotas.md) — usage budgets consumed by tools and scripts
-- [Inbound events](guides/ingress.md) — signed webhooks mapped to engine actions
-- [Live events (SSE)](guides/events.md) — push data and metadata changes to clients
-- [Generic proxy](guides/proxy.md) — a path-allowlisted gateway to other instances
-- [Tunnel transport](guides/tunnel.md) — reach a NAT'd engine over an outbound HTTP/2 tunnel
-- [Approvals](guides/approvals.md) — the human-in-the-loop queue
-- [Workflow](guides/workflow.md) — declarative per-object state machines
-- [Localization (i18n)](guides/i18n.md) — message catalogs and stable error codes
+- [Project types](01-guides/02-project-types/01-overview.md) — the four presets and what each scaffolds
+- [Model](01-guides/03-model/01-overview.md) — schema, formulas, git-versioned metadata
+- [Access](01-guides/04-access/01-overview.md) — RBAC and identity
+- [Agents](01-guides/05-agents/01-overview.md) — MCP, custom tools & guardrails, approvals
+- [Workflow](01-guides/06-workflow/01-overview.md) — per-object approval chains
+- [Automation](01-guides/07-automation/01-overview.md) — script hooks and quotas
+- [Integration](01-guides/08-integration/01-overview.md) — live events, inbound events, proxy, tunnel
+- [Platform](01-guides/09-platform/01-overview.md) — CLI, audit, i18n
 
 ## Operations
 
-- [Deploying with Docker](operations/docker-deploy.md) — containerize the engine + PostgreSQL
-- [Reverse proxy + TLS](operations/reverse-proxy.md) — Caddy / Nginx and streaming caveats
+- [Deployment](02-operations/01-deployment/01-overview.md) — containerize, reverse-proxy, TLS
 
 ## Practices
 
-- [Integrating an existing CRM with MCP](practices/existing-crm-to-mcp.md) — start from live tables
-- [Exposing a large schema to an agent](practices/large-schema-agent-surface.md) — a fixed tool surface for many objects
-- [Designing an agent-friendly schema](practices/agent-friendly-schema.md) — labels, types and permissions an agent can trust
-- [Plugging in the customer's own user store](practices/bring-your-own-user-store.md) — resolver-driven identity
-- [Connecting MCP hosts](practices/connecting-mcp-hosts.md) — Claude Desktop, Cursor, gateways
-- [Connect an agent](practices/connect-agent.md) — local first run in five minutes
-- [Putting a governed lifecycle on an existing object](practices/workflow-end-to-end.md) — an order lifecycle with role gates, approvals and timeouts
+- [Agent](03-practices/01-agent/01-overview.md) — wiring an existing database into an agent surface
+- [Governance](03-practices/02-governance/01-overview.md) — customer user stores, governed lifecycles
+- [Service](03-practices/03-service/01-overview.md) — service-shaped backends
+- [Business](03-practices/04-business/01-overview.md) — object/formula backends
 
 ## Reference
 
-- [Public API & dependency budget](reference/public-api.md) — entry-point tiers and extension points
-- [Custom field types](reference/custom-field-types.md) — register business-semantic field types
+- [API](04-reference/01-api/01-overview.md) — public API tiers and the dependency budget
+- [Schema](04-reference/02-schema/01-overview.md) — custom field types

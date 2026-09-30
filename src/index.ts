@@ -15,7 +15,7 @@ import type { EngineConfig, WeaveKitEngine } from './runtime/engine.js';
 import { resolve } from 'node:path';
 
 // Stable surface (contract): app/integration authors depend on these. Internals
-// live in `./experimental.js` (unstable) or stay unexported — see docs/reference/public-api.md.
+// live in `./experimental.js` (unstable) or stay unexported — see docs/04-reference/01-api/02-public-api.md.
 export * from './core/index.js';
 export * from './core/api/index.js';
 export * from './runtime/data-access/index.js';

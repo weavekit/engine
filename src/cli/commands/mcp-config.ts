@@ -45,5 +45,5 @@ export async function mcpConfig(cwd: string, options: McpConfigOptions): Promise
     for (const line of snippets[host].split('\n')) p.log(`  ${line}`);
     p.log('');
   }
-  p.log(kleur.dim('Guide: docs/practices/connect-agent.md'));
+  p.log(kleur.dim('Guide: docs/03-practices/01-agent/04-connect-agent.md'));
 }

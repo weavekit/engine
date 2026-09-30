@@ -3,7 +3,7 @@ import * as experimental from '../../src/experimental.js';
 import { describe, it, expect } from '../helpers/test.js';
 
 /**
- * Guards the public API tiers (see `docs/reference/public-api.md`):
+ * Guards the public API tiers (see `docs/04-reference/01-api/02-public-api.md`):
  *   - `.`             = the stable contract (app / integration authors)
  *   - `./experimental`= unstable internals, explicitly opt-in
  *   - everything else = internal, not importable through the package

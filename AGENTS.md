@@ -50,7 +50,7 @@ tests/              unit + e2e (node --test)
   parameterized + LIMIT + timeout)
 - The public surface is tiered: the stable `.` barrel, `./experimental` (unstable internals),
   `./values` and `./layout` (browser-safe, zero runtime imports). The `exports` map blocks unlisted
-  subpaths — see [`docs/reference/public-api.md`](docs/reference/public-api.md)
+  subpaths — see docs/04-reference/01-api/02-public-api.md
 - Enums are always `as const` single sources of truth, with types derived via
   `typeof x[keyof typeof x]`; never a second hardcoded literal union
 

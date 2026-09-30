@@ -74,7 +74,7 @@ function renderConfig(type?: ProjectType): string {
   // WeaveKit engine configuration.
 ${narrative}export default {
 ${projectType}${subsystems}${features}  schemaDir: '.',
-  // Least-privilege production setup (optional; see docs/guides/getting-started.md):
+  // Least-privilege production setup (optional; see docs/01-guides/01-getting-started.md):
   // same database, two roles — serve with a runtime account that cannot run DDL,
   // and migrate with an owner account.
   // databaseUrl: process.env.DATABASE_URL,                    // runtime role: DML only

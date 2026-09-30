@@ -63,7 +63,7 @@
     "build": "tsc -p tsconfig.build.json",
     "prepublishOnly": "npm run build",
     "typecheck": "tsc --noEmit",
-    "prelint": "node scripts/check-memory-sizes.mjs",
+    "prelint": "node scripts/check-memory-sizes.mjs && node scripts/check-docs-links.mjs",
     "lint": "eslint .",
     "openapi:docs": "node --import tsx scripts/generate-openapi.mjs",
     "pretest": "tsc -p tsconfig.build.json",
