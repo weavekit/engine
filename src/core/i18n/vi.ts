@@ -112,7 +112,7 @@ export const vi: Record<MessageKey, string> = {
   'object.label.removed': 'đối tượng "{object}": "label" không còn được hỗ trợ — dùng "labels", ví dụ { "en": "…" }',
   'permission.notObject': 'đối tượng "{object}": permissions phải là một đối tượng',
   'permission.role.notObject': 'đối tượng "{object}": quyền của vai trò "{role}" phải là một đối tượng',
-  'permission.read.invalid': 'đối tượng "{object}": read của vai trò "{role}" phải là own/team/all',
+  'permission.read.invalid': 'đối tượng "{object}": read của vai trò "{role}" phải là own/department/all',
   'permission.manage.invalid': 'role {role}: manage must be own, department or all',
   'permission.create.boolean': 'đối tượng "{object}": create của vai trò "{role}" phải là boolean',
   'permission.delete.boolean': 'đối tượng "{object}": delete của vai trò "{role}" phải là boolean',

@@ -112,7 +112,7 @@ export const ar: Record<MessageKey, string> = {
   'object.label.removed': 'الكائن "{object}": لم يعد "label" مدعومًا — استخدم "labels"، مثال { "en": "…" }',
   'permission.notObject': 'الكائن "{object}": permissions يجب أن يكون كائنًا',
   'permission.role.notObject': 'الكائن "{object}": صلاحية الدور "{role}" يجب أن تكون كائنًا',
-  'permission.read.invalid': 'الكائن "{object}": read للدور "{role}" يجب أن يكون own/team/all',
+  'permission.read.invalid': 'الكائن "{object}": read للدور "{role}" يجب أن يكون own/department/all',
   'permission.manage.invalid': 'role {role}: manage must be own, department or all',
   'permission.create.boolean': 'الكائن "{object}": create للدور "{role}" يجب أن يكون منطقيًا',
   'permission.delete.boolean': 'الكائن "{object}": delete للدور "{role}" يجب أن يكون منطقيًا',

@@ -112,7 +112,7 @@ export const pt: Record<MessageKey, string> = {
   'object.label.removed': 'objeto "{object}": "label" não é mais suportado — use "labels", por exemplo { "en": "…" }',
   'permission.notObject': 'objeto "{object}": permissions deve ser um objeto',
   'permission.role.notObject': 'objeto "{object}": a permissão do papel "{role}" deve ser um objeto',
-  'permission.read.invalid': 'objeto "{object}": read do papel "{role}" deve ser own/team/all',
+  'permission.read.invalid': 'objeto "{object}": read do papel "{role}" deve ser own/department/all',
   'permission.manage.invalid': 'role {role}: manage must be own, department or all',
   'permission.create.boolean': 'objeto "{object}": create do papel "{role}" deve ser um booleano',
   'permission.delete.boolean': 'objeto "{object}": delete do papel "{role}" deve ser um booleano',

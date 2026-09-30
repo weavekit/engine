@@ -112,7 +112,7 @@ export const ru: Record<MessageKey, string> = {
   'object.label.removed': 'объект "{object}": "label" больше не поддерживается — используйте "labels", например { "en": "…" }',
   'permission.notObject': 'объект "{object}": permissions должен быть объектом',
   'permission.role.notObject': 'объект "{object}": разрешение роли "{role}" должно быть объектом',
-  'permission.read.invalid': 'объект "{object}": read роли "{role}" должен быть own/team/all',
+  'permission.read.invalid': 'объект "{object}": read роли "{role}" должен быть own/department/all',
   'permission.manage.invalid': 'role {role}: manage must be own, department or all',
   'permission.create.boolean': 'объект "{object}": create роли "{role}" должен быть логическим',
   'permission.delete.boolean': 'объект "{object}": delete роли "{role}" должен быть логическим',

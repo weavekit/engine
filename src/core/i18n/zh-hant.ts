@@ -112,7 +112,7 @@ export const zhHant: Record<MessageKey, string> = {
   'object.label.removed': '物件「{object}」：不再支援 "label"，請改用 "labels"，例如 { "en": "…" }',
   'permission.notObject': '物件「{object}」：permissions 必須是物件',
   'permission.role.notObject': '物件「{object}」：角色「{role}」的權限必須是物件',
-  'permission.read.invalid': '物件「{object}」：角色「{role}」的 read 必須是 own/team/all',
+  'permission.read.invalid': '物件「{object}」：角色「{role}」的 read 必須是 own/department/all',
   'permission.manage.invalid': 'role {role}: manage must be own, department or all',
   'permission.create.boolean': '物件「{object}」：角色「{role}」的 create 必須是布林值',
   'permission.delete.boolean': '物件「{object}」：角色「{role}」的 delete 必須是布林值',

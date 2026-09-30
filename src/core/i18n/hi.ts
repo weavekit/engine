@@ -112,7 +112,7 @@ export const hi: Record<MessageKey, string> = {
   'object.label.removed': 'ऑब्जेक्ट "{object}": "label" अब समर्थित नहीं है — "labels" का उपयोग करें, उदाहरण { "en": "…" }',
   'permission.notObject': 'ऑब्जेक्ट "{object}": permissions एक ऑब्जेक्ट होनी चाहिए',
   'permission.role.notObject': 'ऑब्जेक्ट "{object}": भूमिका "{role}" की अनुमति एक ऑब्जेक्ट होनी चाहिए',
-  'permission.read.invalid': 'ऑब्जेक्ट "{object}": भूमिका "{role}" का read own/team/all होना चाहिए',
+  'permission.read.invalid': 'ऑब्जेक्ट "{object}": भूमिका "{role}" का read own/department/all होना चाहिए',
   'permission.manage.invalid': 'role {role}: manage must be own, department or all',
   'permission.create.boolean': 'ऑब्जेक्ट "{object}": भूमिका "{role}" का create बूलियन होना चाहिए',
   'permission.delete.boolean': 'ऑब्जेक्ट "{object}": भूमिका "{role}" का delete बूलियन होना चाहिए',

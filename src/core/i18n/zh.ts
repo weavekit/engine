@@ -111,7 +111,7 @@ export const zh: Record<MessageKey, string> = {
   'object.label.removed': '对象 "{object}"：不再支持 "label"，请改用 "labels"，例如 { "en": "…" }',
   'permission.notObject': '对象 "{object}"：permissions 必须是对象',
   'permission.role.notObject': '对象 "{object}"：角色 "{role}" 的权限必须是对象',
-  'permission.read.invalid': '对象 "{object}"：角色 "{role}" 的 read 必须是 own/team/all',
+  'permission.read.invalid': '对象 "{object}"：角色 "{role}" 的 read 必须是 own/department/all',
   'permission.manage.invalid': 'role {role}: manage must be own, department or all',
   'permission.create.boolean': '对象 "{object}"：角色 "{role}" 的 create 必须是布尔值',
   'permission.delete.boolean': '对象 "{object}"：角色 "{role}" 的 delete 必须是布尔值',

@@ -112,7 +112,7 @@ export const ja: Record<MessageKey, string> = {
   'object.label.removed': 'オブジェクト「{object}」："label" はサポートされなくなりました — "labels" を使用してください（例: { "en": "…" }）',
   'permission.notObject': 'オブジェクト「{object}」：permissions はオブジェクトでなければなりません',
   'permission.role.notObject': 'オブジェクト「{object}」：ロール「{role}」の権限はオブジェクトでなければなりません',
-  'permission.read.invalid': 'オブジェクト「{object}」：ロール「{role}」の read は own/team/all である必要があります',
+  'permission.read.invalid': 'オブジェクト「{object}」：ロール「{role}」の read は own/department/all である必要があります',
   'permission.manage.invalid': 'role {role}: manage must be own, department or all',
   'permission.create.boolean': 'オブジェクト「{object}」：ロール「{role}」の create は真偽値でなければなりません',
   'permission.delete.boolean': 'オブジェクト「{object}」：ロール「{role}」の delete は真偽値でなければなりません',

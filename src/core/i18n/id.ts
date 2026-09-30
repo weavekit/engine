@@ -112,7 +112,7 @@ export const id: Record<MessageKey, string> = {
   'object.label.removed': 'objek "{object}": "label" tidak lagi didukung — gunakan "labels", mis. { "en": "…" }',
   'permission.notObject': 'objek "{object}": permissions harus berupa objek',
   'permission.role.notObject': 'objek "{object}": izin peran "{role}" harus berupa objek',
-  'permission.read.invalid': 'objek "{object}": read peran "{role}" harus own/team/all',
+  'permission.read.invalid': 'objek "{object}": read peran "{role}" harus own/department/all',
   'permission.manage.invalid': 'role {role}: manage must be own, department or all',
   'permission.create.boolean': 'objek "{object}": create peran "{role}" harus berupa boolean',
   'permission.delete.boolean': 'objek "{object}": delete peran "{role}" harus berupa boolean',
