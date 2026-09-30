@@ -103,7 +103,7 @@ export const en = {
   'object.label.removed': 'object "{object}": "label" is no longer supported — use "labels", e.g. { "en": "…" }',
   'permission.notObject': 'object "{object}": permissions must be an object',
   'permission.role.notObject': 'object "{object}": permission for role "{role}" must be an object',
-  'permission.read.invalid': 'object "{object}": read for role "{role}" must be own/team/all',
+  'permission.read.invalid': 'object "{object}": read for role "{role}" must be own/department/all',
   'permission.manage.invalid': 'role {role}: manage must be own, department or all',
   'permission.create.boolean': 'object "{object}": create for role "{role}" must be a boolean',
   'permission.delete.boolean': 'object "{object}": delete for role "{role}" must be a boolean',
