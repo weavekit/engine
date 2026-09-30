@@ -1,19 +1,27 @@
 ---
+title: WeaveKit Engine
 description: "Documentation for `@weave-kit/engine` — let AI agents operate your data, safely."
 ---
 
 # Overview
 
-**Let AI agents operate your data — safely.** `@weave-kit/engine` compiles a `schema.json` into
-PostgreSQL tables, a governed REST API, and a per-identity MCP tool surface — with row/field RBAC, an
-immutable audit log, and Git-versioned metadata.
+**Let AI agents operate your data — safely.**
 
-Start here:
+The pitch and quick start live in the [repository README](../README.md).
+
+## Start here
 
 - [Getting started](01-guides/01-getting-started.md) — scaffold, migrate, run, call the API
 - [Connect an agent](03-practices/01-agent/04-connect-agent.md) — a local first run in five minutes
+- Scaffolding a preset? `--type=agent|governance|service|business` → [Project types](01-guides/02-project-types/01-overview.md)
 
-Scaffolding a preset? `--type=agent|governance|service|business` → [Project types](01-guides/02-project-types/01-overview.md).
+## By goal
+
+- **Put an agent on an existing database** → [Existing CRM → MCP](03-practices/01-agent/02-existing-crm-to-mcp.md)
+- **Model your data** → [Schema](01-guides/03-model/02-schema/01-overview.md) · [Formulas](01-guides/03-model/03-formulas.md)
+- **Lock it down** → [RBAC](01-guides/04-access/02-rbac.md) · [Identity](01-guides/04-access/03-identity.md) · [Audit](01-guides/09-platform/03-audit.md)
+- **Govern a lifecycle** → [Workflow](01-guides/06-workflow/01-overview.md) — role gates, approvals, timeouts
+- **Run it in production** → [Deployment](02-operations/01-deployment/01-overview.md)
 
 ## Guides
 
