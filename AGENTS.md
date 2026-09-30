@@ -1,8 +1,7 @@
 # @weave-kit/engine — architecture notes
 
 This file is the entry point for contributors and coding agents: the invariants that are easy to
-break. User-facing documentation lives in [`docs/`](docs/README.md); deeper
-implementation rationale is captured in code comments and `docs/`.
+break. User-facing docs live in [`docs/`](docs/README.md); deeper rationale is in code comments.
 
 Runtime/build constraints: Node 24 LTS; ESM (`"type": "module"`); build `tsc`→`dist`; Conventional
 Commits.
@@ -30,10 +29,12 @@ contains no UI attributes (widgets/radio buttons/dropdowns are the frontend's co
 src/
 ├─ core/            Always compiled (contracts + pure logic): types/object/formula/i18n/storage/
 │                   api/rbac/audit/script/provider/tools/proxy/limiter
-├─ subsystems/      Optional, lazily loaded (disabled = not imported = zero overhead): audit/script
-├─ infrastructure/  Pluggable providers (identity/alerts/event); depends only on core contracts
-├─ adapters/        Protocol bindings: rest/auth/ops/mcp/openapi (+ events, ingress)
-├─ runtime/         Mechanism: data-access/git/metadata/tools/proxy/tunnel
+├─ subsystems/      Optional, lazily loaded (disabled = not imported = zero overhead):
+│                   approvals/audit/quota/script/workflow
+├─ infrastructure/  Pluggable providers (alerts/event); depends only on core contracts
+├─ adapters/        Protocol bindings: rest/auth/ops/mcp/openapi (+ events SSE; ingress is a rest route)
+├─ runtime/         Mechanism: data-access/fieldtypes/git/identity/metadata/record-meta/
+│                   sql-analyzer/tools/proxy/tunnel
 ├─ cli/             The `weave` command
 ├─ index.ts         createEngine(config) assembly; values.ts / layout-format.ts / experimental.ts
 └─ version.ts       Version single source of truth
@@ -56,16 +57,14 @@ tests/              unit + e2e (node --test)
 
 ## Schema relation model (summary)
 
-**No `relations` array** — relations all live in `fields`: `relation` (weak reference / FK),
-`details` (strong 1:N ownership), `multiRelation` (multi-select reference). A primary key is scalar
-only and unique. Field types have two layers — primitive + semantic — single-sourced in `core/types/registry.ts`. Non-primitive types are **registrable** (config `fieldTypes` +
-project-local `field-types/`): registered names are namespaced (`<ns>_<name>`, bare names reserved),
-inherit a `base` primitive, and flow through one immutable registry. A registered type may also
-declare `attrs`, `storage.pgType`, and `validate`; object-level `constraints` add
-composite UNIQUE (`23505` → `data.unique`); `enum` options may be data-driven (`options.from`).
-Trees/TOC use a self-referencing `relation`. Capability
-gating is declarative via config (`features.fieldTypes`, fail-closed). The schema contains **no UI
-attributes**.
+**No `relations` array** — relations live in `fields`: `relation` (weak FK), `details` (owned 1:N),
+`multiRelation` (engine link table, composite FK per side). A primary key is scalar and may span
+**several `primary` fields** (composite); a field must be `keyEligible` to key on. Field types are
+PG-native (`PG_FIELD_TYPES`) or engine-shipped custom (`BUILTIN_CUSTOM_FIELD_TYPES`), single-sourced
+in `core/types/registry.ts`; custom types are **registrable** (config `fieldTypes` +
+project-local `field-types/`), namespaced, inherit a `base`. `user`/`department` are identity FKs into
+`weavekit_user`/`weavekit_department`. Trees/TOC use a self-referencing `relation`. Capability gating
+is declarative (`features.fieldTypes`, fail-closed). The schema contains **no UI attributes**.
 
 ## Product contract (weave command principles)
 
@@ -81,6 +80,8 @@ forbidden.
 | --- | --- |
 | Metadata core (types/object), i18n, formula, storage/migration | ✅ |
 | Data access, RBAC (row + field level) | ✅ |
+| Identity directory + source sync (`weavekit_user`/`weavekit_department`) | ✅ |
+| Workflow subsystem (three-layer node chain, timer scheduler) | ✅ |
 | REST API + auth + ops, frontend metadata contract | ✅ |
 | Git-backed metadata + metadata cache | ✅ |
 | CLI `weave` + config + type generation | ✅ |
@@ -104,5 +105,4 @@ forbidden.
 - Keep this file to invariants only; put narrative detail in `docs/` and code comments
 - Every metadata change is auto-committed to Git by the engine; the `objects/` tree is the schema
   source of truth
-- Runtime/build constraints: Node 24 LTS; `tsc`→`dist`; ESM (`"type": "module"`); the package
-  version must match `src/version.ts` (the scaffolder injects this into generated projects)
+- The package version must match `src/version.ts` (the scaffolder injects it into generated projects)
