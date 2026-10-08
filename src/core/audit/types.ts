@@ -79,6 +79,8 @@ export interface AuditEvent {
   requestId?: string;
   /** distributed trace id (inbound W3C traceparent), when present */
   traceId?: string;
+  /** tenant the event belongs to (multi-tenancy); absent = single-tenant */
+  tenantId?: string;
   /** extension: onBehalfOf/agentLabel/tool/latency etc. */
   meta?: Record<string, unknown>;
   timestamp: Date;
@@ -124,6 +126,8 @@ export interface AuditQuery {
   object?: string;
   from?: Date;
   to?: Date;
+  /** scope to one tenant (multi-tenancy); absent = all tenants (admin) */
+  tenantId?: string;
   /** generic `weavekit_audit` column filter; OR'd/AND'd with the typed fields above */
   filter?: AuditFilter;
   limit?: number;

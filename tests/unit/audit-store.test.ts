@@ -43,7 +43,7 @@ describe('insertAudit / insertAuditBatch — SQL parameter mapping', () => {
     expect(calls[0]!.params).toEqual([
       'user', 'u1', DATA_ACTIONS.UPDATE, 'lead', 'L1',
       JSON.stringify({ status: 'won' }), null, null, true, 'rbac.denied.field',
-      null, null,
+      null, null, null,
       JSON.stringify({ agentKey: 'sk-a' }),
       EVENT.timestamp,
     ]);
@@ -64,7 +64,7 @@ describe('insertAudit / insertAuditBatch — SQL parameter mapping', () => {
     const { pool, calls } = mockPool();
     await insertAudit(pool, { actorType: AUDIT_ACTOR_TYPES.SYSTEM, actorId: 'sys', action: DATA_ACTIONS.DELETE, timestamp: new Date('2026-01-01T00:00:00Z') });
     expect(calls[0]!.params).toEqual([
-      'system', 'sys', 'delete', null, null, null, null, null, false, null, null, null, null,
+      'system', 'sys', 'delete', null, null, null, null, null, false, null, null, null, null, null,
       new Date('2026-01-01T00:00:00Z'),
     ]);
   });
@@ -73,8 +73,8 @@ describe('insertAudit / insertAuditBatch — SQL parameter mapping', () => {
     const { pool, calls } = mockPool();
     await insertAuditBatch(pool, [EVENT, EVENT]);
     expect(calls).toHaveLength(1);
-    expect(calls[0]!.sql).toContain('VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14), ($15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28)');
-    expect(calls[0]!.params).toHaveLength(28);
+    expect(calls[0]!.sql).toContain('VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15), ($16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30)');
+    expect(calls[0]!.params).toHaveLength(30);
   });
 
   it('batch with empty array → no query issued', async () => {

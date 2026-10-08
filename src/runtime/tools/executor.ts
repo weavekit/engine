@@ -226,6 +226,7 @@ export function createToolExecutor(options: ToolExecutorOptions): ToolExecutor {
             changes: args,
             isError: true,
             errorCode: err.code,
+            ...(req.subject.tenantId === undefined ? {} : { tenantId: req.subject.tenantId }),
             meta: {
               onBehalfOf: req.actor.onBehalfOf,
               subjectId: req.subject.id,
@@ -248,6 +249,7 @@ export function createToolExecutor(options: ToolExecutorOptions): ToolExecutor {
         changes: args,
         isError,
         errorCode,
+        ...(req.subject.tenantId === undefined ? {} : { tenantId: req.subject.tenantId }),
         meta: {
           onBehalfOf: req.actor.onBehalfOf,
           subjectId: req.subject.id,

@@ -119,6 +119,7 @@ const audit = (): ExpectedTable => ({
     col('error_code', 'TEXT'),
     col('request_id', 'TEXT'),
     col('trace_id', 'TEXT'),
+    col('tenant_id', 'TEXT'),
     col('meta', 'JSONB'),
   ],
   fks: [],
@@ -127,6 +128,7 @@ const audit = (): ExpectedTable => ({
     { name: 'weavekit_audit_actor_idx', method: 'btree', columns: ['actor_id'] },
     { name: 'weavekit_audit_obj_idx', method: 'btree', columns: ['object', 'object_id'] },
     { name: 'weavekit_audit_request_idx', method: 'btree', columns: ['request_id'] },
+    { name: 'weavekit_audit_tenant_idx', method: 'btree', columns: ['tenant_id'] },
   ],
   uniques: [],
 });

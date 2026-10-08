@@ -81,6 +81,7 @@ function auditToolCall(
     changes,
     isError,
     errorCode,
+    ...(ctx.session.user.tenantId === undefined ? {} : { tenantId: ctx.session.user.tenantId }),
     meta: {
       onBehalfOf,
       subjectId: subject.id,

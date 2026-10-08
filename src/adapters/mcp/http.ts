@@ -116,6 +116,7 @@ function auditDeniedTool(
     changes: args,
     isError: true,
     errorCode: 'mcp.tool.notFound',
+    ...(session.user.tenantId === undefined ? {} : { tenantId: session.user.tenantId }),
     meta: {
       onBehalfOf: session.onBehalfOf,
       subjectId: session.user.id,

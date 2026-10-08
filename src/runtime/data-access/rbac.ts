@@ -1,5 +1,5 @@
 import type { ObjectDefinition, IdentitySubject } from '../../core/index.js';
-import { DETAILS_COLUMNS, SchemaError, primaryFieldsOf, principalActorId, recordKeySql } from '../../core/index.js';
+import { DETAILS_COLUMNS, SchemaError, primaryFieldsOf, principalActorId, principalTenantId, recordKeySql } from '../../core/index.js';
 import type { Locale } from '../../core/index.js';
 import {
   assertCanCreate,
@@ -73,6 +73,7 @@ function denied(
 ): void {
   if (sink === undefined) return;
   const principal = ctx.principal;
+  const tenant = principalTenantId(principal);
   void sink.record({
     actorType: principal.kind === 'user' ? AUDIT_ACTOR_TYPES.USER : AUDIT_ACTOR_TYPES.SYSTEM,
     actorId: principalActorId(principal),
@@ -82,6 +83,7 @@ function denied(
     isError: true,
     errorCode: error instanceof SchemaError ? error.code : undefined,
     ...(ctx.requestId === undefined ? {} : { requestId: ctx.requestId }),
+    ...(tenant === undefined ? {} : { tenantId: tenant }),
     timestamp: new Date(),
   });
 }

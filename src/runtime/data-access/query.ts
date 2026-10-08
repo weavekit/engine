@@ -25,7 +25,7 @@ import {
 } from './workflow.js';
 import { computeFormulas, type FormulaAuth } from './formula.js';
 import { generateSeqNo } from './seqno.js';
-import { subjectOf, type DataAccessContext, type FindOptions, type FindResult, type ObjectDataAccess } from './types.js';
+import { subjectOf, tenantOf, type DataAccessContext, type FindOptions, type FindResult, type ObjectDataAccess } from './types.js';
 import { validateRecord } from './validate.js';
 import { FILTER_OPS, SORT_DIRS, WRITE_MODES } from './values.js';
 import { decodeCursor, encodeCursor } from './cursor.js';
@@ -117,6 +117,7 @@ async function auditWrite(
 ): Promise<void> {
   if (sink === undefined) return;
   const principal = ctx.principal;
+  const tenant = tenantOf(ctx);
   const event: AuditEvent = {
     actorType: principal.kind === 'user' ? AUDIT_ACTOR_TYPES.USER : AUDIT_ACTOR_TYPES.SYSTEM,
     actorId: principalActorId(principal),
@@ -127,6 +128,7 @@ async function auditWrite(
     isError: error !== undefined,
     errorCode: error instanceof SchemaError ? error.code : undefined,
     ...(ctx.requestId === undefined ? {} : { requestId: ctx.requestId }),
+    ...(tenant === undefined ? {} : { tenantId: tenant }),
     timestamp: new Date(),
   };
   if (before !== undefined) event.before = before;

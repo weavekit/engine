@@ -60,7 +60,10 @@ function passesFilter(event: EngineEvent, subject: IdentitySubject, readable: Se
     }
     case EVENT_TYPES.AUDIT_EVENT: {
       const payload = event.payload as AuditEventPayload;
-      return isAdmin || payload.event.actorId === subject.id;
+      if (isAdmin) return true;
+      if (payload.event.actorId !== subject.id) return false;
+      // tenant boundary: a tenant-scoped identity never sees another tenant's events
+      return subject.tenantId === undefined || payload.event.tenantId === undefined || payload.event.tenantId === subject.tenantId;
     }
     default:
       return true; // schema.changed — broadcast

@@ -1,6 +1,7 @@
 import { describe, it, expect } from '../helpers/test.js';
 import { ObjectRegistry, ROW_SCOPE_MARKERS, buildRowScope, buildRlsPolicy, defineObject } from '../../src/core/index.js';
 import { createDataAccess, executeRestrictedSql, withRbac } from '../../src/runtime/data-access/index.js';
+import { queryAudit } from '../../src/subsystems/audit/store.js';
 
 const TENANT_DEF = defineObject({
   name: 'lead',
@@ -79,5 +80,15 @@ describe('data-access find applies the tenant scope', () => {
     const da = withRbac(createDataAccess());
     await da.find('lead', {}, { pool: pool as never, registry, principal: { kind: 'user', subject: { id: 'u1', roles: ['sales'], tenantId: 't1' } } });
     expect(calls.some((c) => c.sql.includes('"tenant_id"'))).toBe(true);
+  });
+});
+
+describe('audit tenant scope (W3.3)', () => {
+  it('queryAudit filters by tenant_id when a tenantId is given', async () => {
+    const calls: { sql: string; params: unknown[] }[] = [];
+    const pool = { query: async (sql: string, params: unknown[] = []) => { calls.push({ sql, params }); return { rows: sql.includes('count') ? [{ n: 0 }] : [] }; } };
+    await queryAudit(pool as never, { tenantId: 't1' });
+    expect(calls[0]!.sql).toContain('tenant_id = $1');
+    expect(calls[0]!.params).toEqual(['t1']);
   });
 });

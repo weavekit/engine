@@ -15,6 +15,7 @@ const AUDIT_FILTER_COLUMNS = new Map<string, 'boolean' | 'text' | 'timestamptz'>
   ['object_id', 'text'],
   ['is_error', 'boolean'],
   ['error_code', 'text'],
+  ['tenant_id', 'text'],
 ]);
 
 const TABLE = 'weavekit_audit';
@@ -22,8 +23,8 @@ const TABLE = 'weavekit_audit';
 /** single append-only insert (writes the event's own timestamp — the audit is time-anchored to the business moment) */
 export async function insertAudit(db: SqlQueryable, event: AuditEvent): Promise<void> {
   await db.query(
-    `INSERT INTO ${TABLE} (actor_type, actor_id, action, object, object_id, changes, before, after, is_error, error_code, request_id, trace_id, meta, ts)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+    `INSERT INTO ${TABLE} (actor_type, actor_id, action, object, object_id, changes, before, after, is_error, error_code, request_id, trace_id, tenant_id, meta, ts)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
     [
       event.actorType,
       event.actorId,
@@ -37,6 +38,7 @@ export async function insertAudit(db: SqlQueryable, event: AuditEvent): Promise<
       event.errorCode ?? null,
       event.requestId ?? null,
       event.traceId ?? null,
+      event.tenantId ?? null,
       event.meta === undefined ? null : JSON.stringify(event.meta),
       event.timestamp,
     ],
@@ -56,15 +58,15 @@ export async function insertAuditBatch(db: SqlQueryable, events: AuditEvent[]): 
       event.before === undefined ? null : JSON.stringify(event.before),
       event.after === undefined ? null : JSON.stringify(event.after),
       event.isError ?? false, event.errorCode ?? null,
-      event.requestId ?? null, event.traceId ?? null,
+      event.requestId ?? null, event.traceId ?? null, event.tenantId ?? null,
       event.meta === undefined ? null : JSON.stringify(event.meta),
       event.timestamp);
     values.push(
-      `($${i + 1}, $${i + 2}, $${i + 3}, $${i + 4}, $${i + 5}, $${i + 6}, $${i + 7}, $${i + 8}, $${i + 9}, $${i + 10}, $${i + 11}, $${i + 12}, $${i + 13}, $${i + 14})`,
+      `($${i + 1}, $${i + 2}, $${i + 3}, $${i + 4}, $${i + 5}, $${i + 6}, $${i + 7}, $${i + 8}, $${i + 9}, $${i + 10}, $${i + 11}, $${i + 12}, $${i + 13}, $${i + 14}, $${i + 15})`,
     );
   }
   await db.query(
-    `INSERT INTO ${TABLE} (actor_type, actor_id, action, object, object_id, changes, before, after, is_error, error_code, request_id, trace_id, meta, ts)
+    `INSERT INTO ${TABLE} (actor_type, actor_id, action, object, object_id, changes, before, after, is_error, error_code, request_id, trace_id, tenant_id, meta, ts)
      VALUES ${values.join(', ')}`,
     params,
   );
@@ -187,6 +189,7 @@ export async function queryAudit(pool: Pool, query: AuditQuery = {}): Promise<Au
   if (query.object !== undefined) push('object = ?', query.object);
   if (query.from !== undefined) push('ts >= ?', query.from);
   if (query.to !== undefined) push('ts <= ?', query.to);
+  if (query.tenantId !== undefined) push('tenant_id = ?', query.tenantId);
   auditFilterWhere(query.filter, where, params);
   const whereSql = where.length === 0 ? '' : ` WHERE ${where.join(' AND ')}`;
 
@@ -197,7 +200,7 @@ export async function queryAudit(pool: Pool, query: AuditQuery = {}): Promise<Au
   const offset = query.offset ?? 0;
   const pageParams = [...params, limit, offset];
   const result = await pool.query(
-    `SELECT ts, actor_type, actor_id, action, object, object_id, changes, before, after, is_error, error_code, meta
+    `SELECT ts, actor_type, actor_id, action, object, object_id, changes, before, after, is_error, error_code, request_id, trace_id, tenant_id, meta
      FROM ${TABLE}${whereSql}
      ORDER BY ts DESC, id DESC
      LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
@@ -214,6 +217,9 @@ export async function queryAudit(pool: Pool, query: AuditQuery = {}): Promise<Au
     after: row.after ?? undefined,
     isError: row.is_error as boolean,
     errorCode: row.error_code ?? undefined,
+    requestId: row.request_id ?? undefined,
+    traceId: row.trace_id ?? undefined,
+    tenantId: row.tenant_id ?? undefined,
     meta: row.meta ?? undefined,
     timestamp: new Date(row.ts as string),
   }));

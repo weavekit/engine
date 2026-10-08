@@ -62,6 +62,14 @@ export function registerAuditRoutes(app: FastifyInstance, deps: RestDeps, option
     } else if (!isAdmin) {
       filter.actorId = subject.id;
     }
+    // tenant boundary: an ordinary identity only sees its own tenant's events
+    // (admins may filter by tenantId explicitly)
+    const rawTenant = readString(query, 'tenantId', locale);
+    if (!isAdmin && subject.tenantId !== undefined) {
+      filter.tenantId = subject.tenantId;
+    } else if (isAdmin && rawTenant !== undefined) {
+      filter.tenantId = rawTenant;
+    }
 
     const action = readString(query, 'action', locale);
     if (action !== undefined) filter.action = action;
