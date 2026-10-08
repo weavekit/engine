@@ -256,4 +256,7 @@ export const ar: Record<MessageKey, string> = {
   'workflow.definition.missing': 'الكائن "{object}": workflowEnabled هو true لكن workflow.json غير معلن',
   'object.workflowEnabled.boolean': 'الكائن "{object}": يجب أن تكون قيمة workflowEnabled منطقية',
   'workflow.timeout.invalid': 'الكائن "{object}": الحالة "{state}" تحتوي على onTimeout غير صالح (المتوقع { after: "<المدة>", action? } يشير إلى انتقال من هذه الحالة)',
+  'enum.invalid': 'تعريف enum غير صالح: {detail}',
+  'enum.unknown': 'الكائن "{object}": الحقل "{field}" يشير إلى enum غير معروف "{enum}"',
+  'enum.options.mismatch': 'الكائن "{object}": الخيارات المضمّنة للحقل "{field}" لا تطابق enum "{enum}"',
 } as const;

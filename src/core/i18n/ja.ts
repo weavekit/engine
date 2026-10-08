@@ -256,4 +256,7 @@ export const ja: Record<MessageKey, string> = {
   'workflow.definition.missing': 'オブジェクト "{object}": workflowEnabled が true ですが workflow.json が宣言されていません',
   'object.workflowEnabled.boolean': 'オブジェクト "{object}": workflowEnabled は真偽値である必要があります',
   'workflow.timeout.invalid': 'オブジェクト "{object}": 状態 "{state}" の onTimeout が無効です（{ after: "<期間>", action? } 形式で、action はその状態からの遷移である必要があります）',
+  'enum.invalid': 'enum 宣言が無効です: {detail}',
+  'enum.unknown': 'オブジェクト「{object}」：フィールド「{field}」が不明な enum「{enum}」を参照しています',
+  'enum.options.mismatch': 'オブジェクト「{object}」：フィールド「{field}」のインライン options が enum「{enum}」と一致しません',
 } as const;

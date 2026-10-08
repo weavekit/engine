@@ -256,4 +256,7 @@ export const hi: Record<MessageKey, string> = {
   'workflow.definition.missing': 'ऑब्जेक्ट "{object}": workflowEnabled true है लेकिन workflow.json घोषित नहीं है',
   'object.workflowEnabled.boolean': 'ऑब्जेक्ट "{object}": workflowEnabled बूलियन होना चाहिए',
   'workflow.timeout.invalid': 'ऑब्जेक्ट "{object}": स्थिति "{state}" का onTimeout अमान्य है (अपेक्षित { after: "<अवधि>", action? } जो उस स्थिति से संक्रमण का संदर्भ दे)',
+  'enum.invalid': 'enum घोषणा अमान्य: {detail}',
+  'enum.unknown': 'ऑब्जेक्ट "{object}": फ़ील्ड "{field}" अज्ञात enum "{enum}" को संदर्भित करता है',
+  'enum.options.mismatch': 'ऑब्जेक्ट "{object}": फ़ील्ड "{field}" के इनलाइन options enum "{enum}" से मेल नहीं खाते',
 } as const;

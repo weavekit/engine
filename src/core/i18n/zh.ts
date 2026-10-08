@@ -255,4 +255,7 @@ export const zh: Record<MessageKey, string> = {
   'workflow.definition.missing': '对象 "{object}"：workflowEnabled 为 true，但未声明 workflow.json',
   'object.workflowEnabled.boolean': '对象 "{object}"：workflowEnabled 必须为布尔值',
   'workflow.timeout.invalid': '对象 "{object}"：状态 "{state}" 的 onTimeout 无效（应为 { after: "<时长>", action? }，且 action 须为该状态的转换）',
+  'enum.invalid': '枚举声明无效：{detail}',
+  'enum.unknown': '对象 "{object}"：字段 "{field}" 引用了不存在的枚举 "{enum}"',
+  'enum.options.mismatch': '对象 "{object}"：字段 "{field}" 的内联 options 与枚举 "{enum}" 不一致',
 } as const;

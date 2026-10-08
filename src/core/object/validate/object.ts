@@ -2,7 +2,7 @@ import { DEFAULT_LOCALE } from '../../i18n/index.js';
 import type { Locale } from '../../i18n/index.js';
 import { SCHEMA_FORMAT_VERSION } from '../schema-version.js';
 import type { FieldDefinition, ObjectDefinition } from '../../types/index.js';
-import { DEFAULT_FIELD_TYPE_REGISTRY, isScalarFieldType, isKeyEligible, type FieldTypeRegistry } from '../../types/index.js';
+import { DEFAULT_FIELD_TYPE_REGISTRY, isScalarFieldType, isKeyEligible, type EnumRegistry, type FieldTypeRegistry } from '../../types/index.js';
 import { FIELD_TYPES, READ_SCOPES, RESERVED_OBJECT_PREFIX } from '../../types/values.js';
 import { validateField } from './field.js';
 import { validateFormulas } from './formulas.js';
@@ -27,6 +27,11 @@ export interface ValidateOptions {
   allowedFieldTypes?: readonly string[];
   /** effective field-type registry (built-ins + user registrations) */
   fieldTypes?: FieldTypeRegistry;
+  /**
+   * effective named-enum registry (project `enums/`). When provided, a field
+   * `enumType` that resolves to a declaration references that shared enum.
+   */
+  enums?: EnumRegistry;
   /** internal: allow the reserved engine prefix (used only for built-in system objects) */
   allowReservedName?: boolean;
 }
@@ -78,7 +83,11 @@ export function validateObject(raw: unknown, options?: ValidateOptions): ObjectD
   if (!Array.isArray(rawFields) || rawFields.length === 0) fail(vc, 'object.fields.required');
 
   let fields = rawFields.map((f) =>
-    validateField(f, vc, { allowedFieldTypes: options?.allowedFieldTypes, fieldTypes: options?.fieldTypes }),
+    validateField(f, vc, {
+      allowedFieldTypes: options?.allowedFieldTypes,
+      fieldTypes: options?.fieldTypes,
+      enums: options?.enums,
+    }),
   );
   // a static (inline-options) enum gets a native PG enum type name; derived
   // `<object>_<field>` when the schema does not declare one explicitly

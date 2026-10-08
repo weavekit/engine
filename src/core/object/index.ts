@@ -1,4 +1,5 @@
 export { validateObject, type ValidateOptions } from './validate.js';
+export { validateEnumDefinition } from './enums.js';
 export { parseSchema, parseObject } from './parse.js';
 export {
   LEGACY_SCHEMA_FORMAT_VERSION,

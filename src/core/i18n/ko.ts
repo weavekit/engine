@@ -256,4 +256,7 @@ export const ko: Record<MessageKey, string> = {
   'workflow.definition.missing': '객체 "{object}": workflowEnabled가 true이지만 workflow.json이 선언되지 않았습니다',
   'object.workflowEnabled.boolean': '객체 "{object}": workflowEnabled는 불리언이어야 합니다',
   'workflow.timeout.invalid': '개체 "{object}": 상태 "{state}"의 onTimeout이 유효하지 않습니다 ({ after: "<기간>", action? } 형식이며 action은 해당 상태에서의 전환이어야 함)',
+  'enum.invalid': 'enum 선언이 유효하지 않습니다: {detail}',
+  'enum.unknown': '객체 "{object}": 필드 "{field}"이(가) 알 수 없는 enum "{enum}"을(를) 참조합니다',
+  'enum.options.mismatch': '객체 "{object}": 필드 "{field}"의 인라인 options이 enum "{enum}"과(와) 일치하지 않습니다',
 } as const;

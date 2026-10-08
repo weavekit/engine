@@ -6,6 +6,7 @@ import {
   FIELD_TYPE_NAME_PATTERN,
   fieldBase,
   type AttrSpec,
+  type EnumRegistry,
   type FieldTypeRegistration,
   type FieldTypeRegistry,
 } from '../../types/index.js';
@@ -170,6 +171,15 @@ export interface FieldValidateOptions {
   allowedFieldTypes?: readonly string[];
   /** the effective field-type registry (built-ins + user registrations) */
   fieldTypes?: FieldTypeRegistry;
+  /** the effective named-enum registry (project `enums/`); resolves `enumType` references */
+  enums?: EnumRegistry;
+}
+
+/** true when two string lists hold the same values (order-insensitive) */
+function sameValues(a: readonly string[], b: readonly string[]): boolean {
+  if (a.length !== b.length) return false;
+  const set = new Set(b);
+  return a.every((value) => set.has(value));
 }
 
 /** validate a single field definition into its typed discriminated-union member */
@@ -501,8 +511,14 @@ export function validateField(raw: unknown, vc: Vc, options: FieldValidateOption
       if (multiple === true && primary === true) fail(vc, 'field.enum.multiple.primary');
       if (multiple === true && unique === true) fail(vc, 'field.enum.multiple.unique');
 
-      // inline options: a non-empty, unique list of strings
+      // a project-declared enum referenced by `enumType` (schema v6). Absent =>
+      // the field keeps the inline / derived / data-driven behavior.
+      const declared = enumType === undefined ? undefined : options.enums?.get(enumType);
+
+      // resolve the static value list (inline options or a named declaration)
+      let resolvedOptions: string[];
       if (Array.isArray(rawOptions)) {
+        // inline options: a non-empty, unique list of strings
         if (rawOptions.length === 0) fail(vc, 'field.enum.options.required');
         if (!rawOptions.every((o) => typeof o === 'string')) fail(vc, 'field.enum.options.strings');
         const seen = new Set<string>();
@@ -510,51 +526,68 @@ export function validateField(raw: unknown, vc: Vc, options: FieldValidateOption
           if (seen.has(o)) fail(vc, 'field.enum.options.duplicate', { value: o });
           seen.add(o);
         }
-        const options = rawOptions as string[];
-        if (multiple === true) {
-          if (raw.default !== undefined) {
-            if (!Array.isArray(raw.default) || !raw.default.every((v) => typeof v === 'string')) {
-              fail(vc, 'field.enum.multiple.default.array');
-            }
-            for (const v of raw.default) {
-              if (!options.includes(v)) fail(vc, 'field.enum.multiple.default.inOptions', { value: v });
-            }
-          }
-        } else {
-          validateDefault(raw.default, type, vc, options);
+        // inline values alongside a declared enumType must match the declaration
+        if (declared !== undefined && !sameValues(rawOptions as string[], declared.values)) {
+          fail(vc, 'enum.options.mismatch', { field: name, enum: declared.name });
         }
+        resolvedOptions = declared !== undefined ? [...declared.values] : (rawOptions as string[]);
+      } else if (rawOptions === undefined) {
+        // no inline list: either a named declaration reference or nothing
+        if (declared !== undefined) {
+          resolvedOptions = [...declared.values];
+        } else if (enumType !== undefined) {
+          fail(vc, 'enum.unknown', { field: name, enum: enumType });
+        } else {
+          fail(vc, 'field.enum.options.required');
+        }
+      } else {
+        // data-driven options `{ from: { object, column? } }` — a stored enum
+        // cannot also reference a named declaration
+        if (declared !== undefined) fail(vc, 'enum.options.mismatch', { field: name, enum: declared.name });
+        const fromRaw = isRecord(rawOptions) ? rawOptions.from : undefined;
+        if (!isRecord(fromRaw) || typeof fromRaw.object !== 'string' || !SNAKE_CASE.test(fromRaw.object)) {
+          fail(vc, 'field.enum.options.shape');
+        }
+        const fromObject = fromRaw.object as string;
+        const fromColumn = fromRaw.column;
+        if (fromColumn !== undefined && (typeof fromColumn !== 'string' || !SNAKE_CASE.test(fromColumn))) {
+          fail(vc, 'field.enum.options.shape');
+        }
+        if (raw.default !== undefined) fail(vc, 'field.default.optionsFrom');
         return {
           ...base,
           type: FIELD_TYPES.ENUM,
-          options,
+          options: {
+            from: { object: fromObject, ...(fromColumn === undefined ? {} : { column: fromColumn as string }) },
+          },
           multiple,
-          enumType,
           required,
           unique,
-          default: multiple === true ? (raw.default as string[] | undefined) : (raw.default as string | undefined),
         };
       }
 
-      // data-driven options: { from: { object, column? } }
-      const fromRaw = isRecord(rawOptions) ? rawOptions.from : undefined;
-      if (!isRecord(fromRaw) || typeof fromRaw.object !== 'string' || !SNAKE_CASE.test(fromRaw.object)) {
-        fail(vc, 'field.enum.options.shape');
+      // static enum (inline or named): validate `default` against the value list
+      if (multiple === true) {
+        if (raw.default !== undefined) {
+          if (!Array.isArray(raw.default) || !raw.default.every((v) => typeof v === 'string')) {
+            fail(vc, 'field.enum.multiple.default.array');
+          }
+          for (const v of raw.default) {
+            if (!resolvedOptions.includes(v)) fail(vc, 'field.enum.multiple.default.inOptions', { value: v });
+          }
+        }
+      } else {
+        validateDefault(raw.default, type, vc, resolvedOptions);
       }
-      const fromObject = fromRaw.object as string;
-      const fromColumn = fromRaw.column;
-      if (fromColumn !== undefined && (typeof fromColumn !== 'string' || !SNAKE_CASE.test(fromColumn))) {
-        fail(vc, 'field.enum.options.shape');
-      }
-      if (raw.default !== undefined) fail(vc, 'field.default.optionsFrom');
       return {
         ...base,
         type: FIELD_TYPES.ENUM,
-        options: {
-          from: { object: fromObject, ...(fromColumn === undefined ? {} : { column: fromColumn as string }) },
-        },
+        options: resolvedOptions,
         multiple,
+        enumType,
         required,
         unique,
+        default: multiple === true ? (raw.default as string[] | undefined) : (raw.default as string | undefined),
       };
     }
     case FIELD_TYPES.RELATION: {

@@ -56,6 +56,17 @@ export interface MetadataField {
   options?: string[];
   multiple?: boolean;
   target?: string;
+  /**
+   * for a field backed by a declared named enum (`enums/<name>.json`): the enum
+   * name (= the shared PostgreSQL type and the field `enumType`). Present only
+   * when the reference resolves; `options` still carries the resolved values.
+   */
+  enum?: string;
+  /**
+   * per-value display names of a named enum: locale → value → label. Lets a
+   * front-end localize enum options without a second lookup (absent = none).
+   */
+  optionLabels?: Record<string, Record<string, string>>;
   /** for `user` fields: the department FK column on the identity object (`department_id`) */
   department?: string;
   /** for `currency` fields: the ISO 4217 code (drives the column scale + formatting) */
@@ -178,6 +189,13 @@ function fieldDescription(field: FieldDefinition, objects: ObjectRegistry): Meta
   if (field.type === FIELD_TYPES.ENUM) {
     if (Array.isArray(field.options)) {
       out.options = field.options;
+      // a declared named enum: surface the shared type + per-value labels
+      const enumType = (field as { enumType?: string }).enumType;
+      const declaration = enumType === undefined ? undefined : objects.enums.get(enumType);
+      if (declaration !== undefined) {
+        out.enum = declaration.name;
+        if (declaration.labels !== undefined) out.optionLabels = declaration.labels;
+      }
     } else {
       const target = objects.get(field.options.from.object);
       const column = field.options.from.column ?? (target === undefined ? undefined : primaryKeyOf(target));

@@ -256,4 +256,7 @@ export const vi: Record<MessageKey, string> = {
   'workflow.definition.missing': 'đối tượng "{object}": workflowEnabled là true nhưng workflow.json chưa được khai báo',
   'object.workflowEnabled.boolean': 'đối tượng "{object}": workflowEnabled phải là kiểu boolean',
   'workflow.timeout.invalid': 'đối tượng "{object}": trạng thái "{state}" có onTimeout không hợp lệ (mong đợi { after: "<thời lượng>", action? } tham chiếu một chuyển đổi từ trạng thái đó)',
+  'enum.invalid': 'khai báo enum không hợp lệ: {detail}',
+  'enum.unknown': 'đối tượng "{object}": trường "{field}" tham chiếu enum không tồn tại "{enum}"',
+  'enum.options.mismatch': 'đối tượng "{object}": options nội tuyến của trường "{field}" không khớp với enum "{enum}"',
 } as const;

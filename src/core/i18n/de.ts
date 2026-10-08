@@ -256,4 +256,7 @@ export const de: Record<MessageKey, string> = {
   'workflow.definition.missing': 'Objekt "{object}": workflowEnabled ist true, aber keine workflow.json deklariert',
   'object.workflowEnabled.boolean': 'Objekt "{object}": workflowEnabled muss ein boolescher Wert sein',
   'workflow.timeout.invalid': 'Objekt "{object}": Zustand "{state}" hat ein ungültiges onTimeout (erwartet { after: "<Dauer>", action? }, das einen Übergang aus diesem Zustand referenziert)',
+  'enum.invalid': 'enum-Deklaration ungültig: {detail}',
+  'enum.unknown': 'Objekt "{object}": Feld "{field}" referenziert ein unbekanntes Enum "{enum}"',
+  'enum.options.mismatch': 'Objekt "{object}": Inline-Options von Feld "{field}" stimmen nicht mit Enum "{enum}" überein',
 } as const;

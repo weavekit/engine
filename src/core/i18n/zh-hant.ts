@@ -256,4 +256,7 @@ export const zhHant: Record<MessageKey, string> = {
   'workflow.definition.missing': '物件 "{object}"：workflowEnabled 為 true，但未宣告 workflow.json',
   'object.workflowEnabled.boolean': '物件 "{object}"：workflowEnabled 必須為布林值',
   'workflow.timeout.invalid': '物件 "{object}"：狀態 "{state}" 的 onTimeout 無效（應為 { after: "<時長>", action? }，且 action 須為該狀態的轉換）',
+  'enum.invalid': '列舉宣告無效：{detail}',
+  'enum.unknown': '物件「{object}」：欄位「{field}」引用了不存在的列舉「{enum}」',
+  'enum.options.mismatch': '物件「{object}」：欄位「{field}」的內聯 options 與列舉「{enum}」不一致',
 } as const;

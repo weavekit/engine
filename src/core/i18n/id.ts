@@ -256,4 +256,7 @@ export const id: Record<MessageKey, string> = {
   'workflow.definition.missing': 'objek "{object}": workflowEnabled true tetapi workflow.json tidak dideklarasikan',
   'object.workflowEnabled.boolean': 'objek "{object}": workflowEnabled harus berupa boolean',
   'workflow.timeout.invalid': 'objek "{object}": status "{state}" memiliki onTimeout tidak valid (diharapkan { after: "<durasi>", action? } yang mereferensikan transisi dari status tersebut)',
+  'enum.invalid': 'deklarasi enum tidak valid: {detail}',
+  'enum.unknown': 'objek "{object}": field "{field}" mereferensikan enum yang tidak dikenal "{enum}"',
+  'enum.options.mismatch': 'objek "{object}": options inline field "{field}" tidak cocok dengan enum "{enum}"',
 } as const;

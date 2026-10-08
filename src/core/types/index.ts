@@ -38,6 +38,8 @@ export type {
   RelationEdge,
 } from './relation.js';
 export type { IndexDefinition, ConstraintDefinition, ObjectDefinition } from './object.js';
+export type { EnumDefinition, EnumRegistry } from './enum-registry.js';
+export { buildEnumRegistry, DEFAULT_ENUM_REGISTRY } from './enum-registry.js';
 export type { WorkflowDefinition, WorkflowNode, WorkflowNodeKind, WorkflowAssign, WorkflowAssignMode, WorkflowTimeout, WorkflowTimeoutAction, EngineWorkflowConfig, WorkflowTimer, WorkflowTimerStore, WorkflowBackend, WorkflowTimerSync } from './workflow.js';
 export type { IndexType, ConstraintType, SequenceCycle, SequenceToken, DetailsColumn, RelationKind, RowScopeMarker, WeaveStatus, ScopeSource, IdentityObjectName } from './values.js';
 export { DETAILS_COLUMNS, FIELD_TYPES, BUILTIN_CUSTOM_FIELD_TYPES, PG_FIELD_TYPES, IDENTITY_OBJECT_NAMES, READ_SCOPES, RELATION_KINDS, ROW_SCOPE_MARKERS, SCOPE_SOURCES, CONSTRAINT_TYPES, WEAVE_STATUS } from './values.js';

@@ -253,6 +253,9 @@ export const en = {
   'proxy.denied': 'proxy request denied',
   'proxy.responseTooLarge': 'proxy response from "{instance}" exceeds {max} bytes',
   'workflow.timeout.invalid': 'object "{object}": state "{state}" has an invalid onTimeout (expected { after: "<duration>", action? } referencing a transition from that state)',
+  'enum.invalid': 'enum declaration invalid: {detail}',
+  'enum.unknown': 'object "{object}": field "{field}" references unknown enum "{enum}"',
+  'enum.options.mismatch': 'object "{object}": field "{field}" inline options do not match enum "{enum}"',
 } as const;
 
 export type MessageKey = keyof typeof en;

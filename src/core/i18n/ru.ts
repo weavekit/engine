@@ -256,4 +256,7 @@ export const ru: Record<MessageKey, string> = {
   'workflow.definition.missing': 'объект "{object}": workflowEnabled имеет значение true, но workflow.json не объявлен',
   'object.workflowEnabled.boolean': 'объект "{object}": workflowEnabled должен быть логическим значением',
   'workflow.timeout.invalid': 'объект "{object}": состояние "{state}" имеет недопустимый onTimeout (ожидается { after: "<длительность>", action? }, ссылающийся на переход из этого состояния)',
+  'enum.invalid': 'некорректное объявление enum: {detail}',
+  'enum.unknown': 'объект "{object}": поле "{field}" ссылается на неизвестный enum "{enum}"',
+  'enum.options.mismatch': 'объект "{object}": встроенные options поля "{field}" не совпадают с enum "{enum}"',
 } as const;

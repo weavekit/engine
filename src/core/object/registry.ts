@@ -1,6 +1,6 @@
 import { SchemaError } from '../types/errors.js';
 import type { ObjectDefinition } from '../types/index.js';
-import { DEFAULT_FIELD_TYPE_REGISTRY, type FieldTypeRegistry } from '../types/index.js';
+import { DEFAULT_ENUM_REGISTRY, DEFAULT_FIELD_TYPE_REGISTRY, type EnumRegistry, type FieldTypeRegistry } from '../types/index.js';
 import { buildGraph, RelationGraph, type BuildGraphOptions } from './graph.js';
 import { validateObject, type ValidateOptions } from './validate.js';
 
@@ -19,14 +19,17 @@ export class ObjectRegistry {
   private readonly defs = new Map<string, ObjectDefinition>();
   /** the effective field-type registry this set was validated against */
   readonly fieldTypes: FieldTypeRegistry;
+  /** the effective named-enum registry this set was validated against */
+  readonly enums: EnumRegistry;
 
-  constructor(options: { fieldTypes?: FieldTypeRegistry } = {}) {
+  constructor(options: { fieldTypes?: FieldTypeRegistry; enums?: EnumRegistry } = {}) {
     this.fieldTypes = options.fieldTypes ?? DEFAULT_FIELD_TYPE_REGISTRY;
+    this.enums = options.enums ?? DEFAULT_ENUM_REGISTRY;
   }
 
   /** validate and store one object definition; throws on duplicate name */
   register(input: unknown, options?: ValidateOptions): ObjectDefinition {
-    const def = validateObject(input, options);
+    const def = validateObject(input, { ...options, enums: options?.enums ?? this.enums });
     if (this.defs.has(def.name)) {
       throw new SchemaError('registry.duplicate', { name: def.name }, options?.locale);
     }
