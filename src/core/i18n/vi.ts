@@ -191,6 +191,7 @@ export const vi: Record<MessageKey, string> = {
   'approval.notFound': 'không tìm thấy phê duyệt đang chờ "{approvalKey}"',
   'mcp.onBehalfOf.missing': "tiêu đề X-Weavekit-On-Behalf-Of là bắt buộc cho phiên MCP",
   'mcp.identity.unknown': "danh tính \"{ref}\" không được biết đến",
+  'mcp.session.agentMismatch': "phiên MCP \"{session}\" thuộc thông tin xác thực agent khác",
   'mcp.session.notFound': "không tìm thấy phiên MCP \"{session}\"",
   'mcp.tool.notFound': "không tìm thấy công cụ MCP \"{tool}\"",
   'mcp.rateLimited': "đã vượt giới hạn tốc độ MCP, vui lòng thử lại sau",

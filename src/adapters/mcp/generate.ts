@@ -207,16 +207,16 @@ function customToolTools(
         description: def.description,
         inputSchema: def.inputSchema,
         handler: async (args: Record<string, unknown>, ctx: ToolExecContext): Promise<McpToolResult> => {
-          // rate limit at the adapter layer (agentKey, widened by `roles:tool` scope)
+          // rate limit at the adapter layer (agent credential, widened by `roles:tool` scope)
           const scope = `${[...ctx.session.user.roles].sort().join(',')}:${def.name}`;
-          if (!ctx.guardrails.checkRateLimit(ctx.session.agentKey, scope)) {
+          if (!ctx.guardrails.checkRateLimit(ctx.session.agentCredentialId, scope)) {
             const { SchemaError } = await import('../../core/index.js');
             throw new SchemaError('mcp.rateLimited', {}, ctx.engine.locale);
           }
           const result = await custom.executor.execute(def, args, {
             subject: ctx.session.user,
             actor: {
-              key: ctx.session.agentKey,
+              key: ctx.session.agentCredentialId,
               label: ctx.session.agentSubject.id,
               onBehalfOf: ctx.session.onBehalfOf,
             },

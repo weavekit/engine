@@ -191,6 +191,7 @@ export const hi: Record<MessageKey, string> = {
   'approval.notFound': 'लंबित स्वीकृति "{approvalKey}" नहीं मिली',
   'mcp.onBehalfOf.missing': "MCP सत्रों के लिए X-Weavekit-On-Behalf-Of हेडर आवश्यक है",
   'mcp.identity.unknown': "पहचान \"{ref}\" ज्ञात नहीं है",
+  'mcp.session.agentMismatch': "MCP सत्र \"{session}\" किसी भिन्न एजेंट क्रेडेंशियल का है",
   'mcp.session.notFound': "MCP सत्र \"{session}\" नहीं मिला",
   'mcp.tool.notFound': "MCP टूल \"{tool}\" नहीं मिला",
   'mcp.rateLimited': "MCP दर सीमा पार हो गई, बाद में पुनः प्रयास करें",

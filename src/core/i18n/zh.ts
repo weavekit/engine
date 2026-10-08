@@ -190,6 +190,7 @@ export const zh: Record<MessageKey, string> = {
   'approval.notFound': '未找到待审批项 "{approvalKey}"',
   'mcp.onBehalfOf.missing': "MCP 会话需要 X-Weavekit-On-Behalf-Of 请求头",
   'mcp.identity.unknown': "身份 \"{ref}\" 未知",
+  'mcp.session.agentMismatch': "MCP 会话 \"{session}\" 属于其他 Agent 凭据",
   'mcp.session.notFound': "找不到 MCP 会话 \"{session}\"",
   'mcp.tool.notFound': "找不到 MCP 工具 \"{tool}\"",
   'mcp.rateLimited': "已超出 MCP 速率限制，请稍后重试",

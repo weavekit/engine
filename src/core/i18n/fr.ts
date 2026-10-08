@@ -191,6 +191,7 @@ export const fr: Record<MessageKey, string> = {
   'approval.notFound': 'approbation en attente "{approvalKey}" introuvable',
   'mcp.onBehalfOf.missing': "l'en-tête X-Weavekit-On-Behalf-Of est requis pour les sessions MCP",
   'mcp.identity.unknown': "l'identité \"{ref}\" est inconnue",
+  'mcp.session.agentMismatch': "la session MCP \"{session}\" appartient à des identifiants d'agent différents",
   'mcp.session.notFound': "la session MCP \"{session}\" est introuvable",
   'mcp.tool.notFound': "l'outil MCP \"{tool}\" est introuvable",
   'mcp.rateLimited': "limite de débit MCP dépassée, réessayez plus tard",

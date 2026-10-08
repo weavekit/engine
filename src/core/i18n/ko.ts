@@ -191,6 +191,7 @@ export const ko: Record<MessageKey, string> = {
   'approval.notFound': '보류 중인 승인 "{approvalKey}"을(를) 찾을 수 없습니다',
   'mcp.onBehalfOf.missing': "MCP 세션에는 X-Weavekit-On-Behalf-Of 헤더가 필요합니다",
   'mcp.identity.unknown': "신원 \"{ref}\"(을)를 알 수 없습니다",
+  'mcp.session.agentMismatch': "MCP 세션 \"{session}\"은 다른 에이전트 자격 증명에 속합니다",
   'mcp.session.notFound': "MCP 세션 \"{session}\"(을)를 찾을 수 없습니다",
   'mcp.tool.notFound': "MCP 도구 \"{tool}\"(을)를 찾을 수 없습니다",
   'mcp.rateLimited': "MCP 요청 한도를 초과했습니다. 나중에 다시 시도하세요",

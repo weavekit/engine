@@ -540,7 +540,7 @@ export async function buildEngineFromRegistry(
 
   // tool mechanism: load custom tools when config.tools.toolsDir is set
   // (absent = not loaded = zero overhead). The executor wraps the RBAC-decorated
-  // data-access; rate limiting stays at the adapter layer (per-agentKey), the
+  // data-access; rate limiting stays at the adapter layer (per-agent credential), the
   // executor's `guardrails` handle is a no-op self-check for tool authors.
   let tools: { defs: ToolDefinition[]; executor: ToolExecutor } | undefined;
   if (config.tools?.toolsDir !== undefined) {

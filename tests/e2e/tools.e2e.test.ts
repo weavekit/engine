@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, it, expect } from '../helpers/test.js';
 import { buildEngineFromRegistry, migrate, ObjectRegistry, type ObjectDefinition } from '../../src/index.js';
+import { credentialIdOf } from '../../src/adapters/mcp/session.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 
@@ -155,7 +156,7 @@ maybe('custom tools E2E (toolsDir → tools/list role filtering + tools/call con
       await closeClients(clients);
       clients.length = 0;
 
-      // ── 5. audit: mcp.tool.reassign_ticket (actorId = agentKey)
+      // ── 5. audit: mcp.tool.reassign_ticket (actorId = agent credential fingerprint)
       await engine.close();
       engine = undefined;
       const auditRows = await auditPool.query(
@@ -164,7 +165,7 @@ maybe('custom tools E2E (toolsDir → tools/list role filtering + tools/call con
       expect(auditRows.rows.length).toBeGreaterThan(0);
       const ok = auditRows.rows.find((r: { is_error: boolean }) => !r.is_error);
       expect(ok).toBeDefined();
-      expect(ok!.actor_id).toBe(AGENT_KEYS.sales);
+      expect(ok!.actor_id).toBe(credentialIdOf(`Bearer ${AGENT_KEYS.sales}`));
     } finally {
       await closeClients(clients);
       if (engine !== undefined) {

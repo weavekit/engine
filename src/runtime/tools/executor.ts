@@ -103,7 +103,7 @@ export interface ToolExecutorOptions {
   pool: Pool;
   registry: ObjectRegistry;
   audit?: AuditSink;
-  /** rate-limit / alert handle (adapter-provided; agentKey scope) */
+  /** rate-limit / alert handle (adapter-provided; agent credential scope) */
   guardrails: ToolGuardrails;
   approvals?: ApprovalsQueue;
   /** guardrail policies evaluated before every custom-tool call (empty = no gate) */

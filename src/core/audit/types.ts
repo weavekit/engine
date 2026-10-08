@@ -43,7 +43,7 @@ export type ActionPrefix = typeof ACTION_PREFIXES[keyof typeof ACTION_PREFIXES];
 /** immutable audit event */
 export interface AuditEvent {
   actorType: AuditActorType;
-  /** subject.id / agentKey / 'system' */
+  /** subject.id / agent credential id / 'system' */
   actorId: string;
   /** 'create' | 'update' | 'delete' | 'mcp.tool.search' | ... */
   action: string;
@@ -60,7 +60,7 @@ export interface AuditEvent {
   isError?: boolean;
   /** engine SchemaError code, e.g. 'rbac.denied.update' */
   errorCode?: string;
-  /** extension: agentKey/onBehalfOf/tool/latency etc. */
+  /** extension: onBehalfOf/agentLabel/tool/latency etc. */
   meta?: Record<string, unknown>;
   timestamp: Date;
 }

@@ -2,7 +2,7 @@ import { describe, it, expect } from '../helpers/test.js';import { McpSessionSto
 import type { IdentitySubject } from '../../src/core/index.js';
 
 const alice: IdentitySubject = { id: 'u-alice', roles: ['sales'] };
-const base = { agentKey: 'key-1', agentSubject: { id: 'a1', roles: ['agent'] }, user: alice, onBehalfOf: 'alice' };
+const base = { agentCredentialId: 'key-1', agentSubject: { id: 'a1', roles: ['agent'] }, user: alice, onBehalfOf: 'alice' };
 
 describe('McpSessionStore', () => {
   it('create/get round-trip + lastActivity refresh', () => {

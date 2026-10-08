@@ -1,4 +1,17 @@
+import { createHash } from 'node:crypto';
 import type { IdentitySubject } from '../../core/index.js';
+
+/**
+ * Stable, non-secret identifier for the agent credential that presented a
+ * request: a SHA-256 fingerprint of the raw Bearer token. The raw secret is
+ * never stored on the session or written to the audit log — this fingerprint
+ * binds a session to the exact credential that established it and keys
+ * per-agent rate limits / audit rows.
+ */
+export function credentialIdOf(authorization: string | undefined): string {
+  const token = typeof authorization === 'string' ? authorization.replace(/^Bearer\s+/i, '').trim() : '';
+  return createHash('sha256').update(token, 'utf8').digest('hex');
+}
 
 /**
  * Session model for the MCP adapter. A session is established at the first
@@ -10,8 +23,8 @@ import type { IdentitySubject } from '../../core/index.js';
 export interface McpSession {
   /** SDK transport session id (from the Mcp-Session-Id header) */
   id: string;
-  /** the agent's API key */
-  agentKey: string;
+  /** fingerprint of the agent credential that established the session (binding + rate limit key) */
+  agentCredentialId: string;
   /** agent subject from the Bearer key (authenticator.resolve) */
   agentSubject: IdentitySubject;
   /** proxied user identity the agent acts on behalf of (RBAC decisions use this) */
@@ -23,7 +36,7 @@ export interface McpSession {
 }
 
 export interface SessionInput {
-  agentKey: string;
+  agentCredentialId: string;
   agentSubject: IdentitySubject;
   user: IdentitySubject;
   onBehalfOf: string;

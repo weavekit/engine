@@ -191,6 +191,7 @@ export const zhHant: Record<MessageKey, string> = {
   'approval.notFound': '找不到待核准項目「{approvalKey}」',
   'mcp.onBehalfOf.missing': "MCP 工作階段需要 X-Weavekit-On-Behalf-Of 標頭",
   'mcp.identity.unknown': "身分 \"{ref}\" 未知",
+  'mcp.session.agentMismatch': "MCP 工作階段 \"{session}\" 屬於其他 Agent 憑證",
   'mcp.session.notFound': "找不到 MCP 工作階段 \"{session}\"",
   'mcp.tool.notFound': "找不到 MCP 工具 \"{tool}\"",
   'mcp.rateLimited': "已超過 MCP 速率限制，請稍後再試",

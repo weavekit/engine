@@ -12,6 +12,7 @@ import type { Authenticator } from '../auth/index.js';
 import { authenticate } from '../auth/index.js';
 import type { IdentityResolver } from '../../core/provider/identity/index.js';
 import type { McpSessionStore, SessionInput, McpSession } from './session.js';
+import { credentialIdOf } from './session.js';
 import type { McpGuardrails } from './guardrails.js';
 import { compileToolsFor, type CompiledTool } from './generate.js';
 import type { McpEngine, McpToolResult } from './types.js';
@@ -107,7 +108,7 @@ function auditDeniedTool(
 ): void {
   const event: AuditEvent = {
     actorType: AUDIT_ACTOR_TYPES.AGENT,
-    actorId: session.agentKey,
+    actorId: session.agentCredentialId,
     action: `${ACTION_PREFIXES.MCP_TOOL}.${tool}`,
     objectName: undefined,
     changes: args,
@@ -186,7 +187,7 @@ export function registerMcpRoutes(app: FastifyInstance, deps: McpHttpDeps): void
    * assigns the session id (inside handleRequest), so the session record is
    * created in `onsessioninitialized`.
    */
-  function createSession(agentKey: string, input: SessionInput): SessionEntry {
+  function createSession(input: SessionInput): SessionEntry {
     const entry: SessionEntry = {} as SessionEntry;
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: () => randomUUID(),
@@ -208,13 +209,28 @@ export function registerMcpRoutes(app: FastifyInstance, deps: McpHttpDeps): void
   async function handle(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     // authenticate before entering the transport (401 stays a plain HTTP error)
     const agentSubject = await authenticate(authenticator, request.headers.authorization, locale);
+    const agentCredentialId = credentialIdOf(request.headers.authorization);
 
     const header = request.headers[SESSION_HEADER];
     const sessionId = Array.isArray(header) ? header[0] : header;
-    let entry = sessionId !== undefined ? sessions.get(sessionId) : undefined;
+    const entry = sessionId !== undefined ? sessions.get(sessionId) : undefined;
+
+    // Bind the session to the credential that established it: a different (but
+    // itself valid) Bearer key presenting a known session id must not inherit
+    // another agent's on-behalf-of context.
+    if (entry !== undefined && sessionId !== undefined) {
+      const bound = sessionStore.get(sessionId);
+      if (bound === undefined) {
+        throw new SchemaError('mcp.session.notFound', { session: sessionId }, locale);
+      }
+      if (bound.agentCredentialId !== agentCredentialId) {
+        throw new SchemaError('mcp.session.agentMismatch', { session: sessionId }, locale);
+      }
+    }
 
     const body = request.body as unknown;
-    if (entry === undefined && sessionId === undefined && body !== undefined && isInitializeRequest(body)) {
+    let entryResolved = entry;
+    if (entryResolved === undefined && sessionId === undefined && body !== undefined && isInitializeRequest(body)) {
       // new session: bind the proxied user from the header (fail closed on missing/unknown)
       const obh = request.headers[ON_BEHALF_OF_HEADER];
       const onBehalfOf = Array.isArray(obh) ? obh[0] : obh;
@@ -225,26 +241,24 @@ export function registerMcpRoutes(app: FastifyInstance, deps: McpHttpDeps): void
       if (user === null) {
         throw new SchemaError('mcp.identity.unknown', { ref: onBehalfOf }, locale);
       }
-      // agentKey = the raw API key (the audit actor identity), while the RBAC
-      // subject stays the resolved key subject
-      const authHeader = request.headers.authorization;
-      const rawKey = typeof authHeader === 'string' ? authHeader.replace(/^Bearer\s+/i, '') : agentSubject.id;
-      entry = createSession(rawKey, {
-        agentKey: rawKey,
+      // the session stores a non-secret fingerprint of the Bearer key (audit
+      // actor + rate-limit key + binding), never the raw API key
+      entryResolved = createSession({
+        agentCredentialId,
         agentSubject,
         user,
         onBehalfOf,
       });
     }
 
-    if (entry === undefined) {
+    if (entryResolved === undefined) {
       throw new SchemaError('mcp.session.notFound', { session: sessionId ?? '(none)' }, locale);
     }
 
     // one-time connect: the SDK server assumes ownership of the transport
-    if (!entry.connected) {
-      await entry.server.connect(entry.transport);
-      entry.connected = true;
+    if (!entryResolved.connected) {
+      await entryResolved.server.connect(entryResolved.transport);
+      entryResolved.connected = true;
     }
 
     // CORS: the transport hijacks the reply and writes its own headers, so inject
@@ -253,7 +267,7 @@ export function registerMcpRoutes(app: FastifyInstance, deps: McpHttpDeps): void
     if (corsValue !== undefined) injectCorsOrigin(reply.raw, corsValue);
 
     reply.hijack();
-    await entry.transport.handleRequest(request.raw, reply.raw, request.body);
+    await entryResolved.transport.handleRequest(request.raw, reply.raw, request.body);
   }
 
   app.post(path, handle);

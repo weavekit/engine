@@ -191,6 +191,7 @@ export const ar: Record<MessageKey, string> = {
   'approval.notFound': 'لم يتم العثور على الموافقة المعلقة "{approvalKey}"',
   'mcp.onBehalfOf.missing': "رأس X-Weavekit-On-Behalf-Of مطلوب لجلسات MCP",
   'mcp.identity.unknown': "هوية \"{ref}\" غير معروفة",
+  'mcp.session.agentMismatch': "جلسة MCP \"{session}\" تنتمي إلى بيانات اعتماد وكيل مختلفة",
   'mcp.session.notFound': "جلسة MCP \"{session}\" غير موجودة",
   'mcp.tool.notFound': "أداة MCP \"{tool}\" غير موجودة",
   'mcp.rateLimited': "تم تجاوز حد معدل MCP، حاول لاحقًا",

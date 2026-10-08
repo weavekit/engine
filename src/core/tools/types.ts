@@ -54,7 +54,7 @@ export interface ToolDataAccess {
  * boundary — the executor never imports adapter types.
  */
 export interface ToolActor {
-  /** caller API key (audit actorId / rate-limit key source) */
+  /** caller credential fingerprint (audit actorId / rate-limit key source) */
   key: string;
   /** caller identity label (audit meta) */
   label: string;

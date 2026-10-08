@@ -63,12 +63,12 @@ function auditToolCall(
   errorCode: string | undefined,
   errorDetail?: string,
 ): void {
-  const { agentKey, agentSubject, onBehalfOf } = ctx.session;
+  const { agentCredentialId, agentSubject, onBehalfOf } = ctx.session;
   const changes: Record<string, unknown> = { ...args };
   delete changes[ON_BEHALF_OF];
   const event: AuditEvent = {
     actorType: AUDIT_ACTOR_TYPES.AGENT,
-    actorId: agentKey,
+    actorId: agentCredentialId,
     action: `${ACTION_PREFIXES.MCP_TOOL}.${tool}`,
     objectName,
     changes,
@@ -110,7 +110,7 @@ async function callProtected(
   getSubject: () => Promise<IdentitySubject>,
   run: (subject: IdentitySubject) => Promise<McpToolResult>,
 ): Promise<McpToolResult> {
-  if (!ctx.guardrails.checkRateLimit(ctx.session.agentKey)) {
+  if (!ctx.guardrails.checkRateLimit(ctx.session.agentCredentialId)) {
     const msg = new SchemaError('mcp.rateLimited', {}, ctx.engine.locale);
     auditToolCall(ctx, tool, objectName, ctx.session.user, args, true, msg.code);
     return errorResult(msg, ctx);

@@ -191,6 +191,7 @@ export const es: Record<MessageKey, string> = {
   'approval.notFound': 'aprobación pendiente "{approvalKey}" no encontrada',
   'mcp.onBehalfOf.missing': "la cabecera X-Weavekit-On-Behalf-Of es obligatoria para sesiones MCP",
   'mcp.identity.unknown': "la identidad \"{ref}\" no se conoce",
+  'mcp.session.agentMismatch': "la sesión MCP \"{session}\" pertenece a una credencial de agente diferente",
   'mcp.session.notFound': "la sesión MCP \"{session}\" no existe",
   'mcp.tool.notFound': "la herramienta MCP \"{tool}\" no existe",
   'mcp.rateLimited': "límite de tasa MCP superado, inténtalo más tarde",

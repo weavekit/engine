@@ -188,6 +188,7 @@ export const en = {
   'approval.notFound': 'pending approval "{approvalKey}" not found',
   'mcp.onBehalfOf.missing': 'the X-Weavekit-On-Behalf-Of header is required for MCP sessions',
   'mcp.identity.unknown': 'on-behalf-of identity "{ref}" is not known',
+  'mcp.session.agentMismatch': "MCP session \"{session}\" belongs to a different agent credential",
   'mcp.session.notFound': 'MCP session "{session}" not found',
   'mcp.tool.notFound': 'MCP tool "{tool}" not found',
   'mcp.rateLimited': 'MCP rate limit exceeded, try again later',

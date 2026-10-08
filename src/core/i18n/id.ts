@@ -191,6 +191,7 @@ export const id: Record<MessageKey, string> = {
   'approval.notFound': 'persetujuan tertunda "{approvalKey}" tidak ditemukan',
   'mcp.onBehalfOf.missing': "header X-Weavekit-On-Behalf-Of wajib untuk sesi MCP",
   'mcp.identity.unknown': "identitas \"{ref}\" tidak dikenal",
+  'mcp.session.agentMismatch': "sesi MCP \"{session}\" milik kredensial agen yang berbeda",
   'mcp.session.notFound': "sesi MCP \"{session}\" tidak ditemukan",
   'mcp.tool.notFound': "alat MCP \"{tool}\" tidak ditemukan",
   'mcp.rateLimited': "batas laju MCP terlampaui, coba lagi nanti",

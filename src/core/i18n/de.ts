@@ -191,6 +191,7 @@ export const de: Record<MessageKey, string> = {
   'approval.notFound': 'ausstehende Genehmigung "{approvalKey}" nicht gefunden',
   'mcp.onBehalfOf.missing': "Der X-Weavekit-On-Behalf-Of-Header ist für MCP-Sitzungen erforderlich",
   'mcp.identity.unknown': "Identität \"{ref}\" ist unbekannt",
+  'mcp.session.agentMismatch': "MCP-Sitzung \"{session}\" gehört zu einem anderen Agent-Anmeldedatensatz",
   'mcp.session.notFound': "MCP-Sitzung \"{session}\" nicht gefunden",
   'mcp.tool.notFound': "MCP-Tool \"{tool}\" nicht gefunden",
   'mcp.rateLimited': "MCP-Ratenlimit überschritten, bitte später erneut versuchen",

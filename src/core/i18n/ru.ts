@@ -191,6 +191,7 @@ export const ru: Record<MessageKey, string> = {
   'approval.notFound': 'ожидающее подтверждение "{approvalKey}" не найдено',
   'mcp.onBehalfOf.missing': "заголовок X-Weavekit-On-Behalf-Of обязателен для сеансов MCP",
   'mcp.identity.unknown': "идентичность \"{ref}\" неизвестна",
+  'mcp.session.agentMismatch': "сеанс MCP \"{session}\" принадлежит другому ключу агента",
   'mcp.session.notFound': "сеанс MCP \"{session}\" не найден",
   'mcp.tool.notFound': "инструмент MCP \"{tool}\" не найден",
   'mcp.rateLimited': "превышен лимит запросов MCP, повторите позже",

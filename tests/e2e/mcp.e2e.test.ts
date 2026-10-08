@@ -1,6 +1,7 @@
 import { describe, it, expect } from '../helpers/test.js';
 import { encodeRecordKey } from '../../src/core/object/record-key.js';
 import { buildEngineFromRegistry, migrate, ObjectRegistry, ROW_SCOPE_MARKERS, type ObjectDefinition } from '../../src/index.js';
+import { credentialIdOf } from '../../src/adapters/mcp/session.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 
@@ -170,6 +171,22 @@ maybe('MCP E2E (SDK Client + streamable HTTP + local PG): auth + session identit
       // ── 2. session binding + tool surface filtering: sales full CRUD, finance only search/get
       const alice = await newClient(baseUrl, AGENT_KEYS.sales, 'alice');
       clients.push(alice);
+
+      // ── 1b. session↔agent binding: a different (but valid) Bearer key cannot
+      // reuse a session established by another agent credential
+      const hijack = await fetch(`${baseUrl}/mcp`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          accept: 'application/json, text/event-stream',
+          authorization: `Bearer ${AGENT_KEYS.finance}`,
+          'x-weavekit-on-behalf-of': 'alice',
+          'mcp-session-id': alice.transport.sessionId!,
+        },
+        body: JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/list', params: {} }),
+      });
+      expect(hijack.status).toBe(400);
+      expect((await hijack.json() as { error?: { code?: string } }).error?.code).toBe('mcp.session.agentMismatch');
       const aliceTools = await alice.client.listTools();
       const aliceNames = aliceTools.tools.map((t) => t.name);
       expect(aliceNames).toContain('search_records');
@@ -284,8 +301,9 @@ maybe('MCP E2E (SDK Client + streamable HTTP + local PG): auth + session identit
       expect(actions).toContain('mcp.tool.search_records');
       expect(actions).toContain('mcp.tool.update_record');
       expect(actions).toContain('mcp.tool.get_record');
-      // agent identity: actor_id = agentKey
-      expect(auditRows.rows.some((r: { actor_id: string }) => r.actor_id === AGENT_KEYS.sales)).toBe(true);
+      // agent identity: actor_id = non-secret credential fingerprint of the agent key
+      const salesCredentialId = credentialIdOf(`Bearer ${AGENT_KEYS.sales}`);
+      expect(auditRows.rows.some((r: { actor_id: string }) => r.actor_id === salesCredentialId)).toBe(true);
       // denial audited as isError
       const denied = auditRows.rows.find((r: { action: string; is_error: boolean }) => r.action === 'mcp.tool.update_record' && r.is_error);
       expect(denied).toBeDefined();

@@ -86,7 +86,7 @@ function harness(options: { rateOk?: boolean; allowImpersonation?: boolean } = {
     engine,
     session: {
       id: 's1',
-      agentKey: 'key-1',
+      agentCredentialId: 'key-1',
       agentSubject: { id: 'agent', roles: ['agent'] },
       user,
       onBehalfOf: 'alice',

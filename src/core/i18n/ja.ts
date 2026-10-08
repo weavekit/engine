@@ -191,6 +191,7 @@ export const ja: Record<MessageKey, string> = {
   'approval.notFound': '保留中承認「{approvalKey}」が見つかりません',
   'mcp.onBehalfOf.missing': "MCP セッションには X-Weavekit-On-Behalf-Of ヘッダーが必要です",
   'mcp.identity.unknown': "身元 \"{ref}\" は不明です",
+  'mcp.session.agentMismatch': "MCP セッション \"{session}\" は別のエージェント資格情報に属しています",
   'mcp.session.notFound': "MCP セッション \"{session}\" が見つかりません",
   'mcp.tool.notFound': "MCP ツール \"{tool}\" が見つかりません",
   'mcp.rateLimited': "MCP レート制限を超過しました。後でもう一度お試しください",
