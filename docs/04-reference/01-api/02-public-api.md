@@ -60,6 +60,18 @@ The stable surface exists so you can extend the engine without patching internal
 - **Generic proxy** — `proxy.resolver` carries the application semantics.
 - **Protocol adapters** — the `adapters/*` registration functions.
 
+## 0.9 additions
+
+- **Deploy & schema revision** — `weave deploy plan|apply`; `computeSchemaHash` /
+  `writeSchemaRevision` / `latestSchemaRevision` (`runtime/metadata`).
+- **Audit durability** — `subsystems.audit.mode` (`best-effort` | `transactional` | `durable`),
+  `AUDIT_MODES`, `AuditSink.recordInTx`.
+- **Access principal** — `AccessPrincipal` / `SYSTEM_CAPABILITIES` / `userPrincipal` /
+  `systemPrincipal` (`core/types/principal.ts`). `DataAccessContext.principal` is the explicit field;
+  `subject` remains a deprecated user shorthand for compatibility.
+- **Cursor pagination** — `FindOptions.cursor` + `FindResult.nextCursor`/`hasMore`;
+  `encodeCursor` / `decodeCursor` (`runtime/data-access`).
+
 ## Dependency budget
 
 A headless engine should install anywhere and start fast, so the dependency surface is a product

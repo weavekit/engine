@@ -78,16 +78,30 @@ maybe('Script restricted SQL RLS E2E (native PG RLS + real PG)', () => {
       const again = await migrate(reg, { databaseUrl: url!, rls: { role: RLS_ROLE } });
       expect(again.statements).toEqual([]);
 
-      // parity: sales/u1 via db.objects (app-layer rowScope) vs db.query (RLS) row sets match
+      // parity gate: app-layer RBAC (`db.objects` rowScope) vs PostgreSQL RLS
+      // (`db.query`) must return the same row set for the same subject across the
+      // scope matrix (own / department / all). This is the release-gate harness.
       const dataAccess = withRbac(createDataAccess({}));
+      const matrix: Array<{ id: string; roles: string[]; departmentId?: string }> = [
+        { id: 'u1', roles: ['sales'], departmentId: 't1' },
+        { id: 'u9', roles: ['ops'], departmentId: 't1' },
+        { id: 'a1', roles: ['admin'] },
+      ];
+      for (const subject of matrix) {
+        const viaObjects = await dataAccess.find('lead', {}, { pool, registry: reg, subject });
+        const objectsIds = (viaObjects.rows as Array<{ id: string }>).map((r) => r.id).sort();
+        const queryIds = (await ids(subject)).sort();
+        expect(queryIds).toEqual(objectsIds);
+      }
+
+      // field-level: the app layer strips `fields.exclude` (`secret`); RLS never
+      // exposes it either (the SQL gate rejects selecting it)
       const own = await dataAccess.find(
         'lead',
         {},
         { pool, registry: reg, subject: { id: 'u1', roles: ['sales'], departmentId: 't1' } },
       );
-      const objectsIds = (own.rows as Array<{ id: string }>).map((r) => r.id).sort();
-      const queryIds = (await ids({ id: 'u1', roles: ['sales'], departmentId: 't1' })).sort();
-      expect(queryIds).toEqual(objectsIds);
+      expect(own.rows.every((r) => !('secret' in (r as Record<string, unknown>)))).toBe(true);
     } finally {
       await pool.query('DROP TABLE IF EXISTS lead CASCADE');
       await pool.end();

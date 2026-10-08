@@ -10,6 +10,8 @@ accepts `--json` for machine-readable output.
 | Command | Description |
 | --- | --- |
 | `weave migrate` | Sync metadata to PostgreSQL |
+| `weave deploy plan` | Preview the schema/DB changes for the next deploy (read-only) |
+| `weave deploy apply` | Apply the changes atomically and record a schema revision |
 | `weave dev` | Run with hot reload |
 | `weave build` | Bundle the app entry |
 | `weave test` | Proxy `node --test` |
@@ -65,14 +67,32 @@ metadata cache → auto-commit the `objects/` tree ([Git-versioned metadata](../
 - Runs against `migrationDatabaseUrl` (falling back to `databaseUrl`). This is the **same database,
   a separate account** — a migration/owner role with DDL rights — so the runtime account can be
   given no DDL. The engine never runs DDL at runtime.
-- Also provisions the engine's own system tables (`weavekit_metadata`, `weavekit_seq`,
-  `weavekit_audit`, `weavekit_approvals`, `weavekit_workflow_timers`, `weavekit_counters`,
-  `weavekit_meta`) and their row-level security. Run it at least once before the first boot; the
-  runtime account can then be least-privileged (`runtime.requireRestrictedAccount`, default on).
+- Also provisions the engine's own system tables (`weavekit_metadata`, `weavekit_schema_revision`,
+  `weavekit_seq`, `weavekit_audit`, `weavekit_audit_outbox`, `weavekit_approvals`,
+  `weavekit_workflow_timers`, `weavekit_counters`, `weavekit_meta`) and their row-level security. Run
+  it at least once before the first boot; the runtime account can then be least-privileged
+  (`runtime.requireRestrictedAccount`, default on).
 - Existing tables are validated **read-only** by default. A declared field with no matching column
   aborts with `object.field.columnMissing`. An object opts into additive auto-DDL with `"alter": true`
   in its `schema.json`. See
   [How migration handles existing tables](../03-model/02-schema/05-migrations.md).
+
+## `weave deploy plan` / `weave deploy apply`
+
+A deployment-oriented view of the same schema sync. Both run against
+`migrationDatabaseUrl` (falling back to `databaseUrl`):
+
+- `weave deploy plan` — **read-only** preview of the DDL the next apply would run, the objects that
+  would change, the aggregate **schema hash**, and a coarse risk level (`low` / `medium` / `high`).
+- `weave deploy apply` — applies the changes **atomically**: the DDL, the metadata cache and a global
+  **schema revision** (`weavekit_schema_revision`) commit in one transaction, serialized by an
+  advisory lock. A failure rolls everything back (no partial deploy). Prints the new revision id
+  (`(unchanged)` when the content hash already exists — re-applying the same schema writes no new
+  revision).
+
+`weave migrate` is the day-to-day command (it also auto-commits the `objects/` tree); `weave deploy`
+is the explicit, revision-recording path for release jobs. See
+[How migration handles existing tables](../03-model/02-schema/05-migrations.md).
 
 ## `weave dev [--port <n>]`
 

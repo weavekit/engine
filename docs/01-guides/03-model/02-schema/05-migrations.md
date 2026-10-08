@@ -31,6 +31,15 @@ existing table rejects the reload, keeps the running engine on the previous sche
 To see exactly how a schema maps to its live database — each field's expected column, type,
 constraints, and any drift — run `weave schema:map` ([CLI reference](../../09-platform/02-cli.md)).
 
+## Atomic deploys & schema revisions
+
+`weave deploy apply` (and `weave migrate`) commit the DDL, the metadata cache and a global **schema
+revision** in **one transaction** — an advisory lock serializes concurrent deploys, and any failure
+rolls the whole thing back, so Git, PostgreSQL and the metadata cache can never drift apart. Each
+apply records a revision in `weavekit_schema_revision`, keyed on a deterministic aggregate hash of
+the schema files; re-applying an unchanged schema writes no new revision. `weave deploy plan`
+previews the changes (read-only) with a risk level.
+
 ## Related
 
 - [Fields & types](02-fields-and-types.md)
