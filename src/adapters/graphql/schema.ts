@@ -13,7 +13,10 @@ import {
   printSchema,
   type GraphQLEnumValueConfigMap,
   type GraphQLFieldConfigMap,
+  type GraphQLInputFieldConfigMap,
+  type GraphQLInputType,
   type GraphQLOutputType,
+  type GraphQLScalarType,
 } from 'graphql';
 import {
   FIELD_TYPES,
@@ -23,24 +26,31 @@ import {
   type EnumField,
   type FieldDefinition,
   type FieldTypeRegistry,
+  type ObjectRegistry,
 } from '../../core/index.js';
 import { GraphQLJSON } from './scalars.js';
-import { listResolver, singleResolver } from './resolvers.js';
+import {
+  createResolver,
+  deleteResolver,
+  listResolver,
+  singleResolver,
+  transitionResolver,
+  updateResolver,
+} from './resolvers.js';
 import type { GraphQLContext, GraphQLEngine } from './types.js';
 
 /**
- * Compile the object registry into a GraphQL schema (Phase 1: scalar fields +
- * read-only Query). Build is **programmatic** (per the plan) so `printSchema`
- * can emit SDL for `weave graphql:schema`.
+ * Compile the object registry into a GraphQL schema.
  *
- * Field-level RBAC is enforced at resolve time (the resolvers call the
- * RBAC-decorated data-access layer), so the schema is identity-agnostic — a
- * denied object/field resolves to a `rbac.denied.*` error / null rather than
- * being clipped per identity.
+ * Phase 1: scalar fields + read-only Query. Phase 2: Mutations
+ * (`create`/`update`/`delete`, plus `transition` for objects with a workflow).
+ * Relations (`relation`/`details`/`multiRelation`) as output fields and nested
+ * loaders land in Phase 3.
  *
- * Relations (`relation`/`details`/`multiRelation`) and Mutations land in
- * Phases 2–3. `filter` is the free-form JSON filter (same contract as REST/MCP);
- * `sort` is a shared `SortInput` list.
+ * The schema is **identity-agnostic** (built once from the registry): RBAC is
+ * enforced at resolve time by the RBAC-decorated data-access layer, so a denied
+ * write raises a `rbac.denied.*` GraphQL error and a write is audited exactly as
+ * REST/MCP. Build is programmatic so `printSchema` can emit SDL.
  */
 
 const SORT_DIR = { ASC: 'asc', DESC: 'desc' } as const;
@@ -52,6 +62,15 @@ function pascalCase(snake: string): string {
     .filter((part) => part.length > 0)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join('');
+}
+
+/** engine-managed read-only fields (never writable): system, computed, sequence */
+function isReadonlyField(field: FieldDefinition): boolean {
+  return (
+    field.system === true ||
+    (field as { formula?: string }).formula !== undefined ||
+    field.type === FIELD_TYPES.SEQ_NO
+  );
 }
 
 /** a GraphQL-legal, unique enum value name for an arbitrary stored value */
@@ -89,7 +108,7 @@ function fieldType(
   objectName: string,
   cache: Map<string, GraphQLEnumType>,
 ): GraphQLOutputType | undefined {
-  if (isRelationLike(registry, field.type)) return undefined; // Phase 3
+  if (isRelationLike(registry, field.type)) return undefined; // Phase 3 (output relations)
   switch (fieldBase(registry, field.type)) {
     case FIELD_TYPES.SMALLINT:
     case FIELD_TYPES.INTEGER:
@@ -113,6 +132,42 @@ function fieldType(
   }
 }
 
+/** the GraphQL scalar for a relation target's primary key (fallback: String) */
+function pkType(target: string | undefined, registry: FieldTypeRegistry, objects: ObjectRegistry): GraphQLScalarType {
+  const pk = target === undefined ? undefined : objects.get(target)?.fields.find((f) => f.primary === true);
+  if (pk === undefined) return GraphQLString;
+  switch (fieldBase(registry, pk.type)) {
+    case FIELD_TYPES.SMALLINT:
+    case FIELD_TYPES.INTEGER:
+      return GraphQLInt;
+    case FIELD_TYPES.NUMBER:
+    case FIELD_TYPES.CURRENCY:
+    case FIELD_TYPES.REAL:
+    case FIELD_TYPES.DOUBLE:
+      return GraphQLFloat;
+    case FIELD_TYPES.BOOLEAN:
+      return GraphQLBoolean;
+    default:
+      return GraphQLString;
+  }
+}
+
+/** the GraphQL input type for one writable field, or undefined when it is not writable */
+function inputFieldType(
+  field: FieldDefinition,
+  registry: FieldTypeRegistry,
+  objectName: string,
+  objects: ObjectRegistry,
+  cache: Map<string, GraphQLEnumType>,
+): GraphQLInputType | undefined {
+  if (field.type === FIELD_TYPES.DETAILS || isReadonlyField(field)) return undefined;
+  if (isRelationLike(registry, field.type)) {
+    if (field.type === FIELD_TYPES.MULTI_RELATION) return new GraphQLList(GraphQLID); // record keys
+    return pkType((field as { target?: string }).target, registry, objects);
+  }
+  return fieldType(field, registry, objectName, cache) as GraphQLInputType | undefined;
+}
+
 /** the fields of one object type: scalar/enum/json columns + the read-only `weave_id` */
 function objectFields(
   def: { name: string; fields: FieldDefinition[] },
@@ -122,7 +177,7 @@ function objectFields(
   const fields: GraphQLFieldConfigMap<unknown, GraphQLContext> = {
     [RECORD_META_ID_FIELD]: {
       type: new GraphQLNonNull(GraphQLID),
-      description: "The record id (its `record_key`).",
+      description: 'The record id (its `record_key`).',
     },
   };
   for (const field of def.fields) {
@@ -131,6 +186,29 @@ function objectFields(
     fields[field.name] = { type, ...(field.description === undefined ? {} : { description: field.description }) };
   }
   return fields;
+}
+
+/** the `create`/`update` input object type for one object; undefined when it has no writable fields */
+function inputType(
+  kind: 'Create' | 'Update',
+  def: { name: string; fields: FieldDefinition[] },
+  registry: FieldTypeRegistry,
+  objects: ObjectRegistry,
+  cache: Map<string, GraphQLEnumType>,
+): GraphQLInputObjectType | undefined {
+  const fields: GraphQLInputFieldConfigMap = {};
+  for (const field of def.fields) {
+    if (kind === 'Update' && field.primary === true) continue; // primary keys are immutable
+    const type = inputFieldType(field, registry, def.name, objects, cache);
+    if (type === undefined) continue;
+    const required =
+      kind === 'Create' &&
+      (field as { required?: boolean }).required === true &&
+      (field as { default?: unknown }).default === undefined;
+    fields[field.name] = { type: required ? new GraphQLNonNull(type) : type };
+  }
+  if (Object.keys(fields).length === 0) return undefined; // GraphQL input types need ≥1 field
+  return new GraphQLInputObjectType({ name: `${pascalCase(def.name)}${kind}Input`, fields });
 }
 
 /** compile the registry into a GraphQL schema */
@@ -164,17 +242,23 @@ export function buildGraphQLSchema(engine: GraphQLEngine): GraphQLSchema {
   });
 
   const queryFields: GraphQLFieldConfigMap<unknown, GraphQLContext> = {};
+  const mutationFields: GraphQLFieldConfigMap<unknown, GraphQLContext> = {};
+  const extraTypes: GraphQLInputObjectType[] = [sortInput];
+
   for (const def of registry.list()) {
     const objectType = objectTypes.get(def.name) as GraphQLObjectType;
-    const pageType = new GraphQLObjectType({
-      name: `${pascalCase(def.name)}Page`,
-      fields: {
-        rows: { type: new GraphQLNonNull(new GraphQLList(new GraphQLNonNull(objectType))) },
-        total: { type: new GraphQLNonNull(GraphQLInt) },
-      },
-    });
+    const typeName = pascalCase(def.name);
+
     queryFields[def.name] = {
-      type: new GraphQLNonNull(pageType),
+      type: new GraphQLNonNull(
+        new GraphQLObjectType({
+          name: `${typeName}Page`,
+          fields: {
+            rows: { type: new GraphQLNonNull(new GraphQLList(new GraphQLNonNull(objectType))) },
+            total: { type: new GraphQLNonNull(GraphQLInt) },
+          },
+        }),
+      ),
       description: `List \`${def.name}\` records (row-scoped by RBAC).`,
       args: {
         filter: { type: GraphQLJSON, description: 'filter by exact values / operators; top-level `$or` groups' },
@@ -190,6 +274,45 @@ export function buildGraphQLSchema(engine: GraphQLEngine): GraphQLSchema {
       args: { id: { type: new GraphQLNonNull(GraphQLID) } },
       resolve: singleResolver(def.name),
     };
+
+    const createInput = inputType('Create', def, fieldTypes, registry, enumCache);
+    if (createInput !== undefined) {
+      extraTypes.push(createInput);
+      mutationFields[`create${typeName}`] = {
+        type: new GraphQLNonNull(objectType),
+        description: `Create a \`${def.name}\` record (RBAC-checked and audited).`,
+        args: { data: { type: new GraphQLNonNull(createInput) } },
+        resolve: createResolver(def.name),
+      };
+    }
+    const updateInput = inputType('Update', def, fieldTypes, registry, enumCache);
+    if (updateInput !== undefined) {
+      extraTypes.push(updateInput);
+      mutationFields[`update${typeName}`] = {
+        type: new GraphQLNonNull(objectType),
+        description: `Update a \`${def.name}\` record by its \`weave_id\`.`,
+        args: { id: { type: new GraphQLNonNull(GraphQLID) }, changes: { type: new GraphQLNonNull(updateInput) } },
+        resolve: updateResolver(def.name),
+      };
+    }
+    mutationFields[`delete${typeName}`] = {
+      type: new GraphQLNonNull(GraphQLBoolean),
+      description: `Delete a \`${def.name}\` record by its \`weave_id\`.`,
+      args: { id: { type: new GraphQLNonNull(GraphQLID) } },
+      resolve: deleteResolver(def.name),
+    };
+    if (def.workflow !== undefined) {
+      mutationFields[`transition${typeName}`] = {
+        type: new GraphQLNonNull(objectType),
+        description: `Run a workflow action on a \`${def.name}\` record.`,
+        args: {
+          id: { type: new GraphQLNonNull(GraphQLID) },
+          action: { type: new GraphQLNonNull(GraphQLString) },
+          payload: { type: GraphQLJSON },
+        },
+        resolve: transitionResolver(def.name),
+      };
+    }
   }
 
   queryFields._objectCount = {
@@ -198,9 +321,11 @@ export function buildGraphQLSchema(engine: GraphQLEngine): GraphQLSchema {
     resolve: () => registry.list().length,
   };
 
+  const hasObjects = registry.list().length > 0;
   return new GraphQLSchema({
     query: new GraphQLObjectType({ name: 'Query', fields: queryFields }),
-    types: [sortInput],
+    ...(hasObjects ? { mutation: new GraphQLObjectType({ name: 'Mutation', fields: mutationFields }) } : {}),
+    types: extraTypes,
   });
 }
 

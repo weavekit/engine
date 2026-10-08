@@ -94,3 +94,56 @@ export function singleResolver(objectName: string) {
     return record ?? null;
   };
 }
+
+/** `create<Object>(data:)` — create one record (RBAC-checked + audited by data-access) */
+export function createResolver(objectName: string) {
+  return async (_parent: unknown, args: { data: Record<string, unknown> }, context: GraphQLContext): Promise<unknown> => {
+    return guard(
+      () => context.engine.dataAccess.create(objectName, args.data, dataContext(context)),
+      context.engine.locale,
+    );
+  };
+}
+
+/** `update<Object>(id:, changes:)` — update one record by its `weave_id` */
+export function updateResolver(objectName: string) {
+  return async (
+    _parent: unknown,
+    args: { id: string; changes: Record<string, unknown> },
+    context: GraphQLContext,
+  ): Promise<unknown> => {
+    return guard(
+      () => context.engine.dataAccess.update(objectName, args.id, args.changes, dataContext(context)),
+      context.engine.locale,
+    );
+  };
+}
+
+/** `delete<Object>(id:)` — delete one record; returns true (throws when absent/denied) */
+export function deleteResolver(objectName: string) {
+  return async (_parent: unknown, args: { id: string }, context: GraphQLContext): Promise<boolean> => {
+    await guard(() => context.engine.dataAccess.delete(objectName, args.id, dataContext(context)), context.engine.locale);
+    return true;
+  };
+}
+
+/** `transition<Object>(id:, action:, payload:)` — run a workflow action */
+export function transitionResolver(objectName: string) {
+  return async (
+    _parent: unknown,
+    args: { id: string; action: string; payload?: Record<string, unknown> },
+    context: GraphQLContext,
+  ): Promise<unknown> => {
+    return guard(
+      () =>
+        context.engine.dataAccess.transition(
+          objectName,
+          args.id,
+          args.action,
+          dataContext(context),
+          args.payload ?? undefined,
+        ),
+      context.engine.locale,
+    );
+  };
+}
