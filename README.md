@@ -1,15 +1,16 @@
 <h1 align="center">Let AI agents operate your data — safely</h1>
 
-Define your data model once in `schema.json`, and WeaveKit compiles it into PostgreSQL tables, a
-REST API with row- and field-level RBAC, an immutable audit log, and an MCP tool surface that AI
-agents call with typed tools — never raw SQL. Self-hosted: your data stays in your database.
+Define your data model once in `schema.json`, and WeaveKit compiles it into PostgreSQL tables, REST
+and GraphQL APIs with row- and field-level RBAC, an immutable audit log with execution evidence, and
+an MCP tool surface that AI agents call with typed tools — never raw SQL. Self-hosted: your data
+stays in your database.
 
 ```
 objects/leads/schema.json   →   Git commit (source of truth)
                                 PostgreSQL tables + indexes + RLS
-                                REST API (CRUD + RBAC)
-                                MCP tools (per-identity surface + guardrails)
-                                Immutable audit log
+                                REST + GraphQL APIs (CRUD + RBAC)
+                                MCP tools (per-identity surface + guardrails + approvals)
+                                Immutable audit log + execution evidence
                                 TypeScript types
 ```
 
@@ -29,8 +30,8 @@ objects/leads/schema.json   →   Git commit (source of truth)
 - **Typed tools in minutes, not weeks** — hand-writing an MCP server (tools + permissions + audit)
   for a few tables takes days; here it is a few `schema.json` files, and new fields or tables
   extend the tool surface automatically.
-- **More than MCP** — the same schema also drives a REST API and generated TypeScript types, so
-  people and agents share one governed contract.
+- **More than MCP** — the same schema also drives REST and GraphQL APIs and generated TypeScript
+  types, so people and agents share one governed contract.
 - **Self-hosted** — the engine runs in your environment; no data leaves your database.
 
 ## How it works
@@ -52,12 +53,23 @@ write.
   types. Declared in a project-local, Git-committed `field-types/` directory.
 - **Named enums** — declare a shared enum once in `enums/` and reference it from any object by
   `enumType`; every field shares one native PostgreSQL type and one set of per-value labels.
-- **Governed REST API** — object CRUD with row-level (`all`/`own`/`team`) and field-level RBAC and a
-  uniform error contract.
+- **Governed REST API** — object CRUD with row-level (`all`/`own`/`department`) and field-level RBAC
+  and a uniform error contract.
 - **MCP tool surface** — a streamable HTTP endpoint at `/mcp` with a per-identity tool surface and
   guardrails.
 - **GraphQL API** — an opt-in read/write GraphQL endpoint compiled from the same `schema.json`, with
   nested relations, the same RBAC/audit, per-request batching and query hardening.
+- **Schema revisions & atomic deploys** — `weave deploy plan` previews the diff; `weave deploy apply`
+  commits the DDL, the metadata cache and a global **schema revision** in one transaction (no
+  half-applied deploys).
+- **Agent execution pipeline** — every write and tool call runs through one
+  Plan → Validate → Authorize → Guardrail → Approval → Execute → Commit → Evidence pipeline, so
+  guardrails and approvals cover REST, MCP and GraphQL alike; enable `evidence` to record a
+  `weavekit_evidence` row per execution (correlated by request / trace / schema revision).
+- **Query budget** — bound a read/query across the engine: rows, filters and sorts in data-access,
+  joins / SQL length / statement timeout in restricted SQL, and GraphQL depth.
+- **Multi-tenancy (row)** — mark a field `"tenant": true` and every read/write is scoped to the
+  subject's tenant (RBAC row scope + PostgreSQL RLS + audit); single-tenant by default.
 - **Audit log** — an immutable event log for data mutations.
 - **Sandboxed hooks** — `*.server.js` lifecycle hooks running in isolated workers.
 - **Type generation** — object-level TypeScript types derived from the schema.
@@ -135,6 +147,7 @@ await engine.app.listen({ port: 3000 });
 | Command | Description |
 | --- | --- |
 | `weave migrate [--dry-run]` | State-diff migration + metadata cache + auto-commit |
+| `weave deploy plan` / `weave deploy apply` | Preview / atomically apply schema changes and record a global schema revision |
 | `weave dev [--port]` | Run with hot reload |
 | `weave build` | Bundle the server entry (esbuild) |
 | `weave test` | Proxy the project test suite |
@@ -152,7 +165,7 @@ await engine.app.listen({ port: 3000 });
 | `weave field-type:check` | Validate registrations + schemas against the registry |
 | `weave enum:list` | List declared named enums (`enums/<name>.json`) |
 | `weave enum:check` | Validate enum declarations + schema references |
-| `weave module:add` / `module:remove <name>` | Enable/disable an optional subsystem (audit/script) |
+| `weave module:add` / `module:remove <name>` | Enable/disable an optional subsystem (audit/script/workflow) |
 
 ## Object-level types
 
