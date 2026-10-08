@@ -20,6 +20,7 @@ accepts `--json` for machine-readable output.
 | `weave schema:map [object]` | Report the schema field ↔ PostgreSQL column mapping |
 | `weave schema:upgrade [--dry-run]` | Upgrade `objects/*/schema.json` to the current format version |
 | `weave openapi [--out <file>] [--generic] [--server <url>]` | Emit an OpenAPI 3.1 document for the REST API |
+| `weave graphql:schema [--out <file>]` | Emit the GraphQL SDL for this project |
 | `weave object:create <name>` | Scaffold an object (schema.json + server.js hooks) |
 | `weave field:add <object>` | Add a field to an object's schema.json |
 | `weave field-type:list` | List built-in + registered field types |
@@ -190,6 +191,12 @@ events).
 
 Feed the file to Swagger UI, or generate a typed client with any OpenAPI code generator. The stable
 API equivalent is `buildOpenApiDocument()` (see [public API](../../04-reference/01-api/02-public-api.md)).
+
+## `weave graphql:schema [--out <file>]`
+
+Writes the **GraphQL SDL** compiled from this project's objects — no database needed. With `--out -`
+(or no `--out`) it prints to stdout; otherwise it writes the file. Useful for client codegen or review.
+The endpoint itself is opt-in via `adapters.graphql.enabled` — see [GraphQL](../08-integration/06-graphql.md).
 
 ## `weave object:create <name>`
 

@@ -16,6 +16,7 @@ import { migrate } from './commands/migrate.js';
 import { moduleToggle } from './commands/module.js';
 import { objectCreate } from './commands/object-create.js';
 import { openapi } from './commands/openapi.js';
+import { graphqlSchema } from './commands/graphql-schema.js';
 import { migratePages } from './commands/pages-migrate.js';
 import { schemaMap } from './commands/schema-map.js';
 import { schemaUpgrade } from './commands/schema-upgrade.js';
@@ -205,6 +206,14 @@ program
     await runAction(() =>
       openapi(process.cwd(), { out: opts.out, generic: opts.generic, server: opts.server, printer: printer() }),
     );
+  });
+
+program
+  .command(WEAVE_COMMANDS.GRAPHQL_SCHEMA)
+  .description("emit the GraphQL SDL for this project (no database needed)")
+  .option('--out <file>', 'output file; "-" prints to stdout')
+  .action(async (opts: { out?: string }) => {
+    await runAction(() => graphqlSchema(process.cwd(), { out: opts.out, printer: printer() }));
   });
 
 program

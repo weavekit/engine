@@ -12,3 +12,4 @@ engine that isn't directly routable.
 - [Inbound events](03-ingress.md) — signed webhooks mapped to engine actions
 - [Generic proxy](04-proxy.md) — a path-allowlisted gateway to other instances
 - [Tunnel transport](05-tunnel.md) — reach a NAT'd engine over an outbound HTTP/2 tunnel
+- [GraphQL](06-graphql.md) — a read/write GraphQL endpoint from the same schema

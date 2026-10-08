@@ -30,7 +30,7 @@ The pitch and quick start live in the [repository README](../README.md).
 - [Agents](01-guides/05-agents/01-overview.md) — MCP, custom tools & guardrails, approvals
 - [Workflow](01-guides/06-workflow/01-overview.md) — per-object approval chains
 - [Automation](01-guides/07-automation/01-overview.md) — script hooks and quotas
-- [Integration](01-guides/08-integration/01-overview.md) — live events, inbound events, proxy, tunnel
+- [Integration](01-guides/08-integration/01-overview.md) — live events, inbound events, proxy, tunnel, GraphQL
 - [Platform](01-guides/09-platform/01-overview.md) — CLI, audit, i18n
 
 ## Operations

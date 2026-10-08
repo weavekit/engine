@@ -42,7 +42,7 @@ import {
   transitionResolver,
   updateResolver,
 } from './resolvers.js';
-import type { GraphQLContext, GraphQLEngine } from './types.js';
+import type { GraphQLContext } from './types.js';
 
 /**
  * Compile the object registry into a GraphQL schema.
@@ -255,9 +255,9 @@ function inputType(
   return new GraphQLInputObjectType({ name: `${pascalCase(def.name)}${kind}Input`, fields });
 }
 
-/** compile the registry into a GraphQL schema */
-export function buildGraphQLSchema(engine: GraphQLEngine): GraphQLSchema {
-  const registry = engine.registry;
+/** compile the registry into a GraphQL schema (only the registry is needed; no data-access) */
+export function buildGraphQLSchema(input: { registry: ObjectRegistry }): GraphQLSchema {
+  const registry = input.registry;
   const fieldTypes = registry.fieldTypes;
   const enumCache = new Map<string, GraphQLEnumType>();
   const objectTypes = new Map<string, GraphQLObjectType>();

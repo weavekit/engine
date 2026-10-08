@@ -200,3 +200,10 @@ export interface OpenApiOptions {
   server?: string;
   printer: CliPrinter;
 }
+
+/** `weave graphql:schema` options */
+export interface GraphQLSchemaOptions {
+  /** output file; absent or `-` prints SDL to stdout */
+  out?: string;
+  printer: CliPrinter;
+}

@@ -35,6 +35,7 @@ export const WEAVE_COMMANDS = {
   IDENTITY_DISABLE: 'identity:disable',
   IDENTITY_ENABLE: 'identity:enable',
   OPENAPI: 'openapi',
+  GRAPHQL_SCHEMA: 'graphql:schema',
 } as const;
 export type WeaveCommand = typeof WEAVE_COMMANDS[keyof typeof WEAVE_COMMANDS];
 

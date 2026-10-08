@@ -25,7 +25,8 @@ contracts (`core/*`), data access, identity (the `core/provider/identity` contra
 `createPgIdentitySource`, `createFunctionIdentitySource`, `PgIdentityStore`, `PgIdentityDirectory`,
 `IdentityAdmin`, `createDirectoryAuthenticator`, `enforceSyncedIdentity`), [Git metadata
 sync](../../01-guides/03-model/04-git-versioned-metadata.md), custom tools, the generic proxy, the protocol adapters
-(auth/rest/mcp/events), the OpenAPI document generator (`buildOpenApiDocument`), the named-enum
+(auth/rest/mcp/events/graphql), the OpenAPI document generator (`buildOpenApiDocument`), the GraphQL
+schema builder (`buildGraphQLSchema` / `registerGraphQL`), the named-enum
 registry (`EnumDefinition` / `EnumRegistry` / `buildEnumRegistry` / `validateEnumDefinition` /
 `loadEnumsDir` / `resolveEnumRegistry`), the audit/script
 contract types, and the scaffolder (`scaffoldProject`, `PROJECT_TYPES`).
