@@ -259,4 +259,7 @@ export const ar: Record<MessageKey, string> = {
   'enum.invalid': 'تعريف enum غير صالح: {detail}',
   'enum.unknown': 'الكائن "{object}": الحقل "{field}" يشير إلى enum غير معروف "{enum}"',
   'enum.options.mismatch': 'الكائن "{object}": الخيارات المضمّنة للحقل "{field}" لا تطابق enum "{enum}"',
+  'graphql.depthExceeded': 'عمق استعلام GraphQL {depth} يتجاوز الحد الأقصى {max}',
+  'graphql.complexityExceeded': 'تعقيد استعلام GraphQL {cost} يتجاوز الحد الأقصى {max}',
+  'graphql.aliasExceeded': 'استعلام GraphQL يستخدم {count} اسمًا مستعارًا، متجاوزًا الحد الأقصى {max}',
 } as const;

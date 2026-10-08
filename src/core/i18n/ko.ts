@@ -259,4 +259,7 @@ export const ko: Record<MessageKey, string> = {
   'enum.invalid': 'enum 선언이 유효하지 않습니다: {detail}',
   'enum.unknown': '객체 "{object}": 필드 "{field}"이(가) 알 수 없는 enum "{enum}"을(를) 참조합니다',
   'enum.options.mismatch': '객체 "{object}": 필드 "{field}"의 인라인 options이 enum "{enum}"과(와) 일치하지 않습니다',
+  'graphql.depthExceeded': 'GraphQL 쿼리 깊이 {depth}이(가) 최대값 {max}을(를) 초과했습니다',
+  'graphql.complexityExceeded': 'GraphQL 쿼리 복잡도 {cost}이(가) 최대값 {max}을(를) 초과했습니다',
+  'graphql.aliasExceeded': 'GraphQL 쿼리 별칭 {count}개가 최대값 {max}을(를) 초과했습니다',
 } as const;

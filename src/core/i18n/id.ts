@@ -259,4 +259,7 @@ export const id: Record<MessageKey, string> = {
   'enum.invalid': 'deklarasi enum tidak valid: {detail}',
   'enum.unknown': 'objek "{object}": field "{field}" mereferensikan enum yang tidak dikenal "{enum}"',
   'enum.options.mismatch': 'objek "{object}": options inline field "{field}" tidak cocok dengan enum "{enum}"',
+  'graphql.depthExceeded': 'Kedalaman kueri GraphQL {depth} melebihi maksimum {max}',
+  'graphql.complexityExceeded': 'Kompleksitas kueri GraphQL {cost} melebihi maksimum {max}',
+  'graphql.aliasExceeded': 'Kueri GraphQL menggunakan {count} alias, melebihi maksimum {max}',
 } as const;

@@ -259,4 +259,7 @@ export const ru: Record<MessageKey, string> = {
   'enum.invalid': 'некорректное объявление enum: {detail}',
   'enum.unknown': 'объект "{object}": поле "{field}" ссылается на неизвестный enum "{enum}"',
   'enum.options.mismatch': 'объект "{object}": встроенные options поля "{field}" не совпадают с enum "{enum}"',
+  'graphql.depthExceeded': 'Глубина GraphQL-запроса {depth} превышает максимум {max}',
+  'graphql.complexityExceeded': 'Сложность GraphQL-запроса {cost} превышает максимум {max}',
+  'graphql.aliasExceeded': 'GraphQL-запрос использует {count} псевдонимов, превышая максимум {max}',
 } as const;

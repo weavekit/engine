@@ -256,6 +256,9 @@ export const en = {
   'enum.invalid': 'enum declaration invalid: {detail}',
   'enum.unknown': 'object "{object}": field "{field}" references unknown enum "{enum}"',
   'enum.options.mismatch': 'object "{object}": field "{field}" inline options do not match enum "{enum}"',
+  'graphql.depthExceeded': 'GraphQL query depth {depth} exceeds the maximum of {max}',
+  'graphql.complexityExceeded': 'GraphQL query complexity {cost} exceeds the maximum of {max}',
+  'graphql.aliasExceeded': 'GraphQL query uses {count} aliases, exceeding the maximum of {max}',
 } as const;
 
 export type MessageKey = keyof typeof en;

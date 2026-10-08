@@ -259,4 +259,7 @@ export const zhHant: Record<MessageKey, string> = {
   'enum.invalid': '列舉宣告無效：{detail}',
   'enum.unknown': '物件「{object}」：欄位「{field}」引用了不存在的列舉「{enum}」',
   'enum.options.mismatch': '物件「{object}」：欄位「{field}」的內聯 options 與列舉「{enum}」不一致',
+  'graphql.depthExceeded': 'GraphQL 查詢深度 {depth} 超過上限 {max}',
+  'graphql.complexityExceeded': 'GraphQL 查詢複雜度 {cost} 超過上限 {max}',
+  'graphql.aliasExceeded': 'GraphQL 查詢使用了 {count} 個別名，超過上限 {max}',
 } as const;

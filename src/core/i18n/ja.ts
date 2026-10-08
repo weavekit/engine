@@ -259,4 +259,7 @@ export const ja: Record<MessageKey, string> = {
   'enum.invalid': 'enum 宣言が無効です: {detail}',
   'enum.unknown': 'オブジェクト「{object}」：フィールド「{field}」が不明な enum「{enum}」を参照しています',
   'enum.options.mismatch': 'オブジェクト「{object}」：フィールド「{field}」のインライン options が enum「{enum}」と一致しません',
+  'graphql.depthExceeded': 'GraphQL クエリの深さ {depth} が上限 {max} を超えています',
+  'graphql.complexityExceeded': 'GraphQL クエリの複雑度 {cost} が上限 {max} を超えています',
+  'graphql.aliasExceeded': 'GraphQL クエリのエイリアス数 {count} が上限 {max} を超えています',
 } as const;

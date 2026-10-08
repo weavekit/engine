@@ -1,5 +1,5 @@
 import type { Pool } from 'pg';
-import type { Locale, ObjectRegistry } from '../../core/index.js';
+import type { IdentitySubject, Locale, ObjectRegistry } from '../../core/index.js';
 import type { ObjectDataAccess } from '../../runtime/data-access/index.js';
 
 /**
@@ -13,6 +13,12 @@ export interface GraphQLEngine {
   pool: Pool;
   dataAccess: ObjectDataAccess;
   locale: Locale;
+}
+
+/** per-request GraphQL execution context (the authenticated subject + engine). */
+export interface GraphQLContext {
+  subject: IdentitySubject;
+  engine: GraphQLEngine;
 }
 
 /**

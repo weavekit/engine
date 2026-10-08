@@ -258,4 +258,7 @@ export const zh: Record<MessageKey, string> = {
   'enum.invalid': '枚举声明无效：{detail}',
   'enum.unknown': '对象 "{object}"：字段 "{field}" 引用了不存在的枚举 "{enum}"',
   'enum.options.mismatch': '对象 "{object}"：字段 "{field}" 的内联 options 与枚举 "{enum}" 不一致',
+  'graphql.depthExceeded': 'GraphQL 查询深度 {depth} 超过上限 {max}',
+  'graphql.complexityExceeded': 'GraphQL 查询复杂度 {cost} 超过上限 {max}',
+  'graphql.aliasExceeded': 'GraphQL 查询使用了 {count} 个别名，超过上限 {max}',
 } as const;

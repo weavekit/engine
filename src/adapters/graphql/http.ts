@@ -1,8 +1,9 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
-import { graphql, type GraphQLSchema } from 'graphql';
-import { createSlidingWindow, type IdentitySubject, type Locale } from '../../core/index.js';
+import { execute, GraphQLError, parse, validate, type GraphQLSchema } from 'graphql';
+import { createSlidingWindow, SchemaError, type IdentitySubject, type Locale } from '../../core/index.js';
 import { mapSchemaError } from '../../core/api/index.js';
 import { authenticate, type Authenticator } from '../auth/index.js';
+import { resolveSecurity, validateQuery } from './security.js';
 import type { EngineGraphQLConfig, GraphQLEngine } from './types.js';
 
 /**
@@ -10,12 +11,10 @@ import type { EngineGraphQLConfig, GraphQLEngine } from './types.js';
  *
  * A thin, dependency-light HTTP handler (per the plan's decision 1B): the engine
  * ships `graphql` as its only new runtime dependency and speaks GraphQL-over-HTTP
- * itself. Authentication happens **before** execution — a missing/invalid Bearer
- * key is a plain `401` (never a GraphQL error). Execution errors are returned as
- * `200 { errors }` per the over-HTTP spec.
- *
- * Phase 0 wires auth + execution against a placeholder schema; field-level RBAC,
- * nested loaders and query hardening land in later phases.
+ * itself. Request order: authenticate (plain `401`) → rate limit → parse →
+ * validate → query hardening (depth/complexity/alias) → execute. GraphQL-level
+ * problems (parse/validate/execute) return `200 { errors }`; a rejected security
+ * limit carries its stable code in `errors[].extensions.code`.
  */
 
 export interface GraphQLRouteDeps {
@@ -29,6 +28,17 @@ export interface GraphQLRouteDeps {
 /** uniform error body (matches the REST/MCP contract) */
 function errorBody(code: string, message: string, params?: Record<string, unknown>): Record<string, unknown> {
   return { error: { code, message, ...(params === undefined ? {} : { params }) } };
+}
+
+function formatError(error: GraphQLError): Record<string, unknown> {
+  return {
+    message: error.message,
+    ...(error.locations === undefined ? {} : { locations: error.locations }),
+    ...(error.path === undefined ? {} : { path: error.path }),
+    ...(error.extensions === undefined || Object.keys(error.extensions).length === 0
+      ? {}
+      : { extensions: error.extensions }),
+  };
 }
 
 interface ParsedOperation {
@@ -89,6 +99,7 @@ function isParsed(value: ParsedOperation | Record<string, unknown>): value is Pa
 export function registerGraphQLRoutes(app: FastifyInstance, deps: GraphQLRouteDeps): void {
   const path = deps.graphql?.prefix ?? '/graphql';
   const limiter = deps.graphql?.rateLimit === undefined ? undefined : createSlidingWindow(deps.graphql.rateLimit);
+  const security = resolveSecurity(deps.graphql?.security);
 
   app.route({
     method: ['POST', 'GET'],
@@ -119,9 +130,41 @@ export function registerGraphQLRoutes(app: FastifyInstance, deps: GraphQLRouteDe
         return;
       }
 
-      const result = await graphql({
+      // parse → validate → harden → execute (all GraphQL-level failures are 200)
+      let document;
+      try {
+        document = parse(parsed.query);
+      } catch (error) {
+        reply.status(200).send({ errors: [formatError(error as GraphQLError)] });
+        return;
+      }
+
+      const validationErrors = validate(deps.schema, document);
+      if (validationErrors.length > 0) {
+        reply.status(200).send({ errors: validationErrors.map(formatError) });
+        return;
+      }
+
+      try {
+        validateQuery(document, security, deps.locale);
+      } catch (error) {
+        if (error instanceof SchemaError) {
+          reply.status(200).send({
+            errors: [
+              {
+                message: error.localize(deps.locale),
+                extensions: { code: error.code, ...(Object.keys(error.params).length === 0 ? {} : { params: error.params }) },
+              },
+            ],
+          });
+          return;
+        }
+        throw error;
+      }
+
+      const result = await execute({
         schema: deps.schema,
-        source: parsed.query,
+        document,
         ...(parsed.variables === undefined ? {} : { variableValues: parsed.variables }),
         ...(parsed.operationName === undefined ? {} : { operationName: parsed.operationName }),
         contextValue: { subject, engine: deps.engine },
@@ -129,16 +172,7 @@ export function registerGraphQLRoutes(app: FastifyInstance, deps: GraphQLRouteDe
 
       const body: Record<string, unknown> = {};
       if (result.data !== undefined) body.data = result.data;
-      if (result.errors !== undefined) {
-        body.errors = result.errors.map((error) => ({
-          message: error.message,
-          ...(error.locations === undefined ? {} : { locations: error.locations }),
-          ...(error.path === undefined ? {} : { path: error.path }),
-          ...(error.extensions === undefined || Object.keys(error.extensions).length === 0
-            ? {}
-            : { extensions: error.extensions }),
-        }));
-      }
+      if (result.errors !== undefined) body.errors = result.errors.map(formatError);
       reply.status(200).send(body);
     },
   });

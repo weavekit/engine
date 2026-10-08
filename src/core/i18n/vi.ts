@@ -259,4 +259,7 @@ export const vi: Record<MessageKey, string> = {
   'enum.invalid': 'khai báo enum không hợp lệ: {detail}',
   'enum.unknown': 'đối tượng "{object}": trường "{field}" tham chiếu enum không tồn tại "{enum}"',
   'enum.options.mismatch': 'đối tượng "{object}": options nội tuyến của trường "{field}" không khớp với enum "{enum}"',
+  'graphql.depthExceeded': 'Độ sâu truy vấn GraphQL {depth} vượt quá mức tối đa {max}',
+  'graphql.complexityExceeded': 'Độ phức tạp truy vấn GraphQL {cost} vượt quá mức tối đa {max}',
+  'graphql.aliasExceeded': 'Truy vấn GraphQL dùng {count} bí danh, vượt quá mức tối đa {max}',
 } as const;

@@ -259,4 +259,7 @@ export const es: Record<MessageKey, string> = {
   'enum.invalid': 'declaración de enum no válida: {detail}',
   'enum.unknown': 'objeto "{object}": el campo "{field}" referencia un enum desconocido "{enum}"',
   'enum.options.mismatch': 'objeto "{object}": las options en línea del campo "{field}" no coinciden con el enum "{enum}"',
+  'graphql.depthExceeded': 'La profundidad de la consulta GraphQL {depth} supera el máximo de {max}',
+  'graphql.complexityExceeded': 'La complejidad de la consulta GraphQL {cost} supera el máximo de {max}',
+  'graphql.aliasExceeded': 'La consulta GraphQL usa {count} alias, superando el máximo de {max}',
 } as const;

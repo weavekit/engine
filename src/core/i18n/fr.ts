@@ -259,4 +259,7 @@ export const fr: Record<MessageKey, string> = {
   'enum.invalid': 'déclaration enum invalide : {detail}',
   'enum.unknown': 'objet "{object}" : le champ "{field}" référence un enum inconnu "{enum}"',
   'enum.options.mismatch': 'objet "{object}" : les options en ligne du champ "{field}" ne correspondent pas à l\'enum "{enum}"',
+  'graphql.depthExceeded': 'La profondeur de la requête GraphQL {depth} dépasse le maximum de {max}',
+  'graphql.complexityExceeded': 'La complexité de la requête GraphQL {cost} dépasse le maximum de {max}',
+  'graphql.aliasExceeded': 'La requête GraphQL utilise {count} alias, dépassant le maximum de {max}',
 } as const;

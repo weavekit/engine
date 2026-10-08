@@ -259,4 +259,7 @@ export const hi: Record<MessageKey, string> = {
   'enum.invalid': 'enum घोषणा अमान्य: {detail}',
   'enum.unknown': 'ऑब्जेक्ट "{object}": फ़ील्ड "{field}" अज्ञात enum "{enum}" को संदर्भित करता है',
   'enum.options.mismatch': 'ऑब्जेक्ट "{object}": फ़ील्ड "{field}" के इनलाइन options enum "{enum}" से मेल नहीं खाते',
+  'graphql.depthExceeded': 'GraphQL क्वेरी गहराई {depth} अधिकतम {max} से अधिक है',
+  'graphql.complexityExceeded': 'GraphQL क्वेरी जटिलता {cost} अधिकतम {max} से अधिक है',
+  'graphql.aliasExceeded': 'GraphQL क्वेरी {count} उपनाम उपयोग करती है, जो अधिकतम {max} से अधिक है',
 } as const;
