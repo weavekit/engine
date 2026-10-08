@@ -3,6 +3,16 @@
 All notable changes to `@weave-kit/engine`. Format follows [Keep a Changelog](https://keepachangelog.com/);
 the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.10.0]
+
+### Added
+
+- **QueryBudget.** `EngineConfig.queryBudget` bounds a read/query across the engine:
+  rows / filters / sorts in data-access (all list paths), joins / SQL length / statement timeout in
+  restricted SQL (`this.db.query`), and GraphQL depth. Exported `QueryBudget` / `QUERY_BUDGET_DEFAULTS`
+  / `resolveQueryBudget` / `assertQueryBudget` (`runtime/data-access/query-budget.ts`); a per-context
+  `DataAccessContext.budget` overrides the instance default. Additive — default limits only.
+
 ## [0.9.0]
 
 A **breaking** consistency/authorization release. Read the **Breaking** section before upgrading.
