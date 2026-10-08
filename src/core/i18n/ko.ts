@@ -253,6 +253,7 @@ export const ko: Record<MessageKey, string> = {
   'workflow.transition.notAllowed': '개체 "{object}": 상태 "{from}"에서 전환 "{action}"이(가) 허용되지 않습니다',
   'workflow.transition.required': '개체 "{object}": 필드 "{field}"은(는) 워크플로가 관리합니다 — 전환으로 변경하세요',
   'workflow.transition.denied': '개체 "{object}": 역할 "{role}"은(는) 전환 "{action}"을(를) 실행할 수 없습니다',
+  'object.action.pending': "\"{object}\"의 {action} 작업이 승인 대기 중입니다 ({approvalKey})",
   'workflow.transition.pending': '개체 "{object}": 전환 "{action}"에 승인이 필요합니다 — 승인 키 "{approvalKey}"',
   'workflow.approval.unavailable': '개체 "{object}": 전환 "{action}"에는 승인이 필요하지만 승인 대기열이 구성되지 않았습니다',
   'workflow.version.invalid': '객체 "{object}": workflow.version는 양의 정수여야 합니다',

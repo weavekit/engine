@@ -509,6 +509,45 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
     return result.rows[0] ?? null;
   }
 
+  /**
+   * Guardrail/approval gate for a data-access write (create/update/delete).
+   * Runs only when policies are configured (`policies=[]` → zero overhead) and
+   * is protocol-agnostic (action `object.<object>.<op>`), so REST / MCP /
+   * GraphQL / script writes are all covered from this single choke point.
+   * Deny throws; a `requiresApproval` policy throws with the approval key.
+   */
+  private async guardWrite(
+    op: string,
+    objectName: string,
+    ctx: DataAccessContext,
+    args: Record<string, unknown>,
+  ): Promise<void> {
+    if (this.policies.length === 0) return;
+    const action = `object.${objectName}.${op}`;
+    const subject = subjectOf(ctx);
+    const actorId = principalActorId(ctx.principal);
+    const guardrailCtx: GuardrailContext = {
+      actor: { key: actorId, label: subject?.id ?? 'system', onBehalfOf: subject?.id ?? actorId },
+      subject: subject ?? { id: 'system', roles: [] },
+      action,
+      args,
+      dataAccess: toolDataAccessOver(this, {
+        pool: ctx.pool,
+        registry: ctx.registry,
+        principal: ctx.principal,
+        ...(ctx.locale === undefined ? {} : { locale: ctx.locale }),
+        ...(ctx.client === undefined ? {} : { client: ctx.client }),
+      }),
+    };
+    const gate = await evaluateTransition(this.policies, this.approvals, guardrailCtx, false);
+    if (gate.kind === 'deny') {
+      throw new SchemaError(gate.code, { object: objectName, action, reason: gate.reason ?? '' }, ctx.locale);
+    }
+    if (gate.kind === 'pending') {
+      throw new SchemaError('object.action.pending', { object: objectName, action, approvalKey: gate.approvalKey }, ctx.locale);
+    }
+  }
+
   async create<T = Record<string, unknown>>(
     objectName: string,
     data: Record<string, unknown>,
@@ -518,6 +557,7 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
     if (primaryNames(def).length === 0) {
       throw new SchemaError('data.recordNotFound', { object: objectName }, ctx.locale);
     }
+    await this.guardWrite('create', objectName, ctx, data);
     let client: PoolClient;
     let owned = false;
     if (ctx.client !== undefined) {
@@ -659,6 +699,7 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
       throw new SchemaError('data.recordNotFound', { object: objectName, id }, ctx.locale);
     }
     const pkValues = pkValuesOf(def, id, ctx);
+    await this.guardWrite('update', objectName, ctx, changes);
     let client: PoolClient;
     let owned = false;
     if (ctx.client !== undefined) {
@@ -983,6 +1024,7 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
       throw new SchemaError('data.recordNotFound', { object: objectName, id }, ctx.locale);
     }
     const pkValues = pkValuesOf(def, id, ctx);
+    await this.guardWrite('delete', objectName, ctx, {});
     let client: PoolClient;
     let owned = false;
     if (ctx.client !== undefined) {

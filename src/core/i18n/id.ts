@@ -253,6 +253,7 @@ export const id: Record<MessageKey, string> = {
   'workflow.transition.notAllowed': 'objek "{object}": transisi "{action}" tidak diizinkan dari status "{from}"',
   'workflow.transition.required': 'objek "{object}": bidang "{field}" dikelola oleh workflow — ubah melalui transisi',
   'workflow.transition.denied': 'objek "{object}": peran "{role}" tidak diizinkan menjalankan transisi "{action}"',
+  'object.action.pending': "operasi {action} pada \"{object}\" menunggu persetujuan ({approvalKey})",
   'workflow.transition.pending': 'objek "{object}": transisi "{action}" memerlukan persetujuan — kunci persetujuan "{approvalKey}"',
   'workflow.approval.unavailable': 'objek "{object}": transisi "{action}" memerlukan persetujuan tetapi antrean persetujuan belum dikonfigurasi',
   'workflow.version.invalid': 'objek "{object}": workflow.version harus bilangan bulat positif',

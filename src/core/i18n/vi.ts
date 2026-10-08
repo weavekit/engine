@@ -253,6 +253,7 @@ export const vi: Record<MessageKey, string> = {
   'workflow.transition.notAllowed': 'đối tượng "{object}": chuyển đổi "{action}" không được phép từ trạng thái "{from}"',
   'workflow.transition.required': 'đối tượng "{object}": trường "{field}" do workflow quản lý — hãy thay đổi qua một chuyển đổi',
   'workflow.transition.denied': 'đối tượng "{object}": vai trò "{role}" không được phép thực hiện chuyển đổi "{action}"',
+  'object.action.pending': "thao tác {action} trên \"{object}\" đang chờ phê duyệt ({approvalKey})",
   'workflow.transition.pending': 'đối tượng "{object}": chuyển đổi "{action}" cần phê duyệt — khóa phê duyệt "{approvalKey}"',
   'workflow.approval.unavailable': 'đối tượng "{object}": chuyển đổi "{action}" cần phê duyệt nhưng chưa cấu hình hàng đợi phê duyệt',
   'workflow.version.invalid': 'đối tượng "{object}": workflow.version phải là số nguyên dương',

@@ -253,6 +253,7 @@ export const ru: Record<MessageKey, string> = {
   'workflow.transition.notAllowed': 'объект "{object}": переход "{action}" не разрешён из состояния "{from}"',
   'workflow.transition.required': 'объект "{object}": поле "{field}" управляется workflow — измените его через переход',
   'workflow.transition.denied': 'объект "{object}": роль "{role}" не может выполнить переход "{action}"',
+  'object.action.pending': "операция {action} над \"{object}\" ожидает одобрения ({approvalKey})",
   'workflow.transition.pending': 'объект "{object}": переход "{action}" требует утверждения — ключ утверждения "{approvalKey}"',
   'workflow.approval.unavailable': 'объект "{object}": переход "{action}" требует утверждения, но очередь утверждений не настроена',
   'workflow.version.invalid': 'объект "{object}": workflow.version должен быть положительным целым числом',

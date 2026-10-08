@@ -253,6 +253,7 @@ export const fr: Record<MessageKey, string> = {
   'workflow.transition.notAllowed': 'objet "{object}" : transition "{action}" non autorisée depuis "{from}"',
   'workflow.transition.required': 'objet "{object}" : le champ "{field}" est géré par workflow — modifiez-le via une transition',
   'workflow.transition.denied': 'objet "{object}" : le rôle "{role}" ne peut pas exécuter la transition "{action}"',
+  'object.action.pending': "l'opération {action} sur \"{object}\" est en attente d'approbation ({approvalKey})",
   'workflow.transition.pending': 'objet "{object}" : transition "{action}" nécessite une approbation — clé "{approvalKey}"',
   'workflow.approval.unavailable': 'objet "{object}" : transition "{action}" nécessite une approbation mais aucune file approbation configurée',
   'workflow.version.invalid': 'objet "{object}" : workflow.version doit être un entier positif',

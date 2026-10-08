@@ -212,6 +212,7 @@ export const en = {
   'workflow.transition.notAllowed': 'object "{object}": transition "{action}" is not allowed from state "{from}"',
   'workflow.transition.required': 'object "{object}": "{field}" is engine-managed — change it via a workflow action',
   'workflow.transition.denied': 'object "{object}": role "{role}" is not allowed to run transition "{action}"',
+  'object.action.pending': "operation {action} on \"{object}\" is pending approval ({approvalKey})",
   'workflow.transition.pending': 'object "{object}": transition "{action}" requires approval — approval key "{approvalKey}"',
   'workflow.approval.unavailable': 'object "{object}": transition "{action}" requires approval but no approval queue is configured',
   'workflow.version.invalid': 'object "{object}": workflow.version must be a positive integer',
