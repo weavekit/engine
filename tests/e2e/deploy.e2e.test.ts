@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { describe, it, expect } from '../helpers/test.js';
 import { createPool, inspectSchema, migrate, ObjectRegistry } from '../../src/core/index.js';
 import { syncSchema } from '../../src/runtime/git/index.js';
+import { deployPlan } from '../../src/cli/commands/deploy.js';
 
 const url = process.env.DATABASE_URL;
 const maybe = url !== undefined ? describe : describe.skip;
@@ -53,6 +54,65 @@ maybe('Deploy / schema revision E2E (local PG)', () => {
       await rm(dir, { recursive: true, force: true });
     }
   });
+
+  it('deployPlan reports impact analysis + config drift', async () => {
+    const dir = await writeSchemaDir({
+      planobj: { name: 'planobj', alter: true, fields: [{ name: 'id', type: 'string', primary: true }, { name: 'note', type: 'text' }] },
+    });
+    await writeFile(join(dir, 'weavekit.config.ts'), `export default { databaseUrl: process.env.DATABASE_URL };\n`);
+    const pool = createPool(url!);
+    const capture: { payload: unknown } = { payload: undefined };
+    const printer = {
+      json: true,
+      kv() {},
+      table() {},
+      log() {},
+      error() {},
+      data(payload: unknown) {
+        capture.payload = payload;
+      },
+    };
+    try {
+      await pool.query('DROP TABLE IF EXISTS planobj CASCADE');
+      await pool.query(`DELETE FROM weavekit_metadata WHERE object_name = 'planobj'`);
+
+      // before apply: the new table is a create (low risk)
+      await deployPlan(dir, { printer: printer as never });
+      const first = capture.payload as { impact: { creates: string[]; dataCompat: { risk: string } } };
+      expect(first.impact.creates).toContain('planobj');
+      expect(first.impact.dataCompat.risk).toBe('low');
+
+      // apply, then add a column on disk → additive change + revision drift
+      await syncSchema({ dir, databaseUrl: url });
+      await writeFile(
+        join(dir, 'objects', 'planobj', 'schema.json'),
+        JSON.stringify({
+          name: 'planobj',
+          alter: true,
+          fields: [
+            { name: 'id', type: 'string', primary: true },
+            { name: 'note', type: 'text' },
+            { name: 'tag', type: 'text' },
+          ],
+        }),
+      );
+      await deployPlan(dir, { printer: printer as never });
+      const second = capture.payload as {
+        statements: string[];
+        impact: { columnAdds: unknown[]; dataCompat: { risk: string } };
+        configDrift: boolean;
+      };
+      expect(second.statements.some((s) => s.includes('ADD COLUMN'))).toBe(true);
+      expect(second.impact.columnAdds).toHaveLength(1);
+      expect(second.impact.dataCompat.risk).toBe('medium');
+      expect(second.configDrift).toBe(true);
+    } finally {
+      await pool.query('DROP TABLE IF EXISTS planobj CASCADE');
+      await pool.query(`DELETE FROM weavekit_metadata WHERE object_name = 'planobj'`);
+      await pool.end();
+      await rm(dir, { recursive: true, force: true });
+    }
+  }, 60000);
 
   it('an onCommit failure rolls back the DDL (atomic deploy)', async () => {
     const reg = new ObjectRegistry();

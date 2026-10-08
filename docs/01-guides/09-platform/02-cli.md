@@ -85,6 +85,11 @@ A deployment-oriented view of the same schema sync. Both run against
 
 - `weave deploy plan` — **read-only** preview of the DDL the next apply would run, the objects that
   would change, the aggregate **schema hash**, and a coarse risk level (`low` / `medium` / `high`).
+  It adds a **schema-impact analysis**: new tables, added columns, constraints, indexes, enum + RLS
+  changes, a data-compatibility risk (e.g. `ADD COLUMN NOT NULL` without a default), the RBAC/tenant
+  impact (tenant-scoped / permissioned objects) and an API-breaking flag (engine DDL is additive).
+  It also reports the **live schema revision** and flags **config drift** (the on-disk schema differs
+  from the last applied revision — i.e. a deploy is pending).
 - `weave deploy apply` — applies the changes **atomically**: the DDL, the metadata cache and a global
   **schema revision** (`weavekit_schema_revision`) commit in one transaction, serialized by an
   advisory lock. A failure rolls everything back (no partial deploy). Prints the new revision id

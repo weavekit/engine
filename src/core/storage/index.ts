@@ -33,6 +33,8 @@ export {
 export type { RecordMetaVirtualFieldSpec } from './record-meta.js';
 export { pkValueTextSql, recordKeySql } from './record-key-sql.js';
 export { buildMappingReport } from './report.js';
+export { analyzeImpact, IMPACT_RISKS } from './impact.js';
+export type { SchemaImpact, ImpactRisk, ColumnAdd } from './impact.js';
 export type {
   MappingColumn,
   MappingColumnStatus,
