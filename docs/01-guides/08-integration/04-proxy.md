@@ -72,6 +72,18 @@ through (no timeout) and the client's `last-event-id` is passed upstream so the 
 With a `tunnel` transport the request is multiplexed over the live connector session instead of a
 `fetch` — see [Tunnel transport](05-tunnel.md).
 
+## Security model
+
+- The caller's `Authorization` is **never** forwarded; the target's `apiKey` is authoritative
+  (`Authorization: Bearer <apiKey>`).
+- The browser never sees `apiKey` — not in `GET /proxy` and not in any forwarded header.
+- Two independent gates must pass: the path-prefix allowlist (`isAllowedProxyPath`) and, for writes,
+  `keyScope=admin` plus an `adminRoles` caller; the forwarder re-validates the path as defense in depth.
+- Only low-cardinality routing data crosses the boundary — no tenant data, SQL or secrets.
+
+These invariants (protocol fidelity, concurrency, timeout, body cap, unreachable mapping and the key
+isolation) are pinned by `tests/e2e/proxy.e2e.test.ts` against a real local upstream.
+
 ## Errors
 
 | Code | Status | Meaning |
