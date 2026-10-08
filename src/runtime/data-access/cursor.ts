@@ -1,7 +1,7 @@
 import { SchemaError } from '../../core/index.js';
 
 /** cursor payload version (bumped if the encoding changes) */
-const CURSOR_VERSION = 1;
+export const CURSOR_VERSION = 1;
 
 interface CursorPayload {
   v: number;

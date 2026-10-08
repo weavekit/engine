@@ -1,4 +1,4 @@
-import { version } from '../../version.js';
+import { CONTRACT_VERSION, version } from '../../version.js';
 import { SCRIPT_SOURCE_KINDS } from '../../core/index.js';
 import {
   OPENAPI_TAGS,
@@ -417,6 +417,7 @@ export function buildOpenApiDocument(input: BuildOpenApiInput): OpenApiDocument 
     info: {
       title: input.info?.title ?? 'WeaveKit Engine REST API',
       version: input.info?.version ?? version,
+      'x-contract-version': CONTRACT_VERSION,
       description:
         input.info?.description ??
         'The HTTP API exposed by `@weave-kit/engine`. Object routes are generic — `{name}` is an object from your `schema.json`. Every error response uses the same body: `{ "error": { "code", "message", "params?" } }`. Authentication is a bearer API key from `auth.source`, and RBAC is enforced in the data-access layer.',

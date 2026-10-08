@@ -58,7 +58,7 @@ export { PROJECT_TYPES } from './cli/types/values.js';
 export { PROJECT_TYPE_DEFINITIONS, projectTypeDef, isBusinessUI } from './cli/project-types/manifest.js';
 export type { ProjectType } from './cli/types/values.js';
 
-export { version } from './version.js';
+export { CONTRACT_VERSION, version } from './version.js';
 
 /**
  * Assemble an engine from a config: load the schema from `schemaDir`

@@ -85,7 +85,7 @@ export interface BuildOpenApiInput {
 
 export interface OpenApiDocument {
   openapi: string;
-  info: { title: string; version: string; description?: string };
+  info: { title: string; version: string; description?: string; 'x-contract-version'?: number };
   servers: { url: string; description?: string }[];
   tags: { name: string; description?: string }[];
   security: Record<string, string[]>[];

@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyReply } from 'fastify';
 import type { Pool } from 'pg';
+import { CONTRACT_VERSION } from '../../version.js';
 
 /**
  * Operational routes, registered unconditionally (independent of any adapter
@@ -38,6 +39,6 @@ export function registerOpsRoutes(app: FastifyInstance, deps: OpsDeps): void {
   });
 
   app.get('/version', async () => {
-    return { name: 'weavekit', version };
+    return { name: 'weavekit', version, contractVersion: CONTRACT_VERSION };
   });
 }
