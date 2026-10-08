@@ -1,6 +1,6 @@
 import type { PoolClient } from 'pg';
 import type { ObjectDefinition, ObjectRegistry } from '../../core/index.js';
-import { SchemaError, primaryFieldsOf, encodeRecordKey, decodeRecordKey, canonicalizePrimaryValue, principalActorId, type Locale } from '../../core/index.js';
+import { SchemaError, METRIC_NAMES, primaryFieldsOf, encodeRecordKey, decodeRecordKey, canonicalizePrimaryValue, principalActorId, type Locale, type MetricsSink } from '../../core/index.js';
 import { DETAILS_COLUMNS, FIELD_TYPES, isSideTableVirtualField, RECORD_META_ID_FIELD, recordKeySql, recordMetaTableName } from '../../core/index.js';
 import type { AuditEvent, AuditSink } from '../../core/audit/index.js';
 import { AUDIT_ACTOR_TYPES, DATA_ACTIONS } from '../../core/audit/index.js';
@@ -326,6 +326,8 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
   private readonly evidence?: EvidenceSink;
   /** schema signature (registry-derived) recorded on evidence; `ctx.schemaRevision` overrides */
   private readonly schemaRevision?: string;
+  /** optional metrics sink (query-budget rejections); absent = zero overhead */
+  private readonly metrics?: MetricsSink;
 
   constructor(
     options: {
@@ -339,6 +341,7 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
       budget?: QueryBudget;
       evidence?: EvidenceSink;
       schemaRevision?: string;
+      metrics?: MetricsSink;
     } = {},
   ) {
     this.audit = options.audit;
@@ -351,6 +354,7 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
     this.budget = options.budget ?? { ...QUERY_BUDGET_DEFAULTS };
     this.evidence = options.evidence;
     this.schemaRevision = options.schemaRevision;
+    this.metrics = options.metrics;
   }
 
   /**
@@ -458,7 +462,17 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
     const q = ctx.client ?? ctx.pool;
     const pks = primaryFieldsOf(def);
     const budget = ctx.budget ?? this.budget;
-    assertQueryBudget(opts, budget, ctx.locale);
+    try {
+      assertQueryBudget(opts, budget, ctx.locale);
+    } catch (error) {
+      if (error instanceof SchemaError) {
+        this.metrics?.counter(METRIC_NAMES.QUERY_BUDGET_REJECT, 1, {
+          object: objectName,
+          limit: String(error.params.limit ?? ''),
+        });
+      }
+      throw error;
+    }
     const { limit } = resolvePagination(opts, budget.maxRows);
 
     // keyset cursor (single primary key): `pk > cursor` ordered by pk. A
@@ -1166,6 +1180,7 @@ export function createDataAccess(
     budget?: QueryBudget;
     evidence?: EvidenceSink;
     schemaRevision?: string;
+    metrics?: MetricsSink;
   } = {},
 ): ObjectDataAccess {
   return new DefaultObjectDataAccess(options);

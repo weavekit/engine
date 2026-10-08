@@ -7,12 +7,16 @@ import { createHash } from 'node:crypto';
 import {
   DEFAULT_LOCALE,
   NOOP_AUDIT_SINK,
+  NOOP_METRICS_SINK,
+  NOOP_TRACE_SINK,
+  METRIC_NAMES,
   ObjectRegistry,
   SchemaError,
   SUPPORTED_LOCALES,
   AUDIT_MODES,
   createPool,
   createSlidingWindow,
+  parseTraceparent,
   type AuditMode,
   type AuditSink,
   type CounterStore,
@@ -22,6 +26,8 @@ import {
   type FieldTypeRegistration,
   type GuardrailPolicy,
   type Locale,
+  type MetricsSink,
+  type TraceSink,
   type ProxyTargetResolver,
   type IdentitySubject,
   type ScriptDispatcher,
@@ -319,6 +325,13 @@ export interface EngineConfig {
    */
   ingress?: IngressConfig;
   /**
+   * low-level observability sinks (optional; absent = no-op = zero overhead).
+   * The engine emits request latency/status, RBAC denials, query-budget rejects
+   * and finished spans; a host injects the telemetry backend. Labels must stay
+   * low-cardinality and PII-free (see `core/observability`).
+   */
+  observability?: { metrics?: MetricsSink; trace?: TraceSink };
+  /**
    * capability feature switches (declarative gating). `features.fieldTypes` is
    * a whitelist of field types a schema may declare; a field outside the list is
    * rejected by the validator (fail-closed). Defaults to the engine primitives
@@ -375,6 +388,8 @@ export interface WeaveKitEngine {
   approvals?: ApprovalsQueue;
   /** workflow timer scheduler (present when `subsystems.workflow.enabled`): fires `onTimeout` */
   workflow?: WorkflowTimerScheduler;
+  /** observability sinks (no-op unless `config.observability` injects one) */
+  observability: { metrics: MetricsSink; trace: TraceSink };
   close(): Promise<void>;
 }
 
@@ -459,6 +474,9 @@ export async function buildEngineFromRegistry(
   if (unimplemented.length > 0) {
     throw new Error(`subsystem not implemented: ${unimplemented.join(', ')}`);
   }
+
+  const metrics = config.observability?.metrics ?? NOOP_METRICS_SINK;
+  const trace = config.observability?.trace ?? NOOP_TRACE_SINK;
 
   let audit: AuditEngine | undefined;
   let bufferedSink: (AuditSink & { flush(): Promise<void> }) | undefined;
@@ -576,13 +594,13 @@ export async function buildEngineFromRegistry(
     const { createEvidenceSink } = await import('../subsystems/evidence/index.js');
     evidenceSink = createEvidenceSink(pool);
   }
-  const baseDataAccess = createDataAccess({ audit: auditSink, replay, events: eventPublisher, policies, approvals, workflowTimers, budget, evidence: evidenceSink, schemaRevision });
+  const baseDataAccess = createDataAccess({ audit: auditSink, metrics, replay, events: eventPublisher, policies, approvals, workflowTimers, budget, evidence: evidenceSink, schemaRevision });
 
   let script: ScriptDispatcher | undefined;
   let dataAccess: ObjectDataAccess;
   if (subsystems.script?.enabled) {
     const { createScriptDispatcher } = await import('../subsystems/script/index.js');
-    const rbacDataAccess = withRbac(baseDataAccess, { audit: auditSink });
+    const rbacDataAccess = withRbac(baseDataAccess, { audit: auditSink, metrics });
     script = await createScriptDispatcher({
       objectsDir: join(config.schemaDir ?? '.', 'objects'),
       registry,
@@ -593,9 +611,9 @@ export async function buildEngineFromRegistry(
       budget,
       locale,
     });
-    dataAccess = withRbac(createDataAccess({ audit: auditSink, script, replay, events: eventPublisher, policies, approvals, workflowTimers, budget, evidence: evidenceSink, schemaRevision }), { audit: auditSink });
+    dataAccess = withRbac(createDataAccess({ audit: auditSink, metrics, script, replay, events: eventPublisher, policies, approvals, workflowTimers, budget, evidence: evidenceSink, schemaRevision }), { audit: auditSink, metrics });
   } else {
-    dataAccess = withRbac(baseDataAccess, { audit: auditSink });
+    dataAccess = withRbac(baseDataAccess, { audit: auditSink, metrics });
   }
   const identityCfg = config.identity;
   // engine-owned identity directory: handles only (no I/O) unless onStart sync
@@ -664,6 +682,29 @@ export async function buildEngineFromRegistry(
   // on them — otherwise hot reload (`weave dev`) hangs while a frontend is
   // subscribed to the live channel.
   const app = Fastify({ logger: { level: logLevel }, bodyLimit: rest?.bodyLimit ?? 1_048_576, forceCloseConnections: true });
+  // request-level telemetry (labels: method/route/status only — no tenant/SQL/secrets)
+  app.addHook('onResponse', async (request, reply) => {
+    const route = request.routeOptions?.url ?? request.url;
+    const labels = { method: request.method, route, status: String(reply.statusCode) };
+    const durationMs = reply.elapsedTime;
+    metrics.histogram(METRIC_NAMES.HTTP_REQUEST_DURATION_MS, durationMs, labels);
+    metrics.counter(METRIC_NAMES.HTTP_RESPONSE, 1, labels);
+    const traceHeader = request.headers.traceparent;
+    const ctx = parseTraceparent(Array.isArray(traceHeader) ? traceHeader[0] : traceHeader);
+    if (ctx !== undefined) {
+      const now = new Date();
+      trace.recordSpan({
+        name: route,
+        traceId: ctx.traceId,
+        spanId: ctx.spanId,
+        startedAt: new Date(now.getTime() - durationMs),
+        endedAt: now,
+        durationMs,
+        status: reply.statusCode >= 500 ? 'error' : 'ok',
+        attributes: { method: request.method, route },
+      });
+    }
+  });
   if (rest?.enabled ?? true) {
     setErrorHandlers(app, locale);
     const restOptions: RestOptions = { prefix: rest?.prefix };
@@ -905,6 +946,7 @@ export async function buildEngineFromRegistry(
     script,
     approvals,
     workflow: workflowScheduler,
+    observability: { metrics, trace },
     async close() {
       const warn = (phase: string, error: unknown): void => {
         console.error(`weavekit: ${phase} close error: ${error instanceof Error ? error.message : String(error)}`);

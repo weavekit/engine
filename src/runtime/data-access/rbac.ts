@@ -1,6 +1,6 @@
 import type { ObjectDefinition, IdentitySubject } from '../../core/index.js';
-import { DETAILS_COLUMNS, SchemaError, primaryFieldsOf, principalActorId, principalTenantId, recordKeySql } from '../../core/index.js';
-import type { Locale } from '../../core/index.js';
+import { DETAILS_COLUMNS, METRIC_NAMES, SchemaError, primaryFieldsOf, principalActorId, principalTenantId, recordKeySql } from '../../core/index.js';
+import type { Locale, MetricsSink } from '../../core/index.js';
 import {
   assertCanCreate,
   assertCanDelete,
@@ -117,8 +117,19 @@ function scopedCtx(ctx: DataAccessContext, objectName: string, read: ReadScope |
  *   the allowed field set, and scopes update/delete to the read row scope
  * - a `system` principal → pass-through (explicit, capability-tagged)
  */
-export function withRbac(inner: ObjectDataAccess, options: { audit?: AuditSink } = {}): ObjectDataAccess {
-  const { audit } = options;
+export function withRbac(inner: ObjectDataAccess, options: { audit?: AuditSink; metrics?: MetricsSink } = {}): ObjectDataAccess {
+  const { audit, metrics } = options;
+  // record an RBAC denial: audit event + deny counter (labels stay PII-free)
+  const deny = (
+    ctx: DataAccessContext,
+    action: string,
+    objectName: string,
+    objectId: string | undefined,
+    error: unknown,
+  ): void => {
+    denied(audit, ctx, action, objectName, objectId, error);
+    metrics?.counter(METRIC_NAMES.RBAC_DENY, 1, { object: objectName, action });
+  };
   return {
     async find<T>(
       objectName: string,
@@ -131,7 +142,7 @@ export function withRbac(inner: ObjectDataAccess, options: { audit?: AuditSink }
       const p = resolvePermissionFor(ctx.registry, def, subject.roles);
       if (p === undefined || p.read === undefined) {
         const err = new SchemaError('rbac.denied.read', { object: objectName, role: subject.roles.join(',') }, ctx.locale);
-        denied(audit, ctx, DATA_ACTIONS.READ, objectName, undefined, err);
+        deny(ctx, DATA_ACTIONS.READ, objectName, undefined, err);
         throw err;
       }
       return inner.find<T>(objectName, { ...opts, exclude: p.exclude }, scopedCtx(ctx, objectName, p.read));
@@ -148,7 +159,7 @@ export function withRbac(inner: ObjectDataAccess, options: { audit?: AuditSink }
       const p = resolvePermissionFor(ctx.registry, def, subject.roles);
       if (p === undefined || p.read === undefined) {
         const err = new SchemaError('rbac.denied.read', { object: objectName, role: subject.roles.join(',') }, ctx.locale);
-        denied(audit, ctx, DATA_ACTIONS.READ, objectName, id, err);
+        deny(ctx, DATA_ACTIONS.READ, objectName, id, err);
         throw err;
       }
       const record = await inner.findOne<T>(objectName, id, scopedCtx(ctx, objectName, p.read));
@@ -166,7 +177,7 @@ export function withRbac(inner: ObjectDataAccess, options: { audit?: AuditSink }
       try {
         assertCanCreate(def, subject.roles, ctx.locale, ctx.registry);
       } catch (error) {
-        denied(audit, ctx, DATA_ACTIONS.CREATE, objectName, undefined, error);
+        deny(ctx, DATA_ACTIONS.CREATE, objectName, undefined, error);
         throw error;
       }
       const p = resolvePermissionFor(ctx.registry, def, subject.roles);
@@ -186,7 +197,7 @@ export function withRbac(inner: ObjectDataAccess, options: { audit?: AuditSink }
           }
           if (!allowed.includes(key)) {
             const err = new SchemaError('rbac.denied.field', { object: objectName, role: subject.roles.join(','), field: key }, ctx.locale);
-            denied(audit, ctx, DATA_ACTIONS.CREATE, objectName, undefined, err);
+            deny(ctx, DATA_ACTIONS.CREATE, objectName, undefined, err);
             throw err;
           }
           filtered[key] = value;
@@ -209,7 +220,7 @@ export function withRbac(inner: ObjectDataAccess, options: { audit?: AuditSink }
       try {
         assertCanUpdate(def, subject.roles, ctx.locale, ctx.registry);
       } catch (error) {
-        denied(audit, ctx, DATA_ACTIONS.UPDATE, objectName, id, error);
+        deny(ctx, DATA_ACTIONS.UPDATE, objectName, id, error);
         throw error;
       }
       const p = resolvePermissionFor(ctx.registry, def, subject.roles);
@@ -217,7 +228,7 @@ export function withRbac(inner: ObjectDataAccess, options: { audit?: AuditSink }
       // update would silently target any row — deny instead
       if (p?.read === undefined) {
         const err = new SchemaError('rbac.denied.update', { object: objectName, role: subject.roles.join(',') }, ctx.locale);
-        denied(audit, ctx, DATA_ACTIONS.UPDATE, objectName, id, err);
+        deny(ctx, DATA_ACTIONS.UPDATE, objectName, id, err);
         throw err;
       }
       // `p.update === null` means "all fields updatable" (open mode / update: true) —
@@ -228,12 +239,12 @@ export function withRbac(inner: ObjectDataAccess, options: { audit?: AuditSink }
       for (const [key, value] of Object.entries(changes)) {
         if (primaryNames.has(key)) {
           const err = new SchemaError('object.primary.mutable', { object: objectName, field: key }, ctx.locale);
-          denied(audit, ctx, DATA_ACTIONS.UPDATE, objectName, id, err);
+          deny(ctx, DATA_ACTIONS.UPDATE, objectName, id, err);
           throw err;
         }
         if (allowed !== null && !allowed.includes(key)) {
           const err = new SchemaError('rbac.denied.field', { object: objectName, role: subject.roles.join(','), field: key }, ctx.locale);
-          denied(audit, ctx, DATA_ACTIONS.UPDATE, objectName, id, err);
+          deny(ctx, DATA_ACTIONS.UPDATE, objectName, id, err);
           throw err;
         }
         filtered[key] = value;
@@ -255,13 +266,13 @@ export function withRbac(inner: ObjectDataAccess, options: { audit?: AuditSink }
       try {
         assertCanUpdate(def, subject.roles, ctx.locale, ctx.registry);
       } catch (error) {
-        denied(audit, ctx, DATA_ACTIONS.UPDATE, objectName, id, error);
+        deny(ctx, DATA_ACTIONS.UPDATE, objectName, id, error);
         throw error;
       }
       const p = resolvePermissionFor(ctx.registry, def, subject.roles);
       if (p?.read === undefined) {
         const err = new SchemaError('rbac.denied.update', { object: objectName, role: subject.roles.join(',') }, ctx.locale);
-        denied(audit, ctx, DATA_ACTIONS.UPDATE, objectName, id, err);
+        deny(ctx, DATA_ACTIONS.UPDATE, objectName, id, err);
         throw err;
       }
       const record = await inner.transition<T>(objectName, id, action, scopedCtx(ctx, objectName, p.manage ?? p.read), payload);
@@ -275,7 +286,7 @@ export function withRbac(inner: ObjectDataAccess, options: { audit?: AuditSink }
       const p = resolvePermissionFor(ctx.registry, def, subject.roles);
       if (p === undefined || p.read === undefined) {
         const err = new SchemaError('rbac.denied.read', { object: objectName, role: subject.roles.join(',') }, ctx.locale);
-        denied(audit, ctx, DATA_ACTIONS.READ, objectName, id, err);
+        deny(ctx, DATA_ACTIONS.READ, objectName, id, err);
         throw err;
       }
       return inner.workflowStatus(objectName, id, scopedCtx(ctx, objectName, p.read));
@@ -288,7 +299,7 @@ export function withRbac(inner: ObjectDataAccess, options: { audit?: AuditSink }
       const p = resolvePermissionFor(ctx.registry, def, subject.roles);
       if (p === undefined || p.read === undefined) {
         const err = new SchemaError('rbac.denied.read', { object: objectName, role: subject.roles.join(',') }, ctx.locale);
-        denied(audit, ctx, DATA_ACTIONS.READ, objectName, id, err);
+        deny(ctx, DATA_ACTIONS.READ, objectName, id, err);
         throw err;
       }
       return inner.acquireWorkflowLock(objectName, id, scopedCtx(ctx, objectName, p.read));
@@ -302,7 +313,7 @@ export function withRbac(inner: ObjectDataAccess, options: { audit?: AuditSink }
         const p = resolvePermissionFor(ctx.registry, def, subjectOf(ctx)!.roles);
         if (p === undefined || p.read === undefined) {
           const err = new SchemaError('rbac.denied.read', { object: objectName, role: subjectOf(ctx)!.roles.join(',') }, ctx.locale);
-          denied(audit, ctx, DATA_ACTIONS.READ, objectName, id, err);
+          deny(ctx, DATA_ACTIONS.READ, objectName, id, err);
           throw err;
         }
       }
@@ -316,7 +327,7 @@ export function withRbac(inner: ObjectDataAccess, options: { audit?: AuditSink }
       const p = resolvePermissionFor(ctx.registry, def, subject.roles);
       if (p === undefined || p.read === undefined) {
         const err = new SchemaError('rbac.denied.read', { object: objectName, role: subject.roles.join(',') }, ctx.locale);
-        denied(audit, ctx, DATA_ACTIONS.READ, objectName, id, err);
+        deny(ctx, DATA_ACTIONS.READ, objectName, id, err);
         throw err;
       }
       return inner.workflowHistory(objectName, id, scopedCtx(ctx, objectName, p.read));
@@ -333,7 +344,7 @@ export function withRbac(inner: ObjectDataAccess, options: { audit?: AuditSink }
         });
         if (!canReadAny) {
           const err = new SchemaError('rbac.denied.read', { object: '*', role: subject.roles.join(',') }, ctx.locale);
-          denied(audit, ctx, DATA_ACTIONS.READ, '*', undefined, err);
+          deny(ctx, DATA_ACTIONS.READ, '*', undefined, err);
           throw err;
         }
       }
@@ -352,7 +363,7 @@ export function withRbac(inner: ObjectDataAccess, options: { audit?: AuditSink }
       try {
         assertCanUpdate(def, subject.roles, ctx.locale, ctx.registry);
       } catch (error) {
-        denied(audit, ctx, DATA_ACTIONS.UPDATE, objectName, id, error);
+        deny(ctx, DATA_ACTIONS.UPDATE, objectName, id, error);
         throw error;
       }
       return inner.overrideWorkflow(objectName, id, patch, ctx);
@@ -365,14 +376,14 @@ export function withRbac(inner: ObjectDataAccess, options: { audit?: AuditSink }
       try {
         assertCanDelete(def, subject.roles, ctx.locale, ctx.registry);
       } catch (error) {
-        denied(audit, ctx, DATA_ACTIONS.DELETE, objectName, id, error);
+        deny(ctx, DATA_ACTIONS.DELETE, objectName, id, error);
         throw error;
       }
       const p = resolvePermissionFor(ctx.registry, def, subject.roles);
       // fail-closed: same as update — no read scope means no row scope
       if (p?.read === undefined) {
         const err = new SchemaError('rbac.denied.delete', { object: objectName, role: subject.roles.join(',') }, ctx.locale);
-        denied(audit, ctx, DATA_ACTIONS.DELETE, objectName, id, err);
+        deny(ctx, DATA_ACTIONS.DELETE, objectName, id, err);
         throw err;
       }
       return inner.delete(objectName, id, scopedCtx(ctx, objectName, p.manage ?? p.read));
