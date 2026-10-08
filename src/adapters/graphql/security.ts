@@ -9,6 +9,7 @@ import {
   type ValidationRule,
 } from 'graphql';
 import { SchemaError, type Locale } from '../../core/index.js';
+import { PAGINATION } from '../../runtime/data-access/index.js';
 import type { GraphQLSecurityConfig } from './types.js';
 
 /**
@@ -73,7 +74,7 @@ export function validateQuery(document: DocumentNode, security: ResolvedSecurity
 
   let depth = 0;
   let maxDepth = 0;
-  let fields = 0;
+  let cost = 0;
   let aliases = 0;
   visit(document, {
     SelectionSet: {
@@ -87,8 +88,16 @@ export function validateQuery(document: DocumentNode, security: ResolvedSecurity
     },
     Field: {
       enter: (node) => {
-        fields += 1;
         if (node.alias !== undefined) aliases += 1;
+        // cost is weighted by the field's `limit` argument (a list field can
+        // return up to `limit` rows), capped at the engine pagination ceiling
+        let weight = 1;
+        const limitArg = node.arguments?.find((a) => a.name.value === 'limit');
+        if (limitArg !== undefined && limitArg.value.kind === 'IntValue') {
+          const n = Number(limitArg.value.value);
+          if (Number.isFinite(n) && n > 0) weight = Math.min(Math.floor(n), PAGINATION.MAX_LIMIT);
+        }
+        cost += weight;
       },
     },
   });
@@ -99,7 +108,7 @@ export function validateQuery(document: DocumentNode, security: ResolvedSecurity
   if (maxDepth > security.maxDepth) {
     throw new SchemaError('graphql.depthExceeded', { depth: maxDepth, max: security.maxDepth }, locale);
   }
-  if (security.maxComplexity !== undefined && fields > security.maxComplexity) {
-    throw new SchemaError('graphql.complexityExceeded', { cost: fields, max: security.maxComplexity }, locale);
+  if (security.maxComplexity !== undefined && cost > security.maxComplexity) {
+    throw new SchemaError('graphql.complexityExceeded', { cost, max: security.maxComplexity }, locale);
   }
 }
