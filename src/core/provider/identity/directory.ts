@@ -63,6 +63,9 @@ export interface IdentityUserCreate {
  * Replaceable persistence for the local identity directory (default: PG over
  * `weavekit_user`/`weavekit_department`). The engine-only `external_source` +
  * `external_id` pair is the natural key an upsert matches on.
+ *
+ * Stable seam (`@enterprise-reserved`): SSO/SCIM directory sync is enterprise E1;
+ * the engine ships the PG store.
  */
 export interface IdentityStore {
   /** look a user up by internal id OR external id (`ref` is matched against both) */

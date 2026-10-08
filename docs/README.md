@@ -50,3 +50,4 @@ The pitch and quick start live in the [repository README](../README.md).
 - [API](04-reference/01-api/01-overview.md) — public API tiers and the dependency budget
 - [Schema](04-reference/02-schema/01-overview.md) — custom field types
 - [Contract freeze](04-reference/03-contract-freeze.md) — what is frozen at 1.0 and the deprecation policy
+- [Enterprise seams](04-reference/04-enterprise-seams.md) — the stable extension points behind the enterprise layer

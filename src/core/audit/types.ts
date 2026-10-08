@@ -86,7 +86,12 @@ export interface AuditEvent {
   timestamp: Date;
 }
 
-/** audit write contract — replaceable implementation (PG / object store / log service / async queue) */
+/**
+ * audit write contract — replaceable implementation (PG / object store / log
+ * service / async queue). Stable seam (`@enterprise-reserved`): a closed-source
+ * enterprise layer may provide an alternative sink (export/retention/compliance
+ * are enterprise E2); the engine ships the PG default.
+ */
 export interface AuditSink {
   record(event: AuditEvent): Promise<void>;
   /** optional batch write (multi-row INSERT); buffered sink uses it to merge DB round-trips */

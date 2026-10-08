@@ -123,6 +123,9 @@ export interface WorkflowTimer {
  * (`weavekit_workflow_timers`, claimed with `FOR UPDATE SKIP LOCKED`). The
  * seam lets an enterprise backend (e.g. Redis/HA coordination) plug in without
  * forking core; the engine never imports a non-PG implementation.
+ *
+ * Stable seam (`@enterprise-reserved`): HA / multi-instance timer coordination
+ * is enterprise E3.
  */
 export interface WorkflowTimerStore {
   /** attach/refresh the single timer for a record (one per record) */
@@ -135,7 +138,10 @@ export interface WorkflowTimerStore {
   complete(timer: WorkflowTimer): Promise<void>;
 }
 
-/** umbrella seam: an alternative workflow backend (enterprise), default is the engine's PG store */
+/**
+ * Umbrella seam: an alternative workflow backend (enterprise), default is the
+ * engine's PG store. Stable seam (`@enterprise-reserved`) — enterprise E3.
+ */
 export interface WorkflowBackend {
   readonly timerStore: WorkflowTimerStore;
 }

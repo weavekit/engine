@@ -99,6 +99,9 @@ export interface ApprovalListFilter {
  * (`core/tools`, tests/default) and PG (`subsystems/approvals`, MIT — the
  * engine's mandated DB). A Redis backend is not implemented. The store
  * never audits — resolution audit belongs to the queue facade.
+ *
+ * Stable seam (`@enterprise-reserved`): multi-instance/HA coordination (e.g. a
+ * Redis-backed approvals backend) is enterprise E3; the engine ships the PG default.
  */
 export interface ApprovalsBackend {
   list(filter?: ApprovalListFilter): Promise<PendingApproval[]>;
@@ -172,6 +175,11 @@ export interface GuardrailContext {
   dataAccess: ToolDataAccess;
 }
 
+/**
+ * Guardrail policy — a host/external decision function evaluated before a write
+ * or tool call. Stable seam (`@enterprise-reserved`): Redis-backed advanced
+ * guardrails are enterprise E5; the engine evaluates policies in-process.
+ */
 export interface GuardrailPolicy {
   name: string;
   decide(ctx: GuardrailContext): GuardrailDecision | Promise<GuardrailDecision>;

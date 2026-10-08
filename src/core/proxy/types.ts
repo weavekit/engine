@@ -92,6 +92,9 @@ export interface ProxyResponse {
  * Narrow injection seam so core never depends on the application layer: the
  * engine doesn't parse connections or read tables, it only trusts this resolver.
  * The application layer (agent-gov) implements it from its own `connections`.
+ *
+ * Stable seam (`@enterprise-reserved`): target governance / Cloud control plane
+ * is enterprise; the engine only frames and forwards.
  */
 export interface ProxyTargetResolver {
   /** Resolve a target by instance; `null` when unregistered (→ 404). Whoever can access which connection is the app's call. */
