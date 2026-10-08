@@ -168,7 +168,7 @@ export function registerGraphQLRoutes(app: FastifyInstance, deps: GraphQLRouteDe
         document,
         ...(parsed.variables === undefined ? {} : { variableValues: parsed.variables }),
         ...(parsed.operationName === undefined ? {} : { operationName: parsed.operationName }),
-        contextValue: { subject, engine: deps.engine, loader: createRecordLoader(deps.engine, subject) },
+        contextValue: { subject, engine: deps.engine, loader: createRecordLoader(deps.engine, subject), requestId: request.id },
       });
 
       const body: Record<string, unknown> = {};

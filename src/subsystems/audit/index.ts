@@ -3,9 +3,11 @@ import type { AuditEvent, AuditSink } from '../../core/audit/index.js';
 import { insertAudit, insertAuditBatch, queryAudit } from './store.js';
 import type { AuditQuery, AuditQueryResult } from './store.js';
 
-export { AUDIT_ACTOR_TYPES, DATA_ACTIONS, NOOP_AUDIT_SINK } from '../../core/audit/index.js';
-export type { AuditActorType, AuditEvent, AuditFilter, AuditSink, DataAction } from '../../core/audit/index.js';
+export { AUDIT_ACTOR_TYPES, AUDIT_MODES, DATA_ACTIONS, NOOP_AUDIT_SINK } from '../../core/audit/index.js';
+export type { AuditActorType, AuditEvent, AuditFilter, AuditMode, AuditSink, DataAction } from '../../core/audit/index.js';
 export type { AuditQuery, AuditQueryResult } from './store.js';
+export { createOutboxAuditSink, startAuditOutboxRelay, writeOutboxInTx } from './outbox.js';
+export type { AuditOutboxRelay, AuditOutboxRelayOptions } from './outbox.js';
 
 /** audit engine: storage (single/batch insert) + query + lifecycle */
 export interface AuditEngine extends AuditSink {
@@ -31,6 +33,19 @@ export async function createAudit(pool: Pool): Promise<AuditEngine> {
     async close() {
       // raw store has no buffer
     },
+  };
+}
+
+/**
+ * Transactional-mode sink: the audit row is written with the business write in
+ * the caller's transaction (`recordInTx`); non-transactional calls write
+ * directly. No process buffer — a failure rolls the audit back with the change.
+ */
+export function createTransactionalAuditSink(audit: AuditEngine): AuditSink {
+  return {
+    record: (event) => audit.record(event),
+    recordBatch: (events) => audit.recordBatch(events),
+    recordInTx: (event, client) => insertAudit(client, event),
   };
 }
 

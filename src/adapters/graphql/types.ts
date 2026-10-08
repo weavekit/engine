@@ -20,6 +20,8 @@ export interface GraphQLContext {
   subject: IdentitySubject;
   engine: GraphQLEngine;
   loader: RecordLoader;
+  /** request correlation id, attached to audit events */
+  requestId?: string;
 }
 
 /**

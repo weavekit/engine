@@ -150,7 +150,7 @@ export function registerObjectRoutes(
     const { name } = request.params as { name: string };
     checkRateLimit(limiter, request, locale);
     const subject = await authenticateRequest(authenticator, request, locale);
-    const ctx: DataAccessContext = { pool, registry, subject, locale };
+    const ctx: DataAccessContext = { pool, registry, subject, locale, requestId: request.id };
     const list = parseFindParams(
       request.query as Record<string, unknown>,
       locale,
@@ -171,6 +171,7 @@ export function registerObjectRoutes(
       registry,
       subject,
       locale,
+      requestId: request.id,
       onWarnings: (ws) => warnings.push(...ws),
     };
     const record = await dataAccess.create(
@@ -188,7 +189,7 @@ export function registerObjectRoutes(
     const { name, id } = request.params as { name: string; id: string };
     checkRateLimit(limiter, request, locale);
     const subject = await authenticateRequest(authenticator, request, locale);
-    const ctx: DataAccessContext = { pool, registry, subject, locale };
+    const ctx: DataAccessContext = { pool, registry, subject, locale, requestId: request.id };
     const record = await dataAccess.findOne(name, id, ctx);
     if (record === null) {
       throw new SchemaError(
@@ -210,6 +211,7 @@ export function registerObjectRoutes(
       registry,
       subject,
       locale,
+      requestId: request.id,
       onWarnings: (ws) => warnings.push(...ws),
     };
     const record = await dataAccess.update(
@@ -226,7 +228,7 @@ export function registerObjectRoutes(
     const { name, id } = request.params as { name: string; id: string };
     checkRateLimit(limiter, request, locale);
     const subject = await authenticateRequest(authenticator, request, locale);
-    const ctx: DataAccessContext = { pool, registry, subject, locale };
+    const ctx: DataAccessContext = { pool, registry, subject, locale, requestId: request.id };
     await dataAccess.delete(name, id, ctx);
     reply.code(204).send();
   });
@@ -248,6 +250,7 @@ export function registerObjectRoutes(
       registry,
       subject,
       locale,
+      requestId: request.id,
       onWarnings: (ws) => warnings.push(...ws),
     };
     await withTx(ctx, async (txCtx) => {
@@ -263,7 +266,7 @@ export function registerObjectRoutes(
     checkRateLimit(limiter, request, locale);
     const subject = await authenticateRequest(authenticator, request, locale);
     const ids = parseIds(bodyObject(request.body, locale), locale);
-    const ctx: DataAccessContext = { pool, registry, subject, locale };
+    const ctx: DataAccessContext = { pool, registry, subject, locale, requestId: request.id };
     await withTx(ctx, async (txCtx) => {
       for (const id of ids) {
         await dataAccess.delete(name, id, txCtx);

@@ -9,8 +9,10 @@ import {
   ObjectRegistry,
   SchemaError,
   SUPPORTED_LOCALES,
+  AUDIT_MODES,
   createPool,
   createSlidingWindow,
+  type AuditMode,
   type AuditSink,
   type CounterStore,
   type EngineScriptConfig,
@@ -89,6 +91,13 @@ export interface EngineRestConfig {
 /** audit subsystem config (optional; disabled = not loaded = zero overhead) */
 export interface EngineAuditConfig {
   enabled?: boolean;
+  /**
+   * Durability mode (default `best-effort`): `best-effort` = fire-and-forget
+   * process buffer; `transactional` = audit row written in the business
+   * transaction; `durable` = transactional outbox + relay (crash-safe,
+   * at-least-once).
+   */
+  mode?: AuditMode;
   /** retention window placeholder (auto-cleanup is not implemented yet) */
   retention?: string;
   /** audit diff replay: attach before/after row snapshots to update/delete audit events (default off; table always has the columns) */
@@ -424,18 +433,12 @@ export async function buildEngineFromRegistry(
 
   let audit: AuditEngine | undefined;
   let bufferedSink: (AuditSink & { flush(): Promise<void> }) | undefined;
+  let outboxRelay: { close(): Promise<void> } | undefined;
   let auditSink: AuditSink = NOOP_AUDIT_SINK;
-  if (subsystems.audit?.enabled) {
-    const { createAudit, createBufferedAuditSink } = await import('../subsystems/audit/index.js');
-    audit = await createAudit(pool);
-    bufferedSink = createBufferedAuditSink(audit, subsystems.audit.batch);
-    auditSink = bufferedSink;
-  }
 
   // live channel: the event bus is created only when adapters.events is
-  // enabled (absent = not imported = zero overhead). Its publisher is injected
-  // into data-access (record.* on committed writes) and the audit sink
-  // (audit.event dual-emit). schema.changed is exposed via `engine.events`.
+  // enabled (absent = not imported = zero overhead). The audit sink streams to
+  // it (best-effort/transactional at write time; durable from the relay).
   const eventsCfg = config.adapters?.events;
   let eventBus: EventBus | undefined;
   let eventPublisher: EventPublisher | undefined;
@@ -443,9 +446,26 @@ export async function buildEngineFromRegistry(
     const { createEventBus, publisherOf } = await import('../infrastructure/event/index.js');
     eventBus = createEventBus({ maxEvents: eventsCfg.replay?.maxEvents });
     eventPublisher = publisherOf(eventBus);
-    if (auditSink !== NOOP_AUDIT_SINK) {
-      // decorate the buffered sink so audit events also stream to live
-      // subscribers (PG persistence and live push stay decoupled)
+  }
+
+  if (subsystems.audit?.enabled) {
+    const mode = subsystems.audit.mode ?? AUDIT_MODES.BEST_EFFORT;
+    const auditMod = await import('../subsystems/audit/index.js');
+    audit = await auditMod.createAudit(pool);
+    if (mode === AUDIT_MODES.TRANSACTIONAL) {
+      auditSink = auditMod.createTransactionalAuditSink(audit);
+    } else if (mode === AUDIT_MODES.DURABLE) {
+      auditSink = auditMod.createOutboxAuditSink(pool);
+      outboxRelay = auditMod.startAuditOutboxRelay({
+        pool,
+        publish: eventPublisher === undefined ? undefined : (event) => eventPublisher!.publishAudit(event),
+      });
+    } else {
+      bufferedSink = auditMod.createBufferedAuditSink(audit, subsystems.audit.batch);
+      auditSink = bufferedSink;
+    }
+    if (eventPublisher !== undefined && mode !== AUDIT_MODES.DURABLE) {
+      // dual-emit to live subscribers (durable publishes from the relay instead)
       const inner = auditSink;
       auditSink = {
         record(event) {
@@ -457,6 +477,7 @@ export async function buildEngineFromRegistry(
           if (inner.recordBatch !== undefined) return inner.recordBatch(events);
           return Promise.all(events.map((e) => inner.record(e))).then(() => {});
         },
+        ...(inner.recordInTx === undefined ? {} : { recordInTx: inner.recordInTx }),
       };
     }
   }
@@ -853,6 +874,7 @@ export async function buildEngineFromRegistry(
       await graphqlHandle?.close().catch((error) => warn('graphql', error));
       await workflowScheduler?.close().catch((error) => warn('workflow', error));
       await script?.close().catch((error) => warn('script', error));
+      await outboxRelay?.close().catch((error) => warn('audit outbox', error));
       await bufferedSink?.flush().catch((error) => warn('audit flush', error));
       await audit?.close().catch((error) => warn('audit', error));
       eventBus?.close();

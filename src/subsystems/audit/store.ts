@@ -1,4 +1,5 @@
 import type { Pool } from 'pg';
+import type { SqlQueryable } from '../../core/index.js';
 import type { AuditEvent, AuditQuery, AuditQueryResult } from '../../core/audit/index.js';
 import { FILTER_OPS } from '../../runtime/data-access/values.js';
 
@@ -19,10 +20,10 @@ const AUDIT_FILTER_COLUMNS = new Map<string, 'boolean' | 'text' | 'timestamptz'>
 const TABLE = 'weavekit_audit';
 
 /** single append-only insert (writes the event's own timestamp — the audit is time-anchored to the business moment) */
-export async function insertAudit(pool: Pool, event: AuditEvent): Promise<void> {
-  await pool.query(
-    `INSERT INTO ${TABLE} (actor_type, actor_id, action, object, object_id, changes, before, after, is_error, error_code, meta, ts)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+export async function insertAudit(db: SqlQueryable, event: AuditEvent): Promise<void> {
+  await db.query(
+    `INSERT INTO ${TABLE} (actor_type, actor_id, action, object, object_id, changes, before, after, is_error, error_code, request_id, trace_id, meta, ts)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
     [
       event.actorType,
       event.actorId,
@@ -34,6 +35,8 @@ export async function insertAudit(pool: Pool, event: AuditEvent): Promise<void> 
       event.after === undefined ? null : JSON.stringify(event.after),
       event.isError ?? false,
       event.errorCode ?? null,
+      event.requestId ?? null,
+      event.traceId ?? null,
       event.meta === undefined ? null : JSON.stringify(event.meta),
       event.timestamp,
     ],
@@ -41,7 +44,7 @@ export async function insertAudit(pool: Pool, event: AuditEvent): Promise<void> 
 }
 
 /** batch append-only insert (single multi-row statement, one transaction) */
-export async function insertAuditBatch(pool: Pool, events: AuditEvent[]): Promise<void> {
+export async function insertAuditBatch(db: SqlQueryable, events: AuditEvent[]): Promise<void> {
   if (events.length === 0) return;
   const values: string[] = [];
   const params: unknown[] = [];
@@ -53,14 +56,15 @@ export async function insertAuditBatch(pool: Pool, events: AuditEvent[]): Promis
       event.before === undefined ? null : JSON.stringify(event.before),
       event.after === undefined ? null : JSON.stringify(event.after),
       event.isError ?? false, event.errorCode ?? null,
+      event.requestId ?? null, event.traceId ?? null,
       event.meta === undefined ? null : JSON.stringify(event.meta),
       event.timestamp);
     values.push(
-      `($${i + 1}, $${i + 2}, $${i + 3}, $${i + 4}, $${i + 5}, $${i + 6}, $${i + 7}, $${i + 8}, $${i + 9}, $${i + 10}, $${i + 11}, $${i + 12})`,
+      `($${i + 1}, $${i + 2}, $${i + 3}, $${i + 4}, $${i + 5}, $${i + 6}, $${i + 7}, $${i + 8}, $${i + 9}, $${i + 10}, $${i + 11}, $${i + 12}, $${i + 13}, $${i + 14})`,
     );
   }
-  await pool.query(
-    `INSERT INTO ${TABLE} (actor_type, actor_id, action, object, object_id, changes, before, after, is_error, error_code, meta, ts)
+  await db.query(
+    `INSERT INTO ${TABLE} (actor_type, actor_id, action, object, object_id, changes, before, after, is_error, error_code, request_id, trace_id, meta, ts)
      VALUES ${values.join(', ')}`,
     params,
   );

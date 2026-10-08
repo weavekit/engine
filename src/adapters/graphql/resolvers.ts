@@ -37,6 +37,7 @@ function dataContext(context: GraphQLContext): DataAccessContext {
     registry: context.engine.registry,
     subject: context.subject,
     locale: context.engine.locale,
+    ...(context.requestId === undefined ? {} : { requestId: context.requestId }),
   };
 }
 

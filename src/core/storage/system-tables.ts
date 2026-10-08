@@ -21,6 +21,7 @@ export const SYSTEM_TABLES = {
   SCHEMA_REVISION: 'weavekit_schema_revision',
   SEQ: 'weavekit_seq',
   AUDIT: 'weavekit_audit',
+  AUDIT_OUTBOX: 'weavekit_audit_outbox',
   APPROVALS: 'weavekit_approvals',
   WORKFLOW_DEFINITIONS: 'weavekit_workflow_definitions',
   WORKFLOW_INSTANCES: 'weavekit_workflow_instances',
@@ -115,6 +116,8 @@ const audit = (): ExpectedTable => ({
     col('after', 'JSONB'),
     col('is_error', 'BOOLEAN', { notNull: true, default: 'false' }),
     col('error_code', 'TEXT'),
+    col('request_id', 'TEXT'),
+    col('trace_id', 'TEXT'),
     col('meta', 'JSONB'),
   ],
   fks: [],
@@ -122,7 +125,25 @@ const audit = (): ExpectedTable => ({
     { name: 'weavekit_audit_ts_idx', method: 'btree', columns: ['ts'] },
     { name: 'weavekit_audit_actor_idx', method: 'btree', columns: ['actor_id'] },
     { name: 'weavekit_audit_obj_idx', method: 'btree', columns: ['object', 'object_id'] },
+    { name: 'weavekit_audit_request_idx', method: 'btree', columns: ['request_id'] },
   ],
+  uniques: [],
+});
+
+/**
+ * Transactional-outbox for audit (`audit.mode: durable`): a business write
+ * inserts an event row in its own transaction; a relay drains it into
+ * `weavekit_audit` + the live channel (crash-safe, at-least-once).
+ */
+const auditOutbox = (): ExpectedTable => ({
+  name: SYSTEM_TABLES.AUDIT_OUTBOX,
+  columns: [
+    col('id', 'BIGSERIAL', { notNull: true, primary: true }),
+    col('event', 'JSONB', { notNull: true }),
+    col('created_at', 'TIMESTAMPTZ', { notNull: true, default: 'now()' }),
+  ],
+  fks: [],
+  indexes: [],
   uniques: [],
 });
 
@@ -288,6 +309,7 @@ export function buildSystemTables(): ExpectedTable[] {
     schemaRevision(),
     seq(),
     audit(),
+    auditOutbox(),
     approvals(),
     workflowDefinitions(),
     workflowInstances(),

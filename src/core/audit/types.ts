@@ -5,6 +5,8 @@
  * the adapters→subsystems dependency ban intact).
  */
 
+import type { PoolClient } from 'pg';
+
 /** who initiated the event — single source of truth (as const, see AGENTS.md) */
 export const AUDIT_ACTOR_TYPES = {
   AGENT: 'agent',
@@ -13,6 +15,19 @@ export const AUDIT_ACTOR_TYPES = {
   ANONYMOUS: 'anonymous',
 } as const;
 export type AuditActorType = typeof AUDIT_ACTOR_TYPES[keyof typeof AUDIT_ACTOR_TYPES];
+
+/**
+ * Audit durability mode (single source of truth). `best-effort` (default) =
+ * fire-and-forget process buffer; `transactional` = the audit row is written in
+ * the business transaction; `durable` = a transactional-outbox row is written in
+ * the business transaction and a relay delivers it (crash-safe, at-least-once).
+ */
+export const AUDIT_MODES = {
+  BEST_EFFORT: 'best-effort',
+  TRANSACTIONAL: 'transactional',
+  DURABLE: 'durable',
+} as const;
+export type AuditMode = typeof AUDIT_MODES[keyof typeof AUDIT_MODES];
 
 /**
  * Engine data-access actions — closed set (as const single source of truth).
@@ -60,6 +75,10 @@ export interface AuditEvent {
   isError?: boolean;
   /** engine SchemaError code, e.g. 'rbac.denied.update' */
   errorCode?: string;
+  /** request correlation id (HTTP request id / inbound x-request-id) */
+  requestId?: string;
+  /** distributed trace id (inbound W3C traceparent), when present */
+  traceId?: string;
   /** extension: onBehalfOf/agentLabel/tool/latency etc. */
   meta?: Record<string, unknown>;
   timestamp: Date;
@@ -70,6 +89,12 @@ export interface AuditSink {
   record(event: AuditEvent): Promise<void>;
   /** optional batch write (multi-row INSERT); buffered sink uses it to merge DB round-trips */
   recordBatch?(events: AuditEvent[]): Promise<void>;
+  /**
+   * Write an audit event **inside the caller's open transaction** (transactional
+   * / durable modes). Optional: a sink without it falls back to best-effort
+   * `record`. An implementation throwing here rolls the business write back.
+   */
+  recordInTx?(event: AuditEvent, client: PoolClient): Promise<void>;
 }
 
 /** no-op sink: audit disabled → zero imports, zero tables, zero queries */

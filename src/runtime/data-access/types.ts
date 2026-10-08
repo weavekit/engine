@@ -64,6 +64,8 @@ export interface DataAccessContext {
   locale?: Locale;
   /** outer transaction connection; present inside `withTx` (skips nested BEGIN/COMMIT/release) */
   client?: PoolClient;
+  /** request correlation id (Fastify request id / inbound x-request-id) attached to audit events */
+  requestId?: string;
   /**
    * channel for non-fatal write warnings — afterUpdate/afterDelete script hooks
    * fail after the write is committed; the messages are delivered here so the

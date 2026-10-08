@@ -98,8 +98,8 @@ async function runTableQuery(
   }
 }
 
-/** emit a write-audit event (fire-and-forget — audit never blocks the business path) */
-function auditWrite(
+/** emit a write-audit event (transaction-aware: in-tx when a tx-capable sink is active) */
+async function auditWrite(
   sink: AuditSink | undefined,
   ctx: DataAccessContext,
   action: string,
@@ -109,7 +109,8 @@ function auditWrite(
   error?: unknown,
   before?: unknown,
   after?: unknown,
-): void {
+  client?: PoolClient,
+): Promise<void> {
   if (sink === undefined) return;
   const event: AuditEvent = {
     actorType: ctx.subject !== undefined ? AUDIT_ACTOR_TYPES.USER : AUDIT_ACTOR_TYPES.SYSTEM,
@@ -120,10 +121,17 @@ function auditWrite(
     changes,
     isError: error !== undefined,
     errorCode: error instanceof SchemaError ? error.code : undefined,
+    ...(ctx.requestId === undefined ? {} : { requestId: ctx.requestId }),
     timestamp: new Date(),
   };
   if (before !== undefined) event.before = before;
   if (after !== undefined) event.after = after;
+  // transactional/durable sinks write inside the business transaction; a throw
+  // here rolls the business write back (deliberate)
+  if (client !== undefined && sink.recordInTx !== undefined) {
+    await sink.recordInTx(event, client);
+    return;
+  }
   void sink.record(event);
 }
 
@@ -408,7 +416,7 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
             ? error.message
             : String(error);
       warnings.push(message);
-      auditWrite(this.audit, ctx, action, objectName, objectId, changes, error);
+      await auditWrite(this.audit, ctx, action, objectName, objectId, changes, error);
     }
   }
 
@@ -568,8 +576,14 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
       }
 
       await this.writeRecordMeta(client, def, metaKey, ctx, now, true);
+      const auditInTx = this.audit?.recordInTx !== undefined;
+      if (auditInTx) {
+        await auditWrite(this.audit, ctx, DATA_ACTIONS.CREATE, objectName, externalId, record, undefined, undefined, undefined, client);
+      }
       if (owned) await client.query('COMMIT');
-      auditWrite(this.audit, ctx, DATA_ACTIONS.CREATE, objectName, externalId, record);
+      if (!auditInTx) {
+        await auditWrite(this.audit, ctx, DATA_ACTIONS.CREATE, objectName, externalId, record);
+      }
       this.events?.publishRecordChange('created', objectName, externalId);
       await this.runAfterHook(SCRIPT_HOOKS.AFTER_UPDATE, DATA_ACTIONS.CREATE, objectName, record, payload, ctx, warnings, externalId);
       if (warnings.length > 0) ctx.onWarnings?.(warnings);
@@ -580,7 +594,7 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
       const failedId = primaryNames(def).every((n) => data[n] !== undefined)
         ? externalIdOf(def, data)
         : undefined;
-      auditWrite(this.audit, ctx, DATA_ACTIONS.CREATE, objectName, failedId, data, err);
+      await auditWrite(this.audit, ctx, DATA_ACTIONS.CREATE, objectName, failedId, data, err);
       throw err;
     } finally {
       if (owned) client.release();
@@ -671,8 +685,14 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
 
       await this.writeRecordMeta(client, def, metaKey, ctx, now, false);
       await replaceLinks(client, def, pkValues, payload, ctx.registry, ctx.locale);
+      const auditInTx = this.audit?.recordInTx !== undefined;
+      if (auditInTx) {
+        await auditWrite(this.audit, ctx, DATA_ACTIONS.UPDATE, objectName, id, payload, undefined, this.replay ? existing : undefined, this.replay ? record : undefined, client);
+      }
       if (owned) await client.query('COMMIT');
-      auditWrite(this.audit, ctx, DATA_ACTIONS.UPDATE, objectName, id, payload, undefined, this.replay ? existing : undefined, this.replay ? record : undefined);
+      if (!auditInTx) {
+        await auditWrite(this.audit, ctx, DATA_ACTIONS.UPDATE, objectName, id, payload, undefined, this.replay ? existing : undefined, this.replay ? record : undefined);
+      }
       this.events?.publishRecordChange('updated', objectName, id);
       await this.runAfterHook(SCRIPT_HOOKS.AFTER_UPDATE, DATA_ACTIONS.UPDATE, objectName, record, payload, ctx, warnings, id);
       if (warnings.length > 0) ctx.onWarnings?.(warnings);
@@ -680,7 +700,7 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
       return loaded[0] as T;
     } catch (err) {
       if (owned) await client.query('ROLLBACK');
-      auditWrite(this.audit, ctx, DATA_ACTIONS.UPDATE, objectName, id, changes, err);
+      await auditWrite(this.audit, ctx, DATA_ACTIONS.UPDATE, objectName, id, changes, err);
       throw err;
     } finally {
       if (owned) client.release();
@@ -763,13 +783,20 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
       }
 
       const outcome = await runWorkflowTransition(client, def, id, action, ctx.subject, payload, ctx.locale);
-      if (owned) await client.query('COMMIT');
-      auditWrite(this.audit, ctx, DATA_ACTIONS.TRANSITION, objectName, id, {
+      const transitionChanges = {
         action,
         node: outcome.toNodeId ?? null,
         from: outcome.fromNodeId ?? null,
         ...(def.workflowHash === undefined ? {} : { workflowHash: def.workflowHash }),
-      });
+      };
+      const auditInTx = this.audit?.recordInTx !== undefined;
+      if (auditInTx) {
+        await auditWrite(this.audit, ctx, DATA_ACTIONS.TRANSITION, objectName, id, transitionChanges, undefined, undefined, undefined, client);
+      }
+      if (owned) await client.query('COMMIT');
+      if (!auditInTx) {
+        await auditWrite(this.audit, ctx, DATA_ACTIONS.TRANSITION, objectName, id, transitionChanges);
+      }
       this.events?.publishRecordChange('updated', objectName, id);
       this.events?.publishRecordTransitioned(
         objectName,
@@ -797,7 +824,7 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
       return updated as T;
     } catch (err) {
       if (owned) await client.query('ROLLBACK');
-      auditWrite(this.audit, ctx, DATA_ACTIONS.TRANSITION, objectName, id, { action }, err);
+      await auditWrite(this.audit, ctx, DATA_ACTIONS.TRANSITION, objectName, id, { action }, err);
       throw err;
     } finally {
       if (owned) client.release();
@@ -941,15 +968,21 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
       );
       if (res.rowCount === 0) throw new SchemaError('data.recordNotFound', { object: objectName, id }, ctx.locale);
       await deleteRecordMeta(client, def.name, metaKey);
+      const auditInTx = this.audit?.recordInTx !== undefined;
+      if (auditInTx) {
+        await auditWrite(this.audit, ctx, DATA_ACTIONS.DELETE, objectName, id, undefined, undefined, this.replay ? existing : undefined, undefined, client);
+      }
       if (owned) await client.query('COMMIT');
-      auditWrite(this.audit, ctx, DATA_ACTIONS.DELETE, objectName, id, undefined, undefined, this.replay ? existing : undefined);
+      if (!auditInTx) {
+        await auditWrite(this.audit, ctx, DATA_ACTIONS.DELETE, objectName, id, undefined, undefined, this.replay ? existing : undefined);
+      }
       this.events?.publishRecordChange('deleted', objectName, id);
       await this.workflowTimers?.cancel(objectName, id).catch(() => {});
       await this.runAfterHook(SCRIPT_HOOKS.AFTER_DELETE, DATA_ACTIONS.DELETE, objectName, existing, {}, ctx, warnings, id);
       if (warnings.length > 0) ctx.onWarnings?.(warnings);
     } catch (err) {
       if (owned) await client.query('ROLLBACK');
-      auditWrite(this.audit, ctx, DATA_ACTIONS.DELETE, objectName, id, undefined, err);
+      await auditWrite(this.audit, ctx, DATA_ACTIONS.DELETE, objectName, id, undefined, err);
       throw err;
     } finally {
       if (owned) client.release();
