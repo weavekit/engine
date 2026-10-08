@@ -3,6 +3,41 @@
 All notable changes to `@weave-kit/engine`. Format follows [Keep a Changelog](https://keepachangelog.com/);
 the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.8.0]
+
+### Added
+
+- **GraphQL adapter (opt-in).** `adapters.graphql` compiles the same `schema.json` into a read/write
+  GraphQL endpoint (`/graphql`, POST + GET) that reuses the engine's RBAC / RLS / audit unchanged:
+  queries (`<object>` pages + `<object>_by_id`, with nested relations batched per request),
+  mutations (`create`/`update`/`delete` plus workflow `transition`), query hardening
+  (depth / complexity / alias limits), an operation allow list, and an introspection toggle.
+  Its only runtime dependency is `graphql@16` — the engine speaks GraphQL-over-HTTP itself
+  (`graphql-http` is not required). New CLI: `weave graphql:schema` emits the SDL offline. **Off by
+  default** (`adapters.graphql.enabled`).
+- **Named enums (schema v6).** Declare an enum once in `enums/<name>.json` and reference it from any
+  field with `{ "type": "enum", "enumType": "<name>" }`. Values validate centrally, generate named
+  TypeScript unions (`weave types`), surface as shared OpenAPI `components.schemas` (with
+  `x-enumLabels`), and are listed with `weave enum:list` / `weave enum:check`; `weave field:add
+  --enum` wires a new field to an existing enum. The on-disk format is bumped to **v6**
+  (`SCHEMA_FORMAT_VERSION`); existing v5 files migrate on read (additive — run `weave schema:upgrade`
+  to stamp them).
+
+### Changed
+
+- **Uncategorized `SchemaError`s now map to HTTP 400** instead of falling through to 500. The error
+  space is dominated by request conditions (bad params/fields, RBAC, not-found); genuine server
+  faults keep 500 via an explicit set (`http.internal`, `data.schemaDrift`, and script runtime
+  failures `script.timeout` / `script.busy` / `script.compile` / `script.sandbox.unavailable`).
+
+### Fixed
+
+- **MCP session ↔ agent binding.** A follow-up request on an existing session now re-verifies that
+  the presented Bearer key is the one that established the session (compared by a non-secret SHA-256
+  fingerprint); a different key reusing a session id is rejected with `mcp.session.agentMismatch`.
+  The raw API key is no longer stored on the session or written to the audit log — audit `actorId`
+  is the credential fingerprint and the agent principal id stays in `meta`.
+
 ## [0.7.0]
 
 ### Added
