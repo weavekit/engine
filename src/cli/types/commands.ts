@@ -1,9 +1,30 @@
 import type { CliPrinter } from '../render.js';
+import type { DoctorStatus } from './values.js';
+
+/** `weave doctor` options */
+export interface DoctorOptions {
+  printer: CliPrinter;
+}
+
+/** one `weave doctor` check */
+export interface DoctorCheck {
+  name: string;
+  status: DoctorStatus;
+  detail: string;
+}
+
+/** `weave doctor` report (read-only preflight) */
+export interface DoctorReport {
+  checks: DoctorCheck[];
+  ok: boolean;
+}
 
 /** `weave migrate` options */
 export interface MigrateOptions {
   /** generate DDL without executing */
   dryRun?: boolean;
+  /** run `weave doctor` first and abort on any failed check */
+  preflight?: boolean;
   printer: CliPrinter;
 }
 

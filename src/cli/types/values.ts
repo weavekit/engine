@@ -38,8 +38,18 @@ export const WEAVE_COMMANDS = {
   IDENTITY_ENABLE: 'identity:enable',
   OPENAPI: 'openapi',
   GRAPHQL_SCHEMA: 'graphql:schema',
+  DOCTOR: 'doctor',
 } as const;
 export type WeaveCommand = typeof WEAVE_COMMANDS[keyof typeof WEAVE_COMMANDS];
+
+/** `weave doctor` check outcomes */
+export const DOCTOR_STATUSES = {
+  PASS: 'pass',
+  WARN: 'warn',
+  FAIL: 'fail',
+  SKIP: 'skip',
+} as const;
+export type DoctorStatus = typeof DOCTOR_STATUSES[keyof typeof DOCTOR_STATUSES];
 
 /** `weave init --type` project-starting presets (core is never trimmed) */
 export const PROJECT_TYPES = {

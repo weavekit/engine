@@ -12,6 +12,7 @@ accepts `--json` for machine-readable output.
 | `weave migrate` | Sync metadata to PostgreSQL |
 | `weave deploy plan` | Preview the schema/DB changes for the next deploy (read-only) |
 | `weave deploy apply` | Apply the changes atomically and record a schema revision |
+| `weave doctor` | Read-only preflight: connection, PostgreSQL compatibility, drift, system tables, RLS + sandbox |
 | `weave dev` | Run with hot reload |
 | `weave build` | Bundle the app entry |
 | `weave test` | Proxy `node --test` |
@@ -93,6 +94,22 @@ A deployment-oriented view of the same schema sync. Both run against
 `weave migrate` is the day-to-day command (it also auto-commits the `objects/` tree); `weave deploy`
 is the explicit, revision-recording path for release jobs. See
 [How migration handles existing tables](../03-model/02-schema/05-migrations.md).
+
+## `weave doctor`
+
+A read-only preflight (never writes, never takes the migration lock) that checks a project is ready
+to migrate/serve and prints a `check / status / detail` table (`pass` / `warn` / `fail` / `skip`):
+
+- **config** — `weavekit.config.ts` loads.
+- **database-url** — resolved from `migrationDatabaseUrl` / `databaseUrl` / `DATABASE_URL` (password redacted in the output).
+- **connection** + **postgres-version** — connects and reports the server version (fails below the engine floor).
+- **schema-drift** — whether `objects/*/schema.json` matches the live database (`warn` = run `weave migrate`).
+- **system-tables** — engine system tables present and shaped as the current engine expects.
+- **rls-role** / **sandbox** — when the script subsystem is enabled: the restricted-SQL role exists and is grantable, and `isolated-vm` resolves (otherwise `skip`).
+
+Exit code is `1` when any check fails, so it gates CI and deploys. `weave migrate --preflight` runs
+the same checks first and aborts on any failure (convenience for release jobs). `--json` emits the
+report structurally.
 
 ## `weave dev [--port <n>]`
 

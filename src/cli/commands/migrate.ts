@@ -10,11 +10,24 @@ import {
 } from '../../runtime/git/index.js';
 import { loadConfig } from '../load-config.js';
 import { resolveProjectFieldTypes } from '../resolve-field-types.js';
+import { runDoctor } from './doctor.js';
 import type { MigrateOptions } from '../types/index.js';
 
 /** `weave migrate` — Git → PG one-way sync, then auto-commit the metadata tree */
 export async function migrate(cwd: string, options: MigrateOptions): Promise<void> {
   const p = options.printer;
+  if (options.preflight === true) {
+    const report = await runDoctor(cwd);
+    if (!report.ok) {
+      p.error('preflight failed:');
+      for (const check of report.checks.filter((entry) => entry.status === 'fail')) {
+        p.error(`  ${check.name}: ${check.detail}`);
+      }
+      process.exitCode = 1;
+      return;
+    }
+    p.log('preflight passed');
+  }
   const config = await loadConfig(cwd);
   const schemaDir = config.schemaDir ?? cwd;
   const fieldTypes = await resolveProjectFieldTypes(cwd, config);

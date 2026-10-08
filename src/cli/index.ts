@@ -6,6 +6,7 @@ import { loadEnvFile } from './env.js';
 import { build } from './commands/build.js';
 import { connect } from './commands/connect.js';
 import { deployApply, deployPlan } from './commands/deploy.js';
+import { doctor } from './commands/doctor.js';
 import { dev } from './commands/dev.js';
 import { enumCheck, enumList } from './commands/enums.js';
 import { fieldAdd } from './commands/field-add.js';
@@ -58,8 +59,9 @@ program
   .command(WEAVE_COMMANDS.MIGRATE)
   .description('sync metadata to PostgreSQL (Git → PG) and auto-commit')
   .option('--dry-run', 'generate DDL without executing')
-  .action(async (opts: { dryRun?: boolean }) => {
-    await runAction(() => migrate(process.cwd(), { dryRun: opts.dryRun, printer: printer() }));
+  .option('--preflight', 'run "weave doctor" first and abort if any check fails')
+  .action(async (opts: { dryRun?: boolean; preflight?: boolean }) => {
+    await runAction(() => migrate(process.cwd(), { dryRun: opts.dryRun, preflight: opts.preflight, printer: printer() }));
   });
 
 program
@@ -74,6 +76,13 @@ program
   .description('apply schema/DB changes atomically and record a schema revision')
   .action(async () => {
     await runAction(() => deployApply(process.cwd(), { printer: printer() }));
+  });
+
+program
+  .command(WEAVE_COMMANDS.DOCTOR)
+  .description('read-only preflight: connection, PostgreSQL compatibility, schema/DB drift, system tables, RLS + sandbox')
+  .action(async () => {
+    await runAction(() => doctor(process.cwd(), { printer: printer() }));
   });
 
 program

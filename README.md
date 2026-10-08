@@ -148,6 +148,7 @@ await engine.app.listen({ port: 3000 });
 | --- | --- |
 | `weave migrate [--dry-run]` | State-diff migration + metadata cache + auto-commit |
 | `weave deploy plan` / `weave deploy apply` | Preview / atomically apply schema changes and record a global schema revision |
+| `weave doctor` | Read-only preflight (connection, PostgreSQL compatibility, drift, system tables, RLS + sandbox) |
 | `weave dev [--port]` | Run with hot reload |
 | `weave build` | Bundle the server entry (esbuild) |
 | `weave test` | Proxy the project test suite |
