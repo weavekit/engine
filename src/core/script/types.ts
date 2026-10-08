@@ -30,6 +30,8 @@ export interface ScriptUser {
   roles: string[];
   /** team id, required for `team`-scoped row access (RLS + rowScope) */
   departmentId?: string;
+  /** tenant of the subject (multi-tenancy) */
+  tenantId?: string;
 }
 
 /** filter/sort shapes are structurally compatible with the data-access layer */

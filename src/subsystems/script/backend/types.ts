@@ -19,7 +19,7 @@ export interface RpcRequest {
   /** arguments after the object name (for 'objects': [objectName, method, ...args]) */
   args: unknown[];
   /** the script author (this.user) driving the call — rebuilt as an IdentitySubject */
-  user: { id: string; name?: string; roles: string[]; departmentId?: string };
+  user: { id: string; name?: string; roles: string[]; departmentId?: string; tenantId?: string };
 }
 
 export type RpcExecutor = (req: RpcRequest, timeoutMs: number) => Promise<unknown>;

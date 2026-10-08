@@ -147,6 +147,7 @@ function scriptUserOf(ctx: DataAccessContext): ScriptUser {
     id: subject?.id ?? 'system',
     roles: subject?.roles ?? [],
     departmentId: subject?.departmentId,
+    ...(subject?.tenantId === undefined ? {} : { tenantId: subject.tenantId }),
   };
 }
 

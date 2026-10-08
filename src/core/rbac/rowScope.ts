@@ -98,6 +98,27 @@ export function buildRowScope(
   locale?: Locale,
   alias?: string,
 ): RowScopeFragment | undefined {
+  const base = baseRowScope(def, scope, subject, roles, locale, alias);
+  // tenant boundary applies on top of RBAC (even for `all`); a tenant-less
+  // subject or an object without a tenant column leaves the scope unchanged
+  const tenantField = markerField(def, ROW_SCOPE_MARKERS.TENANT);
+  if (tenantField === undefined || subject.tenantId === undefined) return base;
+  const tenantFragment: RowScopeFragment = {
+    sql: `${col(alias, tenantField.name)} = $${base === undefined ? 1 : 2}`,
+    params: [subject.tenantId],
+  };
+  if (base === undefined) return tenantFragment;
+  return { sql: `${base.sql} AND ${tenantFragment.sql}`, params: [...base.params, ...tenantFragment.params] };
+}
+
+function baseRowScope(
+  def: ObjectDefinition,
+  scope: ReadScope | undefined,
+  subject: IdentitySubject,
+  roles: readonly string[],
+  locale?: Locale,
+  alias?: string,
+): RowScopeFragment | undefined {
   if (scope === undefined || scope === READ_SCOPES.ALL) return undefined;
   const role = roles.join(',');
 

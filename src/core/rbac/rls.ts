@@ -45,9 +45,19 @@ function markerField(def: ObjectDefinition, marker: RowScopeMarker): string | un
 
 /**
  * The read-policy predicate for one object, or `undefined` when no declared role
- * can read (default deny — no policy is created, RLS denies everything).
+ * can read (default deny — no policy is created, RLS denies everything). When the
+ * object declares a tenant column, a tenant predicate (`weavekit.tenant_id` GUC)
+ * is AND'd on top — an unset GUC is NULL → fail-closed.
  */
 export function buildRlsPolicy(def: ObjectDefinition): string | undefined {
+  const base = baseRlsPolicy(def);
+  if (base === undefined) return undefined;
+  const tenant = markerField(def, ROW_SCOPE_MARKERS.TENANT);
+  if (tenant === undefined) return base;
+  return `(${base}) AND current_setting('weavekit.tenant_id', true) = ${q(tenant)}`;
+}
+
+function baseRlsPolicy(def: ObjectDefinition): string | undefined {
   if (def.permissions === undefined) {
     // open mode — any subject reaching the role-gated db.query path may read all rows
     return 'true';

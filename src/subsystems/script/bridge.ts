@@ -66,7 +66,7 @@ export function createScriptRpcExecutor(options: ScriptBridgeOptions): RpcExecut
     const ctx: DataAccessContext = {
       pool,
       registry,
-      principal: userPrincipal({ id: req.user.id, roles: req.user.roles, departmentId: req.user.departmentId }),
+      principal: userPrincipal({ id: req.user.id, roles: req.user.roles, departmentId: req.user.departmentId, ...(req.user.tenantId === undefined ? {} : { tenantId: req.user.tenantId }) }),
       locale,
     };
     const fn = (dataAccess as unknown as Record<string, unknown>)[method];
@@ -99,7 +99,12 @@ export function createScriptRpcExecutor(options: ScriptBridgeOptions): RpcExecut
       budget: options.budget,
       rls: {
         role: options.rlsRole,
-        subject: { id: req.user.id, roles: req.user.roles, departmentId: req.user.departmentId },
+        subject: {
+          id: req.user.id,
+          roles: req.user.roles,
+          departmentId: req.user.departmentId,
+          ...(req.user.tenantId === undefined ? {} : { tenantId: req.user.tenantId }),
+        },
       },
     });
   }

@@ -44,7 +44,7 @@ const DEPRECATED_DATETIME_ALIAS = 'datetime';
 
 /** extra keys allowed per field type */
 const EXTRA_KEYS: Record<FieldType, readonly string[]> = {
-  string: ['minLength', 'maxLength', 'regex', 'required', 'unique', 'default', 'formula', ROW_SCOPE_MARKERS.OWNERSHIP, ROW_SCOPE_MARKERS.DEPARTMENT, 'ownershipSource', 'departmentSource'],  text: ['maxLength', 'required', 'unique', 'default', 'formula'],
+  string: ['minLength', 'maxLength', 'regex', 'required', 'unique', 'default', 'formula', ROW_SCOPE_MARKERS.OWNERSHIP, ROW_SCOPE_MARKERS.DEPARTMENT, ROW_SCOPE_MARKERS.TENANT, 'ownershipSource', 'departmentSource'],  text: ['maxLength', 'required', 'unique', 'default', 'formula'],
   char: ['length', 'required', 'unique', 'default', 'formula'],
   smallint: ['min', 'max', 'required', 'unique', 'default', 'formula'],
   integer: ['min', 'max', 'required', 'unique', 'default', 'formula'],
@@ -240,6 +240,7 @@ export function validateField(raw: unknown, vc: Vc, options: FieldValidateOption
       const regex = expectString(raw, 'regex', vc);
       const ownership = expectBoolean(raw, ROW_SCOPE_MARKERS.OWNERSHIP, vc);
       const department = expectBoolean(raw, ROW_SCOPE_MARKERS.DEPARTMENT, vc);
+      const tenant = expectBoolean(raw, ROW_SCOPE_MARKERS.TENANT, vc);
       const ownershipSource = expectScopeSource(raw, 'ownershipSource', vc);
       const departmentSource = expectScopeSource(raw, 'departmentSource', vc);
       if (regex !== undefined) {
@@ -265,6 +266,7 @@ export function validateField(raw: unknown, vc: Vc, options: FieldValidateOption
         default: raw.default as string | undefined,
         ownership,
         department,
+        tenant,
         ownershipSource,
         departmentSource,
       };
@@ -705,7 +707,7 @@ function expectScopeSource(raw: Record<string, unknown>, key: string, vc: Vc): S
 }
 
 /** engine-semantic attrs a registered type does NOT inherit from its base (computed/RBAC) */
-const SEMANTIC_ATTRS = new Set<string>(['formula', ROW_SCOPE_MARKERS.OWNERSHIP, ROW_SCOPE_MARKERS.DEPARTMENT]);
+const SEMANTIC_ATTRS = new Set<string>(['formula', ROW_SCOPE_MARKERS.OWNERSHIP, ROW_SCOPE_MARKERS.DEPARTMENT, ROW_SCOPE_MARKERS.TENANT]);
 /** type-check one declared extra-attribute value against its AttrSpec */
 function checkAttrValue(value: unknown, attr: string, spec: AttrSpec, vc: Vc): void {
   switch (spec.type) {

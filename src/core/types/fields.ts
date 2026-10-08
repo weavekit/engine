@@ -54,6 +54,8 @@ export interface StringField extends FieldBase {
   department?: boolean;
   /** where the department column's values come from (`internal` default | `external`) */
   departmentSource?: ScopeSource;
+  /** tenant marker: every read/write is implicitly scoped to the subject's tenant (at most one per object) */
+  tenant?: boolean;
 }
 
 export interface TextField extends FieldBase {

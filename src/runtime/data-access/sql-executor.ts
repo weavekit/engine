@@ -9,6 +9,8 @@ export interface RestrictedSqlSubject {
   id: string;
   roles: string[];
   departmentId?: string;
+  /** tenant of the subject (multi-tenancy); carried to RLS via `weavekit.tenant_id` */
+  tenantId?: string;
 }
 
 export interface RestrictedSqlRls {
@@ -114,6 +116,9 @@ export async function executeRestrictedSql(
       await client.query(`SET LOCAL weavekit.roles = ${gucLiteral(subject.roles.join(','))}`);
       if (subject.departmentId !== undefined) {
         await client.query(`SET LOCAL weavekit.department_id = ${gucLiteral(subject.departmentId)}`);
+      }
+      if (subject.tenantId !== undefined) {
+        await client.query(`SET LOCAL weavekit.tenant_id = ${gucLiteral(subject.tenantId)}`);
       }
     }
     const result = await client.query(
