@@ -12,6 +12,7 @@ import {
   GraphQLString,
   printSchema,
   type GraphQLEnumValueConfigMap,
+  type GraphQLFieldConfig,
   type GraphQLFieldConfigMap,
   type GraphQLInputFieldConfigMap,
   type GraphQLInputType,
@@ -26,13 +27,17 @@ import {
   type EnumField,
   type FieldDefinition,
   type FieldTypeRegistry,
+  type ObjectDefinition,
   type ObjectRegistry,
 } from '../../core/index.js';
 import { GraphQLJSON } from './scalars.js';
 import {
   createResolver,
   deleteResolver,
+  detailsResolver,
   listResolver,
+  multiRelationResolver,
+  relationResolver,
   singleResolver,
   transitionResolver,
   updateResolver,
@@ -168,10 +173,44 @@ function inputFieldType(
   return fieldType(field, registry, objectName, cache) as GraphQLInputType | undefined;
 }
 
-/** the fields of one object type: scalar/enum/json columns + the read-only `weave_id` */
+/** the GraphQL field for a relation-like schema field, or undefined when it cannot be typed */
+function relationField(
+  field: FieldDefinition,
+  objects: ObjectRegistry,
+  objectTypes: Map<string, GraphQLObjectType>,
+): GraphQLFieldConfig<unknown, GraphQLContext> | undefined {
+  const target = (field as { target?: string }).target;
+  const targetType = target === undefined ? undefined : objectTypes.get(target);
+
+  if (field.type === FIELD_TYPES.DETAILS) {
+    if (target === undefined || targetType === undefined) return undefined;
+    return {
+      type: new GraphQLNonNull(new GraphQLList(new GraphQLNonNull(targetType))),
+      resolve: detailsResolver(target),
+    };
+  }
+  if (field.type === FIELD_TYPES.MULTI_RELATION) {
+    if (target === undefined || targetType === undefined) return undefined;
+    const targetDef = objects.get(target) as ObjectDefinition;
+    return {
+      type: new GraphQLNonNull(new GraphQLList(new GraphQLNonNull(targetType))),
+      resolve: multiRelationResolver(target, targetDef, field.name),
+    };
+  }
+  // relation / user / department
+  if (target !== undefined && targetType !== undefined) {
+    return { type: targetType, resolve: relationResolver(target, field.name) };
+  }
+  // unmodeled target (implicit identity FK) → the raw id as a string
+  return { type: GraphQLString, ...(field.description === undefined ? {} : { description: field.description }) };
+}
+
+/** the fields of one object type (scalars/enums/json + relations) + read-only `weave_id` */
 function objectFields(
   def: { name: string; fields: FieldDefinition[] },
-  registry: FieldTypeRegistry,
+  fieldTypes: FieldTypeRegistry,
+  objects: ObjectRegistry,
+  objectTypes: Map<string, GraphQLObjectType>,
   cache: Map<string, GraphQLEnumType>,
 ): GraphQLFieldConfigMap<unknown, GraphQLContext> {
   const fields: GraphQLFieldConfigMap<unknown, GraphQLContext> = {
@@ -181,7 +220,12 @@ function objectFields(
     },
   };
   for (const field of def.fields) {
-    const type = fieldType(field, registry, def.name, cache);
+    if (isRelationLike(fieldTypes, field.type)) {
+      const rel = relationField(field, objects, objectTypes);
+      if (rel !== undefined) fields[field.name] = rel;
+      continue;
+    }
+    const type = fieldType(field, fieldTypes, def.name, cache);
     if (type === undefined) continue;
     fields[field.name] = { type, ...(field.description === undefined ? {} : { description: field.description }) };
   }
@@ -224,7 +268,7 @@ export function buildGraphQLSchema(engine: GraphQLEngine): GraphQLSchema {
       new GraphQLObjectType({
         name: pascalCase(def.name),
         ...(def.description === undefined ? {} : { description: def.description }),
-        fields: () => objectFields(def, fieldTypes, enumCache),
+        fields: () => objectFields(def, fieldTypes, registry, objectTypes, enumCache),
       }),
     );
   }

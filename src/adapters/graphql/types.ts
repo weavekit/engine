@@ -19,6 +19,20 @@ export interface GraphQLEngine {
 export interface GraphQLContext {
   subject: IdentitySubject;
   engine: GraphQLEngine;
+  loader: RecordLoader;
+}
+
+/**
+ * Per-request, same-tick batching loader for nested relation resolution. Each
+ * `load`/`loadChildren` collapses every request made in the same execution tick
+ * into one data-access query, so a list of N records with a relation is one
+ * query per layer instead of N (kills the N+1).
+ */
+export interface RecordLoader {
+  /** one record by its `weave_id`, or null when absent/out of scope */
+  load(objectName: string, recordKey: string): Promise<Record<string, unknown> | null>;
+  /** the `details` children of a parent record (ordered by `parent_idx`) */
+  loadChildren(childObject: string, parentKey: string): Promise<Record<string, unknown>[]>;
 }
 
 /**

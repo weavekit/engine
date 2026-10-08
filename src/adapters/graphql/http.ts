@@ -3,6 +3,7 @@ import { execute, GraphQLError, parse, validate, type GraphQLSchema } from 'grap
 import { createSlidingWindow, SchemaError, type IdentitySubject, type Locale } from '../../core/index.js';
 import { mapSchemaError } from '../../core/api/index.js';
 import { authenticate, type Authenticator } from '../auth/index.js';
+import { createRecordLoader } from './loader.js';
 import { resolveSecurity, validateQuery } from './security.js';
 import type { EngineGraphQLConfig, GraphQLEngine } from './types.js';
 
@@ -167,7 +168,7 @@ export function registerGraphQLRoutes(app: FastifyInstance, deps: GraphQLRouteDe
         document,
         ...(parsed.variables === undefined ? {} : { variableValues: parsed.variables }),
         ...(parsed.operationName === undefined ? {} : { operationName: parsed.operationName }),
-        contextValue: { subject, engine: deps.engine },
+        contextValue: { subject, engine: deps.engine, loader: createRecordLoader(deps.engine, subject) },
       });
 
       const body: Record<string, unknown> = {};

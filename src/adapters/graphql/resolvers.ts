@@ -1,6 +1,8 @@
 import { GraphQLError } from 'graphql';
 import {
+  encodeRecordKey,
   FIELD_TYPES,
+  primaryFieldsOf,
   RECORD_META_ID_FIELD,
   SchemaError,
   type Locale,
@@ -145,5 +147,40 @@ export function transitionResolver(objectName: string) {
         ),
       context.engine.locale,
     );
+  };
+}
+
+/** a `relation`/`user`/`department` output field → the target object (batched) */
+export function relationResolver(target: string, fieldName: string) {
+  return async (
+    parent: unknown,
+    _args: unknown,
+    context: GraphQLContext,
+  ): Promise<Record<string, unknown> | null> => {
+    const fk = (parent as Record<string, unknown>)[fieldName];
+    if (fk === null || fk === undefined) return null;
+    return context.loader.load(target, encodeRecordKey([String(fk)]));
+  };
+}
+
+/** a `multiRelation` output field → the target objects (batched) */
+export function multiRelationResolver(target: string, targetDef: ObjectDefinition, fieldName: string) {
+  return async (parent: unknown, _args: unknown, context: GraphQLContext): Promise<Record<string, unknown>[]> => {
+    const value = (parent as Record<string, unknown>)[fieldName];
+    if (!Array.isArray(value)) return [];
+    const composite = primaryFieldsOf(targetDef).length > 1;
+    const records = await Promise.all(
+      value.map((v) => context.loader.load(target, composite ? String(v) : encodeRecordKey([String(v)]))),
+    );
+    return records.filter((r): r is Record<string, unknown> => r !== null);
+  };
+}
+
+/** a `details` output field → the parent's children (batched, ordered by `parent_idx`) */
+export function detailsResolver(childObject: string) {
+  return async (parent: unknown, _args: unknown, context: GraphQLContext): Promise<Record<string, unknown>[]> => {
+    const parentKey = (parent as Record<string, unknown>)[RECORD_META_ID_FIELD];
+    if (parentKey === null || parentKey === undefined) return [];
+    return context.loader.loadChildren(childObject, String(parentKey));
   };
 }
