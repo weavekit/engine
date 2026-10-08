@@ -63,11 +63,15 @@ function exceeded(limit: string, max: number, locale?: Locale): never {
 
 /** count filter conditions, expanding `$or` groups into their member conditions */
 export function countFilterConditions(filter: Filter | undefined): number {
-  if (filter === undefined) return 0;
+  if (filter === undefined || filter === null || typeof filter !== 'object') return 0;
   let count = 0;
   for (const [key, value] of Object.entries(filter)) {
     if (key === '$or' && Array.isArray(value)) {
-      for (const group of value) count += Object.keys(group as Record<string, unknown>).length;
+      for (const group of value) {
+        if (group !== null && typeof group === 'object' && !Array.isArray(group)) {
+          count += Object.keys(group).length;
+        }
+      }
     } else {
       count += 1;
     }
