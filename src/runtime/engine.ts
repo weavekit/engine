@@ -60,6 +60,7 @@ import { registerEventsRoutes } from '../adapters/events/index.js';
 import type { EventBus, IngressConfig } from '../core/provider/event/index.js';
 import { registerOpsRoutes } from '../adapters/ops/index.js';
 import { registerMcp, type EngineMcpConfig, type McpServerHandle } from '../adapters/mcp/index.js';
+import { registerGraphQL, type EngineGraphQLConfig, type GraphQLServerHandle } from '../adapters/graphql/index.js';
 import { createAlerts } from '../infrastructure/index.js';
 import type { AuditEngine } from '../subsystems/audit/index.js';
 import type { WorkflowTimerScheduler } from '../subsystems/workflow/index.js';
@@ -258,8 +259,8 @@ export interface EngineConfig {
   commit?: { meta?: boolean; identity?: { name: string; email: string } };
   /** authentication source (static key map or custom resolver); required unless `identity.verifier` is set */
   auth?: { source: AuthSource };
-  /** protocol adapters (REST/MCP/events), closable via config */
-  adapters?: { rest?: EngineRestConfig; mcp?: EngineMcpConfig; events?: EngineEventsConfig };
+  /** protocol adapters (REST/MCP/events/GraphQL), closable via config */
+  adapters?: { rest?: EngineRestConfig; mcp?: EngineMcpConfig; events?: EngineEventsConfig; graphql?: EngineGraphQLConfig };
   /** engine-level tool mechanism: custom tools + guardrail policies; disabled when absent */
   tools?: EngineToolsConfig;
   /** optional subsystems, dynamically loaded when enabled (audit/script; workflow is declaration-driven; unknown keys error out) */
@@ -318,6 +319,8 @@ export interface WeaveKitEngine {
   authenticator: Authenticator;
   /** MCP adapter handle (present unless adapters.mcp.enabled is false) */
   mcp?: McpServerHandle;
+  /** GraphQL adapter handle (present when adapters.graphql.enabled is true) */
+  graphql?: GraphQLServerHandle;
   /** tool mechanism (present when config.tools.toolsDir is set): executor + approval queue */
   tools?: { defs: ToolDefinition[]; executor: ToolExecutor };
   /** live event publisher (present when adapters.events.enabled): emits committed writes / audit / schema changes */
@@ -572,7 +575,9 @@ export async function buildEngineFromRegistry(
   }
 
   const rest = config.adapters?.rest;
-  const mcpCfg = config.adapters?.mcp;  let proxyHandle: { forwarder: ProxyForwarder; resolver: ProxyTargetResolver } | undefined;
+  const mcpCfg = config.adapters?.mcp;
+  const graphqlCfg = config.adapters?.graphql;
+  let proxyHandle: { forwarder: ProxyForwarder; resolver: ProxyTargetResolver } | undefined;
   const logLevel = (process.env.WEAVEKIT_LOG_LEVEL as 'fatal' | 'error' | 'warn' | 'info' | 'debug' | 'trace' | 'silent') ?? 'info';
   // forceCloseConnections: on close, terminate lingering keep-alive/long-lived
   // connections (e.g. SSE /api/events) instead of letting `server.close()` wait
@@ -782,6 +787,19 @@ export async function buildEngineFromRegistry(
     });
   }
 
+  // GraphQL adapter (adapters.graphql): disabled unless explicitly enabled. It
+  // reuses the same RBAC-decorated data-access + authenticator as REST/MCP, so
+  // field-level RBAC/RLS and write auditing come from the existing layers.
+  let graphqlHandle: GraphQLServerHandle | undefined;
+  if (graphqlCfg?.enabled === true) {
+    graphqlHandle = registerGraphQL(app, {
+      engine: { registry, pool, dataAccess, locale },
+      authenticator,
+      graphql: graphqlCfg,
+      locale,
+    });
+  }
+
   // host services (started after assembly so they can use the whole engine;
   // stopped in `close()` before the app/pool teardown so their outbound streams
   // are released first)
@@ -794,6 +812,7 @@ export async function buildEngineFromRegistry(
     dataAccess,
     authenticator,
     mcp,
+    graphql: graphqlHandle,
     tools,
     events: eventPublisher,
     proxy: proxyHandle,
@@ -831,6 +850,7 @@ export async function buildEngineFromRegistry(
         warn('server', error);
       }
       await mcp?.close().catch((error) => warn('mcp', error));
+      await graphqlHandle?.close().catch((error) => warn('graphql', error));
       await workflowScheduler?.close().catch((error) => warn('workflow', error));
       await script?.close().catch((error) => warn('script', error));
       await bufferedSink?.flush().catch((error) => warn('audit flush', error));

@@ -28,6 +28,7 @@ export * from './runtime/engine.js';
 export * from './adapters/auth/index.js';
 export * from './adapters/rest/index.js';
 export * from './adapters/mcp/index.js';
+export * from './adapters/graphql/index.js';
 export * from './adapters/events/index.js';
 export { buildOpenApiDocument, capabilitiesFromConfig } from './adapters/openapi/index.js';
 export type {
