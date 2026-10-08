@@ -3,6 +3,61 @@
 All notable changes to `@weave-kit/engine`. Format follows [Keep a Changelog](https://keepachangelog.com/);
 the project uses [Semantic Versioning](https://semver.org/).
 
+## [1.0.0]
+
+The **G1 contract-freeze** release: the public surface (schema/workflow formats, REST routes, MCP tool
+names, event types, error codes, data-access/RBAC contracts, package exports) is now frozen under
+`CONTRACT_VERSION` (`1`) and evolves **additively** from here. It also lands multi-tenancy, the
+observability seam and operational tooling.
+
+### Added
+
+- **Multi-tenancy (row).** `EngineConfig.tenants = { enabled?, defaultTenant? }`; an object field
+  marked `"tenant": true` scopes every read/write to the subject's tenant — RBAC row scope (even for
+  `read: "all"`) + native RLS (`weavekit.tenant_id` GUC) + audit (`tenant_id`). The tenant is forced
+  on create and immutable on update (`object.tenant.immutable`); `withDefaultTenant` stamps a subject
+  that lacks one. Absent tenant = single-tenant (unchanged). Exported `principalTenantId`, `tenantOf`,
+  `scopedQuotaKey`, `ROW_SCOPE_MARKERS.TENANT`.
+- **Contract freeze (G1).** `CONTRACT_VERSION` (exported from the package root; mirrored in
+  `GET /version` and the OpenAPI `info.x-contract-version`) plus a freeze gate test and the
+  contract-freeze / deprecation policy.
+- **Observability seam.** `MetricsSink` / `TraceSink` + single-source `METRIC_NAMES`
+  (`core/observability`), injected via `EngineConfig.observability`; the engine emits request
+  latency/status, `rbac.deny` and `query.budget.reject`, and records spans. `core/trace.ts`
+  (`parseTraceparent`) parses the inbound W3C `traceparent`; the `traceId` threads through
+  audit / evidence / events. No-op default; no telemetry backend bundled.
+- **`weave doctor` preflight** — read-only (connection, PostgreSQL compatibility, schema↔DB drift,
+  engine system tables, RLS role + sandbox), `--json` supported; `weave migrate --preflight` runs it
+  first and aborts on any failure.
+- **`weave deploy plan` schema-impact analysis** (`analyzeImpact` / `SchemaImpact`): creates, column
+  adds, constraints, indexes, enum + RLS changes, a data-compat risk and an API-breaking flag, plus
+  the live schema revision and a **config-drift** flag.
+- **Audit + evidence keyset cursor.** `AuditQuery.cursor` / `AuditQueryResult.nextCursor` and
+  `EvidenceQuery` / `EvidenceQueryResult` + `queryEvidence` (stable `(ts DESC, id DESC)` paging;
+  offset still supported).
+- **Enterprise seams** documented and annotated (`@enterprise-reserved`): `AuditSink`,
+  `ApprovalsBackend`, `WorkflowTimerStore` / `WorkflowBackend`, `IdentityStore`,
+  `AuthSource` / `AuthVerifier`, `GuardrailPolicy`, `ProxyTargetResolver`, `MetricsSink` / `TraceSink`.
+
+### Changed
+
+- **GraphQL query cost is weighted by the list `limit`** (was a raw field count), matching the
+  documented behavior.
+- Query-budget filter counting is robust against malformed `$or` groups.
+
+### Fixed
+
+- **System-principal audit `actorId` is `'system'`** again (matches the documented contract; the
+  specific capability is kept on the event's `meta.capability`).
+- **Tenant write isolation**: `create` forces the tenant column to the subject's tenant, and `update`
+  rejects moving a row to another tenant (`object.tenant.immutable`).
+- MCP argument-validation denials are audited under `tool.args.invalid` (not `mcp.tool.notFound`).
+
+### Removed
+
+- `EngineAuditConfig.retention` — the no-op placeholder is gone (retention / export / compliance are
+  the enterprise E2 layer).
+
 ## [0.11.0]
 
 ### Added
