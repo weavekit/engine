@@ -183,6 +183,7 @@ export const zhHant: Record<MessageKey, string> = {
   'git.command.failed': 'git {command} 失敗：{detail}',
   'loader.dir.missing': '元資料目錄「{dir}」不存在',
   'loader.file.read': '無法讀取 schema 檔案「{file}」',
+  'query.budget.exceeded': "查詢超出 {limit} 預算上限 {max}",
   'http.param.invalid': '參數「{param}」的值無效',
   'http.notFound': '路由不存在',
   'http.rateLimited': '\u901f\u7387\u9650\u5236\u5df2\u8d85\u51fa',

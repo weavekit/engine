@@ -183,6 +183,7 @@ export const ko: Record<MessageKey, string> = {
   'git.command.failed': 'git {command} 실패: {detail}',
   'loader.dir.missing': '메타데이터 디렉터리 "{dir}"을(를) 찾을 수 없습니다',
   'loader.file.read': '스키마 파일 "{file}"을(를) 읽을 수 없습니다',
+  'query.budget.exceeded': "쿼리가 {limit} 예산 {max}을(를) 초과했습니다",
   'http.param.invalid': '매개변수 "{param}"의 값이 유효하지 않습니다',
   'http.notFound': '경로를 찾을 수 없습니다',
   'http.rateLimited': '\uc694\uccad \ud55c\ub3c4 \ucd08\uacfc',

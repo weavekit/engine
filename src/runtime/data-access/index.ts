@@ -21,6 +21,13 @@ export {
 } from "./builder.js";
 export { isSystemCtx, subjectOf } from "./types.js";
 export { decodeCursor, encodeCursor } from "./cursor.js";
+export {
+  QUERY_BUDGET_DEFAULTS,
+  assertQueryBudget,
+  countFilterConditions,
+  resolveQueryBudget,
+} from "./query-budget.js";
+export type { QueryBudget } from "./query-budget.js";
 export type { BuiltQuery, BuildContext, RowScope } from "./builder.js";
 export { validateRecord } from "./validate.js";
 export type { ValidateRecordOptions } from "./validate.js";

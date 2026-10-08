@@ -183,6 +183,7 @@ export const id: Record<MessageKey, string> = {
   'git.command.failed': 'git {command} gagal: {detail}',
   'loader.dir.missing': 'direktori metadata "{dir}" tidak ditemukan',
   'loader.file.read': 'tidak dapat membaca file skema "{file}"',
+  'query.budget.exceeded': "kueri melebihi anggaran {limit} sebesar {max}",
   'http.param.invalid': 'nilai tidak valid untuk "{param}"',
   'http.notFound': 'rute tidak ditemukan',
   'http.rateLimited': 'batas permintaan terlampaui',

@@ -183,6 +183,7 @@ export const ar: Record<MessageKey, string> = {
   'git.command.failed': 'فشل تنفيذ git {command}: {detail}',
   'loader.dir.missing': 'دليل البيانات الوصفية "{dir}" غير موجود',
   'loader.file.read': 'تعذّر قراءة ملف المخطط "{file}"',
+  'query.budget.exceeded': "يتجاوز الاستعلام ميزانية {limit} البالغة {max}",
   'http.param.invalid': 'قيمة غير صالحة لـ "{param}"',
   'http.notFound': 'المسار غير موجود',
   'http.rateLimited': '\u062a\u0645 \u062a\u062c\u0627\u0648\u0632 \u062d\u062f \u0627\u0644\u0637\u0644\u0628\u0627\u062a',

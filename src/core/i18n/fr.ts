@@ -183,6 +183,7 @@ export const fr: Record<MessageKey, string> = {
   'git.command.failed': 'git {command} a échoué : {detail}',
   'loader.dir.missing': 'répertoire de métadonnées "{dir}" introuvable',
   'loader.file.read': 'impossible de lire le fichier de schéma "{file}"',
+  'query.budget.exceeded': "la requête dépasse le budget {limit} de {max}",
   'http.param.invalid': 'valeur invalide pour "{param}"',
   'http.notFound': 'route introuvable',
   'http.rateLimited': 'limite de requ\u00eates d\u00e9pass\u00e9e',

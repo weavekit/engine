@@ -183,6 +183,7 @@ export const ru: Record<MessageKey, string> = {
   'git.command.failed': 'git {command} не удался: {detail}',
   'loader.dir.missing': 'каталог метаданных "{dir}" не найден',
   'loader.file.read': 'не удалось прочитать файл схемы "{file}"',
+  'query.budget.exceeded': "запрос превышает бюджет {limit} ({max})",
   'http.param.invalid': 'недопустимое значение для "{param}"',
   'http.notFound': 'маршрут не найден',
   'http.rateLimited': '\u043f\u0440\u0435\u0432\u044b\u0448\u0435\u043d \u043b\u0438\u043c\u0438\u0442 \u0437\u0430\u043f\u0440\u043e\u0441\u043e\u0432',

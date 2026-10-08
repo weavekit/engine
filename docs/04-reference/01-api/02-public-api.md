@@ -60,7 +60,12 @@ The stable surface exists so you can extend the engine without patching internal
 - **Generic proxy** — `proxy.resolver` carries the application semantics.
 - **Protocol adapters** — the `adapters/*` registration functions.
 
-## 0.9 additions
+## Recent additions (0.9 / 0.10)
+
+- **QueryBudget** — `QueryBudget` / `QUERY_BUDGET_DEFAULTS` / `resolveQueryBudget` /
+  `assertQueryBudget` (`runtime/data-access/query-budget.ts`); config `EngineConfig.queryBudget`.
+  Bounds rows/filters/sorts (data-access), joins / SQL length / statement timeout (restricted SQL)
+  and GraphQL depth.
 
 - **Deploy & schema revision** — `weave deploy plan|apply`; `computeSchemaHash` /
   `writeSchemaRevision` / `latestSchemaRevision` (`runtime/metadata`).

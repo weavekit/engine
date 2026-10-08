@@ -1,7 +1,7 @@
 import type { Pool } from 'pg';
 import type { Locale, ObjectRegistry, ScriptServices } from '../../core/index.js';
 import { userPrincipal } from '../../core/index.js';
-import type { DataAccessContext, ObjectDataAccess } from '../../runtime/data-access/index.js';
+import type { DataAccessContext, ObjectDataAccess, QueryBudget } from '../../runtime/data-access/index.js';
 import { enforceSqlGates, executeRestrictedSql } from '../../runtime/data-access/index.js';
 import { createSqlAnalyzer } from '../../runtime/sql-analyzer/index.js';
 import type { RpcExecutor, RpcRequest } from './backend/types.js';
@@ -21,6 +21,8 @@ export interface ScriptBridgeOptions {
   maxObjectsPerQuery: number;
   /** restricted SQL row cap */
   maxRows?: number;
+  /** query budget for restricted SQL (maxSqlLength/maxJoins/statementTimeoutMs/maxRows) */
+  budget?: QueryBudget;
   locale?: Locale;
 }
 
@@ -94,6 +96,7 @@ export function createScriptRpcExecutor(options: ScriptBridgeOptions): RpcExecut
       timeoutMs,
       analyzer,
       locale,
+      budget: options.budget,
       rls: {
         role: options.rlsRole,
         subject: { id: req.user.id, roles: req.user.roles, departmentId: req.user.departmentId },

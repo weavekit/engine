@@ -3,6 +3,7 @@ import { isSafeRlsRole, sqlIdent, SchemaError } from '../../core/index.js';
 import type { Locale } from '../../core/index.js';
 import { createSqlAnalyzer } from '../sql-analyzer/index.js';
 import type { SqlAnalyzer } from '../sql-analyzer/index.js';
+import type { QueryBudget } from './query-budget.js';
 
 export interface RestrictedSqlSubject {
   id: string;
@@ -33,6 +34,8 @@ export interface RestrictedSqlOptions {
   analyzer?: SqlAnalyzer;
   /** message locale for gate failures */
   locale?: Locale;
+  /** query budget: caps maxRows / maxSqlLength / maxJoins / statementTimeoutMs */
+  budget?: QueryBudget;
 }
 
 export interface RestrictedSqlResult {
@@ -77,17 +80,23 @@ export async function executeRestrictedSql(
   params: unknown[],
   options: RestrictedSqlOptions = {},
 ): Promise<RestrictedSqlResult> {
-  const maxRows = options.maxRows ?? MAX_ROWS_DEFAULT;
-  const timeoutMs = options.timeoutMs ?? TIMEOUT_DEFAULT;
+  const maxRows = options.maxRows ?? options.budget?.maxRows ?? MAX_ROWS_DEFAULT;
+  const timeoutMs = options.timeoutMs ?? options.budget?.statementTimeoutMs ?? TIMEOUT_DEFAULT;
 
   if (typeof sql !== 'string') {
     throw new SchemaError('script.query.invalid', { detail: 'sql must be a string' });
   }
   let trimmed = sql.trim();
   if (trimmed.endsWith(';')) trimmed = trimmed.slice(0, -1);
+  if (options.budget !== undefined && trimmed.length > options.budget.maxSqlLength) {
+    throw new SchemaError('query.budget.exceeded', { limit: 'sqlLength', max: options.budget.maxSqlLength }, options.locale);
+  }
   // mandatory AST gate (fail-closed): the analyzer — not a regex — is the single
   // SELECT-only check, so a direct caller cannot run a non-SELECT or multi-statement.
-  await (options.analyzer ?? defaultAnalyzer()).analyzeSelect(trimmed, options.locale);
+  const analysis = await (options.analyzer ?? defaultAnalyzer()).analyzeSelect(trimmed, options.locale);
+  if (options.budget !== undefined && analysis.joinCount > options.budget.maxJoins) {
+    throw new SchemaError('query.budget.exceeded', { limit: 'joins', max: options.budget.maxJoins }, options.locale);
+  }
   if (options.rls !== undefined && !isSafeRlsRole(options.rls.role)) {
     throw new SchemaError('script.query.invalid', { detail: `invalid RLS role "${options.rls.role}"` });
   }

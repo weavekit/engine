@@ -66,6 +66,7 @@ import { registerMcp, type EngineMcpConfig, type McpServerHandle } from '../adap
 import { registerGraphQL, type EngineGraphQLConfig, type GraphQLServerHandle } from '../adapters/graphql/index.js';
 import { createAlerts } from '../infrastructure/index.js';
 import type { AuditEngine } from '../subsystems/audit/index.js';
+import { resolveQueryBudget, type QueryBudget } from './data-access/index.js';
 import type { WorkflowTimerScheduler } from '../subsystems/workflow/index.js';
 import { version } from '../version.js';
 
@@ -282,6 +283,12 @@ export interface EngineConfig {
    * `core/limiter` `consumeQuota` / `assertQuota`.
    */
   quotas?: { backend?: 'pg' };
+  /**
+   * Agent-native query budget: caps rows/filters/sorts (data-access), joins /
+   * SQL length / statement timeout (restricted SQL) and GraphQL depth. Absent =
+   * defaults (see `QUERY_BUDGET_DEFAULTS`).
+   */
+  queryBudget?: Partial<QueryBudget>;
   /** generic outbound proxy route wiring (applications provide the resolver) */
   proxy?: EngineProxyConfig;
   /**
@@ -524,7 +531,8 @@ export async function buildEngineFromRegistry(
     cancel: (object, id) => workflowScheduler?.cancel(object, id) ?? Promise.resolve(),
   };
   const replay = subsystems.audit?.replay === true;
-  const baseDataAccess = createDataAccess({ audit: auditSink, replay, events: eventPublisher, policies, approvals, workflowTimers });
+  const budget = resolveQueryBudget(config.queryBudget);
+  const baseDataAccess = createDataAccess({ audit: auditSink, replay, events: eventPublisher, policies, approvals, workflowTimers, budget });
 
   let script: ScriptDispatcher | undefined;
   let dataAccess: ObjectDataAccess;
@@ -538,9 +546,10 @@ export async function buildEngineFromRegistry(
       dataAccess: rbacDataAccess,
       services: subsystems.script.services,
       config: subsystems.script,
+      budget,
       locale,
     });
-    dataAccess = withRbac(createDataAccess({ audit: auditSink, script, replay, events: eventPublisher, policies, approvals, workflowTimers }), { audit: auditSink });
+    dataAccess = withRbac(createDataAccess({ audit: auditSink, script, replay, events: eventPublisher, policies, approvals, workflowTimers, budget }), { audit: auditSink });
   } else {
     dataAccess = withRbac(baseDataAccess, { audit: auditSink });
   }
@@ -833,7 +842,10 @@ export async function buildEngineFromRegistry(
     graphqlHandle = registerGraphQL(app, {
       engine: { registry, pool, dataAccess, locale },
       authenticator,
-      graphql: graphqlCfg,
+      graphql:
+        graphqlCfg.security?.maxDepth === undefined
+          ? { ...graphqlCfg, security: { ...graphqlCfg.security, maxDepth: budget.maxDepth } }
+          : graphqlCfg,
       locale,
     });
   }

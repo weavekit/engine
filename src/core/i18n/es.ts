@@ -183,6 +183,7 @@ export const es: Record<MessageKey, string> = {
   'git.command.failed': 'git {command} falló: {detail}',
   'loader.dir.missing': 'directorio de metadatos "{dir}" no encontrado',
   'loader.file.read': 'no se puede leer el archivo de esquema "{file}"',
+  'query.budget.exceeded': "la consulta supera el presupuesto de {limit} de {max}",
   'http.param.invalid': 'valor inválido para "{param}"',
   'http.notFound': 'ruta no encontrada',
   'http.rateLimited': 'l\u00edmite de peticiones excedido',

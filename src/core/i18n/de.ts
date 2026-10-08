@@ -183,6 +183,7 @@ export const de: Record<MessageKey, string> = {
   'git.command.failed': 'git {command} fehlgeschlagen: {detail}',
   'loader.dir.missing': 'Metadatenverzeichnis "{dir}" nicht gefunden',
   'loader.file.read': 'Schema-Datei "{file}" kann nicht gelesen werden',
+  'query.budget.exceeded': "Abfrage überschreitet das {limit}-Budget von {max}",
   'http.param.invalid': 'ungültiger Wert für "{param}"',
   'http.notFound': 'Route nicht gefunden',
   'http.rateLimited': 'Anfragenlimit \u00fcberschritten',

@@ -183,6 +183,7 @@ export const hi: Record<MessageKey, string> = {
   'git.command.failed': 'git {command} विफल: {detail}',
   'loader.dir.missing': 'मेटाडेटा निर्देशिका "{dir}" नहीं मिली',
   'loader.file.read': 'स्कीमा फ़ाइल "{file}" नहीं पढ़ सकते',
+  'query.budget.exceeded': "क्वेरी {limit} बजट {max} से अधिक है",
   'http.param.invalid': '"{param}" के लिए अमान्य मान',
   'http.notFound': 'रूट नहीं मिला',
   'http.rateLimited': '\u0905\u0928\u0941\u0930\u094b\u0927 \u0938\u0940\u092e\u093e \u092a\u093e\u0930 \u0939\u0941\u0908',

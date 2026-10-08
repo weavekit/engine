@@ -183,6 +183,7 @@ export const vi: Record<MessageKey, string> = {
   'git.command.failed': 'git {command} thất bại: {detail}',
   'loader.dir.missing': 'không tìm thấy thư mục siêu dữ liệu "{dir}"',
   'loader.file.read': 'không thể đọc tệp schema "{file}"',
+  'query.budget.exceeded': "truy vấn vượt quá ngân sách {limit} là {max}",
   'http.param.invalid': 'giá trị không hợp lệ cho "{param}"',
   'http.notFound': 'không tìm thấy route',
   'http.rateLimited': 'v\u01b0\u1ee3t qu\u00e1 gi\u1edbi h\u1ea1n y\u00eau c\u1ea7u',

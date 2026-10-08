@@ -180,6 +180,7 @@ export const en = {
   'git.command.failed': 'git {command} failed: {detail}',
   'loader.dir.missing': 'metadata directory "{dir}" not found',
   'loader.file.read': 'cannot read schema file "{file}"',
+  'query.budget.exceeded': "query exceeds the {limit} budget of {max}",
   'http.param.invalid': 'invalid value for "{param}"',
   'http.notFound': 'route not found',
   'http.rateLimited': 'rate limit exceeded',

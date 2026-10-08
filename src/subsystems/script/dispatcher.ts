@@ -11,8 +11,7 @@ import {
   type ScriptHook,
   type ScriptServices,
 } from '../../core/index.js';
-import { PAGINATION } from '../../runtime/data-access/index.js';
-import type { ObjectDataAccess } from '../../runtime/data-access/index.js';
+import { PAGINATION, type ObjectDataAccess, type QueryBudget } from '../../runtime/data-access/index.js';
 import type { SandboxBackend, SandboxInstance } from './backend/types.js';
 import { createIsolatedVmSandboxBackend } from './backend/isolated-vm.js';
 import { createScriptRpcExecutor } from './bridge.js';
@@ -30,6 +29,8 @@ export interface ScriptDispatcherOptions {
   services?: ScriptServices;
   config?: EngineScriptConfig;
   locale?: Locale;
+  /** query budget applied to restricted SQL (`this.db.query`) */
+  budget?: QueryBudget;
 }
 
 export interface ResolvedScriptConfig {
@@ -118,6 +119,7 @@ export async function createScriptDispatcher(options: ScriptDispatcherOptions): 
     queryTimeoutMs: config.queryTimeout,
     rlsRole: config.rlsRole,
     maxObjectsPerQuery: config.maxObjectsPerQuery,
+    budget: options.budget,
     locale,
   });
   const guard = new ConcurrencyGuard(config.maxConcurrentScripts);

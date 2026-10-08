@@ -183,6 +183,7 @@ export const ja: Record<MessageKey, string> = {
   'git.command.failed': 'git {command} が失敗しました: {detail}',
   'loader.dir.missing': 'メタデータディレクトリ「{dir}」が見つかりません',
   'loader.file.read': 'スキーマファイル「{file}」を読み込めません',
+  'query.budget.exceeded': "クエリが {limit} の上限 {max} を超えています",
   'http.param.invalid': 'パラメータ「{param}」の値が無効です',
   'http.notFound': 'ルートが見つかりません',
   'http.rateLimited': '\u30ec\u30fc\u30c8\u5236\u9650\u3092\u8d85\u904e\u3057\u307e\u3057\u305f',

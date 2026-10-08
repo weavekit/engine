@@ -39,6 +39,8 @@ export interface SqlAnalysis {
   resolvers: Record<string, string>;
   /** every column reference in the statement (target/where/order/group/having/joins/subqueries) */
   columnRefs: SqlColumnRef[];
+  /** number of explicit JOINs (`JoinExpr` nodes), for query-budget enforcement */
+  joinCount: number;
 }
 
 export interface SqlAnalyzer {
@@ -162,6 +164,7 @@ export function createSqlAnalyzer(): SqlAnalyzer {
       const tables: string[] = [];
       const resolvers: Record<string, string> = {};
       const columnRefs: SqlColumnRef[] = [];
+      let joinCount = 0;
 
       walk(ast, {
         RangeVar: (path) => {
@@ -170,6 +173,9 @@ export function createSqlAnalyzer(): SqlAnalyzer {
           tables.push(node.relname);
           resolvers[node.relname] = node.relname;
           if (node.alias?.aliasname !== undefined) resolvers[node.alias.aliasname] = node.relname;
+        },
+        JoinExpr: () => {
+          joinCount += 1;
         },
         ColumnRef: (path) => {
           const node = path.node as { fields?: ColumnField[] };
@@ -200,7 +206,7 @@ export function createSqlAnalyzer(): SqlAnalyzer {
         },
       });
 
-      return { tables: [...new Set(tables)], resolvers, columnRefs };
+      return { tables: [...new Set(tables)], resolvers, columnRefs, joinCount };
     },
   };
 }

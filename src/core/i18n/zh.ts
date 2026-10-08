@@ -182,6 +182,7 @@ export const zh: Record<MessageKey, string> = {
   'git.command.failed': 'git {command} 失败：{detail}',
   'loader.dir.missing': '元数据目录 "{dir}" 不存在',
   'loader.file.read': '无法读取 schema 文件 "{file}"',
+  'query.budget.exceeded': "查询超出 {limit} 预算上限 {max}",
   'http.param.invalid': '参数 "{param}" 的值无效',
   'http.notFound': '路由不存在',
   'http.rateLimited': '\u901f\u7387\u9650\u5236\u5df2\u8d85\u51fa',

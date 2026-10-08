@@ -29,6 +29,7 @@ import { subjectOf, type DataAccessContext, type FindOptions, type FindResult, t
 import { validateRecord } from './validate.js';
 import { FILTER_OPS, SORT_DIRS, WRITE_MODES } from './values.js';
 import { decodeCursor, encodeCursor } from './cursor.js';
+import { QUERY_BUDGET_DEFAULTS, assertQueryBudget, type QueryBudget } from './query-budget.js';
 import { upsertRecordMeta, deleteRecordMeta } from '../record-meta/index.js';
 
 const q = (id: string) => `"${id}"`;
@@ -308,6 +309,8 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
   private readonly approvals?: PolicyApprovals;
   /** workflow timer handle: re-arm/cancel a record's `onTimeout` on state changes */
   private readonly workflowTimers?: WorkflowTimerSync;
+  /** query budget (limits on rows/filters/sorts); per-context `ctx.budget` overrides */
+  private readonly budget: QueryBudget;
 
   constructor(
     options: {
@@ -318,6 +321,7 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
       policies?: readonly GuardrailPolicy[];
       approvals?: PolicyApprovals;
       workflowTimers?: WorkflowTimerSync;
+      budget?: QueryBudget;
     } = {},
   ) {
     this.audit = options.audit;
@@ -327,6 +331,7 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
     this.policies = options.policies ?? [];
     this.approvals = options.approvals;
     this.workflowTimers = options.workflowTimers;
+    this.budget = options.budget ?? { ...QUERY_BUDGET_DEFAULTS };
   }
 
   /**
@@ -433,7 +438,9 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
     const def = requireDef(ctx, objectName);
     const q = ctx.client ?? ctx.pool;
     const pks = primaryFieldsOf(def);
-    const { limit } = resolvePagination(opts);
+    const budget = ctx.budget ?? this.budget;
+    assertQueryBudget(opts, budget, ctx.locale);
+    const { limit } = resolvePagination(opts, budget.maxRows);
 
     // keyset cursor (single primary key): `pk > cursor` ordered by pk. A
     // caller-provided sort is ignored in cursor mode (documented) so pages
@@ -450,7 +457,7 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
       };
       const meta = needsSideTable(pageOpts) ? { table: recordMetaTableName(def.name) } : undefined;
       const buildCtx = { ...bctx(ctx, objectName), ...(meta === undefined ? {} : { meta }) };
-      const { sql, params } = buildFindSql(def, pageOpts, buildCtx, ctx.rowScope, pageOpts.exclude);
+      const { sql, params } = buildFindSql(def, pageOpts, buildCtx, ctx.rowScope, pageOpts.exclude, undefined, budget.maxRows + 1);
       const { rows } = await runTableQuery(q, objectName, sql, params, ctx.locale);
       const hasMore = rows.length > limit;
       const pageRows = hasMore ? rows.slice(0, limit) : rows;
@@ -472,7 +479,7 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
     const meta = needsSideTable(opts) ? { table: recordMetaTableName(def.name) } : undefined;
     const buildCtx = { ...bctx(ctx, objectName), ...(meta === undefined ? {} : { meta }) };
 
-    const { sql, params } = buildFindSql(def, opts, buildCtx, ctx.rowScope, opts.exclude);
+    const { sql, params } = buildFindSql(def, opts, buildCtx, ctx.rowScope, opts.exclude, undefined, budget.maxRows);
     const { rows } = await runTableQuery(q, objectName, sql, params, ctx.locale);
     const { sql: countSql, params: countParams } = buildCountSql(def, opts, buildCtx, ctx.rowScope);
     const { rows: countRows } = await runTableQuery(q, objectName, countSql, countParams, ctx.locale);
@@ -1040,6 +1047,7 @@ export function createDataAccess(
     policies?: readonly GuardrailPolicy[];
     approvals?: PolicyApprovals;
     workflowTimers?: WorkflowTimerSync;
+    budget?: QueryBudget;
   } = {},
 ): ObjectDataAccess {
   return new DefaultObjectDataAccess(options);

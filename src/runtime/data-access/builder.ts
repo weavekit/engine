@@ -497,14 +497,17 @@ export function buildColumns(
   return { sql: parts.join(", "), params };
 }
 
-/** resolve pagination with defaults/caps */
-export function resolvePagination(opts: FindOptions): {
+/** resolve pagination with defaults/caps (`maxRows` overrides the default cap) */
+export function resolvePagination(
+  opts: FindOptions,
+  maxRows: number = PAGINATION.MAX_LIMIT,
+): {
   limit: number;
   offset: number;
 } {
   const limit = Math.min(
     opts.limit ?? PAGINATION.DEFAULT_LIMIT,
-    PAGINATION.MAX_LIMIT,
+    Math.max(maxRows, 1),
   );
   const offset = Math.max(opts.offset ?? PAGINATION.DEFAULT_OFFSET, 0);
   return { limit, offset };
@@ -518,6 +521,7 @@ export function buildFindSql(
   rowScope?: RowScope,
   exclude?: readonly string[],
   extraSelect?: readonly string[],
+  maxRows?: number,
 ): BuiltQuery {
   const table = fromClause(object, ctx);
   const cols = buildColumns(object, opts.fields, ctx, exclude);
@@ -530,7 +534,7 @@ export function buildFindSql(
     cols.params.length,
   );
   const orderBy = buildOrderBy(object, opts.sort, ctx);
-  const { limit, offset } = resolvePagination(opts);
+  const { limit, offset } = resolvePagination(opts, maxRows);
   const params = [...cols.params, ...whereParams];
   const sql = `SELECT ${select} FROM ${table} ${where}${orderBy} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
   return { sql, params: [...params, limit, offset] };

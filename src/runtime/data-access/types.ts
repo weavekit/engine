@@ -4,6 +4,7 @@ import type { ObjectRegistry } from "../../core/index.js";
 import type { AccessPrincipal, IdentitySubject } from "../../core/index.js";
 import { principalSubject } from "../../core/index.js";
 import type { FilterOp, SortDir } from "./values.js";
+import type { QueryBudget } from "./query-budget.js";
 import type { WorkflowStatus, WorkflowHistory, WorkflowTodo, WorkflowOverride } from "./workflow.js";
 
 /** pool or pooled client — anything that can run parameterized queries */
@@ -76,6 +77,8 @@ export interface DataAccessContext {
   client?: PoolClient;
   /** request correlation id (Fastify request id / inbound x-request-id) attached to audit events */
   requestId?: string;
+  /** per-context query budget override (defaults to the data-access instance's budget) */
+  budget?: QueryBudget;
   /**
    * channel for non-fatal write warnings — afterUpdate/afterDelete script hooks
    * fail after the write is committed; the messages are delivered here so the
