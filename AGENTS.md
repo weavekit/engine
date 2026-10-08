@@ -62,22 +62,16 @@ tests/              unit + e2e (node --test)
 
 ## Schema relation model (summary)
 
-**No `relations` array** — relations live in `fields`: `relation` (weak FK), `details` (owned 1:N),
-`multiRelation` (engine link table, composite FK per side). A primary key is scalar and may span
-**several `primary` fields** (composite); a field must be `keyEligible` to key on. Field types are
-PG-native (`PG_FIELD_TYPES`) or engine-shipped custom (`BUILTIN_CUSTOM_FIELD_TYPES`), single-sourced
-in `core/types/registry.ts`; custom types are **registrable** (config `fieldTypes` +
-project-local `field-types/`), namespaced, inherit a `base`. `user`/`department` are identity FKs into
-`weavekit_user`/`weavekit_department`. Trees/TOC use a self-referencing `relation`. Capability gating
-is declarative (`features.fieldTypes`, fail-closed).
+No `relations` array (relations live in `fields`: `relation`/`details`/`multiRelation`); composite
+scalar primary keys; PG-native + registrable custom field types (`config.fieldTypes` + project
+`field-types/`, fail-closed); `user`/`department` identity FKs; capability gating = `features.fieldTypes`.
+Full model → [`docs/…/03-model/02-schema`](docs/01-guides/03-model/02-schema/01-overview.md).
 
 ## Product contract (weave command principles)
 
-All in-project operations go through the `weave` command (`weave dev/build/test/migrate`); bypassing
-the entry point disables schema validation, auto-commit and the sandbox. `--type` is a starting
-preset (subsystem combination + narrative) and **never trims core**. Capability gating only goes
-through config switches; splitting core by type, or letting the validator open holes by type, is
-forbidden.
+All in-project operations go through `weave` (bypassing it disables schema validation, auto-commit
+and the sandbox); `--type` is a starting preset that **never trims core**; capability gating only via
+config switches — splitting core by type, or letting the validator open holes by type, is forbidden.
 
 ## Subsystem status
 
@@ -86,7 +80,8 @@ Workflow ✅ · REST + auth + ops + metadata ✅ · GraphQL adapter ✅ · Git m
 Audit (log/modes/outbox) ✅ · Script sandbox ✅ · MCP adapter ✅ · OpenAPI 3.1 ✅ ·
 Tools + guardrails + approvals ✅ · SSE ✅ · Proxy ✅ · Quotas ✅ · Ingress ✅ · Tunnel ✅ ·
 Named enums (schema v6) ✅ · Schema revision + `weave deploy` ✅ · QueryBudget ✅ ·
-Agent Execution + Evidence ✅ · Multi-tenancy (row) ✅ · Contract freeze ✅
+Agent Execution + Evidence ✅ · Multi-tenancy (row) ✅ · Contract freeze ✅ ·
+Observability seam (metrics/trace) ✅
 
 ## Maintenance rules
 
