@@ -124,7 +124,7 @@ describe('GraphQL schema (Phase 1)', () => {
       expect(call.opts.sort).toEqual([{ field: 'title', dir: 'desc' }]);
       expect(call.opts.filter).toEqual({ status: 'open' });
       expect(call.opts.fields?.includes('weave_id')).toBe(true);
-      expect(call.ctx.subject?.id).toBe('admin');
+      expect((call.ctx.principal as { kind: string; subject: { id: string } }).subject.id).toBe('admin');
     } finally {
       await harness.app.close();
     }

@@ -7,7 +7,7 @@ import type {
   WorkflowTimerStore,
   WorkflowTimerSync,
 } from '../../core/index.js';
-import { SCRIPT_HOOKS, WORKFLOW_TIMER_DEFAULTS, parseDuration } from '../../core/index.js';
+import { SCRIPT_HOOKS, SYSTEM_CAPABILITIES, WORKFLOW_TIMER_DEFAULTS, parseDuration, systemPrincipal } from '../../core/index.js';
 import type { DataAccessContext, ObjectDataAccess } from '../../runtime/data-access/index.js';
 import { advanceOnTimeout } from '../../runtime/data-access/workflow.js';
 import { createPgWorkflowTimerStore } from './store.js';
@@ -75,6 +75,7 @@ export async function createWorkflowScheduler(
         record = await options.dataAccess.findOne<Record<string, unknown>>(timer.object, timer.id, {
           pool: options.pool,
           registry: options.registry,
+          principal: systemPrincipal(SYSTEM_CAPABILITIES.WORKFLOW_TIMER, 'onTimeout hook read'),
           ...(options.locale === undefined ? {} : { locale: options.locale }),
         });
       } catch {

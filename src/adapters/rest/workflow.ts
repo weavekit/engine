@@ -1,5 +1,5 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
-import { SchemaError } from '../../core/index.js';
+import { SchemaError, userPrincipal } from '../../core/index.js';
 import type { RestDeps, RestOptions } from './plugin.js';
 import { authenticateRequest, checkRateLimit } from './common.js';
 
@@ -42,7 +42,7 @@ export function registerWorkflowRoutes(
     const subject = await authenticateRequest(authenticator, request, locale);
     const { name, id } = request.params as { name: string; id: string };
     requireWorkflow(name);
-    return dataAccess.workflowStatus(name, id, { pool, registry, subject, locale });
+    return dataAccess.workflowStatus(name, id, { pool, registry, principal: userPrincipal(subject), locale });
   });
 
   app.patch(`${prefix}/objects/:name/:id/workflow`, async (request) => {
@@ -54,7 +54,7 @@ export function registerWorkflowRoutes(
     const patch: { node?: string; state?: string } = {};
     if (typeof body.node === 'string') patch.node = body.node;
     if (typeof body.state === 'string') patch.state = body.state;
-    return dataAccess.overrideWorkflow(name, id, patch, { pool, registry, subject, locale });
+    return dataAccess.overrideWorkflow(name, id, patch, { pool, registry, principal: userPrincipal(subject), locale });
   });
 
   app.get(`${prefix}/objects/:name/:id/workflow/history`, async (request) => {
@@ -62,13 +62,13 @@ export function registerWorkflowRoutes(
     const subject = await authenticateRequest(authenticator, request, locale);
     const { name, id } = request.params as { name: string; id: string };
     requireWorkflow(name);
-    return dataAccess.workflowHistory(name, id, { pool, registry, subject, locale });
+    return dataAccess.workflowHistory(name, id, { pool, registry, principal: userPrincipal(subject), locale });
   });
 
   app.get(`${prefix}/workflow/todos`, async (request) => {
     checkRateLimit(limiter, request, locale);
     const subject = await authenticateRequest(authenticator, request, locale);
-    return { items: await dataAccess.workflowTodos({ pool, registry, subject, locale }) };
+    return { items: await dataAccess.workflowTodos({ pool, registry, principal: userPrincipal(subject), locale }) };
   });
 
   app.post(`${prefix}/objects/:name/:id/workflow/lock`, async (request) => {
@@ -76,7 +76,7 @@ export function registerWorkflowRoutes(
     const subject = await authenticateRequest(authenticator, request, locale);
     const { name, id } = request.params as { name: string; id: string };
     requireWorkflow(name);
-    return dataAccess.acquireWorkflowLock(name, id, { pool, registry, subject, locale });
+    return dataAccess.acquireWorkflowLock(name, id, { pool, registry, principal: userPrincipal(subject), locale });
   });
 
   app.delete(`${prefix}/objects/:name/:id/workflow/lock`, async (request) => {
@@ -84,7 +84,7 @@ export function registerWorkflowRoutes(
     const subject = await authenticateRequest(authenticator, request, locale);
     const { name, id } = request.params as { name: string; id: string };
     requireWorkflow(name);
-    await dataAccess.releaseWorkflowLock(name, id, { pool, registry, subject, locale });
+    await dataAccess.releaseWorkflowLock(name, id, { pool, registry, principal: userPrincipal(subject), locale });
     return { released: true };
   });
 
@@ -93,7 +93,7 @@ export function registerWorkflowRoutes(
     const subject = await authenticateRequest(authenticator, request, locale);
     const { name, id, action } = request.params as { name: string; id: string; action: string };
     requireWorkflow(name);
-    return dataAccess.transition(name, id, action, { pool, registry, subject, locale }, payloadOf(request.body));
+    return dataAccess.transition(name, id, action, { pool, registry, principal: userPrincipal(subject), locale }, payloadOf(request.body));
   };
 
   app.post(`${prefix}/objects/:name/:id/workflow/:action`, runAction);

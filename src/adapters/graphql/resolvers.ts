@@ -5,6 +5,7 @@ import {
   primaryFieldsOf,
   RECORD_META_ID_FIELD,
   SchemaError,
+  userPrincipal,
   type Locale,
   type ObjectDefinition,
 } from '../../core/index.js';
@@ -35,7 +36,7 @@ function dataContext(context: GraphQLContext): DataAccessContext {
   return {
     pool: context.engine.pool,
     registry: context.engine.registry,
-    subject: context.subject,
+    principal: userPrincipal(context.subject),
     locale: context.engine.locale,
     ...(context.requestId === undefined ? {} : { requestId: context.requestId }),
   };

@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import type { Pool } from "pg";
 import type { Locale, ObjectRegistry } from "../../core/index.js";
-import { SchemaError } from "../../core/index.js";
+import { SchemaError, userPrincipal } from "../../core/index.js";
 import type { AuditQueryEngine } from "../../core/audit/index.js";
 import type { ToolApprovals } from "../../core/tools/index.js";
 import type { SlidingWindow } from "../../core/limiter/index.js";
@@ -150,7 +150,7 @@ export function registerObjectRoutes(
     const { name } = request.params as { name: string };
     checkRateLimit(limiter, request, locale);
     const subject = await authenticateRequest(authenticator, request, locale);
-    const ctx: DataAccessContext = { pool, registry, subject, locale, requestId: request.id };
+    const ctx: DataAccessContext = { pool, registry, principal: userPrincipal(subject), locale, requestId: request.id };
     const list = parseFindParams(
       request.query as Record<string, unknown>,
       locale,
@@ -169,7 +169,7 @@ export function registerObjectRoutes(
     const ctx: DataAccessContext = {
       pool,
       registry,
-      subject,
+      principal: userPrincipal(subject),
       locale,
       requestId: request.id,
       onWarnings: (ws) => warnings.push(...ws),
@@ -189,7 +189,7 @@ export function registerObjectRoutes(
     const { name, id } = request.params as { name: string; id: string };
     checkRateLimit(limiter, request, locale);
     const subject = await authenticateRequest(authenticator, request, locale);
-    const ctx: DataAccessContext = { pool, registry, subject, locale, requestId: request.id };
+    const ctx: DataAccessContext = { pool, registry, principal: userPrincipal(subject), locale, requestId: request.id };
     const record = await dataAccess.findOne(name, id, ctx);
     if (record === null) {
       throw new SchemaError(
@@ -209,7 +209,7 @@ export function registerObjectRoutes(
     const ctx: DataAccessContext = {
       pool,
       registry,
-      subject,
+      principal: userPrincipal(subject),
       locale,
       requestId: request.id,
       onWarnings: (ws) => warnings.push(...ws),
@@ -228,7 +228,7 @@ export function registerObjectRoutes(
     const { name, id } = request.params as { name: string; id: string };
     checkRateLimit(limiter, request, locale);
     const subject = await authenticateRequest(authenticator, request, locale);
-    const ctx: DataAccessContext = { pool, registry, subject, locale, requestId: request.id };
+    const ctx: DataAccessContext = { pool, registry, principal: userPrincipal(subject), locale, requestId: request.id };
     await dataAccess.delete(name, id, ctx);
     reply.code(204).send();
   });
@@ -248,7 +248,7 @@ export function registerObjectRoutes(
     const ctx: DataAccessContext = {
       pool,
       registry,
-      subject,
+      principal: userPrincipal(subject),
       locale,
       requestId: request.id,
       onWarnings: (ws) => warnings.push(...ws),
@@ -266,7 +266,7 @@ export function registerObjectRoutes(
     checkRateLimit(limiter, request, locale);
     const subject = await authenticateRequest(authenticator, request, locale);
     const ids = parseIds(bodyObject(request.body, locale), locale);
-    const ctx: DataAccessContext = { pool, registry, subject, locale, requestId: request.id };
+    const ctx: DataAccessContext = { pool, registry, principal: userPrincipal(subject), locale, requestId: request.id };
     await withTx(ctx, async (txCtx) => {
       for (const id of ids) {
         await dataAccess.delete(name, id, txCtx);

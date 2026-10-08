@@ -1,5 +1,5 @@
 import type { ObjectDefinition, IdentitySubject } from '../../core/index.js';
-import { REGISTRY_TOOLS, SchemaError, WORKFLOW_TOOLS } from '../../core/index.js';
+import { REGISTRY_TOOLS, SchemaError, WORKFLOW_TOOLS, userPrincipal } from '../../core/index.js';
 import type { DataAccessContext } from '../../runtime/data-access/index.js';
 import type { FindOptions } from '../../runtime/data-access/index.js';
 import { SORT_DIRS, resolvePagination } from '../../runtime/data-access/index.js';
@@ -20,7 +20,7 @@ import type { McpToolResult, ToolExecContext } from './types.js';
 const ON_BEHALF_OF = 'onBehalfOf';
 
 function ctxWithSubject(ctx: ToolExecContext, subject: IdentitySubject): DataAccessContext {
-  return { pool: ctx.engine.pool, registry: ctx.engine.registry, subject, locale: ctx.engine.locale };
+  return { pool: ctx.engine.pool, registry: ctx.engine.registry, principal: userPrincipal(subject), locale: ctx.engine.locale };
 }
 
 /** call-level `onBehalfOf` override: resolve a different identity for this call */

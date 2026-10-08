@@ -1,3 +1,4 @@
+export * from './principal.js';
 export type { BuiltinFieldType, FieldType, OnDeleteAction } from './fields.js';
 export type {
   FieldBase,

@@ -166,7 +166,7 @@ describe('createScriptDispatcher — db RPC pass-through (withRbac dataAccess)',
     });
     expect(calls).toHaveLength(1);
     expect(calls[0]?.object).toBe('supplier');
-    expect((calls[0]?.ctx as { subject?: { id: string } }).subject?.id).toBe('u1');
+    expect((calls[0]?.ctx as { principal?: { kind: string; subject?: { id: string } } }).principal?.subject?.id).toBe('u1');
     await dispatcher.close();
   });
 });

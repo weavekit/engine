@@ -1,7 +1,8 @@
 import type { Pool, PoolClient } from "pg";
 import type { Locale } from "../../core/index.js";
 import type { ObjectRegistry } from "../../core/index.js";
-import type { IdentitySubject } from "../../core/index.js";
+import type { AccessPrincipal, IdentitySubject } from "../../core/index.js";
+import { principalSubject, systemPrincipal, userPrincipal, SYSTEM_CAPABILITIES } from "../../core/index.js";
 import type { FilterOp, SortDir } from "./values.js";
 import type { WorkflowStatus, WorkflowHistory, WorkflowTodo, WorkflowOverride } from "./workflow.js";
 
@@ -59,7 +60,13 @@ export interface DataAccessContext {
   registry: ObjectRegistry;
   /** extra WHERE fragment (AND'd), injected by the RBAC layer for own/team/all scope */
   rowScope?: { sql: string; params: unknown[] };
-  /** authenticated identity for RBAC decisions; absent = no enforcement */
+  /**
+   * Who is acting — the preferred, explicit field (user or system capability).
+   * When absent, {@link principalOf} falls back to the legacy `subject` (a user
+   * principal) or an internal-admin system principal.
+   */
+  principal?: AccessPrincipal;
+  /** @deprecated use `principal`; kept as a user-principal shorthand */
   subject?: IdentitySubject;
   locale?: Locale;
   /** outer transaction connection; present inside `withTx` (skips nested BEGIN/COMMIT/release) */
@@ -72,6 +79,27 @@ export interface DataAccessContext {
    * API layer can surface them (e.g. a `warnings` array on the response)
    */
   onWarnings?: (warnings: string[]) => void;
+}
+
+/**
+ * Resolve the effective access principal for a context: explicit `principal`
+ * first, then the deprecated `subject` shorthand (a user principal), else an
+ * explicit internal-admin system principal (legacy subject-less callers).
+ */
+export function principalOf(ctx: DataAccessContext): AccessPrincipal {
+  if (ctx.principal !== undefined) return ctx.principal;
+  if (ctx.subject !== undefined) return userPrincipal(ctx.subject);
+  return systemPrincipal(SYSTEM_CAPABILITIES.INTERNAL_ADMIN, 'internal (subject-less context)');
+}
+
+/** the authenticated identity for a user principal, else undefined (system principal) */
+export function subjectOf(ctx: DataAccessContext): IdentitySubject | undefined {
+  return principalSubject(principalOf(ctx));
+}
+
+/** true when the context is an explicit system principal (unrestricted path) */
+export function isSystemCtx(ctx: DataAccessContext): boolean {
+  return principalOf(ctx).kind === 'system';
 }
 
 /** contract for the controlled object data-access layer */

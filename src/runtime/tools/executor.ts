@@ -1,5 +1,5 @@
 import type { Pool } from 'pg';
-import { NOOP_AUDIT_SINK, createMemoryApprovalsBackend } from '../../core/index.js';
+import { NOOP_AUDIT_SINK, createMemoryApprovalsBackend, userPrincipal } from '../../core/index.js';
 import { AUDIT_ACTOR_TYPES } from '../../core/index.js';
 import type { AuditSink, IdentitySubject, Locale, ObjectRegistry, ToolActor, ToolApprovals, ApprovalsBackend, ApprovalListFilter, ToolCallContext, ToolDataAccess, ToolDefinition, ToolGuardrails, ToolJsonSchema, ToolResult, ApprovalStatus, PendingApproval, GuardrailContext, GuardrailPolicy } from '../../core/index.js';
 import type { ObjectDataAccess, DataAccessContext, FindOptions } from '../data-access/index.js';
@@ -201,6 +201,7 @@ export function createToolExecutor(options: ToolExecutorOptions): ToolExecutor {
       const base: DataAccessContext = {
         pool: options.pool,
         registry: options.registry,
+        principal: userPrincipal(req.subject),
         locale: req.locale ?? options.locale,
       };
       const ctx = toolContext(base, req);

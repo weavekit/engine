@@ -4,6 +4,7 @@ import {
   FIELD_TYPES,
   primaryFieldsOf,
   RECORD_META_ID_FIELD,
+  userPrincipal,
   type IdentitySubject,
   type ObjectDefinition,
 } from '../../core/index.js';
@@ -38,7 +39,7 @@ export function createRecordLoader(engine: GraphQLEngine, subject: IdentitySubje
   const context = (): DataAccessContext => ({
     pool: engine.pool,
     registry: engine.registry,
-    subject,
+    principal: userPrincipal(subject),
     locale: engine.locale,
   });
 

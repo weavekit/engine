@@ -1,6 +1,6 @@
 import type { PoolClient } from 'pg';
 import type { ObjectDefinition, ObjectRegistry } from '../../core/index.js';
-import { SchemaError, primaryFieldsOf, encodeRecordKey, decodeRecordKey, canonicalizePrimaryValue, type Locale } from '../../core/index.js';
+import { SchemaError, primaryFieldsOf, encodeRecordKey, decodeRecordKey, canonicalizePrimaryValue, principalActorId, type Locale } from '../../core/index.js';
 import { DETAILS_COLUMNS, FIELD_TYPES, isSideTableVirtualField, RECORD_META_ID_FIELD, recordKeySql, recordMetaTableName } from '../../core/index.js';
 import type { AuditEvent, AuditSink } from '../../core/audit/index.js';
 import { AUDIT_ACTOR_TYPES, DATA_ACTIONS } from '../../core/audit/index.js';
@@ -25,7 +25,7 @@ import {
 } from './workflow.js';
 import { computeFormulas, type FormulaAuth } from './formula.js';
 import { generateSeqNo } from './seqno.js';
-import type { DataAccessContext, FindOptions, FindResult, ObjectDataAccess } from './types.js';
+import { subjectOf, principalOf, type DataAccessContext, type FindOptions, type FindResult, type ObjectDataAccess } from './types.js';
 import { validateRecord } from './validate.js';
 import { WRITE_MODES } from './values.js';
 import { upsertRecordMeta, deleteRecordMeta } from '../record-meta/index.js';
@@ -34,7 +34,8 @@ const q = (id: string) => `"${id}"`;
 
 /** cross-object formula authorization derived from the request context */
 function formulaAuth(ctx: DataAccessContext): FormulaAuth {
-  return { subject: ctx.subject, roles: ctx.subject?.roles ?? [], locale: ctx.locale };
+  const subject = subjectOf(ctx);
+  return { subject, roles: subject?.roles ?? [], locale: ctx.locale };
 }
 
 /** pg QueryResult shape the drift wrapper needs */
@@ -112,9 +113,10 @@ async function auditWrite(
   client?: PoolClient,
 ): Promise<void> {
   if (sink === undefined) return;
+  const principal = principalOf(ctx);
   const event: AuditEvent = {
-    actorType: ctx.subject !== undefined ? AUDIT_ACTOR_TYPES.USER : AUDIT_ACTOR_TYPES.SYSTEM,
-    actorId: ctx.subject?.id ?? 'system',
+    actorType: principal.kind === 'user' ? AUDIT_ACTOR_TYPES.USER : AUDIT_ACTOR_TYPES.SYSTEM,
+    actorId: principalActorId(principal),
     action,
     objectName,
     objectId,
@@ -137,10 +139,11 @@ async function auditWrite(
 
 /** rebuild `this.user` for hooks from the authenticated subject */
 function scriptUserOf(ctx: DataAccessContext): ScriptUser {
+  const subject = subjectOf(ctx);
   return {
-    id: ctx.subject?.id ?? 'system',
-    roles: ctx.subject?.roles ?? [],
-    departmentId: ctx.subject?.departmentId,
+    id: subject?.id ?? 'system',
+    roles: subject?.roles ?? [],
+    departmentId: subject?.departmentId,
   };
 }
 
@@ -163,12 +166,13 @@ function requireDef(ctx: DataAccessContext, objectName: string): ObjectDefinitio
 }
 
 function bctx(ctx: DataAccessContext, objectName: string): BuildContext {
+  const subject = subjectOf(ctx);
   return {
     object: objectName,
     locale: ctx.locale,
     allowParentCols: isDetailsChild(ctx.registry, objectName),
     lookup: ctx.registry,
-    ...(ctx.subject === undefined ? {} : { subject: ctx.subject }),
+    ...(subject === undefined ? {} : { subject }),
   };
 }
 
@@ -755,22 +759,23 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
       // guardrail policy + approval gate (shared policy set with the open contract):
       // a policy self-filters on `workflow.transition.<object>.<action>`; a node may
       // also declare `requiresApproval`. deny → error; requireApproval → pending.
-      const currentNode = await getWorkflowStatus(client, def, id, ctx.subject);
+      const currentNode = await getWorkflowStatus(client, def, id, subjectOf(ctx));
       const nodeDef = currentNode.node === undefined ? undefined : def.workflow.nodes.find((n) => n.id === currentNode.node);
       const requireApproval = nodeDef?.requiresApproval === true;
       if (this.policies.length > 0 || requireApproval) {
-        const actorId = ctx.subject?.id ?? 'system';
+        const subject = subjectOf(ctx);
+        const actorId = subject?.id ?? principalActorId(principalOf(ctx));
         const guardrailCtx: GuardrailContext = {
           actor: { key: actorId, label: actorId, onBehalfOf: actorId },
-          subject: ctx.subject ?? { id: 'system', roles: [] },
+          subject: subject ?? { id: 'system', roles: [] },
           action: `workflow.transition.${def.name}.${action}`,
           args: { object: def.name, id, action },
           dataAccess: toolDataAccessOver(this, {
             pool: ctx.pool,
             registry: ctx.registry,
+            principal: ctx.principal,
             ...(ctx.locale === undefined ? {} : { locale: ctx.locale }),
             ...(ctx.client === undefined ? {} : { client: ctx.client }),
-            ...(ctx.subject === undefined ? {} : { subject: ctx.subject }),
           }),
         };
         const gate = await evaluateTransition(this.policies, this.approvals, guardrailCtx, requireApproval);
@@ -782,7 +787,7 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
         }
       }
 
-      const outcome = await runWorkflowTransition(client, def, id, action, ctx.subject, payload, ctx.locale);
+      const outcome = await runWorkflowTransition(client, def, id, action, subjectOf(ctx), payload, ctx.locale);
       const transitionChanges = {
         action,
         node: outcome.toNodeId ?? null,
@@ -840,19 +845,19 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
     if (def.workflow === undefined) {
       throw new SchemaError('workflow.transition.unknown', { object: objectName, action: 'status' }, ctx.locale);
     }
-    return getWorkflowStatus(ctx.client ?? ctx.pool, def, id, ctx.subject);
+    return getWorkflowStatus(ctx.client ?? ctx.pool, def, id, subjectOf(ctx));
   }
 
   /** Acquire/renew the caller's presence lock on the current step (TTL lease). */
   async acquireWorkflowLock(objectName: string, id: string, ctx: DataAccessContext): Promise<{ expiresAt: Date }> {
     const def = requireDef(ctx, objectName);
-    return acquireWorkflowLock(ctx.pool, def, id, ctx.subject, ctx.locale);
+    return acquireWorkflowLock(ctx.pool, def, id, subjectOf(ctx), ctx.locale);
   }
 
   /** Release the caller's presence lock. */
   async releaseWorkflowLock(objectName: string, id: string, ctx: DataAccessContext): Promise<void> {
     const def = requireDef(ctx, objectName);
-    await releaseWorkflowLock(ctx.pool, def, id, ctx.subject);
+    await releaseWorkflowLock(ctx.pool, def, id, subjectOf(ctx));
   }
 
   /** Read a record's workflow history (steps + workitems). */
@@ -866,7 +871,7 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
 
   /** The subject's pending workitems across all objects. */
   async workflowTodos(ctx: DataAccessContext): Promise<WorkflowTodo[]> {
-    return getWorkflowTodos(ctx.pool, ctx.subject);
+    return getWorkflowTodos(ctx.pool, subjectOf(ctx));
   }
 
   /** Admin override: jump the record to a node or terminate the instance. */
@@ -890,7 +895,7 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
     }
     try {
       if (owned) await client.query('BEGIN');
-      const result = await overrideWorkflow(client, def, id, patch, ctx.subject, ctx.locale);
+      const result = await overrideWorkflow(client, def, id, patch, subjectOf(ctx), ctx.locale);
       if (owned) await client.query('COMMIT');
       if (result.nodeId !== undefined) {
         await this.workflowTimers?.sync(objectName, id, result.nodeId).catch(() => {});
@@ -918,7 +923,7 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
     now: Date,
     created: boolean,
   ): Promise<void> {
-    const actor = ctx.subject?.id ?? 'system';
+    const actor = subjectOf(ctx)?.id ?? principalActorId(principalOf(ctx));
     await upsertRecordMeta(
       client,
       def.name,

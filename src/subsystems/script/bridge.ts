@@ -1,5 +1,6 @@
 import type { Pool } from 'pg';
 import type { Locale, ObjectRegistry, ScriptServices } from '../../core/index.js';
+import { userPrincipal } from '../../core/index.js';
 import type { DataAccessContext, ObjectDataAccess } from '../../runtime/data-access/index.js';
 import { enforceSqlGates, executeRestrictedSql } from '../../runtime/data-access/index.js';
 import { createSqlAnalyzer } from '../../runtime/sql-analyzer/index.js';
@@ -63,7 +64,7 @@ export function createScriptRpcExecutor(options: ScriptBridgeOptions): RpcExecut
     const ctx: DataAccessContext = {
       pool,
       registry,
-      subject: { id: req.user.id, roles: req.user.roles, departmentId: req.user.departmentId },
+      principal: userPrincipal({ id: req.user.id, roles: req.user.roles, departmentId: req.user.departmentId }),
       locale,
     };
     const fn = (dataAccess as unknown as Record<string, unknown>)[method];
