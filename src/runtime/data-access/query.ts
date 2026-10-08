@@ -30,6 +30,7 @@ import { validateRecord } from './validate.js';
 import { FILTER_OPS, SORT_DIRS, WRITE_MODES } from './values.js';
 import { decodeCursor, encodeCursor } from './cursor.js';
 import { QUERY_BUDGET_DEFAULTS, assertQueryBudget, type QueryBudget } from './query-budget.js';
+import { EXECUTION_OUTCOMES, EXECUTION_STAGES, type EvidenceSink, type ExecutionStageRecord } from '../../core/index.js';
 import { upsertRecordMeta, deleteRecordMeta } from '../record-meta/index.js';
 
 const q = (id: string) => `"${id}"`;
@@ -311,6 +312,8 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
   private readonly workflowTimers?: WorkflowTimerSync;
   /** query budget (limits on rows/filters/sorts); per-context `ctx.budget` overrides */
   private readonly budget: QueryBudget;
+  /** optional evidence sink (guardrail decisions on writes); absent = zero overhead */
+  private readonly evidence?: EvidenceSink;
 
   constructor(
     options: {
@@ -322,6 +325,7 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
       approvals?: PolicyApprovals;
       workflowTimers?: WorkflowTimerSync;
       budget?: QueryBudget;
+      evidence?: EvidenceSink;
     } = {},
   ) {
     this.audit = options.audit;
@@ -332,6 +336,7 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
     this.approvals = options.approvals;
     this.workflowTimers = options.workflowTimers;
     this.budget = options.budget ?? { ...QUERY_BUDGET_DEFAULTS };
+    this.evidence = options.evidence;
   }
 
   /**
@@ -540,6 +545,39 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
       }),
     };
     const gate = await evaluateTransition(this.policies, this.approvals, guardrailCtx, false);
+    if (this.evidence !== undefined) {
+      const now = new Date();
+      const outcome =
+        gate.kind === 'deny'
+          ? EXECUTION_OUTCOMES.DENY
+          : gate.kind === 'pending'
+            ? EXECUTION_OUTCOMES.PENDING
+            : EXECUTION_OUTCOMES.OK;
+      const stages: ExecutionStageRecord[] = [
+        { stage: EXECUTION_STAGES.PLAN, outcome: EXECUTION_OUTCOMES.OK, at: now },
+        { stage: EXECUTION_STAGES.GUARDRAIL, outcome, at: now },
+        ...(gate.kind === 'pending'
+          ? [{ stage: EXECUTION_STAGES.APPROVAL, outcome: EXECUTION_OUTCOMES.PENDING, at: now } as ExecutionStageRecord]
+          : []),
+      ];
+      void this.evidence
+        .record({
+          ...(ctx.requestId === undefined ? {} : { requestId: ctx.requestId }),
+          actor: guardrailCtx.actor,
+          ...(subject === undefined ? {} : { subjectId: subject.id }),
+          plan: { action, objectName, args },
+          stages,
+          ...(gate.kind === 'pending' ? { approvalKey: gate.approvalKey } : {}),
+          isError: gate.kind !== 'allow',
+          ...(gate.kind === 'deny'
+            ? { errorCode: gate.code }
+            : gate.kind === 'pending'
+              ? { errorCode: 'mcp.approval.pending' }
+              : {}),
+          timestamp: now,
+        })
+        .catch(() => {});
+    }
     if (gate.kind === 'deny') {
       throw new SchemaError(gate.code, { object: objectName, action, reason: gate.reason ?? '' }, ctx.locale);
     }
@@ -1090,6 +1128,7 @@ export function createDataAccess(
     approvals?: PolicyApprovals;
     workflowTimers?: WorkflowTimerSync;
     budget?: QueryBudget;
+    evidence?: EvidenceSink;
   } = {},
 ): ObjectDataAccess {
   return new DefaultObjectDataAccess(options);

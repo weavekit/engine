@@ -22,6 +22,7 @@ export const SYSTEM_TABLES = {
   SEQ: 'weavekit_seq',
   AUDIT: 'weavekit_audit',
   AUDIT_OUTBOX: 'weavekit_audit_outbox',
+  EVIDENCE: 'weavekit_evidence',
   APPROVALS: 'weavekit_approvals',
   WORKFLOW_DEFINITIONS: 'weavekit_workflow_definitions',
   WORKFLOW_INSTANCES: 'weavekit_workflow_instances',
@@ -144,6 +145,41 @@ const auditOutbox = (): ExpectedTable => ({
   ],
   fks: [],
   indexes: [],
+  uniques: [],
+});
+
+/**
+ * Agent-execution evidence (`evidence.enabled`): one append-only row per gated
+ * execution, correlating request/trace/schema revision with the stage timeline.
+ * The engine only captures; export/retention belong to the enterprise E2 layer.
+ */
+const evidence = (): ExpectedTable => ({
+  name: SYSTEM_TABLES.EVIDENCE,
+  columns: [
+    col('id', 'BIGSERIAL', { notNull: true, primary: true }),
+    col('ts', 'TIMESTAMPTZ', { notNull: true, default: 'now()' }),
+    col('request_id', 'TEXT'),
+    col('trace_id', 'TEXT'),
+    col('schema_revision', 'TEXT'),
+    col('actor_key', 'TEXT', { notNull: true }),
+    col('actor_label', 'TEXT'),
+    col('on_behalf_of', 'TEXT'),
+    col('subject_id', 'TEXT'),
+    col('action', 'TEXT', { notNull: true }),
+    col('object', 'TEXT'),
+    col('object_id', 'TEXT'),
+    col('plan', 'JSONB', { notNull: true }),
+    col('stages', 'JSONB', { notNull: true }),
+    col('approval_key', 'TEXT'),
+    col('is_error', 'BOOLEAN', { notNull: true, default: 'false' }),
+    col('error_code', 'TEXT'),
+  ],
+  fks: [],
+  indexes: [
+    { name: 'weavekit_evidence_request_idx', method: 'btree', columns: ['request_id'] },
+    { name: 'weavekit_evidence_actor_idx', method: 'btree', columns: ['actor_key'] },
+    { name: 'weavekit_evidence_action_idx', method: 'btree', columns: ['action'] },
+  ],
   uniques: [],
 });
 
@@ -310,6 +346,7 @@ export function buildSystemTables(): ExpectedTable[] {
     seq(),
     audit(),
     auditOutbox(),
+    evidence(),
     approvals(),
     workflowDefinitions(),
     workflowInstances(),

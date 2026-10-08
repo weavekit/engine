@@ -66,6 +66,7 @@ import { registerMcp, type EngineMcpConfig, type McpServerHandle } from '../adap
 import { registerGraphQL, type EngineGraphQLConfig, type GraphQLServerHandle } from '../adapters/graphql/index.js';
 import { createAlerts } from '../infrastructure/index.js';
 import type { AuditEngine } from '../subsystems/audit/index.js';
+import type { EvidenceSink } from '../core/index.js';
 import { resolveQueryBudget, type QueryBudget } from './data-access/index.js';
 import type { WorkflowTimerScheduler } from '../subsystems/workflow/index.js';
 import { version } from '../version.js';
@@ -289,6 +290,13 @@ export interface EngineConfig {
    * defaults (see `QUERY_BUDGET_DEFAULTS`).
    */
   queryBudget?: Partial<QueryBudget>;
+  /**
+   * Execution evidence capture (optional; disabled when absent). When enabled,
+   * gated writes / tool calls record one `weavekit_evidence` row correlating the
+   * request with the execution stage timeline. Capture only — export/retention
+   * belong to the enterprise E2 layer.
+   */
+  evidence?: { enabled?: boolean };
   /** generic outbound proxy route wiring (applications provide the resolver) */
   proxy?: EngineProxyConfig;
   /**
@@ -532,7 +540,12 @@ export async function buildEngineFromRegistry(
   };
   const replay = subsystems.audit?.replay === true;
   const budget = resolveQueryBudget(config.queryBudget);
-  const baseDataAccess = createDataAccess({ audit: auditSink, replay, events: eventPublisher, policies, approvals, workflowTimers, budget });
+  let evidenceSink: EvidenceSink | undefined;
+  if (config.evidence?.enabled === true) {
+    const { createEvidenceSink } = await import('../subsystems/evidence/index.js');
+    evidenceSink = createEvidenceSink(pool);
+  }
+  const baseDataAccess = createDataAccess({ audit: auditSink, replay, events: eventPublisher, policies, approvals, workflowTimers, budget, evidence: evidenceSink });
 
   let script: ScriptDispatcher | undefined;
   let dataAccess: ObjectDataAccess;
@@ -549,7 +562,7 @@ export async function buildEngineFromRegistry(
       budget,
       locale,
     });
-    dataAccess = withRbac(createDataAccess({ audit: auditSink, script, replay, events: eventPublisher, policies, approvals, workflowTimers, budget }), { audit: auditSink });
+    dataAccess = withRbac(createDataAccess({ audit: auditSink, script, replay, events: eventPublisher, policies, approvals, workflowTimers, budget, evidence: evidenceSink }), { audit: auditSink });
   } else {
     dataAccess = withRbac(baseDataAccess, { audit: auditSink });
   }
@@ -588,6 +601,7 @@ export async function buildEngineFromRegistry(
         policies,
         locale,
         ...(approvals === undefined ? {} : { approvals }),
+        ...(evidenceSink === undefined ? {} : { evidence: evidenceSink }),
       }),
     };
   }

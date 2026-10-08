@@ -68,7 +68,7 @@ metadata cache → auto-commit the `objects/` tree ([Git-versioned metadata](../
   a separate account** — a migration/owner role with DDL rights — so the runtime account can be
   given no DDL. The engine never runs DDL at runtime.
 - Also provisions the engine's own system tables (`weavekit_metadata`, `weavekit_schema_revision`,
-  `weavekit_seq`, `weavekit_audit`, `weavekit_audit_outbox`, `weavekit_approvals`,
+  `weavekit_seq`, `weavekit_audit`, `weavekit_audit_outbox`, `weavekit_evidence`, `weavekit_approvals`,
   `weavekit_workflow_timers`, `weavekit_counters`, `weavekit_meta`) and their row-level security. Run
   it at least once before the first boot; the runtime account can then be least-privileged
   (`runtime.requireRestrictedAccount`, default on).

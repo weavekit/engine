@@ -66,7 +66,9 @@ The stable surface exists so you can extend the engine without patching internal
   `EvidenceSink` (`core/tools/pipeline.ts`); `runPipeline` (`runtime/execution/pipeline.ts`)
   orchestrates Plan→Validate→Authorize→Guardrail→Approval→Execute→Commit→Evidence;
   `validateToolArgs` (`core/tools/validate-args.ts`)
-  validates tool arguments against the declared `ToolJsonSchema` (MCP + custom tools).
+  validates tool arguments against the declared `ToolJsonSchema` (MCP + custom tools). Config
+  `EngineConfig.evidence.enabled` records one `weavekit_evidence` row per gated execution
+  (`subsystems/evidence`).
 - **QueryBudget** — `QueryBudget` / `QUERY_BUDGET_DEFAULTS` / `resolveQueryBudget` /
   `assertQueryBudget` (`runtime/data-access/query-budget.ts`); config `EngineConfig.queryBudget`.
   Bounds rows/filters/sorts (data-access), joins / SQL length / statement timeout (restricted SQL)
