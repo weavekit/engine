@@ -34,16 +34,18 @@ const CASES: Array<[MessageKey, number]> = [
   // 400 (explicit set)
   ['script.abort', 400],
   ['schema.version.unsupported', 400],
-  // 400 (prefix fall-through: data./http./mcp./layout./page.)
+  // 400 (default: any non-server SchemaError)
   ['data.field.required', 400],
   ['http.param.invalid', 400],
   ['mcp.policy.denied', 400],
   ['layout.tab.labelMissing', 400],
+  ['script.query.invalid', 400],
+  ['graphql.depthExceeded', 400],
   // 500 (explicit) / 504 / 502
   ['data.schemaDrift', 500],
   ['proxy.timeout', 504],
   ['proxy.unreachable', 502],
-  // 500 (unknown code)
+  // 500 (server-side fault)
   ['script.busy', 500],
 ];
 

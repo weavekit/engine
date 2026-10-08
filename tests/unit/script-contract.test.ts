@@ -57,7 +57,7 @@ describe('mapSchemaError — script error mapping', () => {
     expect(spec.body.error.message).toContain('amount must be > 0');
   });
 
-  it('script.timeout not listed → 500 (server failure, not client error)', async () => {
+  it('script.timeout → 500 (server-side fault, in SERVER_ERROR)', async () => {
     const err = new SchemaError('script.timeout', { script: 'lead', timeout: 5000 });
     expect(mapSchemaError(err).status).toBe(500);
   });
