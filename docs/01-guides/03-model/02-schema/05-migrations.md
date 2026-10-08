@@ -38,10 +38,17 @@ revision** in **one transaction** — an advisory lock serializes concurrent dep
 rolls the whole thing back, so Git, PostgreSQL and the metadata cache can never drift apart. Each
 apply records a revision in `weavekit_schema_revision`, keyed on a deterministic aggregate hash of
 the schema files; re-applying an unchanged schema writes no new revision. `weave deploy plan`
-previews the changes (read-only) with a risk level.
+previews the changes (read-only) with a **schema-impact analysis** (added columns/constraints/indexes,
+data-compatibility risk, RBAC/tenant impact, API-breaking flag), the live schema revision, and a
+**config-drift** flag when the on-disk schema differs from the last applied revision.
+
+Before a deploy — especially against a new or existing database — run `weave doctor`, a read-only
+preflight (connection, PostgreSQL compatibility, schema/DB drift, engine system tables, RLS + sandbox)
+that exits non-zero on any failure. `weave migrate --preflight` runs it first.
 
 ## Related
 
 - [Fields & types](02-fields-and-types.md)
 - [RBAC](../../04-access/02-rbac.md)
 - [Git-versioned metadata](../04-git-versioned-metadata.md) — where migrations come from
+- [CLI reference](../../09-platform/02-cli.md) — `weave deploy plan|apply`, `weave doctor`

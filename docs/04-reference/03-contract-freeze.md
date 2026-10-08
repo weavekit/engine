@@ -21,6 +21,8 @@ as `contractVersion` and embedded in the OpenAPI document as `info.x-contract-ve
 | Event types | `record.created` / `updated` / `deleted` / `transitioned`, `audit.event`, `schema.changed`, `schema.drift`, `lifecycle.shutdown` |
 | Error codes | the `SchemaError` message keys (`code`), mapped to HTTP status by `mapSchemaError` |
 | data-access / RBAC contracts | `ObjectDataAccess`, `DataAccessContext`, `resolvePermission` / `buildRowScope` |
+| Audit / evidence queries | `AuditQuery` / `AuditQueryResult`, `EvidenceQuery` / `EvidenceQueryResult` (keyset `cursor` / `nextCursor`) |
+| Observability & trace | `METRIC_NAMES`, `MetricsSink` / `TraceSink`, `parseTraceparent` / `TraceContext` |
 | Package exports | the `.` entry point (types re-exported from the package root) |
 
 A test (`tests/unit/contract-freeze.test.ts`) pins the single-source values above, so any change to
@@ -42,5 +44,6 @@ them fails the build until it is a deliberate, version-bumping change.
 
 Enterprise/custom extensions build on stable seams that keep evolving **additively**:
 `AuthVerifier` / `IdentitySource`, `ApprovalsBackend`, guardrails policies, `AuditSink` /
-`AuditQueryEngine`, `EventPublisher`, `EvidenceSink`, `WorkflowBackend` / `WorkflowTimerStore` /
-`WorkflowCoordinator`, `CounterStore`. New methods may be added; existing signatures are not broken.
+`AuditQueryEngine`, `EventPublisher`, `EvidenceSink`, `MetricsSink` / `TraceSink`,
+`WorkflowBackend` / `WorkflowTimerStore` / `WorkflowCoordinator`, `CounterStore`. New methods may be
+added; existing signatures are not broken.

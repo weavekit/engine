@@ -60,7 +60,7 @@ The stable surface exists so you can extend the engine without patching internal
 - **Generic proxy** — `proxy.resolver` carries the application semantics.
 - **Protocol adapters** — the `adapters/*` registration functions.
 
-## Recent additions (0.9 / 0.10 / 0.11)
+## Recent additions (0.9 – 1.0)
 
 - **Multi-tenancy (W3)** — `IdentitySubject.tenantId`, `principalTenantId`, `tenantOf(ctx)`,
   `scopedQuotaKey(tenantId, key)`, `withDefaultTenant(authenticator, tenant)`; config
@@ -81,15 +81,25 @@ The stable surface exists so you can extend the engine without patching internal
   and GraphQL depth.
 
 - **Deploy & schema revision** — `weave deploy plan|apply`; `computeSchemaHash` /
-  `writeSchemaRevision` / `latestSchemaRevision` (`runtime/metadata`).
+  `writeSchemaRevision` / `latestSchemaRevision` (`runtime/metadata`); `analyzeImpact` /
+  `SchemaImpact` (`core/storage/impact.ts`) classifies the planned DDL (impact + data-compat risk).
 - **Audit durability** — `subsystems.audit.mode` (`best-effort` | `transactional` | `durable`),
-  `AUDIT_MODES`, `AuditSink.recordInTx`.
+  `AUDIT_MODES`, `AuditSink.recordInTx`; `transactional`/`durable` fail closed at startup unless
+  `allowBestEffortFallback` (see [Audit](../../01-guides/09-platform/03-audit.md)).
 - **Access principal** — `AccessPrincipal` / `SYSTEM_CAPABILITIES` / `userPrincipal` /
   `systemPrincipal` (`core/types/principal.ts`). `DataAccessContext.principal` is **required** (the
   implicit `subject` field was removed — a missing actor is a compile error, not an unrestricted
   bypass).
 - **Cursor pagination** — `FindOptions.cursor` + `FindResult.nextCursor`/`hasMore`;
-  `encodeCursor` / `decodeCursor` (`runtime/data-access`).
+  `encodeCursor` / `decodeCursor` (`runtime/data-access`); the audit
+  (`AuditQuery.cursor` / `AuditQueryResult.nextCursor`) and evidence (`queryEvidence`) queries expose
+  the same keyset contract.
+- **Observability seam** — `MetricsSink` / `TraceSink` + `METRIC_NAMES` (`core/observability.ts`);
+  config `EngineConfig.observability`; `parseTraceparent` / `TraceContext` (`core/trace.ts`). The
+  engine emits, ships a no-op default, and correlates the inbound W3C `traceparent`
+  (see [Observability](../../01-guides/09-platform/05-observability.md)). Backends are enterprise E6.
+- **Operational preflight** — `weave doctor` (read-only) + `weave migrate --preflight`; deploy-plan
+  impact analysis and config-drift reporting (`computeSchemaHash` vs `latestSchemaRevision`).
 
 ## Dependency budget
 

@@ -157,3 +157,6 @@ await sink.flush();
 - [Custom tools & guardrails](../05-agents/03-custom-tools-and-guardrails/01-overview.md) — audit diff replay (`before`/`after` snapshots, `subsystems.audit.replay`)
 - [MCP](../05-agents/02-mcp/01-overview.md) — `mcp.tool.<name>` tool-call events (agent on-behalf-of in `meta.onBehalfOf`)
 - [RBAC](../04-access/02-rbac.md) — what the denied events record
+- [Multi-tenancy](../04-access/04-multi-tenancy.md) — `tenant_id` scoping of the trail
+- [Observability](05-observability.md) — `traceId` (W3C `traceparent`) on events
+- [Execution & evidence](../05-agents/05-execution-and-evidence.md) — the write/tool pipeline and `weavekit_evidence`

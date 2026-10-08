@@ -135,3 +135,9 @@ parent object** rather than defined on the child:
 Cross-object **formula** references (`relation.target_field`, `SUM(lines.qty)`) are resolved under the
 same rules: if the subject cannot read the referenced target (object read permission + row scope +
 field `exclude`), the reference resolves to `null` rather than leaking data.
+
+## Related
+
+- [Identity](03-identity.md) — where the subject and its roles come from
+- [Multi-tenancy](04-multi-tenancy.md) — the tenant predicate layered on top of the row scope
+- [Audit](../09-platform/03-audit.md) — denied reads/writes are recorded

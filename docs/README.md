@@ -18,20 +18,20 @@ The pitch and quick start live in the [repository README](../README.md).
 
 - **Put an agent on an existing database** → [Existing CRM → MCP](03-practices/01-agent/02-existing-crm-to-mcp.md)
 - **Model your data** → [Schema](01-guides/03-model/02-schema/01-overview.md) · [Named enums](01-guides/03-model/02-schema/06-named-enums.md) · [Formulas](01-guides/03-model/03-formulas.md)
-- **Lock it down** → [RBAC](01-guides/04-access/02-rbac.md) · [Identity](01-guides/04-access/03-identity.md) · [Audit](01-guides/09-platform/03-audit.md)
-- **Govern a lifecycle** → [Workflow](01-guides/06-workflow/01-overview.md) — role gates, approvals, timeouts
-- **Run it in production** → [Deployment](02-operations/01-deployment/01-overview.md)
+- **Lock it down** → [RBAC](01-guides/04-access/02-rbac.md) · [Identity](01-guides/04-access/03-identity.md) · [Multi-tenancy](01-guides/04-access/04-multi-tenancy.md) · [Audit](01-guides/09-platform/03-audit.md)
+- **Govern a lifecycle** → [Workflow](01-guides/06-workflow/01-overview.md) — role gates, approvals, timeouts · [Execution & evidence](01-guides/05-agents/05-execution-and-evidence.md)
+- **Run it in production** → [Deployment](02-operations/01-deployment/01-overview.md) · [Observability](01-guides/09-platform/05-observability.md) · [Release checklist](02-operations/02-release.md)
 
 ## Guides
 
 - [Project types](01-guides/02-project-types/01-overview.md) — the four presets and what each scaffolds
 - [Model](01-guides/03-model/01-overview.md) — schema, formulas, git-versioned metadata
-- [Access](01-guides/04-access/01-overview.md) — RBAC and identity
-- [Agents](01-guides/05-agents/01-overview.md) — MCP, custom tools & guardrails, approvals
+- [Access](01-guides/04-access/01-overview.md) — RBAC, identity and multi-tenancy
+- [Agents](01-guides/05-agents/01-overview.md) — MCP, custom tools & guardrails, approvals, execution & evidence
 - [Workflow](01-guides/06-workflow/01-overview.md) — per-object approval chains
-- [Automation](01-guides/07-automation/01-overview.md) — script hooks and quotas
+- [Automation](01-guides/07-automation/01-overview.md) — script hooks, quotas and the query budget
 - [Integration](01-guides/08-integration/01-overview.md) — live events, inbound events, proxy, tunnel, GraphQL
-- [Platform](01-guides/09-platform/01-overview.md) — CLI, audit, i18n
+- [Platform](01-guides/09-platform/01-overview.md) — CLI, audit, i18n, observability
 
 ## Operations
 

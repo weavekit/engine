@@ -78,3 +78,9 @@ Trace correlation uses the inbound W3C `traceparent` (see `core/trace.ts`).
 
 Anything not on this list is engine-internal and may change between minor
 releases; see [Contract freeze](03-contract-freeze.md) for the frozen surface.
+
+## Related
+
+- [Observability](../01-guides/09-platform/05-observability.md) — `MetricsSink` / `TraceSink` usage
+- [Multi-tenancy](../01-guides/04-access/04-multi-tenancy.md) — the row mechanism, and what's left to the enterprise layer
+- [Execution & evidence](../01-guides/05-agents/05-execution-and-evidence.md) — `EvidenceSink` and the pipeline

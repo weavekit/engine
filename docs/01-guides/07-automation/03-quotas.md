@@ -63,3 +63,8 @@ if (!decision.allowed) {
 - **Denied consumes don't count** — a rejected call leaves the counter untouched.
 - **UTC periods** — `day` runs midnight → midnight; `month` runs the 1st → next 1st.
 - **Pluggable backend** — the PG store is the default, and another backend can be injected behind the same `CounterStore` contract (mirroring the approvals backend) without changing call sites or adding an engine dependency.
+
+## Related
+
+- [Query budget](04-query-budget.md) — a per-query structural cap (distinct from durable quotas)
+- [Script hooks](02-script-hooks/01-overview.md) — the sandbox that consumes quotas

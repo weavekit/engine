@@ -84,4 +84,5 @@ host caller may use any prefix.
 - [MCP](../02-mcp/01-overview.md) — the agent scenario: exposing the tool surface to AI agents
 - [Audit](../../09-platform/03-audit.md) — the write / tool-call event trail
 - [Approvals](../04-approvals.md) — the human-in-the-loop queue
+- [Execution & evidence](../05-execution-and-evidence.md) — the pipeline every tool call runs through
 - [Script subsystem](../../07-automation/02-script-hooks/01-overview.md) — complementary trust model

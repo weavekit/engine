@@ -70,17 +70,21 @@ write.
   joins / SQL length / statement timeout in restricted SQL, and GraphQL depth.
 - **Multi-tenancy (row)** — mark a field `"tenant": true` and every read/write is scoped to the
   subject's tenant (RBAC row scope + PostgreSQL RLS + audit); single-tenant by default.
-- **Audit log** — an immutable event log for data mutations.
+- **Audit log** — an immutable event log for data mutations, with durability modes
+  (`best-effort` / `transactional` / `durable`) and a keyset-cursor query.
+- **Observability** — a low-level metrics/trace seam (`MetricsSink` / `TraceSink`, `METRIC_NAMES`)
+  that emits request latency, RBAC denials, query-budget rejects and W3C `traceparent`-correlated
+  spans; the engine ships a no-op default and brings no backend.
 - **Sandboxed hooks** — `*.server.js` lifecycle hooks running in isolated workers.
 - **Type generation** — object-level TypeScript types derived from the schema.
 - **Live events** — an SSE stream with replay.
-- **Operations** — health / readiness / version endpoints, request rate limiting, CORS and
-  structured logging.
+- **Operations** — `weave doctor` preflight, health / readiness / version endpoints, request rate
+  limiting, CORS and structured logging.
 
 ## Requirements
 
 - Node.js 22+
-- PostgreSQL
+- PostgreSQL 12+ (the engine's tested floor; `weave doctor` reports the version)
 
 ## Quick start
 
@@ -112,11 +116,11 @@ Full documentation: **[docs.weavekit.io/engine](https://docs.weavekit.io/engine)
 
 - [Getting started](https://docs.weavekit.io/engine/guides/getting-started) — scaffold, migrate, run, consume
 - [Git-versioned metadata](https://docs.weavekit.io/engine/guides/model/git-versioned-metadata) — your data model as reviewable Git commits
-- [Schema guide](https://docs.weavekit.io/engine/guides/model/schema) · [RBAC](https://docs.weavekit.io/engine/guides/access/rbac) · [Formulas](https://docs.weavekit.io/engine/guides/model/formulas) · [Audit](https://docs.weavekit.io/engine/guides/platform/audit)
-- [CLI reference](https://docs.weavekit.io/engine/guides/platform/cli) · [MCP](https://docs.weavekit.io/engine/guides/agents/mcp) · [Script hooks](https://docs.weavekit.io/engine/guides/automation/script-hooks)
-- [Custom tools & guardrails](https://docs.weavekit.io/engine/guides/agents/custom-tools-and-guardrails) · [Custom field types](https://docs.weavekit.io/engine/reference/schema/custom-field-types) · [Quotas](https://docs.weavekit.io/engine/guides/automation/quotas) · [Inbound events](https://docs.weavekit.io/engine/guides/integration/ingress)
-- [Public API & dependency budget](https://docs.weavekit.io/engine/reference/api/public-api)
-- [Practices & operations](https://docs.weavekit.io/engine/practices/agent/existing-crm-to-mcp) — real integration and deployment walkthroughs
+- [Schema guide](https://docs.weavekit.io/engine/guides/model/schema) · [RBAC](https://docs.weavekit.io/engine/guides/access/rbac) · [Multi-tenancy](https://docs.weavekit.io/engine/guides/access/multi-tenancy) · [Formulas](https://docs.weavekit.io/engine/guides/model/formulas) · [Audit](https://docs.weavekit.io/engine/guides/platform/audit)
+- [CLI reference](https://docs.weavekit.io/engine/guides/platform/cli) · [Observability](https://docs.weavekit.io/engine/guides/platform/observability) · [MCP](https://docs.weavekit.io/engine/guides/agents/mcp) · [Execution & evidence](https://docs.weavekit.io/engine/guides/agents/execution-and-evidence) · [Script hooks](https://docs.weavekit.io/engine/guides/automation/script-hooks)
+- [Custom tools & guardrails](https://docs.weavekit.io/engine/guides/agents/custom-tools-and-guardrails) · [Query budget](https://docs.weavekit.io/engine/guides/automation/query-budget) · [Custom field types](https://docs.weavekit.io/engine/reference/schema/custom-field-types) · [Quotas](https://docs.weavekit.io/engine/guides/automation/quotas) · [Inbound events](https://docs.weavekit.io/engine/guides/integration/ingress)
+- [Public API & dependency budget](https://docs.weavekit.io/engine/reference/api/public-api) · [Enterprise seams](https://docs.weavekit.io/engine/reference/enterprise-seams) · [Contract freeze](https://docs.weavekit.io/engine/reference/contract-freeze)
+- [Practices & operations](https://docs.weavekit.io/engine/practices/agent/existing-crm-to-mcp) · [Release checklist](https://docs.weavekit.io/engine/operations/release) — real integration and deployment walkthroughs
 
 The Markdown sources live in [`docs/`](https://github.com/weavekit/engine/tree/main/docs).
 
@@ -188,8 +192,10 @@ const { rows } = await leads.find({ filter: { status: 'open' } });
 npm install
 npm run build        # tsc → dist
 npm test             # unit + e2e (e2e needs DATABASE_URL)
+npm run test:coverage # coverage gate on security-critical paths
 npm run typecheck
 npm run lint
+node scripts/check-exports.mjs  # verify package exports + contract names
 ```
 
 Issues and pull requests are welcome. See [`AGENTS.md`](AGENTS.md) for architecture notes and
