@@ -262,4 +262,5 @@ export const zhHant: Record<MessageKey, string> = {
   'graphql.depthExceeded': 'GraphQL 查詢深度 {depth} 超過上限 {max}',
   'graphql.complexityExceeded': 'GraphQL 查詢複雜度 {cost} 超過上限 {max}',
   'graphql.aliasExceeded': 'GraphQL 查詢使用了 {count} 個別名，超過上限 {max}',
+  'graphql.allowList.denied': '操作不在 GraphQL 白名單中',
 } as const;

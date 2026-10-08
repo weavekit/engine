@@ -259,6 +259,7 @@ export const en = {
   'graphql.depthExceeded': 'GraphQL query depth {depth} exceeds the maximum of {max}',
   'graphql.complexityExceeded': 'GraphQL query complexity {cost} exceeds the maximum of {max}',
   'graphql.aliasExceeded': 'GraphQL query uses {count} aliases, exceeding the maximum of {max}',
+  'graphql.allowList.denied': 'operation is not in the GraphQL allow list',
 } as const;
 
 export type MessageKey = keyof typeof en;

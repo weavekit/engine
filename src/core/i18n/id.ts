@@ -262,4 +262,5 @@ export const id: Record<MessageKey, string> = {
   'graphql.depthExceeded': 'Kedalaman kueri GraphQL {depth} melebihi maksimum {max}',
   'graphql.complexityExceeded': 'Kompleksitas kueri GraphQL {cost} melebihi maksimum {max}',
   'graphql.aliasExceeded': 'Kueri GraphQL menggunakan {count} alias, melebihi maksimum {max}',
+  'graphql.allowList.denied': 'operasi tidak ada dalam daftar izin GraphQL',
 } as const;

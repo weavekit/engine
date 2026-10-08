@@ -1,11 +1,21 @@
-import { visit, type DocumentNode } from 'graphql';
+import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import {
+  NoSchemaIntrospectionCustomRule,
+  print,
+  specifiedRules,
+  visit,
+  type DocumentNode,
+  type ValidationRule,
+} from 'graphql';
 import { SchemaError, type Locale } from '../../core/index.js';
 import type { GraphQLSecurityConfig } from './types.js';
 
 /**
- * Query hardening (Phase 1: depth / complexity / alias). Enforced **before**
- * execution. `introspection` and the persisted-operation `allowList` land in
- * Phase 4. Limits are computed over the parsed document with `visit`.
+ * Query hardening (depth / complexity / alias / introspection / allow-list).
+ * Limits are computed from the parsed document with `visit`; introspection is a
+ * validation rule; the allow list is a set of approved operation hashes loaded
+ * once at registration (see `weave graphql:allowlist` in a later phase).
  */
 
 /** default maximum selection-set depth when the caller doesn't configure one */
@@ -15,19 +25,52 @@ export interface ResolvedSecurity {
   maxDepth: number;
   maxComplexity?: number;
   maxAliases?: number;
+  /** allow `__schema` / `__type` introspection; defaults to true */
+  introspection: boolean;
+  /** approved operation hashes (enabled → only listed operations run) */
+  allowList?: ReadonlySet<string>;
 }
 
-/** apply defaults to a security config */
+/** a stable content hash of an operation (the allow-list key) */
+export function operationHash(document: DocumentNode): string {
+  return createHash('sha256').update(print(document)).digest('hex');
+}
+
+/** load the approved-operation hashes from a Git-versioned JSON file (fail loud on misconfig) */
+function loadAllowList(file: string | undefined): ReadonlySet<string> {
+  if (file === undefined) {
+    throw new Error('graphql.security.allowList.enabled requires "file" (the Git-versioned allow-list path)');
+  }
+  const raw = JSON.parse(readFileSync(file, 'utf8')) as unknown;
+  const list = Array.isArray(raw) ? raw : (raw as { operations?: unknown }).operations;
+  if (!Array.isArray(list) || !list.every((entry) => typeof entry === 'string')) {
+    throw new Error(`graphql allow-list "${file}" must be a JSON string array or { "operations": string[] }`);
+  }
+  return new Set(list as string[]);
+}
+
+/** apply defaults to a security config (loads the allow list once) */
 export function resolveSecurity(config: GraphQLSecurityConfig | undefined): ResolvedSecurity {
   return {
     maxDepth: config?.maxDepth ?? GRAPHQL_DEFAULT_MAX_DEPTH,
+    introspection: config?.introspection ?? true,
     ...(config?.maxComplexity === undefined ? {} : { maxComplexity: config.maxComplexity }),
     ...(config?.maxAliases === undefined ? {} : { maxAliases: config.maxAliases }),
+    ...(config?.allowList?.enabled === true ? { allowList: loadAllowList(config.allowList.file) } : {}),
   };
 }
 
-/** reject a document that exceeds the configured depth / complexity / alias limits */
+/** validation rules for this policy (adds the no-introspection rule when disabled) */
+export function validationRules(security: ResolvedSecurity): readonly ValidationRule[] {
+  return security.introspection ? specifiedRules : [...specifiedRules, NoSchemaIntrospectionCustomRule];
+}
+
+/** reject a document that is not allow-listed or exceeds the depth / complexity / alias limits */
 export function validateQuery(document: DocumentNode, security: ResolvedSecurity, locale: Locale): void {
+  if (security.allowList !== undefined && !security.allowList.has(operationHash(document))) {
+    throw new SchemaError('graphql.allowList.denied', {}, locale);
+  }
+
   let depth = 0;
   let maxDepth = 0;
   let fields = 0;

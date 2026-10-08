@@ -262,4 +262,5 @@ export const ko: Record<MessageKey, string> = {
   'graphql.depthExceeded': 'GraphQL 쿼리 깊이 {depth}이(가) 최대값 {max}을(를) 초과했습니다',
   'graphql.complexityExceeded': 'GraphQL 쿼리 복잡도 {cost}이(가) 최대값 {max}을(를) 초과했습니다',
   'graphql.aliasExceeded': 'GraphQL 쿼리 별칭 {count}개가 최대값 {max}을(를) 초과했습니다',
+  'graphql.allowList.denied': '작업이 GraphQL 허용 목록에 없습니다',
 } as const;

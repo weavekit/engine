@@ -262,4 +262,5 @@ export const hi: Record<MessageKey, string> = {
   'graphql.depthExceeded': 'GraphQL क्वेरी गहराई {depth} अधिकतम {max} से अधिक है',
   'graphql.complexityExceeded': 'GraphQL क्वेरी जटिलता {cost} अधिकतम {max} से अधिक है',
   'graphql.aliasExceeded': 'GraphQL क्वेरी {count} उपनाम उपयोग करती है, जो अधिकतम {max} से अधिक है',
+  'graphql.allowList.denied': 'ऑपरेशन GraphQL अनुमति सूची में नहीं है',
 } as const;

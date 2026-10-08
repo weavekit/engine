@@ -50,5 +50,6 @@ export function registerGraphQL(app: FastifyInstance, deps: GraphQLDeps): GraphQ
 
 export { buildGraphQLSchema, printGraphQLSchema } from './schema.js';
 export { registerGraphQLRoutes } from './http.js';
+export { GRAPHQL_DEFAULT_MAX_DEPTH, operationHash, validationRules } from './security.js';
 export type { GraphQLRouteDeps } from './http.js';
-export type { GraphQLEngine, EngineGraphQLConfig, GraphQLSecurityConfig } from './types.js';
+export type { GraphQLEngine, EngineGraphQLConfig, GraphQLSecurityConfig, RecordLoader } from './types.js';

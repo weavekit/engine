@@ -4,7 +4,7 @@ import { createSlidingWindow, SchemaError, type IdentitySubject, type Locale } f
 import { mapSchemaError } from '../../core/api/index.js';
 import { authenticate, type Authenticator } from '../auth/index.js';
 import { createRecordLoader } from './loader.js';
-import { resolveSecurity, validateQuery } from './security.js';
+import { resolveSecurity, validateQuery, validationRules } from './security.js';
 import type { EngineGraphQLConfig, GraphQLEngine } from './types.js';
 
 /**
@@ -140,7 +140,7 @@ export function registerGraphQLRoutes(app: FastifyInstance, deps: GraphQLRouteDe
         return;
       }
 
-      const validationErrors = validate(deps.schema, document);
+      const validationErrors = validate(deps.schema, document, validationRules(security));
       if (validationErrors.length > 0) {
         reply.status(200).send({ errors: validationErrors.map(formatError) });
         return;

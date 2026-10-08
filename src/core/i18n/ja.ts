@@ -262,4 +262,5 @@ export const ja: Record<MessageKey, string> = {
   'graphql.depthExceeded': 'GraphQL クエリの深さ {depth} が上限 {max} を超えています',
   'graphql.complexityExceeded': 'GraphQL クエリの複雑度 {cost} が上限 {max} を超えています',
   'graphql.aliasExceeded': 'GraphQL クエリのエイリアス数 {count} が上限 {max} を超えています',
+  'graphql.allowList.denied': '操作が GraphQL 許可リストに含まれていません',
 } as const;

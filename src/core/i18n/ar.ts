@@ -262,4 +262,5 @@ export const ar: Record<MessageKey, string> = {
   'graphql.depthExceeded': 'عمق استعلام GraphQL {depth} يتجاوز الحد الأقصى {max}',
   'graphql.complexityExceeded': 'تعقيد استعلام GraphQL {cost} يتجاوز الحد الأقصى {max}',
   'graphql.aliasExceeded': 'استعلام GraphQL يستخدم {count} اسمًا مستعارًا، متجاوزًا الحد الأقصى {max}',
+  'graphql.allowList.denied': 'العملية غير موجودة في قائمة السماح لـ GraphQL',
 } as const;
