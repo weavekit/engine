@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { FIELD_TYPES, fieldBase, isRelationLike, validateObject } from '../../core/index.js';
 import type { FieldTypeRegistry } from '../../core/index.js';
 import { autoCommit } from '../../runtime/git/index.js';
+import { resolveEnumRegistry } from '../../runtime/enums/index.js';
 import { loadConfig } from '../load-config.js';
 import { resolveProjectFieldTypes } from '../resolve-field-types.js';
 import type { FieldAddOptions } from '../types/index.js';
@@ -48,8 +49,13 @@ export async function fieldAdd(cwd: string, object: string, options: FieldAddOpt
     return;
   }
   const relationLike = isRelationLike(fieldTypes, type);
-  if (type === FIELD_TYPES.ENUM && options.options === undefined && options.optionsFrom === undefined) {
-    p.error('enum fields require --options <a,b,c> or --options-from <object[.column]>');
+  if (
+    type === FIELD_TYPES.ENUM &&
+    options.options === undefined &&
+    options.optionsFrom === undefined &&
+    options.enum === undefined
+  ) {
+    p.error('enum fields require --options <a,b,c>, --options-from <object[.column]> or --enum <name>');
     process.exitCode = 1;
     return;
   }
@@ -65,6 +71,7 @@ export async function fieldAdd(cwd: string, object: string, options: FieldAddOpt
     return;
   }
   const schemaDir = config.schemaDir ?? cwd;
+  const enums = await resolveEnumRegistry({ dir: join(schemaDir, 'enums'), locale: config.locale });
   const schemaPath = join(schemaDir, 'objects', object, 'schema.json');
 
   let raw: string;
@@ -99,7 +106,9 @@ export async function fieldAdd(cwd: string, object: string, options: FieldAddOpt
   if (options.required === true) field.required = true;
   if (options.unique === true) field.unique = true;
   if (type === FIELD_TYPES.ENUM) {
-    if (options.optionsFrom !== undefined) {
+    if (options.enum !== undefined) {
+      field.enumType = options.enum;
+    } else if (options.optionsFrom !== undefined) {
       const [refObject, column] = options.optionsFrom.split('.');
       field.options = { from: { object: refObject, ...(column === undefined ? {} : { column }) } };
     } else {
@@ -116,7 +125,7 @@ export async function fieldAdd(cwd: string, object: string, options: FieldAddOpt
   fields.push(field);
 
   try {
-    validateObject(schema, { nameHint: object, allowedFieldTypes: config.features?.fieldTypes, fieldTypes });
+    validateObject(schema, { nameHint: object, allowedFieldTypes: config.features?.fieldTypes, fieldTypes, enums });
   } catch (error) {
     p.error(`invalid schema after adding "${name}": ${error instanceof Error ? error.message : String(error)}`);
     process.exitCode = 1;

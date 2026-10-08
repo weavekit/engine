@@ -1,4 +1,5 @@
 import type { ObjectDefinition } from '../../src/core/index.js';
+import { buildEnumRegistry, validateObject } from '../../src/core/index.js';
 import { buildOpenApiDocument, type OpenApiCapabilities } from '../../src/adapters/openapi/index.js';
 import { describe, it, expect } from '../helpers/test.js';
 
@@ -120,5 +121,37 @@ describe('buildOpenApiDocument', () => {
       for (const operation of Object.values(item)) ids.push((operation as { operationId: string }).operationId);
     }
     expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('references a shared named enum component ($ref + x-enumLabels)', () => {
+    const enums = buildEnumRegistry([
+      { name: 'invoice_status', values: ['open', 'paid'], labels: { en: { open: 'Open', paid: 'Paid' } } },
+    ]);
+    const invoice = validateObject(
+      {
+        name: 'invoice',
+        fields: [
+          { name: 'id', type: 'string', primary: true },
+          { name: 'status', type: 'enum', enumType: 'invoice_status' },
+          { name: 'flags', type: 'enum', enumType: 'invoice_status', multiple: true },
+        ],
+      },
+      { enums },
+    );
+    const doc = buildOpenApiDocument({ objects: [invoice], capabilities: FULL, enums });
+
+    // the shared component is emitted once
+    expect(doc.components.schemas['invoice_status']).toMatchObject({ type: 'string', enum: ['open', 'paid'] });
+    expect((doc.components.schemas['invoice_status'] as Record<string, unknown>)['x-enumLabels']).toEqual({
+      en: { open: 'Open', paid: 'Paid' },
+    });
+
+    // single + multiple fields reference it
+    const record = doc.components.schemas['invoice'] as { properties: Record<string, Record<string, unknown>> };
+    expect(record.properties.status).toEqual({ $ref: '#/components/schemas/invoice_status' });
+    expect(record.properties.flags).toEqual({
+      type: 'array',
+      items: { $ref: '#/components/schemas/invoice_status' },
+    });
   });
 });

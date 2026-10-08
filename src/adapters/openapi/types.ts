@@ -78,6 +78,8 @@ export interface BuildOpenApiInput {
   generic?: boolean;
   /** effective field-type registry (built-ins + registrations), for base-driven schemas. */
   fieldTypes?: import('../../core/index.js').FieldTypeRegistry;
+  /** effective named-enum registry; referenced enums become shared `components.schemas` entries. */
+  enums?: import('../../core/index.js').EnumRegistry;
   info?: { title?: string; description?: string; version?: string };
 }
 

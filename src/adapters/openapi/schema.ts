@@ -4,6 +4,8 @@ import {
   RECORD_META_VIRTUAL_FIELD_SPECS,
   fieldBase,
   fieldOpenApiFormat,
+  type EnumDefinition,
+  type EnumRegistry,
   type FieldDefinition,
   type FieldTypeRegistry,
   type ObjectDefinition,
@@ -50,16 +52,17 @@ function pkType(
   }
 }
 
-/**
- * JSON Schema for one field (OpenAPI 3.1). Carries type + format + validation
+/** JSON Schema for one field (OpenAPI 3.1). Carries type + format + validation
  * attributes, `readOnly` for engine-managed fields, and relation targets as
  * primary-key references. Dispatch is base-driven, so registered types inherit
- * their base's schema.
+ * their base's schema. A field referencing a declared named enum emits a
+ * `$ref` into a shared `components.schemas` entry.
  */
 export function fieldSchema(
   field: FieldDefinition,
   objects: Map<string, ObjectDefinition>,
   registry: FieldTypeRegistry = DEFAULT_FIELD_TYPE_REGISTRY,
+  enums?: EnumRegistry,
 ): Json {
   const f = asRecord(field);
   const base = fieldBase(registry, field.type);
@@ -104,7 +107,18 @@ export function fieldSchema(
   } else if (base === FIELD_TYPES.ENUM) {
     const opts = f.options as string[] | { from: { object: string; column?: string } };
     const dynamic = !Array.isArray(opts);
-    if (f.multiple === true) {
+    const enumType = f.enumType as string | undefined;
+    const named = enumType !== undefined && enums?.has(enumType) === true;
+    if (named) {
+      // declared named enum → reference the shared components.schemas entry
+      const ref = { $ref: `#/components/schemas/${enumType}` };
+      if (f.multiple === true) {
+        out.type = 'array';
+        out.items = ref;
+      } else {
+        out.$ref = ref.$ref;
+      }
+    } else if (f.multiple === true) {
       out.type = 'array';
       out.items = dynamic ? { type: 'string' } : { type: 'string', enum: opts as string[] };
     } else {
@@ -146,11 +160,32 @@ export interface ObjectSchemas {
   update: Json;
 }
 
+/** declared named enums referenced by any enum field across the given objects */
+export function referencedNamedEnums(
+  objects: readonly ObjectDefinition[],
+  registry: FieldTypeRegistry = DEFAULT_FIELD_TYPE_REGISTRY,
+  enums?: EnumRegistry,
+): Map<string, EnumDefinition> {
+  const out = new Map<string, EnumDefinition>();
+  if (enums === undefined) return out;
+  for (const obj of objects) {
+    for (const field of obj.fields) {
+      if (fieldBase(registry, field.type) !== FIELD_TYPES.ENUM) continue;
+      const enumType = (field as { enumType?: string }).enumType;
+      if (enumType === undefined) continue;
+      const definition = enums.get(enumType);
+      if (definition !== undefined) out.set(enumType, definition);
+    }
+  }
+  return out;
+}
+
 /** build the three reusable schemas for one object. */
 export function objectSchemas(
   obj: ObjectDefinition,
   objects: Map<string, ObjectDefinition>,
   registry: FieldTypeRegistry = DEFAULT_FIELD_TYPE_REGISTRY,
+  enums?: EnumRegistry,
 ): ObjectSchemas {
   const record: Json = { type: 'object', properties: {} as Json };
   const create: Json = { type: 'object', properties: {} as Json, additionalProperties: false };
@@ -163,15 +198,15 @@ export function objectSchemas(
 
   for (const field of obj.fields) {
     const readonly = isReadonlyField(field);
-    if (field.sensitive !== true) recordProps[field.name] = fieldSchema(field, objects, registry);
+    if (field.sensitive !== true) recordProps[field.name] = fieldSchema(field, objects, registry, enums);
     if (field.primary === true || fieldRequired(field)) recordRequired.push(field.name);
 
     if (!readonly && field.type !== FIELD_TYPES.DETAILS) {
-      createProps[field.name] = fieldSchema(field, objects, registry);
+      createProps[field.name] = fieldSchema(field, objects, registry, enums);
       if (fieldRequired(field)) createRequired.push(field.name);
     }
     if (!readonly && field.primary !== true && field.type !== FIELD_TYPES.DETAILS) {
-      updateProps[field.name] = fieldSchema(field, objects, registry);
+      updateProps[field.name] = fieldSchema(field, objects, registry, enums);
     }
   }
 

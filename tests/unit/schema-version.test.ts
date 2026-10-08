@@ -145,4 +145,12 @@ describe('schema format version', () => {
     );
     expect(parsed.fields.find((f) => f.name === 'manager_id')).toMatchObject({ type: 'user', target: 'weavekit_user' });
   });
+
+  it('migrates a v5 file to v6 (named enums; additive stamp)', () => {
+    const migrated = migrateSchemaObject({ name: 'lead', schemaVersion: 5, fields: base.fields });
+    expect(migrated.from).toBe(5);
+    expect(migrated.migrated).toBe(true);
+    expect(migrated.object.schemaVersion).toBe(SCHEMA_FORMAT_VERSION);
+    expect(SCHEMA_FORMAT_VERSION).toBe(6);
+  });
 });

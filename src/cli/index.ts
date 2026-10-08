@@ -6,6 +6,7 @@ import { loadEnvFile } from './env.js';
 import { build } from './commands/build.js';
 import { connect } from './commands/connect.js';
 import { dev } from './commands/dev.js';
+import { enumCheck, enumList } from './commands/enums.js';
 import { fieldAdd } from './commands/field-add.js';
 import { fieldTypeCheck, fieldTypeList } from './commands/field-types.js';
 import { identityCreate, identityList, identitySync, identityToggle } from './commands/identity.js';
@@ -223,8 +224,9 @@ program
   .option('--default <value>', 'default value (parsed per type)')
   .option('--options <a,b,c>', 'comma-separated options (enum)')
   .option('--options-from <object[.column]>', 'data-driven enum options from an object column (enum)')
+  .option('--enum <name>', 'reference a declared named enum (enums/<name>.json) (enum)')
   .option('--target <object>', 'target object (relation / multiRelation)')
-  .action(async (object: string, opts: { name: string; type: string; required?: boolean; unique?: boolean; default?: string; options?: string; optionsFrom?: string; target?: string }) => {
+  .action(async (object: string, opts: { name: string; type: string; required?: boolean; unique?: boolean; default?: string; options?: string; optionsFrom?: string; enum?: string; target?: string }) => {
     await runAction(() =>
       fieldAdd(process.cwd(), object, {
         name: opts.name,
@@ -234,6 +236,7 @@ program
         default: opts.default,
         options: opts.options,
         optionsFrom: opts.optionsFrom,
+        enum: opts.enum,
         target: opts.target,
         printer: printer(),
       }),
@@ -252,6 +255,20 @@ program
   .description('validate registrations, features.fieldTypes whitelist and objects/*/schema.json (no database needed)')
   .action(async () => {
     await runAction(() => fieldTypeCheck(process.cwd(), { printer: printer() }));
+  });
+
+program
+  .command(WEAVE_COMMANDS.ENUM_LIST)
+  .description('list the declared named enums (enums/<name>.json)')
+  .action(async () => {
+    await runAction(() => enumList(process.cwd(), { printer: printer() }));
+  });
+
+program
+  .command(WEAVE_COMMANDS.ENUM_CHECK)
+  .description('validate enums/<name>.json and objects/*/schema.json enum references (no database needed)')
+  .action(async () => {
+    await runAction(() => enumCheck(process.cwd(), { printer: printer() }));
   });
 
 program

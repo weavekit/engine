@@ -15,6 +15,8 @@ export const WEAVE_COMMANDS = {
   FIELD_ADD: 'field:add',
   FIELD_TYPE_LIST: 'field-type:list',
   FIELD_TYPE_CHECK: 'field-type:check',
+  ENUM_LIST: 'enum:list',
+  ENUM_CHECK: 'enum:check',
   MODULE_ADD: 'module:add',
   MODULE_REMOVE: 'module:remove',
   WORKFLOW_OPEN: 'workflow:open',

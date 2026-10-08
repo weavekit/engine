@@ -19,13 +19,15 @@ export async function openapi(cwd: string, options: OpenApiOptions): Promise<voi
   const fieldTypes = await resolveProjectFieldTypes(cwd, config);
 
   const objects: import('../../core/index.js').ObjectDefinition[] = [];
+  let enums: import('../../core/index.js').EnumRegistry | undefined;
   if (options.generic !== true) {
-    const { files } = await loadSchemaDir(schemaDir, {
+    const { registry, files } = await loadSchemaDir(schemaDir, {
       locale: config.locale,
       allowedFieldTypes: config.features?.fieldTypes,
       fieldTypes,
     });
     objects.push(...files.map((f) => f.object));
+    enums = registry.enums;
   }
 
   const document = buildOpenApiDocument({
@@ -34,6 +36,7 @@ export async function openapi(cwd: string, options: OpenApiOptions): Promise<voi
     generic: options.generic,
     server: options.server,
     fieldTypes,
+    enums,
   });
 
   const json = `${JSON.stringify(document, null, 2)}\n`;

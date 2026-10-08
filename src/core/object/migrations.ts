@@ -69,6 +69,16 @@ function migratePersonToUser(raw: RawObject): RawObject {
 }
 
 /**
+ * v5 → v6: named enum declarations (`enums/<name>.json`) become available and a
+ * static enum field may reference one by `enumType` with `options` omitted. The
+ * change is additive — inline options keep working — so the step only stamps the
+ * version.
+ */
+function migrateAddNamedEnums(raw: RawObject): RawObject {
+  return { ...raw, schemaVersion: 6 };
+}
+
+/**
  * On-disk format migrations: `from`-version → a transform producing version+1.
  * Append a step here whenever {@link SCHEMA_FORMAT_VERSION} is bumped. Steps
  * must be pure (they may not read files or the database).
@@ -84,6 +94,8 @@ const MIGRATIONS: Record<number, (raw: RawObject) => RawObject> = {
   3: migrateJsonToJsonb,
   // v4 → v5: `person` → `user`; identity FK types target the identity objects implicitly.
   4: migratePersonToUser,
+  // v5 → v6: named enum declarations (`enums/`) + `enumType`-only references (additive).
+  5: migrateAddNamedEnums,
 };
 
 /**

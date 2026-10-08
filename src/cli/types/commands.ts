@@ -84,6 +84,8 @@ export interface FieldAddOptions {
   options?: string;
   /** data-driven enum source: `<object>` or `<object>.<column>` */
   optionsFrom?: string;
+  /** named-enum reference (`enums/<name>.json`) — static shared enum */
+  enum?: string;
   /** target object name (relation / multiRelation) */
   target?: string;
   printer: CliPrinter;
@@ -127,6 +129,16 @@ export interface FieldTypeListOptions {
 
 /** `weave field-type:check` options */
 export interface FieldTypeCheckOptions {
+  printer: CliPrinter;
+}
+
+/** `weave enum:list` options */
+export interface EnumListOptions {
+  printer: CliPrinter;
+}
+
+/** `weave enum:check` options */
+export interface EnumCheckOptions {
   printer: CliPrinter;
 }
 

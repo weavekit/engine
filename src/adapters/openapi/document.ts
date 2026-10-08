@@ -7,7 +7,7 @@ import {
   type OpenApiCapabilities,
   type OpenApiDocument,
 } from './types.js';
-import { objectSchemas } from './schema.js';
+import { objectSchemas, referencedNamedEnums } from './schema.js';
 
 type Json = Record<string, unknown>;
 
@@ -391,10 +391,16 @@ export function buildOpenApiDocument(input: BuildOpenApiInput): OpenApiDocument 
 
   if (input.generic !== true) {
     for (const obj of input.objects) {
-      const { record, create, update } = objectSchemas(obj, objects, input.fieldTypes);
+      const { record, create, update } = objectSchemas(obj, objects, input.fieldTypes, input.enums);
       schemas[obj.name] = record;
       schemas[`${obj.name}Create`] = create;
       schemas[`${obj.name}Update`] = update;
+    }
+    // declared named enums → shared components (referenced by field `$ref`s)
+    for (const [name, definition] of referencedNamedEnums(input.objects, input.fieldTypes, input.enums)) {
+      const component: Record<string, unknown> = { type: 'string', enum: [...definition.values] };
+      if (definition.labels !== undefined) component['x-enumLabels'] = definition.labels;
+      schemas[name] = component;
     }
   }
 
