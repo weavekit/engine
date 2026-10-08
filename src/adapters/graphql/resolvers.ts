@@ -39,6 +39,7 @@ function dataContext(context: GraphQLContext): DataAccessContext {
     principal: userPrincipal(context.subject),
     locale: context.engine.locale,
     ...(context.requestId === undefined ? {} : { requestId: context.requestId }),
+    ...(context.traceId === undefined ? {} : { traceId: context.traceId }),
   };
 }
 

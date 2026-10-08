@@ -225,6 +225,7 @@ function customToolTools(
             args,
             locale: ctx.engine.locale,
             ...(ctx.requestId === undefined ? {} : { requestId: ctx.requestId }),
+            ...(ctx.traceId === undefined ? {} : { traceId: ctx.traceId }),
             ...(ctx.schemaRevision === undefined ? {} : { schemaRevision: ctx.schemaRevision }),
           });
           return result as McpToolResult;

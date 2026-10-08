@@ -20,12 +20,19 @@ export default {
   subsystems: {
     audit: {
       enabled: true,
-      retention: '90d',                          // placeholder (auto-cleanup later)
-      batch: { batchSize: 50, flushMs: 100 },    // optional; defaults shown
+      mode: 'best-effort',                       // 'best-effort' | 'transactional' | 'durable'
+      batch: { batchSize: 50, flushMs: 100 },    // optional; defaults shown (best-effort mode)
     },
   },
 };
 ```
+
+`mode` selects durability: `best-effort` (default) is a fire-and-forget process buffer (a crash may
+lose the tail); `transactional` writes the audit row inside the business transaction; `durable`
+writes a transactional outbox row + relay (crash-safe, at-least-once). `transactional`/`durable`
+require an in-transaction sink — the built-in sinks provide it; if a custom sink cannot,
+startup fails unless you set `allowBestEffortFallback: true`. Storage growth, retention, export
+and compliance are product/enterprise concerns; the engine only captures.
 
 ## What gets audited automatically
 

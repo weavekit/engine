@@ -133,6 +133,7 @@ async function auditWrite(
     isError: error !== undefined,
     errorCode: error instanceof SchemaError ? error.code : undefined,
     ...(ctx.requestId === undefined ? {} : { requestId: ctx.requestId }),
+    ...(ctx.traceId === undefined ? {} : { traceId: ctx.traceId }),
     ...(tenant === undefined ? {} : { tenantId: tenant }),
     timestamp: new Date(),
   };
@@ -576,6 +577,7 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
       void this.evidence
         .record({
           ...(ctx.requestId === undefined ? {} : { requestId: ctx.requestId }),
+          ...(ctx.traceId === undefined ? {} : { traceId: ctx.traceId }),
           ...(schemaRevision === undefined ? {} : { schemaRevision }),
           actor: guardrailCtx.actor,
           ...(subject === undefined ? {} : { subjectId: subject.id }),

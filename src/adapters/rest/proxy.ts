@@ -7,6 +7,7 @@ import {
   isAllowedProxyPath,
   PROXY_KEY_SCOPES,
   SchemaError,
+  traceIdOf,
   type AuditSink,
   type Locale,
   type ProxyAllow,
@@ -150,12 +151,15 @@ export function registerProxyRoutes(
     }
     requireAdmin(subject.roles, 'proxy', options.adminRoles, locale);
     if (deps.audit !== undefined) {
+      const traceHeader = req.headers.traceparent;
+      const traceId = traceIdOf(Array.isArray(traceHeader) ? traceHeader[0] : traceHeader);
       void deps.audit.record({
         actorType: AUDIT_ACTOR_TYPES.USER,
         actorId: subject.id,
         action: `proxy.${method}`,
         objectName: instance,
         changes: req.body,
+        ...(traceId === undefined ? {} : { traceId }),
         meta: { path, target: target.id },
         timestamp: new Date(),
       });

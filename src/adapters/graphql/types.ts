@@ -22,6 +22,8 @@ export interface GraphQLContext {
   loader: RecordLoader;
   /** request correlation id, attached to audit events */
   requestId?: string;
+  /** distributed trace id (parsed from inbound W3C `traceparent`) */
+  traceId?: string;
 }
 
 /**

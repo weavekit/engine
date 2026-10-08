@@ -83,6 +83,7 @@ function denied(
     isError: true,
     errorCode: error instanceof SchemaError ? error.code : undefined,
     ...(ctx.requestId === undefined ? {} : { requestId: ctx.requestId }),
+    ...(ctx.traceId === undefined ? {} : { traceId: ctx.traceId }),
     ...(tenant === undefined ? {} : { tenantId: tenant }),
     timestamp: new Date(),
   });

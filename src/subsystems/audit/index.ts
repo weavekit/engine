@@ -1,5 +1,6 @@
 import type { Pool } from 'pg';
-import type { AuditEvent, AuditSink } from '../../core/audit/index.js';
+import { AUDIT_MODES } from '../../core/audit/index.js';
+import type { AuditEvent, AuditMode, AuditSink } from '../../core/audit/index.js';
 import { insertAudit, insertAuditBatch, queryAudit } from './store.js';
 import type { AuditQuery, AuditQueryResult } from './store.js';
 
@@ -8,6 +9,27 @@ export type { AuditActorType, AuditEvent, AuditFilter, AuditMode, AuditSink, Dat
 export type { AuditQuery, AuditQueryResult } from './store.js';
 export { createOutboxAuditSink, startAuditOutboxRelay, writeOutboxInTx } from './outbox.js';
 export type { AuditOutboxRelay, AuditOutboxRelayOptions } from './outbox.js';
+
+/**
+ * Audit durability contract guard (fail-closed). `transactional`/`durable`
+ * modes require a sink that writes **inside the caller's transaction**
+ * (`recordInTx`); a sink without it silently degrades to fire-and-forget and
+ * would drop events on crash. Refuse unless the host explicitly accepts
+ * best-effort fallback. Pure + exported so low-level composers (custom
+ * `createDataAccess` wiring) can enforce the same contract.
+ */
+export function assertAuditSinkCapability(
+  mode: AuditMode,
+  sink: AuditSink,
+  options: { allowBestEffortFallback?: boolean } = {},
+): void {
+  const requiresInTx = mode === AUDIT_MODES.TRANSACTIONAL || mode === AUDIT_MODES.DURABLE;
+  if (!requiresInTx || sink.recordInTx !== undefined || options.allowBestEffortFallback === true) return;
+  throw new Error(
+    `audit mode "${mode}" requires a sink implementing recordInTx; provide one, or set ` +
+      'subsystems.audit.allowBestEffortFallback: true to accept best-effort delivery (events may be lost on crash)',
+  );
+}
 
 /** audit engine: storage (single/batch insert) + query + lifecycle */
 export interface AuditEngine extends AuditSink {

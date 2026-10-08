@@ -101,8 +101,13 @@ export interface EngineAuditConfig {
    * at-least-once).
    */
   mode?: AuditMode;
-  /** retention window placeholder (auto-cleanup is not implemented yet) */
-  retention?: string;
+  /**
+   * Accept a best-effort fallback when `mode` is `transactional`/`durable` but
+   * the resolved sink cannot write in-transaction (`recordInTx`). Default
+   * `false` = fail-closed at startup (a misconfigured sink would otherwise drop
+   * events on crash). Built-in sinks always satisfy the requirement.
+   */
+  allowBestEffortFallback?: boolean;
   /** audit diff replay: attach before/after row snapshots to update/delete audit events (default off; table always has the columns) */
   replay?: boolean;
   /** L1 buffered-sink parameters */
@@ -504,6 +509,9 @@ export async function buildEngineFromRegistry(
         ...(inner.recordInTx === undefined ? {} : { recordInTx: inner.recordInTx }),
       };
     }
+    auditMod.assertAuditSinkCapability(mode, auditSink, {
+      allowBestEffortFallback: subsystems.audit.allowBestEffortFallback,
+    });
   }
 
   // Guardrail policies + approval queue are shared by the tool open-contract and

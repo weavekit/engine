@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { execute, GraphQLError, parse, validate, type GraphQLSchema } from 'graphql';
-import { createSlidingWindow, SchemaError, type IdentitySubject, type Locale } from '../../core/index.js';
+import { createSlidingWindow, SchemaError, traceIdOf, type IdentitySubject, type Locale } from '../../core/index.js';
 import { mapSchemaError } from '../../core/api/index.js';
 import { authenticate, type Authenticator } from '../auth/index.js';
 import { createRecordLoader } from './loader.js';
@@ -163,12 +163,14 @@ export function registerGraphQLRoutes(app: FastifyInstance, deps: GraphQLRouteDe
         throw error;
       }
 
+      const traceHeader = request.headers.traceparent;
+      const traceId = traceIdOf(Array.isArray(traceHeader) ? traceHeader[0] : traceHeader);
       const result = await execute({
         schema: deps.schema,
         document,
         ...(parsed.variables === undefined ? {} : { variableValues: parsed.variables }),
         ...(parsed.operationName === undefined ? {} : { operationName: parsed.operationName }),
-        contextValue: { subject, engine: deps.engine, loader: createRecordLoader(deps.engine, subject), requestId: request.id },
+        contextValue: { subject, engine: deps.engine, loader: createRecordLoader(deps.engine, subject), requestId: request.id, ...(traceId === undefined ? {} : { traceId }) },
       });
 
       const body: Record<string, unknown> = {};

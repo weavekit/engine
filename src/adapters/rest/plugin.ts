@@ -1,7 +1,7 @@
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyRequest } from "fastify";
 import type { Pool } from "pg";
 import type { Locale, ObjectRegistry } from "../../core/index.js";
-import { SchemaError, userPrincipal } from "../../core/index.js";
+import { SchemaError, traceIdOf, userPrincipal } from "../../core/index.js";
 import type { AuditQueryEngine } from "../../core/audit/index.js";
 import type { ToolApprovals } from "../../core/tools/index.js";
 import type { SlidingWindow } from "../../core/limiter/index.js";
@@ -18,6 +18,13 @@ import { parseFindParams, type ListQuery } from "../../core/api/index.js";
 import type { Authenticator } from "../auth/index.js";
 import type { DataAccessContext } from "../../runtime/data-access/index.js";
 import { authenticateRequest, checkRateLimit } from "./common.js";
+
+/** trace correlation for a request (W3C `traceparent`), spreadable into a DataAccessContext */
+function requestTrace(request: FastifyRequest): { traceId?: string } {
+  const header = request.headers.traceparent;
+  const traceId = traceIdOf(Array.isArray(header) ? header[0] : header);
+  return traceId === undefined ? {} : { traceId };
+}
 
 /** everything the REST layer needs to serve a request */
 export interface RestDeps {
@@ -150,7 +157,7 @@ export function registerObjectRoutes(
     const { name } = request.params as { name: string };
     checkRateLimit(limiter, request, locale);
     const subject = await authenticateRequest(authenticator, request, locale);
-    const ctx: DataAccessContext = { pool, registry, principal: userPrincipal(subject), locale, requestId: request.id };
+    const ctx: DataAccessContext = { pool, registry, principal: userPrincipal(subject), locale, requestId: request.id, ...requestTrace(request) };
     const list = parseFindParams(
       request.query as Record<string, unknown>,
       locale,
@@ -172,6 +179,7 @@ export function registerObjectRoutes(
       principal: userPrincipal(subject),
       locale,
       requestId: request.id,
+      ...requestTrace(request),
       onWarnings: (ws) => warnings.push(...ws),
     };
     const record = await dataAccess.create(
@@ -189,7 +197,7 @@ export function registerObjectRoutes(
     const { name, id } = request.params as { name: string; id: string };
     checkRateLimit(limiter, request, locale);
     const subject = await authenticateRequest(authenticator, request, locale);
-    const ctx: DataAccessContext = { pool, registry, principal: userPrincipal(subject), locale, requestId: request.id };
+    const ctx: DataAccessContext = { pool, registry, principal: userPrincipal(subject), locale, requestId: request.id, ...requestTrace(request) };
     const record = await dataAccess.findOne(name, id, ctx);
     if (record === null) {
       throw new SchemaError(
@@ -212,6 +220,7 @@ export function registerObjectRoutes(
       principal: userPrincipal(subject),
       locale,
       requestId: request.id,
+      ...requestTrace(request),
       onWarnings: (ws) => warnings.push(...ws),
     };
     const record = await dataAccess.update(
@@ -228,7 +237,7 @@ export function registerObjectRoutes(
     const { name, id } = request.params as { name: string; id: string };
     checkRateLimit(limiter, request, locale);
     const subject = await authenticateRequest(authenticator, request, locale);
-    const ctx: DataAccessContext = { pool, registry, principal: userPrincipal(subject), locale, requestId: request.id };
+    const ctx: DataAccessContext = { pool, registry, principal: userPrincipal(subject), locale, requestId: request.id, ...requestTrace(request) };
     await dataAccess.delete(name, id, ctx);
     reply.code(204).send();
   });
@@ -251,6 +260,7 @@ export function registerObjectRoutes(
       principal: userPrincipal(subject),
       locale,
       requestId: request.id,
+      ...requestTrace(request),
       onWarnings: (ws) => warnings.push(...ws),
     };
     await withTx(ctx, async (txCtx) => {
@@ -266,7 +276,7 @@ export function registerObjectRoutes(
     checkRateLimit(limiter, request, locale);
     const subject = await authenticateRequest(authenticator, request, locale);
     const ids = parseIds(bodyObject(request.body, locale), locale);
-    const ctx: DataAccessContext = { pool, registry, principal: userPrincipal(subject), locale, requestId: request.id };
+    const ctx: DataAccessContext = { pool, registry, principal: userPrincipal(subject), locale, requestId: request.id, ...requestTrace(request) };
     await withTx(ctx, async (txCtx) => {
       for (const id of ids) {
         await dataAccess.delete(name, id, txCtx);

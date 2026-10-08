@@ -10,3 +10,4 @@ export * from './limiter/index.js';
 export * from './provider/index.js';
 export * from './tools/index.js';
 export * from './proxy/index.js';
+export * from './trace.js';

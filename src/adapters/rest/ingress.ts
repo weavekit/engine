@@ -1,5 +1,5 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
-import { AUDIT_ACTOR_TYPES, SchemaError } from '../../core/index.js';
+import { AUDIT_ACTOR_TYPES, SchemaError, traceIdOf } from '../../core/index.js';
 import type { AuditSink, Locale } from '../../core/index.js';
 import type { IngressConfig } from '../../core/provider/event/index.js';
 import type { SlidingWindow } from '../../core/limiter/index.js';
@@ -56,11 +56,14 @@ export function registerIngressRoutes(app: FastifyInstance, deps: IngressDeps, c
 
     await config.handler(event, { audit: deps.audit, locale: deps.locale });
 
+    const traceHeader = request.headers.traceparent;
+    const traceId = traceIdOf(Array.isArray(traceHeader) ? traceHeader[0] : traceHeader);
     void deps.audit.record({
       actorType: AUDIT_ACTOR_TYPES.SYSTEM,
       actorId: source,
       action: `ingress.${source}`,
       changes: { type: event.type, id: event.id },
+      ...(traceId === undefined ? {} : { traceId }),
       meta: { source, ingressType: event.type, ingressId: event.id },
       timestamp: new Date(),
     });

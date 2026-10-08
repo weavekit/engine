@@ -1,12 +1,13 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import type { ServerResponse } from 'node:http';
 import { randomUUID } from 'node:crypto';
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { CallToolRequestSchema, ListToolsRequestSchema, isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import type { Locale, ToolDefinition, ToolJsonSchema } from '../../core/index.js';
-import { SchemaError, validateToolArgs } from '../../core/index.js';
+import { SchemaError, traceIdOf, validateToolArgs } from '../../core/index.js';
 import type { ToolExecutor } from '../../runtime/tools/index.js';
 import type { Authenticator } from '../auth/index.js';
 import { authenticate } from '../auth/index.js';
@@ -36,6 +37,13 @@ import { version } from '../../version.js';
 
 const SESSION_HEADER = 'mcp-session-id';
 const ON_BEHALF_OF_HEADER = 'x-weavekit-on-behalf-of';
+
+/**
+ * Request-scoped trace id (parsed from the inbound `traceparent`), propagated
+ * from the HTTP handler into the transport's tool-call handlers (which run
+ * within the awaited `handleRequest`).
+ */
+const requestTrace = new AsyncLocalStorage<string>();
 
 /** resolve the Access-Control-Allow-Origin value (cors origin semantics, mirrors events/stream) */
 function allowOrigin(cors: string | string[] | boolean | undefined, requestOrigin: string | undefined): string | undefined {
@@ -109,6 +117,7 @@ function auditDeniedTool(
   args: unknown,
   errorCode: 'mcp.tool.notFound' | 'tool.args.invalid' = 'mcp.tool.notFound',
 ): void {
+  const traceId = requestTrace.getStore();
   const event: AuditEvent = {
     actorType: AUDIT_ACTOR_TYPES.AGENT,
     actorId: session.agentCredentialId,
@@ -117,6 +126,7 @@ function auditDeniedTool(
     changes: args,
     isError: true,
     errorCode,
+    ...(traceId === undefined ? {} : { traceId }),
     ...(session.user.tenantId === undefined ? {} : { tenantId: session.user.tenantId }),
     meta: {
       onBehalfOf: session.onBehalfOf,
@@ -191,7 +201,7 @@ export function registerMcpRoutes(app: FastifyInstance, deps: McpHttpDeps): void
         const message = new SchemaError('tool.args.invalid', { tool: name, detail: check.detail }, locale).localize(locale);
         return { content: [{ type: 'text', text: message }], isError: true } as unknown as CallToolResult;
       }
-      const ctx = { engine, session, guardrails, resolveIdentity: identityResolver, allowImpersonation: deps.allowImpersonation === true, requestId: randomUUID(), ...(deps.schemaRevision === undefined ? {} : { schemaRevision: deps.schemaRevision }) };
+      const ctx = { engine, session, guardrails, resolveIdentity: identityResolver, allowImpersonation: deps.allowImpersonation === true, requestId: randomUUID(), ...(requestTrace.getStore() === undefined ? {} : { traceId: requestTrace.getStore() }), ...(deps.schemaRevision === undefined ? {} : { schemaRevision: deps.schemaRevision }) };
       const result: McpToolResult = await tool.spec.handler(args, ctx);
       return result as unknown as CallToolResult;
     });
@@ -283,8 +293,12 @@ export function registerMcpRoutes(app: FastifyInstance, deps: McpHttpDeps): void
     const corsValue = allowOrigin(deps.corsOrigin, request.headers.origin);
     if (corsValue !== undefined) injectCorsOrigin(reply.raw, corsValue);
 
+    const traceHeader = request.headers.traceparent;
+    const traceId = traceIdOf(Array.isArray(traceHeader) ? traceHeader[0] : traceHeader);
+    const activeEntry = entryResolved;
     reply.hijack();
-    await entryResolved.transport.handleRequest(request.raw, reply.raw, request.body);
+    const dispatch = (): Promise<void> => activeEntry.transport.handleRequest(request.raw, reply.raw, request.body);
+    await (traceId === undefined ? dispatch() : requestTrace.run(traceId, dispatch));
   }
 
   app.post(path, handle);

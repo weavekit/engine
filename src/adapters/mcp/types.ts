@@ -32,6 +32,8 @@ export interface ToolExecContext {
   allowImpersonation: boolean;
   /** HTTP request id (audit/evidence correlation) */
   requestId?: string;
+  /** distributed trace id (parsed from inbound W3C `traceparent`) */
+  traceId?: string;
   /** schema signature (evidence correlation) */
   schemaRevision?: string;
 }

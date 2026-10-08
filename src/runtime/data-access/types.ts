@@ -77,6 +77,8 @@ export interface DataAccessContext {
   client?: PoolClient;
   /** request correlation id (Fastify request id / inbound x-request-id) attached to audit events */
   requestId?: string;
+  /** distributed trace id (parsed from inbound W3C `traceparent`) attached to audit/evidence */
+  traceId?: string;
   /** schema signature (registry-derived) attached to evidence; falls back to the instance default */
   schemaRevision?: string;
   /** tenant scope override (multi-tenancy); defaults to the principal's tenant */

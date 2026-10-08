@@ -26,6 +26,7 @@ function ctxWithSubject(ctx: ToolExecContext, subject: IdentitySubject): DataAcc
     principal: userPrincipal(subject),
     locale: ctx.engine.locale,
     ...(ctx.requestId === undefined ? {} : { requestId: ctx.requestId }),
+    ...(ctx.traceId === undefined ? {} : { traceId: ctx.traceId }),
     ...(ctx.schemaRevision === undefined ? {} : { schemaRevision: ctx.schemaRevision }),
   };
 }
@@ -81,6 +82,8 @@ function auditToolCall(
     changes,
     isError,
     errorCode,
+    ...(ctx.requestId === undefined ? {} : { requestId: ctx.requestId }),
+    ...(ctx.traceId === undefined ? {} : { traceId: ctx.traceId }),
     ...(ctx.session.user.tenantId === undefined ? {} : { tenantId: ctx.session.user.tenantId }),
     meta: {
       onBehalfOf,

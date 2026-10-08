@@ -124,6 +124,8 @@ export interface CustomToolExecuteRequest {
   locale?: Locale;
   /** HTTP request id (audit/evidence correlation) */
   requestId?: string;
+  /** distributed trace id (parsed from inbound W3C `traceparent`) */
+  traceId?: string;
   /** schema signature (evidence correlation) */
   schemaRevision?: string;
 }
@@ -210,6 +212,8 @@ export function createToolExecutor(options: ToolExecutorOptions): ToolExecutor {
         registry: options.registry,
         principal: userPrincipal(req.subject),
         locale: req.locale ?? options.locale,
+        ...(req.requestId === undefined ? {} : { requestId: req.requestId }),
+        ...(req.traceId === undefined ? {} : { traceId: req.traceId }),
         ...(req.schemaRevision === undefined ? {} : { schemaRevision: req.schemaRevision }),
       };
       // validate arguments against the declared schema before any policy/handler
@@ -226,6 +230,8 @@ export function createToolExecutor(options: ToolExecutorOptions): ToolExecutor {
             changes: args,
             isError: true,
             errorCode: err.code,
+            ...(req.requestId === undefined ? {} : { requestId: req.requestId }),
+            ...(req.traceId === undefined ? {} : { traceId: req.traceId }),
             ...(req.subject.tenantId === undefined ? {} : { tenantId: req.subject.tenantId }),
             meta: {
               onBehalfOf: req.actor.onBehalfOf,
@@ -249,6 +255,8 @@ export function createToolExecutor(options: ToolExecutorOptions): ToolExecutor {
         changes: args,
         isError,
         errorCode,
+        ...(req.requestId === undefined ? {} : { requestId: req.requestId }),
+        ...(req.traceId === undefined ? {} : { traceId: req.traceId }),
         ...(req.subject.tenantId === undefined ? {} : { tenantId: req.subject.tenantId }),
         meta: {
           onBehalfOf: req.actor.onBehalfOf,
@@ -270,6 +278,7 @@ export function createToolExecutor(options: ToolExecutorOptions): ToolExecutor {
           subject: req.subject,
           ...(req.locale === undefined ? {} : { locale: req.locale }),
           ...(req.requestId === undefined ? {} : { requestId: req.requestId }),
+          ...(req.traceId === undefined ? {} : { traceId: req.traceId }),
           ...(req.schemaRevision === undefined ? {} : { schemaRevision: req.schemaRevision }),
         },
         {

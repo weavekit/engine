@@ -93,8 +93,11 @@ export interface AuditSink {
   recordBatch?(events: AuditEvent[]): Promise<void>;
   /**
    * Write an audit event **inside the caller's open transaction** (transactional
-   * / durable modes). Optional: a sink without it falls back to best-effort
-   * `record`. An implementation throwing here rolls the business write back.
+   * / durable modes). Optional on `AuditSink`, but a sink used with those modes
+   * **must** implement it: without it the writer falls back to best-effort
+   * `record` and events can be lost on crash. Wiring code enforces this via
+   * `assertAuditSinkCapability` (fail-closed). An implementation throwing here
+   * rolls the business write back.
    */
   recordInTx?(event: AuditEvent, client: PoolClient): Promise<void>;
 }
