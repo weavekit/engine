@@ -1,10 +1,11 @@
 import type { Pool } from 'pg';
 import { NOOP_AUDIT_SINK, createMemoryApprovalsBackend, userPrincipal, SchemaError, validateToolArgs, DEFAULT_LOCALE } from '../../core/index.js';
 import { AUDIT_ACTOR_TYPES } from '../../core/index.js';
-import type { AuditSink, IdentitySubject, Locale, ObjectRegistry, ToolActor, ToolApprovals, ApprovalsBackend, ApprovalListFilter, ToolCallContext, ToolDataAccess, ToolDefinition, ToolGuardrails, ToolJsonSchema, ToolResult, ApprovalStatus, PendingApproval, GuardrailContext, GuardrailPolicy } from '../../core/index.js';
+import type { AuditSink, IdentitySubject, Locale, ObjectRegistry, ToolActor, ToolApprovals, ApprovalsBackend, ApprovalListFilter, ToolCallContext, ToolDataAccess, ToolDefinition, ToolGuardrails, ToolJsonSchema, ToolResult, ApprovalStatus, PendingApproval, GuardrailContext, GuardrailPolicy, EvidenceSink } from '../../core/index.js';
 import type { ObjectDataAccess, DataAccessContext, FindOptions } from '../data-access/index.js';
 import { withTx as dataAccessWithTx } from '../data-access/index.js';
 import { applyMask, evaluateCall } from './policies.js';
+import { runPipeline } from '../execution/pipeline.js';
 
 /**
  * Custom-tool execution pipeline (protocol-agnostic). Wraps the injected
@@ -108,6 +109,8 @@ export interface ToolExecutorOptions {
   approvals?: ApprovalsQueue;
   /** guardrail policies evaluated before every custom-tool call (empty = no gate) */
   policies?: GuardrailPolicy[];
+  /** evidence sink (absent = zero overhead) */
+  evidence?: EvidenceSink;
   locale?: Locale;
 }
 
@@ -252,41 +255,59 @@ export function createToolExecutor(options: ToolExecutorOptions): ToolExecutor {
         timestamp: new Date(),
       });
 
-      // guardrail policy gate before the handler (allow / deny / requireApproval / mask)
-      let mask: Record<string, string> | undefined;
-      if (options.policies !== undefined && options.policies.length > 0) {
-        const guardrailCtx: GuardrailContext = {
+      // orchestrator: plan → gate (guardrail + approval) → execute → evidence
+      const outcome = await runPipeline(
+        { action: req.action, args },
+        {
           actor: req.actor,
           subject: req.subject,
-          action: req.action,
-          args,
-          dataAccess: toolDataAccess(base),
-        };
-        const gate = await evaluateCall(options.policies, approvals, guardrailCtx);
-        if (gate.kind === 'deny') {
-          void audit.record(event(true, gate.errorCode, { policyReason: gate.reason })).catch(() => {});
-          return { content: [{ type: 'text', text: gate.reason }], isError: true };
-        }
-        if (gate.kind === 'pending') {
-          void audit.record(event(true, 'mcp.approval.pending', { approvalKey: gate.approvalKey })).catch(() => {});
-          return {
-            content: [{ type: 'text', text: JSON.stringify({ approvalKey: gate.approvalKey, status: 'pending' }) }],
-            isError: true,
-          };
-        }
-        mask = gate.mask;
-      }
+          ...(req.locale === undefined ? {} : { locale: req.locale }),
+        },
+        {
+          gate: async () => {
+            const guardrailCtx: GuardrailContext = {
+              actor: req.actor,
+              subject: req.subject,
+              action: req.action,
+              args,
+              dataAccess: toolDataAccess(base),
+            };
+            const gate = await evaluateCall(options.policies ?? [], approvals, guardrailCtx);
+            if (gate.kind === 'allow') {
+              return gate.mask === undefined ? { kind: 'allow' } : { kind: 'allow', mask: gate.mask };
+            }
+            if (gate.kind === 'deny') {
+              return { kind: 'deny', reason: gate.reason, errorCode: gate.errorCode };
+            }
+            return { kind: 'pending', approvalKey: gate.approvalKey };
+          },
+          execute: () => def.handler(ctx),
+          evidence: options.evidence,
+        },
+      );
 
-      try {
-        let result = await def.handler(ctx);
-        if (mask !== undefined && Object.keys(mask).length > 0) result = applyMask(result, mask);
+      if (outcome.outcome === 'ok') {
+        let result = outcome.result as ToolResult;
+        if (outcome.mask !== undefined && Object.keys(outcome.mask).length > 0) result = applyMask(result, outcome.mask);
         void audit.record(event(false)).catch(() => {});
         return result;
-      } catch (error) {
-        const code = error instanceof Error && 'code' in error ? String((error as { code?: unknown }).code) : undefined;
-        void audit.record(event(true, code)).catch(() => {});
-        return { content: [{ type: 'text', text: errorText(error) }], isError: true };
       }
+      if (outcome.outcome === 'pending') {
+        void audit.record(event(true, 'mcp.approval.pending', { approvalKey: outcome.approvalKey })).catch(() => {});
+        return {
+          content: [{ type: 'text', text: JSON.stringify({ approvalKey: outcome.approvalKey, status: 'pending' }) }],
+          isError: true,
+        };
+      }
+      if (outcome.outcome === 'deny') {
+        void audit.record(event(true, outcome.errorCode, { policyReason: outcome.reason })).catch(() => {});
+        return { content: [{ type: 'text', text: outcome.reason ?? '' }], isError: true };
+      }
+      // error
+      const error = outcome.error;
+      const code = error instanceof Error && 'code' in error ? String((error as { code?: unknown }).code) : undefined;
+      void audit.record(event(true, code)).catch(() => {});
+      return { content: [{ type: 'text', text: errorText(error) }], isError: true };
     },
   };
 }

@@ -20,6 +20,7 @@ export * from './core/index.js';
 export * from './core/api/index.js';
 export * from './runtime/data-access/index.js';
 export * from './runtime/identity/index.js';
+export * from './runtime/execution/index.js';
 export * from './runtime/git/index.js';
 export * from './runtime/enums/index.js';
 export * from './runtime/tools/index.js';
