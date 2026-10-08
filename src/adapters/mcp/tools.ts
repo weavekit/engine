@@ -20,7 +20,14 @@ import type { McpToolResult, ToolExecContext } from './types.js';
 const ON_BEHALF_OF = 'onBehalfOf';
 
 function ctxWithSubject(ctx: ToolExecContext, subject: IdentitySubject): DataAccessContext {
-  return { pool: ctx.engine.pool, registry: ctx.engine.registry, principal: userPrincipal(subject), locale: ctx.engine.locale };
+  return {
+    pool: ctx.engine.pool,
+    registry: ctx.engine.registry,
+    principal: userPrincipal(subject),
+    locale: ctx.engine.locale,
+    ...(ctx.requestId === undefined ? {} : { requestId: ctx.requestId }),
+    ...(ctx.schemaRevision === undefined ? {} : { schemaRevision: ctx.schemaRevision }),
+  };
 }
 
 /** call-level `onBehalfOf` override: resolve a different identity for this call */

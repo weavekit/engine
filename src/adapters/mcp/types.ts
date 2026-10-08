@@ -30,6 +30,10 @@ export interface ToolExecContext {
   resolveIdentity: IdentityResolver;
   /** whether a call-level `onBehalfOf` override is allowed (config: `mcp.impersonation`) */
   allowImpersonation: boolean;
+  /** HTTP request id (audit/evidence correlation) */
+  requestId?: string;
+  /** schema signature (evidence correlation) */
+  schemaRevision?: string;
 }
 
 /** a compiled MCP tool (per-session; the surface is filtered by RBAC) */

@@ -44,4 +44,15 @@ describe('data-access evidence emission on a denylist gate', () => {
     expect(events[0]!.errorCode).toBe('mcp.policy.denied');
     expect(events[0]!.stages.some((s) => s.stage === EXECUTION_STAGES.GUARDRAIL && s.outcome === 'deny')).toBe(true);
   });
+
+  it('records the instance schemaRevision + a per-context requestId', async () => {
+    const events: Evidence[] = [];
+    const sink: EvidenceSink = { record: async (e) => { events.push(e); } };
+    const da = createDataAccess({ policies: [denyAll], evidence: sink, schemaRevision: 'rev-1' });
+    await da
+      .create('lead', { id: 'x' }, { pool: { connect: () => { throw new Error('no'); } } as never, registry, principal, requestId: 'req-9' })
+      .catch(() => undefined);
+    expect(events[0]!.schemaRevision).toBe('rev-1');
+    expect(events[0]!.requestId).toBe('req-9');
+  });
 });

@@ -189,7 +189,7 @@ export function registerMcpRoutes(app: FastifyInstance, deps: McpHttpDeps): void
         const message = new SchemaError('tool.args.invalid', { tool: name, detail: check.detail }, locale).localize(locale);
         return { content: [{ type: 'text', text: message }], isError: true } as unknown as CallToolResult;
       }
-      const ctx = { engine, session, guardrails, resolveIdentity: identityResolver, allowImpersonation: deps.allowImpersonation === true };
+      const ctx = { engine, session, guardrails, resolveIdentity: identityResolver, allowImpersonation: deps.allowImpersonation === true, requestId: randomUUID(), ...(deps.schemaRevision === undefined ? {} : { schemaRevision: deps.schemaRevision }) };
       const result: McpToolResult = await tool.spec.handler(args, ctx);
       return result as unknown as CallToolResult;
     });

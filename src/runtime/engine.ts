@@ -540,12 +540,27 @@ export async function buildEngineFromRegistry(
   };
   const replay = subsystems.audit?.replay === true;
   const budget = resolveQueryBudget(config.queryBudget);
+  // schema signature: registry-derived; used by the MCP compiled-surface cache
+  // key (schema change invalidates it) and recorded on evidence for correlation
+  const schemaRevision = createHash('sha256')
+    .update(
+      JSON.stringify(
+        [...registry.list()]
+          .map((d) => ({
+            n: d.name,
+            f: d.fields.map((x) => x.name),
+            p: (d as { permissions?: unknown }).permissions ?? null,
+          }))
+          .sort((a, b) => (a.n < b.n ? -1 : a.n > b.n ? 1 : 0)),
+      ),
+    )
+    .digest('hex');
   let evidenceSink: EvidenceSink | undefined;
   if (config.evidence?.enabled === true) {
     const { createEvidenceSink } = await import('../subsystems/evidence/index.js');
     evidenceSink = createEvidenceSink(pool);
   }
-  const baseDataAccess = createDataAccess({ audit: auditSink, replay, events: eventPublisher, policies, approvals, workflowTimers, budget, evidence: evidenceSink });
+  const baseDataAccess = createDataAccess({ audit: auditSink, replay, events: eventPublisher, policies, approvals, workflowTimers, budget, evidence: evidenceSink, schemaRevision });
 
   let script: ScriptDispatcher | undefined;
   let dataAccess: ObjectDataAccess;
@@ -562,7 +577,7 @@ export async function buildEngineFromRegistry(
       budget,
       locale,
     });
-    dataAccess = withRbac(createDataAccess({ audit: auditSink, script, replay, events: eventPublisher, policies, approvals, workflowTimers, budget, evidence: evidenceSink }), { audit: auditSink });
+    dataAccess = withRbac(createDataAccess({ audit: auditSink, script, replay, events: eventPublisher, policies, approvals, workflowTimers, budget, evidence: evidenceSink, schemaRevision }), { audit: auditSink });
   } else {
     dataAccess = withRbac(baseDataAccess, { audit: auditSink });
   }
@@ -819,21 +834,6 @@ export async function buildEngineFromRegistry(
   // customer-provided IdentityResolver).
   let mcp: McpServerHandle | undefined;
   if (mcpCfg?.enabled ?? true) {
-    // schema signature: folded into the MCP compiled-surface cache key so a
-    // schema change (a reload swapping the registry) invalidates the cache
-    const schemaRevision = createHash('sha256')
-      .update(
-        JSON.stringify(
-          [...registry.list()]
-            .map((d) => ({
-              n: d.name,
-              f: d.fields.map((x) => x.name),
-              p: (d as { permissions?: unknown }).permissions ?? null,
-            }))
-            .sort((a, b) => (a.n < b.n ? -1 : a.n > b.n ? 1 : 0)),
-        ),
-      )
-      .digest('hex');
     mcp = registerMcp(app, {
       engine: { registry, pool, dataAccess, locale },
       authenticator,

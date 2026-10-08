@@ -122,6 +122,10 @@ export interface CustomToolExecuteRequest {
   /** caller-supplied arguments passed through to the handler ctx */
   args: Record<string, unknown>;
   locale?: Locale;
+  /** HTTP request id (audit/evidence correlation) */
+  requestId?: string;
+  /** schema signature (evidence correlation) */
+  schemaRevision?: string;
 }
 
 /** a compiled, subject-visible custom tool entry (used by `tools/list` merging) */
@@ -206,6 +210,7 @@ export function createToolExecutor(options: ToolExecutorOptions): ToolExecutor {
         registry: options.registry,
         principal: userPrincipal(req.subject),
         locale: req.locale ?? options.locale,
+        ...(req.schemaRevision === undefined ? {} : { schemaRevision: req.schemaRevision }),
       };
       // validate arguments against the declared schema before any policy/handler
       const argCheck = validateToolArgs(args, def.inputSchema);
@@ -262,6 +267,8 @@ export function createToolExecutor(options: ToolExecutorOptions): ToolExecutor {
           actor: req.actor,
           subject: req.subject,
           ...(req.locale === undefined ? {} : { locale: req.locale }),
+          ...(req.requestId === undefined ? {} : { requestId: req.requestId }),
+          ...(req.schemaRevision === undefined ? {} : { schemaRevision: req.schemaRevision }),
         },
         {
           gate: async () => {

@@ -77,6 +77,8 @@ export interface DataAccessContext {
   client?: PoolClient;
   /** request correlation id (Fastify request id / inbound x-request-id) attached to audit events */
   requestId?: string;
+  /** schema signature (registry-derived) attached to evidence; falls back to the instance default */
+  schemaRevision?: string;
   /** per-context query budget override (defaults to the data-access instance's budget) */
   budget?: QueryBudget;
   /**

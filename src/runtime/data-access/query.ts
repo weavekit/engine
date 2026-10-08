@@ -314,6 +314,8 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
   private readonly budget: QueryBudget;
   /** optional evidence sink (guardrail decisions on writes); absent = zero overhead */
   private readonly evidence?: EvidenceSink;
+  /** schema signature (registry-derived) recorded on evidence; `ctx.schemaRevision` overrides */
+  private readonly schemaRevision?: string;
 
   constructor(
     options: {
@@ -326,6 +328,7 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
       workflowTimers?: WorkflowTimerSync;
       budget?: QueryBudget;
       evidence?: EvidenceSink;
+      schemaRevision?: string;
     } = {},
   ) {
     this.audit = options.audit;
@@ -337,6 +340,7 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
     this.workflowTimers = options.workflowTimers;
     this.budget = options.budget ?? { ...QUERY_BUDGET_DEFAULTS };
     this.evidence = options.evidence;
+    this.schemaRevision = options.schemaRevision;
   }
 
   /**
@@ -547,6 +551,7 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
     const gate = await evaluateTransition(this.policies, this.approvals, guardrailCtx, false);
     if (this.evidence !== undefined) {
       const now = new Date();
+      const schemaRevision = ctx.schemaRevision ?? this.schemaRevision;
       const outcome =
         gate.kind === 'deny'
           ? EXECUTION_OUTCOMES.DENY
@@ -563,6 +568,7 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
       void this.evidence
         .record({
           ...(ctx.requestId === undefined ? {} : { requestId: ctx.requestId }),
+          ...(schemaRevision === undefined ? {} : { schemaRevision }),
           actor: guardrailCtx.actor,
           ...(subject === undefined ? {} : { subjectId: subject.id }),
           plan: { action, objectName, args },
@@ -1129,6 +1135,7 @@ export function createDataAccess(
     workflowTimers?: WorkflowTimerSync;
     budget?: QueryBudget;
     evidence?: EvidenceSink;
+    schemaRevision?: string;
   } = {},
 ): ObjectDataAccess {
   return new DefaultObjectDataAccess(options);

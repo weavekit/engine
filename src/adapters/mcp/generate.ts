@@ -224,6 +224,8 @@ function customToolTools(
             action: `${ACTION_PREFIXES.MCP_TOOL}.${def.name}`,
             args,
             locale: ctx.engine.locale,
+            ...(ctx.requestId === undefined ? {} : { requestId: ctx.requestId }),
+            ...(ctx.schemaRevision === undefined ? {} : { schemaRevision: ctx.schemaRevision }),
           });
           return result as McpToolResult;
         },
