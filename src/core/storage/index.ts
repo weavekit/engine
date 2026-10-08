@@ -45,6 +45,7 @@ export type {
 } from './report.js';
 export { setMeta, getMeta } from './meta.js';
 export { applyStatements } from './apply.js';
+export type { SqlQueryable } from './queryable.js';
 export { sqlLiteral, sqlIdent } from './sql-literals.js';
 export {
   LINK_TABLE_PREFIX,

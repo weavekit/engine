@@ -1,4 +1,5 @@
 import type { Pool } from 'pg';
+import type { SqlQueryable } from '../../core/index.js';
 
 const TABLE = 'weavekit_metadata';
 
@@ -15,8 +16,8 @@ export interface MetadataEntry {
 }
 
 /** read the whole metadata cache keyed by object name */
-export async function readMetadataCache(pool: Pool): Promise<Map<string, MetadataRow>> {
-  const result = await pool.query(
+export async function readMetadataCache(db: SqlQueryable): Promise<Map<string, MetadataRow>> {
+  const result = await db.query(
     `SELECT object_name, content_hash, applied_at FROM ${TABLE}`,
   );
   const map = new Map<string, MetadataRow>();
@@ -30,23 +31,29 @@ export async function readMetadataCache(pool: Pool): Promise<Map<string, Metadat
   return map;
 }
 
-/** upsert metadata cache entries inside a transaction */
+/** upsert metadata cache entries on an existing SqlQueryable (no transaction management) */
+export async function writeMetadataCacheOn(db: SqlQueryable, entries: MetadataEntry[]): Promise<void> {
+  if (entries.length === 0) return;
+  for (const entry of entries) {
+    await db.query(
+      `INSERT INTO ${TABLE} (object_name, content_hash, definition, updated_at)
+       VALUES ($1, $2, $3::jsonb, now())
+       ON CONFLICT (object_name) DO UPDATE
+         SET content_hash = EXCLUDED.content_hash,
+             definition = EXCLUDED.definition,
+             updated_at = now()`,
+      [entry.name, entry.contentHash, JSON.stringify(entry.definition)],
+    );
+  }
+}
+
+/** upsert metadata cache entries inside its own transaction */
 export async function writeMetadataCache(pool: Pool, entries: MetadataEntry[]): Promise<void> {
   if (entries.length === 0) return;
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    for (const entry of entries) {
-      await client.query(
-        `INSERT INTO ${TABLE} (object_name, content_hash, definition, updated_at)
-         VALUES ($1, $2, $3::jsonb, now())
-         ON CONFLICT (object_name) DO UPDATE
-           SET content_hash = EXCLUDED.content_hash,
-               definition = EXCLUDED.definition,
-               updated_at = now()`,
-        [entry.name, entry.contentHash, JSON.stringify(entry.definition)],
-      );
-    }
+    await writeMetadataCacheOn(client, entries);
     await client.query('COMMIT');
   } catch (error) {
     await client.query('ROLLBACK');
@@ -57,24 +64,47 @@ export async function writeMetadataCache(pool: Pool, entries: MetadataEntry[]): 
 }
 
 /** drop metadata cache rows for objects that no longer exist on disk */
-export async function invalidateMetadata(pool: Pool, names: string[]): Promise<void> {
+export async function invalidateMetadata(db: SqlQueryable, names: string[]): Promise<void> {
   if (names.length === 0) return;
-  await pool.query(`DELETE FROM ${TABLE} WHERE object_name = ANY($1)`, [names]);
+  await db.query(`DELETE FROM ${TABLE} WHERE object_name = ANY($1)`, [names]);
+}
+
+/**
+ * Bring the metadata cache in sync on an existing SqlQueryable (no transaction
+ * management) — used inside the atomic deploy transaction. Returns which
+ * objects were updated (content hash changed) and removed.
+ */
+export async function syncMetadataCacheOn(
+  db: SqlQueryable,
+  files: MetadataEntry[],
+): Promise<{ updated: string[]; removed: string[] }> {
+  const existing = await readMetadataCache(db);
+  const updated = files.filter((f) => existing.get(f.name)?.contentHash !== f.contentHash).map((f) => f.name);
+  const removed = [...existing.keys()].filter((name) => !files.some((f) => f.name === name));
+  await writeMetadataCacheOn(db, files);
+  await invalidateMetadata(db, removed);
+  return { updated, removed };
 }
 
 /**
  * Bring the metadata cache in sync with the loaded schema files: upsert the
- * current definitions and prune rows for removed objects. Returns which
- * objects were updated (content hash changed) and removed.
+ * current definitions and prune rows for removed objects. Runs in one
+ * transaction.
  */
 export async function syncMetadataCache(
   pool: Pool,
   files: MetadataEntry[],
 ): Promise<{ updated: string[]; removed: string[] }> {
-  const existing = await readMetadataCache(pool);
-  const updated = files.filter((f) => existing.get(f.name)?.contentHash !== f.contentHash).map((f) => f.name);
-  const removed = [...existing.keys()].filter((name) => !files.some((f) => f.name === name));
-  await writeMetadataCache(pool, files);
-  await invalidateMetadata(pool, removed);
-  return { updated, removed };
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const result = await syncMetadataCacheOn(client, files);
+    await client.query('COMMIT');
+    return result;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
 }

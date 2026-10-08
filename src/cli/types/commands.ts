@@ -7,6 +7,16 @@ export interface MigrateOptions {
   printer: CliPrinter;
 }
 
+/** `weave deploy plan` options */
+export interface DeployPlanOptions {
+  printer: CliPrinter;
+}
+
+/** `weave deploy apply` options */
+export interface DeployApplyOptions {
+  printer: CliPrinter;
+}
+
 /** `weave dev` options */
 export interface DevOptions {
   /** HTTP port (defaults to 3000) */

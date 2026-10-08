@@ -5,6 +5,7 @@ import { version } from '../index.js';
 import { loadEnvFile } from './env.js';
 import { build } from './commands/build.js';
 import { connect } from './commands/connect.js';
+import { deployApply, deployPlan } from './commands/deploy.js';
 import { dev } from './commands/dev.js';
 import { enumCheck, enumList } from './commands/enums.js';
 import { fieldAdd } from './commands/field-add.js';
@@ -59,6 +60,20 @@ program
   .option('--dry-run', 'generate DDL without executing')
   .action(async (opts: { dryRun?: boolean }) => {
     await runAction(() => migrate(process.cwd(), { dryRun: opts.dryRun, printer: printer() }));
+  });
+
+program
+  .command(WEAVE_COMMANDS.DEPLOY_PLAN)
+  .description('preview the schema/DB changes for the next deploy (read-only)')
+  .action(async () => {
+    await runAction(() => deployPlan(process.cwd(), { printer: printer() }));
+  });
+
+program
+  .command(WEAVE_COMMANDS.DEPLOY_APPLY)
+  .description('apply schema/DB changes atomically and record a schema revision')
+  .action(async () => {
+    await runAction(() => deployApply(process.cwd(), { printer: printer() }));
   });
 
 program

@@ -7,6 +7,8 @@
 /** weave subcommand names */
 export const WEAVE_COMMANDS = {
   MIGRATE: 'migrate',
+  DEPLOY_PLAN: 'deploy:plan',
+  DEPLOY_APPLY: 'deploy:apply',
   DEV: 'dev',
   BUILD: 'build',
   TEST: 'test',

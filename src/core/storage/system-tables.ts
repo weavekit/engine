@@ -18,6 +18,7 @@ import type { ExpectedColumn, ExpectedTable } from './diff.js';
 export const SYSTEM_TABLES = {
   META: 'weavekit_meta',
   METADATA: 'weavekit_metadata',
+  SCHEMA_REVISION: 'weavekit_schema_revision',
   SEQ: 'weavekit_seq',
   AUDIT: 'weavekit_audit',
   APPROVALS: 'weavekit_approvals',
@@ -67,6 +68,23 @@ const metadata = (): ExpectedTable => ({
   ],
   fks: [],
   indexes: [],
+  uniques: [],
+});
+
+const schemaRevision = (): ExpectedTable => ({
+  name: SYSTEM_TABLES.SCHEMA_REVISION,
+  columns: [
+    col('revision', 'BIGSERIAL', { notNull: true, primary: true }),
+    col('content_hash', 'TEXT', { notNull: true }),
+    col('parent_revision', 'BIGINT'),
+    col('source_commit', 'TEXT'),
+    col('actor', 'TEXT'),
+    col('objects', 'JSONB', { notNull: true }),
+    col('status', 'TEXT', { notNull: true, default: "'active'" }),
+    col('created_at', 'TIMESTAMPTZ', { notNull: true, default: 'now()' }),
+  ],
+  fks: [],
+  indexes: [{ name: 'weavekit_schema_revision_hash_idx', method: 'btree', columns: ['content_hash'] }],
   uniques: [],
 });
 
@@ -267,6 +285,7 @@ export function buildSystemTables(): ExpectedTable[] {
   return [
     meta(),
     metadata(),
+    schemaRevision(),
     seq(),
     audit(),
     approvals(),

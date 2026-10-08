@@ -1,6 +1,10 @@
-import { ObjectRegistry, SchemaError, createPool, migrate } from '../../core/index.js';
+import { ObjectRegistry, SchemaError, migrate } from '../../core/index.js';
 import type { FieldTypeRegistry, Locale, MigrationResult } from '../../core/index.js';
-import { syncMetadataCache } from '../metadata/index.js';
+import {
+  computeSchemaHash,
+  syncMetadataCacheOn,
+  writeSchemaRevision,
+} from '../metadata/index.js';
 import { loadSchemaDir } from './loader.js';
 import type { LoadResult } from './loader.js';
 
@@ -17,6 +21,10 @@ export interface SyncSchemaOptions {
   allowedFieldTypes?: readonly string[];
   /** effective field-type registry (built-ins + user registrations) */
   fieldTypes?: FieldTypeRegistry;
+  /** source git commit recorded on the schema revision (best-effort) */
+  sourceCommit?: string;
+  /** actor label recorded on the schema revision (best-effort) */
+  actor?: string;
 }
 
 export interface SyncResult {
@@ -24,12 +32,20 @@ export interface SyncResult {
   files: LoadResult['files'];
   migration: MigrationResult;
   cache: { updated: string[]; removed: string[] };
+  /** deterministic aggregate hash over the loaded schema files */
+  schemaHash: string;
+  /** schema revision row written in the same transaction (absent on dryRun) */
+  revision?: { revision: number; created: boolean };
 }
 
 /**
- * One-way Git → PG metadata sync (MVP simplification): read schema files →
- * validate → migrate DDL → write the PG metadata cache. Returns the registry
- * built from disk so callers (e.g. createEngine) can reuse it.
+ * One-way Git → PG metadata sync: read schema files → validate → migrate DDL
+ * → write the PG metadata cache **+ schema revision in the same transaction**.
+ *
+ * The DDL, `schema.applied.*` meta, workflow-definition registration, metadata
+ * cache and schema revision all commit or roll back as one unit (an advisory
+ * xact lock serializes concurrent deploys). Returns the registry built from
+ * disk so callers (e.g. createEngine) can reuse it.
  */
 export async function syncSchema(options: SyncSchemaOptions): Promise<SyncResult> {
   const url = options.databaseUrl ?? process.env.DATABASE_URL;
@@ -43,35 +59,30 @@ export async function syncSchema(options: SyncSchemaOptions): Promise<SyncResult
     fieldTypes: options.fieldTypes,
   });
   registry.buildGraph({ locale: options.locale });
+
+  const schemaHash = computeSchemaHash(files);
+  const entries = files.map((f) => ({ name: f.name, contentHash: f.contentHash, definition: f.object }));
+
+  let cache: { updated: string[]; removed: string[] } = { updated: [], removed: [] };
+  let revision: { revision: number; created: boolean } | undefined;
+
   const migration = await migrate(registry, {
     databaseUrl: url,
     dryRun: options.dryRun,
     rls: options.rls,
+    onCommit:
+      options.dryRun === true
+        ? undefined
+        : async (client) => {
+            cache = await syncMetadataCacheOn(client, entries);
+            revision = await writeSchemaRevision(client, {
+              contentHash: schemaHash,
+              objects: entries.map((e) => e.name),
+              sourceCommit: options.sourceCommit,
+              actor: options.actor,
+            });
+          },
   });
 
-  let cache: { updated: string[]; removed: string[] } = { updated: [], removed: [] };
-  if (!options.dryRun) {
-    const pool = createPool(url);
-    try {
-      cache = await syncMetadataCache(
-        pool,
-        files.map((f) => ({ name: f.name, contentHash: f.contentHash, definition: f.object })),
-      );
-    } catch (error) {
-      // The DDL (migrate) above is already committed and idempotent. The cache
-      // write is a separate step — on failure surface it loudly (never a
-      // silent partial sync leaving Git source of truth vs PG cache drifted);
-      // a re-run of sync converges.
-      if (error instanceof SchemaError) throw error;
-      throw new Error(
-        `metadata cache write failed after DDL applied (re-run sync to converge): ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-      );
-    } finally {
-      await pool.end();
-    }
-  }
-
-  return { registry, files, migration, cache };
+  return { registry, files, migration, cache, schemaHash, revision };
 }

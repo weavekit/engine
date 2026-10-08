@@ -3,17 +3,25 @@ import { systemObjects } from '../object/index.js';
 import type { ObjectDefinition } from '../types/index.js';
 import { FIELD_TYPES } from '../types/index.js';
 import { SchemaError, primaryKeyOf } from '../types/index.js';
-import { applyStatements } from './apply.js';
+import type { PoolClient } from 'pg';
+import { applyStatementsOn } from './apply.js';
 import { buildExpectedTable, diffAll, diffRls, diffTable } from './diff.js';
 import type { ExpectedTable } from './diff.js';
 import { inspectSchema } from './inspect.js';
 import { buildLinkTables } from './link-table.js';
 import { setMeta } from './meta.js';
 import { createPool } from './pool.js';
+import type { SqlQueryable } from './queryable.js';
 import { buildRecordMetaTable } from './record-meta.js';
 import { sqlIdent, sqlLiteral } from './sql-literals.js';
 import { SYSTEM_TABLES, buildSystemTables, systemHardeningStatements } from './system-tables.js';
 import { isSafeRlsRole } from '../rbac/index.js';
+
+/**
+ * Advisory-lock key serializing `migrate`/`deploy apply` writes across
+ * processes (stable across releases; `0x77656176` = 'weav', fits int4).
+ */
+const SCHEMA_MIGRATION_LOCK_KEY = 0x77656176;
 
 export interface MigrateOptions {
   /** postgres connection string; falls back to process.env.DATABASE_URL */
@@ -29,6 +37,13 @@ export interface MigrateOptions {
    * CREATEROLE; failure degrades to a warning and RLS DDL is skipped).
    */
   rls?: { role: string };
+  /**
+   * Run additional writes in the SAME transaction as the DDL (after DDL +
+   * `schema.applied.*` meta + workflow-definition registration, before COMMIT).
+   * Used by the atomic deploy to write the metadata cache + schema revision.
+   * A throw rolls back the DDL too. Ignored on `dryRun`.
+   */
+  onCommit?: (client: PoolClient) => Promise<void>;
 }
 
 export interface MigrationResult {
@@ -277,15 +292,30 @@ export async function migrate(registry: ObjectRegistry, options: MigrateOptions 
       ...hardening,
     ];
 
-    if (!dryRun && allStatements.length > 0) {
-      await applyStatements(pool, allStatements);
-      const ts = new Date().toISOString();
-      for (const name of applied) await setMeta(pool, `schema.applied.${name}`, ts);
+    // One transaction for DDL + `schema.applied.*` meta + workflow-definition
+    // registration + any `onCommit` writes (metadata cache + schema revision).
+    // An advisory xact lock serializes concurrent deploys.
+    const hasWorkflow = [...defs.values()].some(
+      (d) => d.workflow !== undefined && d.workflowHash !== undefined,
+    );
+    if (!dryRun && (allStatements.length > 0 || hasWorkflow || options.onCommit !== undefined)) {
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        await client.query('SELECT pg_advisory_xact_lock($1)', [SCHEMA_MIGRATION_LOCK_KEY]);
+        await applyStatementsOn(client, allStatements);
+        const ts = new Date().toISOString();
+        for (const name of applied) await setMeta(client, `schema.applied.${name}`, ts);
+        await registerWorkflowDefinitions(client, defs);
+        if (options.onCommit !== undefined) await options.onCommit(client);
+        await client.query('COMMIT');
+      } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+      } finally {
+        client.release();
+      }
     }
-
-    // content-address every object's workflow definition (append-only, idempotent)
-    // so running instances can resolve the exact revision they were pinned to.
-    if (!dryRun) await registerWorkflowDefinitions(pool, defs);
 
     return { statements: allStatements, applied, dryRun, warnings };
   } finally {
@@ -300,13 +330,13 @@ export async function migrate(registry: ObjectRegistry, options: MigrateOptions 
  * an existing row (append-only revision history for instance pinning).
  */
 async function registerWorkflowDefinitions(
-  pool: import('pg').Pool,
+  db: SqlQueryable,
   defs: ReadonlyMap<string, ObjectDefinition>,
 ): Promise<void> {
   const table = q(SYSTEM_TABLES.WORKFLOW_DEFINITIONS);
   for (const def of defs.values()) {
     if (def.workflow === undefined || def.workflowHash === undefined) continue;
-    await pool.query(
+    await db.query(
       `INSERT INTO ${table} (object, hash, version_seq, definition)
        VALUES ($1, $2, (SELECT COALESCE(MAX(version_seq), 0) + 1 FROM ${table} WHERE object = $1), $3::jsonb)
        ON CONFLICT (object, hash) DO NOTHING`,
