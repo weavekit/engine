@@ -24,6 +24,7 @@ export const en = {
   'object.primary.many': 'object "{object}" may only have one primary field',
   'object.primary.scalarOnly': 'primary only allows scalar field types, not "{type}"',
   'object.primary.notAllowed': 'object "{object}": field "{field}" of type "{type}" cannot be a primary key',
+  'object.tenant.immutable': "object \"{object}\": tenant field \"{field}\" is immutable",
   'object.primary.mutable': 'object "{object}": primary field "{field}" is immutable - primary keys cannot be updated',
   'recordKey.invalid': 'invalid record key "{key}"',
   'identity.notSynced': 'identity {ref} is not provisioned locally - run weave sync:identity first',

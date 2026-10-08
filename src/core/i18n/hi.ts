@@ -46,6 +46,7 @@ export const hi: Record<MessageKey, string> = {
   'data.schemaDrift': 'schema/DB ड्रिफ्ट: ऑब्जेक्ट "{object}" फ़ील्ड "{field}" घोषित करता है लेकिन कॉलम गायब है — "weave migrate" चलाएँ या objects/{object}/schema.json में "alter": true सेट करें',
   'object.primary.many': 'ऑब्जेक्ट "{object}" में केवल एक प्राथमिक कुंजी फ़ील्ड हो सकती है',
   'object.primary.notAllowed': 'ऑब्जेक्ट "{object}": "{type}" प्रकार का फ़ील्ड "{field}" प्राथमिक कुंजी नहीं हो सकता',
+  'object.tenant.immutable': "ऑब्जेक्ट \"{object}\": टेनेंट फ़ील्ड \"{field}\" अपरिवर्तनीय है",
   'object.primary.mutable': 'ऑब्जेक्ट "{object}": प्राथमिक कुंजी फ़ील्ड "{field}" अपरिवर्तनीय है',
   'recordKey.invalid': 'अमान्य रिकॉर्ड कुंजी "{key}"',
   'identity.notSynced': 'पहचान {ref} स्थानीय रूप से मौजूद नहीं है - पहले weave sync:identity चलाएँ',

@@ -45,6 +45,7 @@ export const zh: Record<MessageKey, string> = {
   'data.schemaDrift': 'schema/DB 漂移：对象 "{object}" 声明了字段 "{field}"，但表缺少该列——运行 "weave migrate"，或在 objects/{object}/schema.json 中设置 "alter": true',
   'object.primary.many': '对象 "{object}" 只能有一个主键字段',
   'object.primary.notAllowed': '对象 "{object}"：类型为 "{type}" 的字段 "{field}" 不能作为主键',
+  'object.tenant.immutable': "对象 \"{object}\"：租户字段 \"{field}\" 不可修改",
   'object.primary.mutable': '对象 "{object}"：主键字段 "{field}" 不可修改',
   'recordKey.invalid': '无效的记录键 "{key}"',
   'identity.notSynced': '身份 {ref} 尚未同步到本地目录 - 请先运行 weave sync:identity',

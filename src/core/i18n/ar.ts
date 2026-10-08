@@ -46,6 +46,7 @@ export const ar: Record<MessageKey, string> = {
   'data.schemaDrift': 'انحراف schema/DB: الكائن "{object}" يعلن عن الحقل "{field}" ولكن العمود مفقود — نفّذ "weave migrate" أو اضبط "alter": true في objects/{object}/schema.json',
   'object.primary.many': 'الكائن "{object}" لا يمكن أن يحتوي إلا على حقل أساسي واحد',
   'object.primary.notAllowed': 'الكائن "{object}": الحقل "{field}" من النوع "{type}" لا يمكن أن يكون مفتاحًا أساسيًا',
+  'object.tenant.immutable': "الكائن \"{object}\": حقل المستأجر \"{field}\" غير قابل للتغيير",
   'object.primary.mutable': 'الكائن "{object}": حقل المفتاح الأساسي "{field}" غير قابل للتغيير',
   'recordKey.invalid': 'مفتاح سجل غير صالح "{key}"',
   'identity.notSynced': 'الهوية {ref} غير متوفرة محليا - شغّل weave sync:identity أولا',

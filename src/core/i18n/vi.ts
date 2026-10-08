@@ -46,6 +46,7 @@ export const vi: Record<MessageKey, string> = {
   'data.schemaDrift': 'lệch schema/DB: đối tượng "{object}" khai báo trường "{field}" nhưng thiếu cột — chạy "weave migrate" hoặc đặt "alter": true trong objects/{object}/schema.json',
   'object.primary.many': 'đối tượng "{object}" chỉ được có một trường khóa chính',
   'object.primary.notAllowed': 'đối tượng "{object}": trường "{field}" kiểu "{type}" không thể là khóa chính',
+  'object.tenant.immutable': "đối tượng \"{object}\": trường tenant \"{field}\" là bất biến",
   'object.primary.mutable': 'đối tượng "{object}": trường khóa chính "{field}" là bất biến',
   'recordKey.invalid': 'khóa bản ghi không hợp lệ "{key}"',
   'identity.notSynced': 'danh tinh {ref} chua duoc provision cuc bo - chay weave sync:identity truoc',

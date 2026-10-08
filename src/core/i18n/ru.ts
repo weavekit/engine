@@ -46,6 +46,7 @@ export const ru: Record<MessageKey, string> = {
   'data.schemaDrift': 'расхождение schema/DB: объект "{object}" объявляет поле "{field}", но столбец отсутствует — выполните "weave migrate" или установите "alter": true в objects/{object}/schema.json',
   'object.primary.many': 'объект "{object}" может иметь только одно поле первичного ключа',
   'object.primary.notAllowed': 'объект "{object}": поле "{field}" типа "{type}" не может быть первичным ключом',
+  'object.tenant.immutable': "объект \"{object}\": поле арендатора \"{field}\" неизменяемо",
   'object.primary.mutable': 'объект "{object}": поле первичного ключа "{field}" неизменяемо',
   'recordKey.invalid': 'недопустимый ключ записи "{key}"',
   'identity.notSynced': 'идентификатор {ref} не синхронизирован локально - сначала выполните weave sync:identity',

@@ -46,6 +46,7 @@ export const id: Record<MessageKey, string> = {
   'data.schemaDrift': 'penyimpangan schema/DB: objek "{object}" mendeklarasikan kolom "{field}" tetapi kolomnya hilang — jalankan "weave migrate" atau setel "alter": true di objects/{object}/schema.json',
   'object.primary.many': 'objek "{object}" hanya boleh memiliki satu kolom kunci utama',
   'object.primary.notAllowed': 'objek "{object}": bidang "{field}" bertipe "{type}" tidak bisa menjadi kunci utama',
+  'object.tenant.immutable': "objek \"{object}\": bidang penyewa \"{field}\" tidak dapat diubah",
   'object.primary.mutable': 'objek "{object}": bidang kunci utama "{field}" tidak dapat diubah',
   'recordKey.invalid': 'kunci record tidak valid "{key}"',
   'identity.notSynced': 'identitas {ref} belum disediakan secara lokal - jalankan weave sync:identity dulu',

@@ -101,12 +101,13 @@ interface SessionEntry {
   connected: boolean;
 }
 
-/** audit a denied tool call (tool outside the session surface) — best-effort */
+/** audit a rejected tool call (outside the surface, or invalid arguments) — best-effort */
 function auditDeniedTool(
   guardrails: McpGuardrails,
   session: McpSession,
   tool: string,
   args: unknown,
+  errorCode: 'mcp.tool.notFound' | 'tool.args.invalid' = 'mcp.tool.notFound',
 ): void {
   const event: AuditEvent = {
     actorType: AUDIT_ACTOR_TYPES.AGENT,
@@ -115,7 +116,7 @@ function auditDeniedTool(
     objectName: undefined,
     changes: args,
     isError: true,
-    errorCode: 'mcp.tool.notFound',
+    errorCode,
     ...(session.user.tenantId === undefined ? {} : { tenantId: session.user.tenantId }),
     meta: {
       onBehalfOf: session.onBehalfOf,
@@ -186,7 +187,7 @@ export function registerMcpRoutes(app: FastifyInstance, deps: McpHttpDeps): void
       // the handler runs (the schema was descriptive only until 0.11)
       const check = validateToolArgs(args, tool.spec.inputSchema as ToolJsonSchema);
       if (!check.ok) {
-        auditDeniedTool(guardrails, session, name, args);
+        auditDeniedTool(guardrails, session, name, args, 'tool.args.invalid');
         const message = new SchemaError('tool.args.invalid', { tool: name, detail: check.detail }, locale).localize(locale);
         return { content: [{ type: 'text', text: message }], isError: true } as unknown as CallToolResult;
       }

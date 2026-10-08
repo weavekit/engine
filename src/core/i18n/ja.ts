@@ -46,6 +46,7 @@ export const ja: Record<MessageKey, string> = {
   'data.schemaDrift': 'schema/DB ドリフト：オブジェクト「{object}」はフィールド「{field}」を宣言していますが、列がありません——「weave migrate」を実行するか、objects/{object}/schema.json で「alter」: true を設定してください',
   'object.primary.many': 'オブジェクト "{object}" の主キーフィールドは 1 つだけです',
   'object.primary.notAllowed': 'オブジェクト "{object}"：型 "{type}" のフィールド "{field}" は主キーにできません',
+  'object.tenant.immutable': "オブジェクト \"{object}\": テナントフィールド \"{field}\" は変更できません",
   'object.primary.mutable': 'オブジェクト "{object}": 主キーフィールド "{field}" は変更できません',
   'recordKey.invalid': '無効なレコードキー "{key}"',
   'identity.notSynced': 'ID {ref} はローカルディレクトリに未登録 - 先に weave sync:identity を実行してください',

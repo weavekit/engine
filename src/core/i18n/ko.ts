@@ -46,6 +46,7 @@ export const ko: Record<MessageKey, string> = {
   'data.schemaDrift': 'schema/DB 불일치: 객체 "{object}"가 필드 "{field}"를 선언했지만 열이 없습니다 — "weave migrate"를 실행하거나 objects/{object}/schema.json에서 "alter": true를 설정하세요',
   'object.primary.many': '객체 "{object}"는 기본 키 필드를 하나만 가질 수 있습니다',
   'object.primary.notAllowed': '객체 "{object}": "{type}" 유형의 필드 "{field}"는 기본 키가 될 수 없습니다',
+  'object.tenant.immutable': "객체 \"{object}\": 테넌트 필드 \"{field}\"는 변경할 수 없습니다",
   'object.primary.mutable': '객체 "{object}": 기본 키 필드 "{field}"은(는) 변경할 수 없습니다',
   'recordKey.invalid': '잘못된 레코드 키 "{key}"',
   'identity.notSynced': 'ID {ref}이(가) 로컬에 없습니다 - 먼저 weave sync:identity를 실행하세요',

@@ -35,6 +35,11 @@ import { upsertRecordMeta, deleteRecordMeta } from '../record-meta/index.js';
 
 const q = (id: string) => `"${id}"`;
 
+/** the object's tenant column, when it declares a `tenant: true` field */
+function tenantFieldName(def: ObjectDefinition): string | undefined {
+  return def.fields.find((f) => (f as { tenant?: boolean }).tenant === true)?.name;
+}
+
 /** cross-object formula authorization derived from the request context */
 function formulaAuth(ctx: DataAccessContext): FormulaAuth {
   const subject = subjectOf(ctx);
@@ -643,6 +648,12 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
       }
       Object.assign(record, payload);
 
+      // multi-tenancy: force the tenant column to the subject's tenant — a
+      // tenant-scoped subject must not create rows attributed to another tenant
+      const tenantField = tenantFieldName(def);
+      const tenant = tenantOf(ctx);
+      if (tenantField !== undefined && tenant !== undefined) record[tenantField] = tenant;
+
       const seqFields = def.fields.filter((f) => f.type === FIELD_TYPES.SEQ_NO);
       if (seqFields.length > 0) {
         for (const f of seqFields) record[f.name] = await generateSeqNo(client, def.name, f, now);
@@ -781,6 +792,19 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
         if (payload[name] !== undefined) {
           throw new SchemaError('object.primary.mutable', { object: objectName, field: name }, ctx.locale);
         }
+      }
+
+      // multi-tenancy: the tenant column is immutable — a tenant-scoped subject
+      // must not move a row into another tenant
+      const tenantField = tenantFieldName(def);
+      const tenant = tenantOf(ctx);
+      if (
+        tenantField !== undefined &&
+        tenant !== undefined &&
+        payload[tenantField] !== undefined &&
+        payload[tenantField] !== tenant
+      ) {
+        throw new SchemaError('object.tenant.immutable', { object: objectName, field: tenantField }, ctx.locale);
       }
 
       const now = new Date();

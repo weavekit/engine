@@ -1,5 +1,5 @@
 import { describe, it, expect } from '../helpers/test.js';
-import { ObjectRegistry, ROW_SCOPE_MARKERS, buildRowScope, buildRlsPolicy, defineObject } from '../../src/core/index.js';
+import { ObjectRegistry, ROW_SCOPE_MARKERS, SchemaError, buildRowScope, buildRlsPolicy, defineObject, encodeRecordKey, userPrincipal } from '../../src/core/index.js';
 import { createDataAccess, executeRestrictedSql, withRbac } from '../../src/runtime/data-access/index.js';
 import { queryAudit } from '../../src/subsystems/audit/store.js';
 
@@ -10,7 +10,7 @@ const TENANT_DEF = defineObject({
     { name: 'owner_id', type: 'string', [ROW_SCOPE_MARKERS.OWNERSHIP]: true },
     { name: 'tenant_id', type: 'string', [ROW_SCOPE_MARKERS.TENANT]: true },
   ],
-  permissions: { sales: { read: 'own' }, admin: { read: 'all' } },
+  permissions: { sales: { read: 'own' }, admin: { read: 'all', create: true, update: true } },
 });
 
 const NO_TENANT_DEF = defineObject({
@@ -90,5 +90,42 @@ describe('audit tenant scope (W3.3)', () => {
     await queryAudit(pool as never, { tenantId: 't1' });
     expect(calls[0]!.sql).toContain('tenant_id = $1');
     expect(calls[0]!.params).toEqual(['t1']);
+  });
+});
+
+describe('tenant write isolation (W3.2 fix)', () => {
+  const registry = new ObjectRegistry();
+  registry.register(TENANT_DEF);
+  const admin = userPrincipal({ id: 'u1', roles: ['admin'], tenantId: 't1' });
+
+  it('create forces the tenant column to the subject tenant', async () => {
+    const calls: { sql: string; params: unknown[] }[] = [];
+    const client = {
+      query: async (sql: string, params: unknown[] = []) => {
+        calls.push({ sql, params });
+        return { rows: sql.includes('INSERT INTO "lead"') ? [{ __weave_record_key: 'x' }] : [], rowCount: 1 };
+      },
+      release: () => {},
+    };
+    const da = withRbac(createDataAccess());
+    await da.create('lead', { id: 'x', tenant_id: 't9' }, { pool: { connect: async () => client } as never, registry, principal: admin });
+    const insert = calls.find((c) => c.sql.includes('INSERT INTO "lead"'))!;
+    expect(insert.params).toContain('t1');
+    expect(insert.params).not.toContain('t9');
+  });
+
+  it('update rejects moving a row to another tenant', async () => {
+    const client = {
+      query: async (sql: string) => (sql.includes('SELECT') ? { rows: [{ id: 'x', tenant_id: 't1', __weave_record_key: 'x' }] } : { rows: [], rowCount: 1 }),
+      release: () => {},
+    };
+    const da = withRbac(createDataAccess());
+    let caught: unknown;
+    try {
+      await da.update('lead', encodeRecordKey(['x']), { tenant_id: 't9' }, { pool: { connect: async () => client } as never, registry, principal: admin });
+    } catch (error) {
+      caught = error;
+    }
+    expect((caught as SchemaError).code).toBe('object.tenant.immutable');
   });
 });
