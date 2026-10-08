@@ -132,6 +132,7 @@ async function auditWrite(
     changes,
     isError: error !== undefined,
     errorCode: error instanceof SchemaError ? error.code : undefined,
+    ...(principal.kind === 'system' ? { meta: { capability: principal.capability } } : {}),
     ...(ctx.requestId === undefined ? {} : { requestId: ctx.requestId }),
     ...(ctx.traceId === undefined ? {} : { traceId: ctx.traceId }),
     ...(tenant === undefined ? {} : { tenantId: tenant }),

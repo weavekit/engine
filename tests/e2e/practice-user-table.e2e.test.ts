@@ -1,4 +1,5 @@
 import { describe, it, expect } from '../helpers/test.js';import { buildEngineFromRegistry, createPool, migrate, ObjectRegistry, ROW_SCOPE_MARKERS, type ObjectDefinition } from '../../src/index.js';
+import { credentialIdOf } from '../../src/adapters/mcp/session.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 
@@ -182,7 +183,8 @@ maybe('Route B practice E2E (customer crm_users table + custom async resolver + 
       await closeClients(clients);
       clients.length = 0;
 
-      // audit: actorId = agent id from the auth resolver, meta.onBehalfOf = alice.
+      // audit: actorId = the agent credential fingerprint (sha256 of the Bearer
+      // token — the raw secret is never stored), meta.onBehalfOf = alice.
       // The MCP tool audit is enqueued asynchronously after the response, so poll
       // while the engine is still open (its buffered sink flushes every 100ms) —
       // querying after engine.close() can race the deferred enqueue with pool.end().
@@ -197,7 +199,7 @@ maybe('Route B practice E2E (customer crm_users table + custom async resolver + 
         await new Promise((resolve) => setTimeout(resolve, 100));
       }
       expect(auditRows!.rows.length).toBeGreaterThan(0);
-      expect(auditRows!.rows[0]!.actor_id).toBe('jwt-1');
+      expect(auditRows!.rows[0]!.actor_id).toBe(credentialIdOf('Bearer jwt-1'));
       expect((auditRows!.rows[0]!.meta as { onBehalfOf?: string }).onBehalfOf).toBe('alice');
 
       await engine.close();

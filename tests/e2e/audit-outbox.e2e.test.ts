@@ -29,6 +29,7 @@ maybe('Audit durable mode E2E (local PG): outbox → relay → weavekit_audit on
 
     const engine = await buildEngineFromRegistry(registry, {
       databaseUrl: url!,
+      auth: { source: { 'k-admin': { id: 'sys', roles: ['admin'] } } },
       subsystems: { audit: { enabled: true, mode: 'durable' } },
     });
     try {

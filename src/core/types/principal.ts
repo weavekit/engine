@@ -49,7 +49,12 @@ export function isSystemPrincipal(
   return principal.kind === 'system';
 }
 
-/** audit actor id for a principal (`<subject.id>` or `system:<capability>`) */
+/**
+ * Audit / record-meta actor id for a principal: the subject id for a user, or
+ * the literal `'system'` for a system capability (matching the audit contract;
+ * the specific capability is carried on the event's `meta.capability`, keeping
+ * `actor_id` stable and queryable).
+ */
 export function principalActorId(principal: AccessPrincipal): string {
-  return principal.kind === 'user' ? principal.subject.id : `system:${principal.capability}`;
+  return principal.kind === 'user' ? principal.subject.id : 'system';
 }
