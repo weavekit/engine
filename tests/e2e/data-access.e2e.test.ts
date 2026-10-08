@@ -30,7 +30,7 @@ maybe('Data access E2E (local PG)', () => {
     // clean any leftover state, then create schema
     await pool.query('DROP TABLE IF EXISTS "order", "line", "supplier", weavekit_seq, weavekit_meta CASCADE');
     await migrate(registry, { databaseUrl: url });
-    const ctx = { pool, registry };
+    const ctx = { pool, registry, principal: { kind: 'system' as const, capability: 'internal.admin' as const } };
 
     // create: seq_no + formula (aggregate/cross-object) + nested details
     await dataAccess.create('supplier', { id: 's1', region: 'East' }, ctx);
@@ -118,7 +118,7 @@ maybe('Data access E2E (local PG)', () => {
       await pool.query('DROP TABLE IF EXISTS "legacy_tbl"');
       await pool.query('CREATE TABLE "legacy_tbl" (doc_no text PRIMARY KEY, name text)');
       await migrate(registry, { databaseUrl: url }); // existing table: read-only, passes validation
-      const ctx = { pool, registry };
+      const ctx = { pool, registry, principal: { kind: 'system' as const, capability: 'internal.admin' as const } };
 
       await dataAccess.create('legacy_tbl', { doc_no: 'D1', name: 'Alpha' }, ctx);
       expect((await dataAccess.findOne('legacy_tbl', encodeRecordKey(['D1']), ctx))?.name).toBe('Alpha');

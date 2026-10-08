@@ -95,7 +95,7 @@ maybe('record metadata side table E2E (local PG)', () => {
       });
       await migrate(reg, { databaseUrl: url! });
       const dataAccess = createDataAccess();
-      const ctx = { pool, registry: reg };
+      const ctx = { pool, registry: reg, principal: { kind: 'system' as const, capability: 'internal.admin' as const } };
       const key = encodeRecordKey(['A1']);
 
       await dataAccess.create(object, { id: 'A1', name: 'x' }, ctx);
@@ -138,7 +138,7 @@ maybe('record metadata side table E2E (local PG)', () => {
       });
       await migrate(reg, { databaseUrl: url! });
       const dataAccess = createDataAccess();
-      const ctx = { pool, registry: reg };
+      const ctx = { pool, registry: reg, principal: { kind: 'system' as const, capability: 'internal.admin' as const } };
       const created = await dataAccess.create<Record<string, unknown>>(object, { id: 'A1', name: 'x' }, ctx);
       // create returns weave_id (the external id) so a client can address the new record
       expect(created.weave_id).toBe(encodeRecordKey(['A1']));
@@ -197,7 +197,7 @@ maybe('record metadata side table E2E (local PG)', () => {
       });
       await migrate(reg, { databaseUrl: url! });
       const dataAccess = createDataAccess();
-      const ctx = { pool, registry: reg };
+      const ctx = { pool, registry: reg, principal: { kind: 'system' as const, capability: 'internal.admin' as const } };
       await dataAccess.create(object, { id: 'A1', name: 'a' }, ctx);
       await dataAccess.create(object, { id: 'A2', name: 'b' }, ctx);
       await dataAccess.create(object, { id: 'A3', name: 'c' }, ctx);

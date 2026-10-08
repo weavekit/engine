@@ -153,7 +153,7 @@ describe('data-access — PG 23505 → data.unique', () => {
       release: () => undefined,
     };
     const pool = { connect: async () => client, query: async () => ({ rows: [], rowCount: 0 }) };
-    const ctx = { pool, registry, locale: 'en' } as unknown as DataAccessContext;
+    const ctx = { pool, registry, principal: { kind: 'system' as const, capability: 'internal.admin' as const }, locale: 'en' } as unknown as DataAccessContext;
 
     let caught: SchemaError | undefined;
     try {

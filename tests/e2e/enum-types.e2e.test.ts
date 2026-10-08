@@ -39,7 +39,7 @@ maybe('Native enum E2E (local PG)', () => {
       expect(byName.get('tags')).toBe(`_${tagsType}`);
 
       const dataAccess = createDataAccess();
-      const ctx = { pool, registry: reg };
+      const ctx = { pool, registry: reg, principal: { kind: 'system' as const, capability: 'internal.admin' as const } };
       await dataAccess.create(object, { id: 'A1', status: 'closed', tags: ['a', 'b'] }, ctx);
       expect((await dataAccess.find(object, { filter: { status: 'open' } }, ctx)).total).toBe(0);
       expect((await dataAccess.find(object, { filter: { status: 'closed' } }, ctx)).total).toBe(1);

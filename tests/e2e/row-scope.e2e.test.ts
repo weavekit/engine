@@ -42,7 +42,7 @@ maybe('row scope E2E (local PG): department subtree + external sources + manage 
       await migrate(reg, { databaseUrl: url! });
 
       const da = withRbac(createDataAccess());
-      const ctx = (subject: { id: string; roles: string[]; departmentId?: string }) => ({ pool, registry: reg, subject });
+      const ctx = (subject: { id: string; roles: string[]; departmentId?: string }) => ({ pool, registry: reg, principal: { kind: 'user' as const, subject } });
 
       // --- department subtree (mode B, internal ids) ---
       const root = randomUUID();

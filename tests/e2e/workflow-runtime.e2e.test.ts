@@ -137,7 +137,7 @@ maybe('Workflow runtime E2E (three-layer: instance/step/workitem, local PG)', ()
   const dctx = (subject: { id: string; roles: string[] }) => ({
     pool: engine.pool,
     registry: engine.registry,
-    subject,
+    principal: { kind: 'user' as const, subject },
   });
 
   const submit = (id: string, s = admin) => engine.dataAccess.transition('wf_doc', id, 'submit', dctx(s));
@@ -253,7 +253,7 @@ maybe('Workflow runtime E2E (three-layer: instance/step/workitem, local PG)', ()
       await engine.dataAccess.transition('wf_gap', id, 'submit', {
         pool: engine.pool,
         registry: engine.registry,
-        subject: admin,
+        principal: { kind: 'user' as const, subject: admin },
       });
     } catch (error) {
       caught = error;

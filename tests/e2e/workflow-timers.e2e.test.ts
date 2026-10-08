@@ -74,7 +74,7 @@ maybe('Workflow timers E2E (three-layer): arm on node entry, fire onTimeout, can
 
   it('arms a timer on entry and fires the onTimeout action when due', async () => {
     const id = encodeRecordKey(['T1']);
-    const ctx = { pool: engine.pool, registry: engine.registry, subject: admin };
+    const ctx = { pool: engine.pool, registry: engine.registry, principal: { kind: 'user' as const, subject: admin } };
     await engine.dataAccess.create('wf_timed', { id: 'T1' }, ctx);
     await engine.dataAccess.transition('wf_timed', id, 'submit', ctx);
 

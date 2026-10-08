@@ -12,7 +12,7 @@ import {
 import type { AuditSink } from '../../core/audit/index.js';
 import { AUDIT_ACTOR_TYPES, DATA_ACTIONS } from '../../core/audit/index.js';
 import type { DataAccessContext, FindOptions, FindResult, ObjectDataAccess } from './types.js';
-import { isSystemCtx, principalOf, subjectOf } from './types.js';
+import { isSystemCtx, subjectOf } from './types.js';
 import type { ReadScope } from '../../core/index.js';
 import { scopeSuffix } from './builder.js';
 
@@ -72,7 +72,7 @@ function denied(
   error: unknown,
 ): void {
   if (sink === undefined) return;
-  const principal = principalOf(ctx);
+  const principal = ctx.principal;
   void sink.record({
     actorType: principal.kind === 'user' ? AUDIT_ACTOR_TYPES.USER : AUDIT_ACTOR_TYPES.SYSTEM,
     actorId: principalActorId(principal),

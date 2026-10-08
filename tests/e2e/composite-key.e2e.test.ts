@@ -38,7 +38,7 @@ maybe('Composite primary key E2E (local PG)', () => {
       expect(pk.rows.map((r) => r.attname)).toEqual(['a', 'b']);
 
       const dataAccess = createDataAccess();
-      const ctx = { pool, registry: reg };
+      const ctx = { pool, registry: reg, principal: { kind: 'system' as const, capability: 'internal.admin' as const } };
       const key = encodeRecordKey(['x', '2']);
 
       await dataAccess.create(object, { a: 'x', b: 2, name: 'n' }, ctx);

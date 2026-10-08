@@ -41,7 +41,7 @@ describe('find — keyset cursor', () => {
 
   it('fetches pk > cursor ordered by pk and returns hasMore/nextCursor', async () => {
     const { da, registry, pool, calls } = harness([{ id: 'a' }, { id: 'b' }, { id: 'c' }]);
-    const res = await da.find('lead', { cursor: encodeCursor(['0']), limit: 2 }, { pool: pool as never, registry });
+    const res = await da.find('lead', { cursor: encodeCursor(['0']), limit: 2 }, { pool: pool as never, registry, principal: { kind: 'system' as const, capability: 'internal.admin' as const } });
 
     const page = calls.find((c) => !c.sql.includes('COUNT(*)'))!;
     expect(page.sql).toContain('"id" >');
@@ -56,7 +56,7 @@ describe('find — keyset cursor', () => {
 
   it('no more rows → hasMore false, no nextCursor', async () => {
     const { da, registry, pool } = harness([{ id: 'a' }]);
-    const res = await da.find('lead', { cursor: encodeCursor(['0']), limit: 2 }, { pool: pool as never, registry });
+    const res = await da.find('lead', { cursor: encodeCursor(['0']), limit: 2 }, { pool: pool as never, registry, principal: { kind: 'system' as const, capability: 'internal.admin' as const } });
     expect(res.rows).toHaveLength(1);
     expect(res.hasMore).toBe(false);
     expect(res.nextCursor).toBeUndefined();
@@ -64,7 +64,7 @@ describe('find — keyset cursor', () => {
 
   it('offset mode reports hasMore from total', async () => {
     const { da, registry, pool } = harness([{ id: 'a' }, { id: 'b' }]);
-    const res = await da.find('lead', { limit: 2, offset: 0 }, { pool: pool as never, registry });
+    const res = await da.find('lead', { limit: 2, offset: 0 }, { pool: pool as never, registry, principal: { kind: 'system' as const, capability: 'internal.admin' as const } });
     expect(res.hasMore).toBe(true); // 0 + 2 < 5
   });
 });

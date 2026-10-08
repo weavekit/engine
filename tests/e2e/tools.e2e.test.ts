@@ -113,7 +113,7 @@ maybe('custom tools E2E (toolsDir → tools/list role filtering + tools/call con
       const { app, pool, registry, dataAccess } = engine;
 
       await migrate(registry, { databaseUrl: url! });
-      await dataAccess.create('lead', { id: 'L1', name: 'Acme', status: 'open' }, { pool, registry });
+      await dataAccess.create('lead', { id: 'L1', name: 'Acme', status: 'open' }, { pool, registry, principal: { kind: 'system' as const, capability: 'internal.admin' as const } });
 
       await app.listen({ port: 0, host: '127.0.0.1' });
       const addr = app.server.address();

@@ -217,7 +217,9 @@ describe('withRbac — data access decorator', () => {
   const baseCtx = (subject?: { id: string; roles: string[]; departmentId?: string }) => ({
     pool: {} as never,
     registry,
-    subject,
+    principal: subject === undefined
+      ? { kind: 'system' as const, capability: 'internal.admin' as const }
+      : { kind: 'user' as const, subject },
   });
 
   beforeEach(() => {
@@ -226,7 +228,7 @@ describe('withRbac — data access decorator', () => {
 
   it('no subject → pass through (no exclude/rowScope injected)', async () => {
     await rbac.find('lead', {}, baseCtx(undefined));
-    expect(calls[0]).toEqual(['find', 'lead', {}, expect.objectContaining({ subject: undefined })]);
+    expect(calls[0]).toEqual(['find', 'lead', {}, expect.objectContaining({ principal: expect.objectContaining({ kind: 'system' }) })]);
     expect((calls[0] as unknown[])[2]).not.toHaveProperty('exclude');
   });
 
@@ -343,7 +345,9 @@ describe('withRbac — create whitelist + write ops without read fail-closed', (
   const baseCtx = (subject?: { id: string; roles: string[]; departmentId?: string }) => ({
     pool: {} as never,
     registry,
-    subject,
+    principal: subject === undefined
+      ? { kind: 'system' as const, capability: 'internal.admin' as const }
+      : { kind: 'user' as const, subject },
   });
 
   beforeEach(() => {

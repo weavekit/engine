@@ -139,7 +139,7 @@ maybe('MCP E2E (SDK Client + streamable HTTP + local PG): auth + session identit
         subsystems: { audit: { enabled: true } },
       });
       const { app, pool, registry, dataAccess } = engine;
-      const base = { pool, registry };
+      const base = { pool, registry, principal: { kind: 'system' as const, capability: 'internal.admin' as const } };
 
       await migrate(registry, { databaseUrl: url! });
 

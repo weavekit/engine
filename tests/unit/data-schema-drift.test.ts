@@ -26,7 +26,7 @@ describe('data-access — PG 42703 → data.schemaDrift (query-time fallback)', 
     const registry = new ObjectRegistry();
     registry.register(LEAD);
     const dataAccess = createDataAccess();
-    const ctx = { pool: driftPool(), registry, locale: 'en' } as unknown as DataAccessContext;
+    const ctx = { pool: driftPool(), registry, principal: { kind: 'system' as const, capability: 'internal.admin' as const }, locale: 'en' } as unknown as DataAccessContext;
     let caught: SchemaError | undefined;
     try {
       await dataAccess.find('lead', {}, ctx);

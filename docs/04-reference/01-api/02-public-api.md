@@ -67,8 +67,9 @@ The stable surface exists so you can extend the engine without patching internal
 - **Audit durability** — `subsystems.audit.mode` (`best-effort` | `transactional` | `durable`),
   `AUDIT_MODES`, `AuditSink.recordInTx`.
 - **Access principal** — `AccessPrincipal` / `SYSTEM_CAPABILITIES` / `userPrincipal` /
-  `systemPrincipal` (`core/types/principal.ts`). `DataAccessContext.principal` is the explicit field;
-  `subject` remains a deprecated user shorthand for compatibility.
+  `systemPrincipal` (`core/types/principal.ts`). `DataAccessContext.principal` is **required** (the
+  implicit `subject` field was removed — a missing actor is a compile error, not an unrestricted
+  bypass).
 - **Cursor pagination** — `FindOptions.cursor` + `FindResult.nextCursor`/`hasMore`;
   `encodeCursor` / `decodeCursor` (`runtime/data-access`).
 

@@ -18,7 +18,7 @@ function fakePool() {
   return { pool, client, queries };
 }
 
-const baseCtx = (pool: DataAccessContext['pool']): DataAccessContext => ({ pool, registry: {} as never });
+const baseCtx = (pool: DataAccessContext['pool']): DataAccessContext => ({ pool, registry: {} as never, principal: { kind: 'system' as const, capability: 'internal.admin' as const } });
 
 describe('withTx — cross-operation transaction primitive', () => {
   it('success path: BEGIN → fn(ctx.client) → COMMIT → release', async () => {

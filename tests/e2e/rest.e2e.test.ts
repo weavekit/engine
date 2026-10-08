@@ -53,7 +53,7 @@ maybe("REST API E2E (local PG + fastify inject): auth + RBAC full path", () => {
       },
     });
     const { app, pool, registry, dataAccess } = engine;
-    const base = { pool, registry };
+    const base = { pool, registry, principal: { kind: 'system' as const, capability: 'internal.admin' as const } };
     const bearer = (key: string) => ({ authorization: `Bearer ${key}` });
 
     try {

@@ -69,7 +69,7 @@ export function beforeDelete() {
         config: { sandbox: { timeout: 3000, queryTimeout: 1000 } },
       });
       const dataAccess = createDataAccess({ audit: auditSink, script: dispatcher });
-      const ctx = { pool, registry };
+      const ctx = { pool, registry, principal: { kind: 'system' as const, capability: 'internal.admin' as const } };
 
       // 1. beforeUpdate rewrites payload
       await dataAccess.create('scr_lead', { id: 'L1', title: 'hello', status: 'open' }, ctx);
@@ -99,7 +99,7 @@ export function beforeDelete() {
 
       // 4. afterUpdate throws → write committed + warnings callback + audit isError
       const warnings: string[] = [];
-      const updateCtx = { pool, registry, onWarnings: (ws: string[]) => warnings.push(...ws) };
+      const updateCtx = { pool, registry, principal: { kind: 'system' as const, capability: 'internal.admin' as const }, onWarnings: (ws: string[]) => warnings.push(...ws) };
       await dataAccess.update('scr_lead', encodeRecordKey(['L1']), { status: 'approved' }, updateCtx);
       expect((await dataAccess.findOne('scr_lead', encodeRecordKey(['L1']), ctx))?.status).toBe('approved');
       expect(warnings).toEqual(['notification failed']);
@@ -168,7 +168,7 @@ export function beforeDelete() {
       });
       const scripted = createDataAccess({ script: dispatcher });
       const warnings: string[] = [];
-      const ctx = { pool, registry, onWarnings: (ws: string[]) => warnings.push(...ws) };
+      const ctx = { pool, registry, principal: { kind: 'system' as const, capability: 'internal.admin' as const }, onWarnings: (ws: string[]) => warnings.push(...ws) };
 
       await scripted.create('scr_order', { id: 'O1', amount: 100 }, ctx);
       const logs = await dataAccess.find('scr_log', {}, ctx);

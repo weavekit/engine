@@ -45,7 +45,7 @@ maybe('multiRelation element-level visibility E2E (local PG)', () => {
       expect(migration.warnings).toEqual([]);
 
       const raw = createDataAccess();
-      const noSubject = { pool, registry };
+      const noSubject = { pool, registry, principal: { kind: 'system' as const, capability: 'internal.admin' as const } };
       await raw.create('tag', { id: 't1', owner_id: 'u1' }, noSubject);
       await raw.create('tag', { id: 't2', owner_id: 'u2' }, noSubject);
       await raw.create('post', { id: 'p1', tag_ids: ['t1', 't2'] }, noSubject);
@@ -55,10 +55,10 @@ maybe('multiRelation element-level visibility E2E (local PG)', () => {
         rbac.findOne<{ tag_ids: string[] | null }>('post', encodeRecordKey(['p1']), {
           pool,
           registry,
-          subject,
+          principal: { kind: 'user' as const, subject },
         });
       const count = async (subject: { id: string; roles: string[] }, filter: unknown) =>
-        (await rbac.find('post', { filter: filter as never }, { pool, registry, subject })).total;
+        (await rbac.find('post', { filter: filter as never }, { pool, registry, principal: { kind: 'user' as const, subject }})).total;
 
       // owner scope: only self-owned target ids are returned
       expect((await read({ id: 'u1', roles: ['reader'] }))?.tag_ids).toEqual(['t1']);

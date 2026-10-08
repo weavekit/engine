@@ -27,7 +27,7 @@ maybe('Lossless temporal primary key E2E (local PG)', () => {
       });
       await migrate(reg, { databaseUrl: url! });
       const da = createDataAccess();
-      const ctx = { pool, registry: reg };
+      const ctx = { pool, registry: reg, principal: { kind: 'system' as const, capability: 'internal.admin' as const } };
 
       const a = '2026-09-26T10:30:00.123456Z';
       const b = '2026-09-26T10:30:00.123457Z'; // differs only in microseconds

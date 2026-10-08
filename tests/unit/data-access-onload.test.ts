@@ -49,7 +49,7 @@ function fakePool(findRows: Record<string, unknown>[]): never {
   return { query: handler, connect: async () => client } as never;
 }
 
-const ctx = (pool: DataAccessContext['pool'], registry: ObjectRegistry): DataAccessContext => ({ pool, registry });
+const ctx = (pool: DataAccessContext['pool'], registry: ObjectRegistry): DataAccessContext => ({ pool, registry, principal: { kind: 'system' as const, capability: 'internal.admin' as const } });
 
 describe('onLoad read hook — find/findOne/create/update', () => {
   it('find: onLoad receives whole batch of records, returns same-length array replacing result', async () => {

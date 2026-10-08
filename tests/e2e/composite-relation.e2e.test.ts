@@ -41,7 +41,7 @@ maybe('Composite-target relation E2E (local PG)', () => {
       expect(refTable.fks.some((f) => f.columns.includes('target'))).toBe(false);
 
       const dataAccess = createDataAccess();
-      const ctx = { pool, registry: reg };
+      const ctx = { pool, registry: reg, principal: { kind: 'system' as const, capability: 'internal.admin' as const } };
       await dataAccess.create(target, { a: 'x', b: 2, name: 'Target X' }, ctx);
       const key = encodeRecordKey(['x', '2']);
 

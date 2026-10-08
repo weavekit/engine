@@ -30,7 +30,7 @@ maybe('audit diff replay E2E (update before/after, delete before, replay off zer
         subsystems: { audit: { enabled: true, replay: true } },
       });
       const { pool: ep, registry, dataAccess } = engine;
-      const base = { pool: ep, registry };
+      const base = { pool: ep, registry, principal: { kind: 'system' as const, capability: 'internal.admin' as const } };
 
       await migrate(registry, { databaseUrl: url! });
       await dataAccess.create('lead', { id: 'L1', name: 'Acme', status: 'open' }, base);
@@ -67,7 +67,7 @@ maybe('audit diff replay E2E (update before/after, delete before, replay off zer
         subsystems: { audit: { enabled: true } },
       });
       const { pool: ep2, registry: reg2, dataAccess: da2 } = engine;
-      await da2.update('lead', encodeRecordKey(['L1']), { name: 'NoReplay' }, { pool: ep2, registry: reg2 });
+      await da2.update('lead', encodeRecordKey(['L1']), { name: 'NoReplay' }, { pool: ep2, registry: reg2, principal: { kind: 'system' as const, capability: 'internal.admin' as const } });
       await engine.close();
       engine = undefined;
 

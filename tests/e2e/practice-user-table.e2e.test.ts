@@ -133,7 +133,7 @@ maybe('Route B practice E2E (customer crm_users table + custom async resolver + 
         subsystems: { audit: { enabled: true } },
       });
       const { app, registry, dataAccess } = engine;
-      const base = { pool, registry };
+      const base = { pool, registry, principal: { kind: 'system' as const, capability: 'internal.admin' as const } };
 
       await migrate(registry, { databaseUrl: url! });
 

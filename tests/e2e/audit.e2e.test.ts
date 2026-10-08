@@ -35,9 +35,9 @@ maybe('Audit subsystem E2E (local PG)', () => {
       const audit = await createAudit(pool); // idempotent
 
       const dataAccess = withRbac(createDataAccess({ audit }), { audit });
-      const base = { pool, registry };
+      const base = { pool, registry, principal: { kind: 'system' as const, capability: 'internal.admin' as const } };
       const subject = { id: 'u100', roles: ['sales'] };
-      const sctx = { ...base, subject };
+      const sctx = { ...base, principal: { kind: 'user' as const, subject }};
 
       await dataAccess.create('lead', { id: 'L1', title: 't', name: 'n', owner_id: 'u100', secret: 's' }, sctx);
       await dataAccess.update('lead', encodeRecordKey(['L1']), { name: 'n2' }, sctx);
@@ -125,7 +125,7 @@ maybe('Audit subsystem E2E (local PG)', () => {
       await engine.dataAccess.create(
         'lead',
         { id: 'E1', title: 't', name: 'n', owner_id: 'u1' },
-        { pool: engine.pool, registry: engine.registry, subject: { id: 'u1', roles: ['sales'] } },
+        { pool: engine.pool, registry: engine.registry, principal: { kind: 'user' as const, subject: { id: 'u1', roles: ['sales'] } } },
       );
 
       // buffered fire-and-forget: stored query may be empty before flush (flushed on close)
@@ -163,7 +163,7 @@ maybe('Audit subsystem E2E (local PG)', () => {
       await engine.dataAccess.create(
         'lead',
         { id: 'N1', title: 't', name: 'n', owner_id: 'u1' },
-        { pool: engine.pool, registry: engine.registry, subject: { id: 'u1', roles: ['sales'] } },
+        { pool: engine.pool, registry: engine.registry, principal: { kind: 'user' as const, subject: { id: 'u1', roles: ['sales'] } } },
       );
       // migrate provisions the system table, but a disabled audit writes no rows
       const rows = await pool.query('SELECT count(*)::int AS n FROM weavekit_audit');

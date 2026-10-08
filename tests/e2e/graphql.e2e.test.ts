@@ -56,7 +56,7 @@ maybe('GraphQL E2E (Fastify inject + local PG): mutations + RBAC + audit', () =>
       await engine.dataAccess.create(
         'lead',
         { id: 'L-other', name: 'Other', status: 'open', owner_id: 'u-other' },
-        { pool: engine.pool, registry: engine.registry },
+        { pool: engine.pool, registry: engine.registry, principal: { kind: 'system' as const, capability: 'internal.admin' as const } },
       );
 
       const auth = { authorization: 'Bearer key-sales' };

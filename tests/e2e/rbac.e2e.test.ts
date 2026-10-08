@@ -41,17 +41,17 @@ maybe('RBAC E2E (local PG): row-level/field-level/operation-level enforcement', 
     try {
       await pool.query('DROP TABLE IF EXISTS lead, weavekit_meta CASCADE');
       await migrate(registry, { databaseUrl: url! });
-      const base = { pool, registry };
+      const base = { pool, registry, principal: { kind: 'system' as const, capability: 'internal.admin' as const } };
 
       // seed (permission-less direct connection, freely set ownership)
       await dataAccess.create('lead', { id: 'L1', name: 'Acme', status: 'open', owner_id: 'u100', team_id: 't1', secret: 's1' }, base);
       await dataAccess.create('lead', { id: 'L2', name: 'Globex', status: 'open', owner_id: 'u200', team_id: 't1', secret: 's2' }, base);
       await dataAccess.create('lead', { id: 'L3', name: 'Initech', status: 'won', owner_id: 'u100', team_id: 't2', secret: 's3' }, base);
 
-      const alice = { ...base, subject: { id: 'u100', roles: ['sales'] } as IdentitySubject };
-      const sarah = { ...base, subject: { id: 'u300', roles: ['sales_manager'], departmentId: 't1' } as IdentitySubject };
-      const emma = { ...base, subject: { id: 'u400', roles: ['finance'] } as IdentitySubject };
-      const ghost = { ...base, subject: { id: 'u500', roles: ['ghost_role'] } as IdentitySubject };
+      const alice = { ...base, principal: { kind: 'user' as const, subject: { id: 'u100', roles: ['sales'] } as IdentitySubject } };
+      const sarah = { ...base, principal: { kind: 'user' as const, subject: { id: 'u300', roles: ['sales_manager'], departmentId: 't1' } as IdentitySubject } };
+      const emma = { ...base, principal: { kind: 'user' as const, subject: { id: 'u400', roles: ['finance'] } as IdentitySubject } };
+      const ghost = { ...base, principal: { kind: 'user' as const, subject: { id: 'u500', roles: ['ghost_role'] } as IdentitySubject } };
 
       // own row filtering + field stripping
       const aliceLeads = await rbac.find('lead', {}, alice);
@@ -150,12 +150,12 @@ maybe('RBAC E2E (local PG): row-level/field-level/operation-level enforcement', 
     try {
       await pool.query('DROP TABLE IF EXISTS note, weavekit_meta CASCADE');
       await migrate(registry, { databaseUrl: url! });
-      const base = { pool, registry };
+      const base = { pool, registry, principal: { kind: 'system' as const, capability: 'internal.admin' as const } };
 
       // seed one note owned by the editor (unauthenticated seed)
       await dataAccess.create('note', { id: 'n1', title: 'first', status: 'draft', owner_id: 'u1', secret: 's1' }, base);
 
-      const editor = { ...base, subject: { id: 'u1', roles: ['editor'] } as IdentitySubject };
+      const editor = { ...base, principal: { kind: 'user' as const, subject: { id: 'u1', roles: ['editor'] } as IdentitySubject } };
 
       // create: secret is NOT in the create whitelist → rbac.denied.field
       let deniedField: string | undefined;
@@ -183,7 +183,7 @@ maybe('RBAC E2E (local PG): row-level/field-level/operation-level enforcement', 
       expect(titleDenied).toBe(true);
 
       // writer declares update but no read → fail-closed (no row scope to derive)
-      const writer = { ...base, subject: { id: 'w1', roles: ['writer'] } as IdentitySubject };
+      const writer = { ...base, principal: { kind: 'user' as const, subject: { id: 'w1', roles: ['writer'] } as IdentitySubject } };
       let updateDenied = false;
       try {
         await rbac.update('note', encodeRecordKey(['n1']), { status: 'done' }, writer);

@@ -34,7 +34,7 @@ maybe('Audit durable mode E2E (local PG): outbox → relay → weavekit_audit on
     try {
       await migrate(registry, { databaseUrl: url! });
 
-      const base = { pool: engine.pool, registry };
+      const base = { pool: engine.pool, registry, principal: { kind: 'system' as const, capability: 'internal.admin' as const } };
       await engine.dataAccess.create('lead', { id: 'L1', name: 'Acme', owner_id: 'u-alice' }, base);
 
       // close() drains the outbox relay deterministically

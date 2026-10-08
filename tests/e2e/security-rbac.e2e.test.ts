@@ -49,8 +49,8 @@ maybe('security E2E: formula RBAC + details inheritance', () => {
       await migrate(reg, { databaseUrl: url! });
 
       const da = withRbac(createDataAccess());
-      const system = { pool, registry: reg };
-      const asUser = (id: string) => ({ pool, registry: reg, subject: { id, roles: ['sales'] } });
+      const system = { pool, registry: reg, principal: { kind: 'system' as const, capability: 'internal.admin' as const } };
+      const asUser = (id: string) => ({ pool, registry: reg, principal: { kind: 'user' as const, subject: { id, roles: ['sales'] } } });
 
       // seed accounts owned by different users
       await da.create('account', { id: 'A', owner_id: 'u1', name: 'Acme' }, system);

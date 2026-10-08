@@ -88,7 +88,7 @@ maybe('Script restricted SQL RLS E2E (native PG RLS + real PG)', () => {
         { id: 'a1', roles: ['admin'] },
       ];
       for (const subject of matrix) {
-        const viaObjects = await dataAccess.find('lead', {}, { pool, registry: reg, subject });
+        const viaObjects = await dataAccess.find('lead', {}, { pool, registry: reg, principal: { kind: 'user' as const, subject }});
         const objectsIds = (viaObjects.rows as Array<{ id: string }>).map((r) => r.id).sort();
         const queryIds = (await ids(subject)).sort();
         expect(queryIds).toEqual(objectsIds);
@@ -99,7 +99,7 @@ maybe('Script restricted SQL RLS E2E (native PG RLS + real PG)', () => {
       const own = await dataAccess.find(
         'lead',
         {},
-        { pool, registry: reg, subject: { id: 'u1', roles: ['sales'], departmentId: 't1' } },
+        { pool, registry: reg, principal: { kind: 'user' as const, subject: { id: 'u1', roles: ['sales'], departmentId: 't1' } } },
       );
       expect(own.rows.every((r) => !('secret' in (r as Record<string, unknown>)))).toBe(true);
     } finally {

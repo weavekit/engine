@@ -43,7 +43,7 @@ maybe('multiRelation link tables E2E (local PG)', () => {
     try {
       await pool.query(`DROP TABLE IF EXISTS "post", "tag", "bundle", "pair", ${LINK_POST}, ${LINK_BUNDLE} CASCADE`);
       await migrate(registry, { databaseUrl: url });
-      const ctx = { pool, registry };
+      const ctx = { pool, registry, principal: { kind: 'system' as const, capability: 'internal.admin' as const } };
 
       for (const id of ['a', 'b', 'c']) await dataAccess.create('tag', { id, label: id }, ctx);
 

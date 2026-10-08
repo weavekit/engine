@@ -51,7 +51,7 @@ maybe('Script onLoad read hook E2E (real sandbox + real PG)', () => {
         config: { sandbox: { timeout: 3000, queryTimeout: 2000 } },
       });
       const scripted = createDataAccess({ script: dispatcher });
-      const ctx = { pool, registry };
+      const ctx = { pool, registry, principal: { kind: 'system' as const, capability: 'internal.admin' as const } };
 
       // create returned record goes through onLoad
       const created = await scripted.create('scr_lead', { id: 'L1', title: 'hello', amount: 5 }, ctx);

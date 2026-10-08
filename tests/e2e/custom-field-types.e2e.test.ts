@@ -59,7 +59,7 @@ maybe('custom field types + constraints (real PG)', () => {
     registry.buildGraph();
 
     const dataAccess = createDataAccess();
-    const ctx: DataAccessContext = { pool: setup, registry, locale: 'en' };
+    const ctx: DataAccessContext = { pool: setup, registry, principal: { kind: 'system' as const, capability: 'internal.admin' as const }, locale: 'en' };
 
     try {
       await setup.query('DROP TABLE IF EXISTS invoice, currency CASCADE');

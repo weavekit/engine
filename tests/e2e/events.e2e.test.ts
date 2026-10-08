@@ -135,7 +135,7 @@ maybe('realtime channel E2E (SSE + subscription filtering + replay, local PG + r
       adapters: { events: { enabled: true, adminRoles: ['admin'] } },
     });
     const { app, pool, dataAccess, registry } = engine;
-    const base = { pool, registry };
+    const base = { pool, registry, principal: { kind: 'system' as const, capability: 'internal.admin' as const } };
     const sseClients: SseClient[] = [];
 
     await migrate(registry0, { databaseUrl: url! });
@@ -152,7 +152,7 @@ maybe('realtime channel E2E (SSE + subscription filtering + replay, local PG + r
       // ── 2. write ops → record.created/updated/deleted ──
       const sales = await openSse(baseUrl, { authorization: 'Bearer key-sales' });
       sseClients.push(sales);
-      const sctx = { ...base, subject: { id: 'u100', roles: ['sales'] } };
+      const sctx = { ...base, principal: { kind: 'user' as const, subject: { id: 'u100', roles: ['sales'] } } };
       await dataAccess.create('lead', { id: 'E1', name: 'n', owner_id: 'u100' }, sctx);
       const created = await readUntil(sales, 'record.created');
       expect(created.target).not.toBeNull();

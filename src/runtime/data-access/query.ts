@@ -25,7 +25,7 @@ import {
 } from './workflow.js';
 import { computeFormulas, type FormulaAuth } from './formula.js';
 import { generateSeqNo } from './seqno.js';
-import { subjectOf, principalOf, type DataAccessContext, type FindOptions, type FindResult, type ObjectDataAccess } from './types.js';
+import { subjectOf, type DataAccessContext, type FindOptions, type FindResult, type ObjectDataAccess } from './types.js';
 import { validateRecord } from './validate.js';
 import { FILTER_OPS, SORT_DIRS, WRITE_MODES } from './values.js';
 import { decodeCursor, encodeCursor } from './cursor.js';
@@ -114,7 +114,7 @@ async function auditWrite(
   client?: PoolClient,
 ): Promise<void> {
   if (sink === undefined) return;
-  const principal = principalOf(ctx);
+  const principal = ctx.principal;
   const event: AuditEvent = {
     actorType: principal.kind === 'user' ? AUDIT_ACTOR_TYPES.USER : AUDIT_ACTOR_TYPES.SYSTEM,
     actorId: principalActorId(principal),
@@ -800,7 +800,7 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
       const requireApproval = nodeDef?.requiresApproval === true;
       if (this.policies.length > 0 || requireApproval) {
         const subject = subjectOf(ctx);
-        const actorId = subject?.id ?? principalActorId(principalOf(ctx));
+        const actorId = subject?.id ?? principalActorId(ctx.principal);
         const guardrailCtx: GuardrailContext = {
           actor: { key: actorId, label: actorId, onBehalfOf: actorId },
           subject: subject ?? { id: 'system', roles: [] },
@@ -959,7 +959,7 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
     now: Date,
     created: boolean,
   ): Promise<void> {
-    const actor = subjectOf(ctx)?.id ?? principalActorId(principalOf(ctx));
+    const actor = subjectOf(ctx)?.id ?? principalActorId(ctx.principal);
     await upsertRecordMeta(
       client,
       def.name,

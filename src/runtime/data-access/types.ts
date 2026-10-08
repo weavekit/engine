@@ -2,7 +2,7 @@ import type { Pool, PoolClient } from "pg";
 import type { Locale } from "../../core/index.js";
 import type { ObjectRegistry } from "../../core/index.js";
 import type { AccessPrincipal, IdentitySubject } from "../../core/index.js";
-import { principalSubject, systemPrincipal, userPrincipal, SYSTEM_CAPABILITIES } from "../../core/index.js";
+import { principalSubject } from "../../core/index.js";
 import type { FilterOp, SortDir } from "./values.js";
 import type { WorkflowStatus, WorkflowHistory, WorkflowTodo, WorkflowOverride } from "./workflow.js";
 
@@ -58,26 +58,19 @@ export interface FindResult<T = Record<string, unknown>> {
 
 /**
  * Execution context for data-access operations. `rowScope` is the RBAC
- * row-level filter (own/all) injected by the RBAC layer; consumers may
- * leave it unset to access all rows. `subject` is the authenticated identity
- * the RBAC layer decides for; absent = unrestricted. `client` threads an
- * outer transaction: when set, write operations reuse the connection and the
- * surrounding transaction instead of BEGIN/COMMIT/ROLLBACK themselves
- * (see `runtime/data-access/tx.ts`).
+ * row-level filter (own/all) injected by the RBAC layer. `principal` is the
+ * explicit actor (user or system capability) — there is no implicit
+ * unrestricted path. `client` threads an outer transaction: when set, write
+ * operations reuse the connection and the surrounding transaction instead of
+ * BEGIN/COMMIT/ROLLBACK themselves (see `runtime/data-access/tx.ts`).
  */
 export interface DataAccessContext {
   pool: Pool;
   registry: ObjectRegistry;
   /** extra WHERE fragment (AND'd), injected by the RBAC layer for own/team/all scope */
   rowScope?: { sql: string; params: unknown[] };
-  /**
-   * Who is acting — the preferred, explicit field (user or system capability).
-   * When absent, {@link principalOf} falls back to the legacy `subject` (a user
-   * principal) or an internal-admin system principal.
-   */
-  principal?: AccessPrincipal;
-  /** @deprecated use `principal`; kept as a user-principal shorthand */
-  subject?: IdentitySubject;
+  /** who is acting — an authenticated user or an explicit system capability (required) */
+  principal: AccessPrincipal;
   locale?: Locale;
   /** outer transaction connection; present inside `withTx` (skips nested BEGIN/COMMIT/release) */
   client?: PoolClient;
@@ -91,25 +84,14 @@ export interface DataAccessContext {
   onWarnings?: (warnings: string[]) => void;
 }
 
-/**
- * Resolve the effective access principal for a context: explicit `principal`
- * first, then the deprecated `subject` shorthand (a user principal), else an
- * explicit internal-admin system principal (legacy subject-less callers).
- */
-export function principalOf(ctx: DataAccessContext): AccessPrincipal {
-  if (ctx.principal !== undefined) return ctx.principal;
-  if (ctx.subject !== undefined) return userPrincipal(ctx.subject);
-  return systemPrincipal(SYSTEM_CAPABILITIES.INTERNAL_ADMIN, 'internal (subject-less context)');
-}
-
 /** the authenticated identity for a user principal, else undefined (system principal) */
 export function subjectOf(ctx: DataAccessContext): IdentitySubject | undefined {
-  return principalSubject(principalOf(ctx));
+  return principalSubject(ctx.principal);
 }
 
 /** true when the context is an explicit system principal (unrestricted path) */
 export function isSystemCtx(ctx: DataAccessContext): boolean {
-  return principalOf(ctx).kind === 'system';
+  return ctx.principal.kind === 'system';
 }
 
 /** contract for the controlled object data-access layer */

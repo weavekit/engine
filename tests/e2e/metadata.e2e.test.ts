@@ -43,7 +43,7 @@ maybe('frontend metadata contract E2E (metadata / permissions / audit, local PG 
       },
     });
     const { app, pool, dataAccess, registry } = engine;
-    const base = { pool, registry };
+    const base = { pool, registry, principal: { kind: 'system' as const, capability: 'internal.admin' as const } };
     const bearer = (key: string) => ({ authorization: `Bearer ${key}` });
 
     try {
@@ -140,15 +140,15 @@ maybe('frontend metadata contract E2E (metadata / permissions / audit, local PG 
       adapters: { rest: { adminRoles: ['admin'] } },
     });
     const { app, pool, dataAccess, registry } = engine;
-    const base = { pool, registry };
+    const base = { pool, registry, principal: { kind: 'system' as const, capability: 'internal.admin' as const } };
     const bearer = (key: string) => ({ authorization: `Bearer ${key}` });
 
     try {
       await migrate(registry0, { databaseUrl: url! });
 
       // seed audit events: u100 create ×2 + system create ×1
-      await dataAccess.create('lead', { id: 'A1', name: 'a', status: 'open', owner_id: 'u100' }, { ...base, subject: { id: 'u100', roles: ['sales'] } });
-      await dataAccess.create('lead', { id: 'A2', name: 'b', status: 'open', owner_id: 'u100' }, { ...base, subject: { id: 'u100', roles: ['sales'] } });
+      await dataAccess.create('lead', { id: 'A1', name: 'a', status: 'open', owner_id: 'u100' }, { ...base, principal: { kind: 'user' as const, subject: { id: 'u100', roles: ['sales'] } } });
+      await dataAccess.create('lead', { id: 'A2', name: 'b', status: 'open', owner_id: 'u100' }, { ...base, principal: { kind: 'user' as const, subject: { id: 'u100', roles: ['sales'] } } });
       await dataAccess.create('lead', { id: 'A3', name: 'c', status: 'open', owner_id: 'u100' }, base); // system
       await sleep(250); // wait for L1 buffered sink flush
 

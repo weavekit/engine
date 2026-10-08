@@ -35,7 +35,7 @@ maybe('Batch endpoints E2E (PATCH/DELETE /api/objects/:name, withTx atomic, loca
       auth: { source: { 'key-sales': { id: 'u100', roles: ['sales'] } } },
     });
     const { app, pool, dataAccess, registry } = engine;
-    const base = { pool, registry };
+    const base = { pool, registry, principal: { kind: 'system' as const, capability: 'internal.admin' as const } };
     const bearer = (key: string) => ({ authorization: `Bearer ${key}` });
 
     try {
