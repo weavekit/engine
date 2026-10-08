@@ -34,13 +34,14 @@ runtime — see [Migrations](05-migrations.md).
 - [Relations](03-relations.md) — `relation` / `details` / `multiRelation`
 - [Validation](04-validation.md) — what the engine checks and where custom rules go
 - [Migrations](05-migrations.md) — how `schema.json` maps onto an existing table
+- [Named enums](06-named-enums.md) — declare a shared enum once in `enums/`
 
 ## Format version
 
 The on-disk format is versioned, and new files carry a top-level `schemaVersion`:
 
 ```json
-{ "schemaVersion": 5, "name": "lead", "labels": { "en": "Lead" }, "fields": [ /* … */ ] }
+{ "schemaVersion": 6, "name": "lead", "labels": { "en": "Lead" }, "fields": [ /* … */ ] }
 ```
 
 Files written before versioning existed are treated as legacy version `0`. The engine migrates older
@@ -55,6 +56,8 @@ the current version (the change is auto-committed).
 - **v5** renamed the `person` field type to `user` and made the identity FK types (`user`,
   `department`) target the engine identity objects (`weavekit_user`/`weavekit_department`)
   implicitly — a declared `target` and the legacy `person.department` attr are dropped.
+- **v6** added named enums: an enum may reference a declaration in `enums/<name>.json` by `enumType`
+  (no inline `options`). Additive — inline enums keep working.
 
 A file declaring a version **newer** than the engine supports is rejected with
 `schema.version.unsupported` — fail closed rather than misread a future format.

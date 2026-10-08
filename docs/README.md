@@ -17,7 +17,7 @@ The pitch and quick start live in the [repository README](../README.md).
 ## By goal
 
 - **Put an agent on an existing database** → [Existing CRM → MCP](03-practices/01-agent/02-existing-crm-to-mcp.md)
-- **Model your data** → [Schema](01-guides/03-model/02-schema/01-overview.md) · [Formulas](01-guides/03-model/03-formulas.md)
+- **Model your data** → [Schema](01-guides/03-model/02-schema/01-overview.md) · [Named enums](01-guides/03-model/02-schema/06-named-enums.md) · [Formulas](01-guides/03-model/03-formulas.md)
 - **Lock it down** → [RBAC](01-guides/04-access/02-rbac.md) · [Identity](01-guides/04-access/03-identity.md) · [Audit](01-guides/09-platform/03-audit.md)
 - **Govern a lifecycle** → [Workflow](01-guides/06-workflow/01-overview.md) — role gates, approvals, timeouts
 - **Run it in production** → [Deployment](02-operations/01-deployment/01-overview.md)
@@ -43,6 +43,7 @@ The pitch and quick start live in the [repository README](../README.md).
 - [Governance](03-practices/02-governance/01-overview.md) — customer user stores, governed lifecycles
 - [Service](03-practices/03-service/01-overview.md) — service-shaped backends
 - [Business](03-practices/04-business/01-overview.md) — object/formula backends
+- [Modeling](03-practices/05-modeling/01-overview.md) — shared vocabularies and reusable definitions
 
 ## Reference
 

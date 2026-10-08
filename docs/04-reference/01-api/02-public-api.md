@@ -25,7 +25,9 @@ contracts (`core/*`), data access, identity (the `core/provider/identity` contra
 `createPgIdentitySource`, `createFunctionIdentitySource`, `PgIdentityStore`, `PgIdentityDirectory`,
 `IdentityAdmin`, `createDirectoryAuthenticator`, `enforceSyncedIdentity`), [Git metadata
 sync](../../01-guides/03-model/04-git-versioned-metadata.md), custom tools, the generic proxy, the protocol adapters
-(auth/rest/mcp/events), the OpenAPI document generator (`buildOpenApiDocument`), the audit/script
+(auth/rest/mcp/events), the OpenAPI document generator (`buildOpenApiDocument`), the named-enum
+registry (`EnumDefinition` / `EnumRegistry` / `buildEnumRegistry` / `validateEnumDefinition` /
+`loadEnumsDir` / `resolveEnumRegistry`), the audit/script
 contract types, and the scaffolder (`scaffoldProject`, `PROJECT_TYPES`).
 
 The experimental entry covers the moving parts that aren't worth freezing yet: the
@@ -51,6 +53,9 @@ The stable surface exists so you can extend the engine without patching internal
 - **Custom field types** — `loadFieldTypesDir` / `resolveFieldTypeRegistry` + config `fieldTypes`; a
   project-local `field-types/` dir of declarative registrations (see
   [Custom field types](../02-schema/02-custom-field-types.md)).
+- **Named enums** — `enums/<name>.json` declarations referenced by `enumType`, loaded via
+  `loadEnumsDir` / `resolveEnumRegistry` (see
+  [Named enums](../../01-guides/03-model/02-schema/06-named-enums.md)).
 - **Generic proxy** — `proxy.resolver` carries the application semantics.
 - **Protocol adapters** — the `adapters/*` registration functions.
 

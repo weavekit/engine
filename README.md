@@ -50,6 +50,8 @@ write.
 - **Custom field types** — register business-semantic types (`money`, `address`, …) as thin, namespaced
   layers over a built-in primitive; they inherit storage, REST/MCP/OpenAPI schemas and generated
   types. Declared in a project-local, Git-committed `field-types/` directory.
+- **Named enums** — declare a shared enum once in `enums/` and reference it from any object by
+  `enumType`; every field shares one native PostgreSQL type and one set of per-value labels.
 - **Governed REST API** — object CRUD with row-level (`all`/`own`/`team`) and field-level RBAC and a
   uniform error contract.
 - **MCP tool surface** — a streamable HTTP endpoint at `/mcp` with a per-identity tool surface and
@@ -145,6 +147,8 @@ await engine.app.listen({ port: 3000 });
 | `weave field:add <object>` | Add a validated field to a schema |
 | `weave field-type:list` | List built-in + registered field types |
 | `weave field-type:check` | Validate registrations + schemas against the registry |
+| `weave enum:list` | List declared named enums (`enums/<name>.json`) |
+| `weave enum:check` | Validate enum declarations + schema references |
 | `weave module:add` / `module:remove <name>` | Enable/disable an optional subsystem (audit/script) |
 
 ## Object-level types

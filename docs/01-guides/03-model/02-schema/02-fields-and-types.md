@@ -29,7 +29,7 @@ description: "The field type table, common field attributes, and the enum / seq_
 | `uuid` | UUID | |
 | `json` | JSON | free-form JSON |
 | `jsonb` | JSONB | binary JSON (indexable) |
-| `enum` | native enum / VARCHAR | inline `options` → native PG enum; `{ from }` → VARCHAR; `multiple: true` → `<type>[]` |
+| `enum` | native enum / VARCHAR | inline `options` or a [named reference](06-named-enums.md) → native PG enum; `{ from }` → VARCHAR; `multiple: true` → `<type>[]` |
 | `seq_no` | VARCHAR | formatted sequence number |
 | `relation` | target PK column + FK | weak reference (belongsTo) — see [Relations](03-relations.md) |
 | `details` | child table | strong 1:N ownership — see [Relations](03-relations.md) |
@@ -69,7 +69,18 @@ Placeholders: `{seq}` / `{seq:N}` (zero-padded), `{year}`, `{month}`, `{day}`. `
 
 ## `enum`
 
-An `enum` field's allowed values are either an inline `options` list or a data-driven `{ from }` source.
+An `enum` field's allowed values come from one of three sources: an inline `options` list, a
+[declared named enum](06-named-enums.md) referenced by `enumType`, or a data-driven `{ from }` source.
+
+### `enum.enumType` — a declared named enum
+
+Reference a project-level enum declared in `enums/<name>.json` by `enumType` (and omit `options`).
+Every field that shares an `enumType` shares one native PG enum type, so the values are declared once.
+See [Named enums](06-named-enums.md).
+
+```jsonc
+{ "name": "status", "type": "enum", "enumType": "invoice_status", "default": "open" }
+```
 
 ### `enum.multiple`
 
@@ -109,6 +120,7 @@ See [Formulas](../03-formulas.md).
 
 ## Related
 
+- [Named enums](06-named-enums.md) — share an enum across objects
 - [Relations](03-relations.md) — `relation` / `details` / `multiRelation`
 - [Validation](04-validation.md) — where non-enum rules go
 - [Custom field types](../../../04-reference/02-schema/02-custom-field-types.md) — register your own

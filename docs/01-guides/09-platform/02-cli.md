@@ -24,6 +24,8 @@ accepts `--json` for machine-readable output.
 | `weave field:add <object>` | Add a field to an object's schema.json |
 | `weave field-type:list` | List built-in + registered field types |
 | `weave field-type:check` | Validate registrations + schemas against the registry |
+| `weave enum:list` | List declared named enums (`enums/<name>.json`) |
+| `weave enum:check` | Validate enum declarations + schema references |
 | `weave module:add <name>` | Enable a subsystem (audit/script/workflow) in weavekit.config.ts |
 | `weave module:remove <name>` | Disable a subsystem (audit/script/workflow) in weavekit.config.ts |
 | `weave workflow:open <object>` | Enable the object workflow (scaffolds `workflow.json` + sets `workflowEnabled`) |
@@ -202,7 +204,7 @@ auto-committed.
 
 Adds a field to `objects/<name>/schema.json` and auto-commits:
 
-- `--name <field>` `--type <type>` (required); `--required`, `--unique`, `--default <value>`, `--options a,b,c` (enum) or `--options-from <object[.column]>` (data-driven enum), `--target <object>` (relation/multiRelation).
+- `--name <field>` `--type <type>` (required); `--required`, `--unique`, `--default <value>`, `--options a,b,c` (inline enum), `--options-from <object[.column]>` (data-driven enum) or `--enum <name>` (a [named enum](../03-model/02-schema/06-named-enums.md) declared in `enums/<name>.json`), `--target <object>` (relation/multiRelation).
 - The whole updated schema is validated before writing (enum options, relation target, snake_case enforced).
 
 ## `weave field-type:list`
@@ -223,6 +225,22 @@ Validates the field-type setup without a database and exits non-zero on any prob
 
 Use it in CI to fail early when a schema references a type the project doesn't provide. See
 [Custom field types](../../04-reference/02-schema/02-custom-field-types.md).
+
+## `weave enum:list`
+
+Prints the declared named enums (`enums/<name>.json`) — each with its values, the locales that carry
+per-value labels, and its source file. `--json` emits the structured list.
+
+## `weave enum:check`
+
+Validates the named-enum setup without a database and exits non-zero on any problem:
+
+- every `enums/<name>.json` declaration parses and is valid (snake_case name, non-empty unique values,
+  labels keyed to declared values);
+- every `objects/<name>/schema.json` loads against the declarations (catches an unresolved `enumType`
+  and inline options that disagree with the declaration).
+
+Use it in CI alongside `weave field-type:check`. See [Named enums](../03-model/02-schema/06-named-enums.md).
 
 ## `weave module:add <name>` / `weave module:remove <name>`
 

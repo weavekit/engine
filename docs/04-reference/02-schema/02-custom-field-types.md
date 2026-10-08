@@ -86,7 +86,7 @@ Once registered, a type is just a type:
 ```json
 // objects/invoice/schema.json
 {
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "name": "invoice",
   "fields": [
     { "name": "id", "type": "string", "primary": true },
