@@ -25,6 +25,7 @@ const USER: unknown = {
   constraints: [{ type: 'unique', fields: ['external_source', 'external_id'] }],
   fields: [
     { name: 'id', type: 'uuid', primary: true, required: true },
+    { name: 'tenant_id', type: 'string' },
     { name: 'external_source', type: 'string' },
     { name: 'external_id', type: 'string' },
     { name: 'roles', type: 'jsonb' },
@@ -55,6 +56,7 @@ const DEPARTMENT: unknown = {
   constraints: [{ type: 'unique', fields: ['external_source', 'external_id'] }],
   fields: [
     { name: 'id', type: 'uuid', primary: true, required: true },
+    { name: 'tenant_id', type: 'string' },
     { name: 'external_source', type: 'string' },
     { name: 'external_id', type: 'string' },
     { name: 'name', type: 'string' },

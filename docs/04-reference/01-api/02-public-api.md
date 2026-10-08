@@ -62,9 +62,11 @@ The stable surface exists so you can extend the engine without patching internal
 
 ## Recent additions (0.9 / 0.10 / 0.11)
 
-- **Multi-tenancy (W3, in progress)** — `IdentitySubject.tenantId`, `principalTenantId`,
-  `tenantOf(ctx)`, `scopedQuotaKey(tenantId, key)`. Tenant is a scoping mechanism; an absent tenant
-  is single-tenant (unchanged behavior).
+- **Multi-tenancy (W3)** — `IdentitySubject.tenantId`, `principalTenantId`, `tenantOf(ctx)`,
+  `scopedQuotaKey(tenantId, key)`, `withDefaultTenant(authenticator, tenant)`; config
+  `EngineConfig.tenants = { enabled?, defaultTenant? }`. An object field marked `"tenant": true` scopes
+  every read/write (RBAC row scope + RLS + audit) to the subject's tenant. An absent tenant is
+  single-tenant (unchanged behavior); tenant lifecycle / schema-per-tenant are enterprise.
 
 - **Execution pipeline + evidence contracts** — `EXECUTION_STAGES` / `ExecutionPlan` / `Evidence` /
   `EvidenceSink` (`core/tools/pipeline.ts`); `runPipeline` (`runtime/execution/pipeline.ts`)

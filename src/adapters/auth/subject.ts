@@ -51,3 +51,18 @@ export function enforceSyncedIdentity(
     },
   };
 }
+
+/**
+ * Multi-tenancy: decorate an authenticator so a resolved subject without a
+ * tenant is stamped with the configured default tenant (row-mode single-tenant
+ * deployments). A subject that already carries a tenant is left untouched.
+ */
+export function withDefaultTenant(inner: Authenticator, defaultTenant: string): Authenticator {
+  return {
+    async resolve(header: string | undefined): Promise<IdentitySubject | null> {
+      const subject = await inner.resolve(header);
+      if (subject === null || subject.tenantId !== undefined) return subject;
+      return { ...subject, tenantId: defaultTenant };
+    },
+  };
+}

@@ -6,7 +6,7 @@ import { createAuth, type AuthConfig, type Authenticator } from './source.js';
 export type { Authenticator, AuthConfig, AuthResolver, AuthSource } from './source.js';
 export { createAuth } from './source.js';
 export type { AuthVerifier } from './verify.js';
-export { createDirectoryAuthenticator, enforceSyncedIdentity } from './subject.js';
+export { createDirectoryAuthenticator, enforceSyncedIdentity, withDefaultTenant } from './subject.js';
 
 /**
  * Resolve the Authorization header into a subject, or throw a 401-family

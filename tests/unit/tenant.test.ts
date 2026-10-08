@@ -7,6 +7,7 @@ import {
   userPrincipal,
 } from '../../src/core/index.js';
 import { tenantOf } from '../../src/runtime/data-access/index.js';
+import { withDefaultTenant } from '../../src/adapters/auth/index.js';
 
 describe('tenant mechanics (W3.1)', () => {
   it('principalTenantId: user subject tenant / system principal tenant', () => {
@@ -26,5 +27,13 @@ describe('tenant mechanics (W3.1)', () => {
     expect(scopedQuotaKey('t1', 'calls')).toBe('t1:calls');
     expect(scopedQuotaKey(undefined, 'calls')).toBe('calls');
     expect(scopedQuotaKey('', 'calls')).toBe('calls');
+  });
+
+  it('withDefaultTenant stamps a tenant only when the subject lacks one', async () => {
+    const plain = { resolve: async (h: string | undefined) => (h === 'Bearer x' ? { id: 'u1', roles: ['r'] } : null) };
+    expect((await withDefaultTenant(plain, 't1').resolve('Bearer x'))!.tenantId).toBe('t1');
+    expect(await withDefaultTenant(plain, 't1').resolve('nope')).toBeNull();
+    const scoped = { resolve: async () => ({ id: 'u2', roles: [], tenantId: 't9' }) };
+    expect((await withDefaultTenant(scoped, 't1').resolve('Bearer y'))!.tenantId).toBe('t9');
   });
 });

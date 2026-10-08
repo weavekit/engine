@@ -36,7 +36,7 @@ import { createApprovals, type ApprovalsQueue } from './tools/index.js';
 import { resolvePolicies } from './tools/policies.js';
 import type { ToolExecutor } from './tools/index.js';
 import type { ProxyForwarder } from './proxy/index.js';
-import { buildAuthenticator, createDirectoryAuthenticator, enforceSyncedIdentity, type AuthSource, type AuthVerifier, type Authenticator } from '../adapters/auth/index.js';
+import { buildAuthenticator, createDirectoryAuthenticator, enforceSyncedIdentity, withDefaultTenant, type AuthSource, type AuthVerifier, type Authenticator } from '../adapters/auth/index.js';
 import type { IdentitySource, IdentityStore } from '../core/provider/identity/index.js';
 import type { PgIdentitySourceConfig } from './identity/sources/pg.js';
 import { PgIdentityDirectory, PgIdentityStore, IdentityAdmin, resolveIdentitySource, runIdentitySync } from './identity/index.js';
@@ -297,6 +297,14 @@ export interface EngineConfig {
    * belong to the enterprise E2 layer.
    */
   evidence?: { enabled?: boolean };
+  /**
+   * Multi-tenancy (row mode). When enabled, a subject without a tenant is
+   * stamped with `defaultTenant`, and objects declaring a `tenant: true` field
+   * are scoped to the subject's tenant (RBAC row scope + RLS + audit). Absent =
+   * single-tenant (unchanged). Tenant lifecycle / schema-per-tenant are out of
+   * scope (enterprise).
+   */
+  tenants?: { enabled?: boolean; defaultTenant?: string };
   /** generic outbound proxy route wiring (applications provide the resolver) */
   proxy?: EngineProxyConfig;
   /**
@@ -595,6 +603,10 @@ export async function buildEngineFromRegistry(
       : buildAuthenticator(config.auth ?? { source: {} });
   if (identityCfg?.required === true) {
     authenticator = enforceSyncedIdentity(authenticator, identityDirectory, locale);
+  }
+  // multi-tenancy: stamp the configured default tenant on subjects that lack one
+  if (config.tenants?.enabled === true && config.tenants.defaultTenant !== undefined) {
+    authenticator = withDefaultTenant(authenticator, config.tenants.defaultTenant);
   }
 
   // tool mechanism: load custom tools when config.tools.toolsDir is set
