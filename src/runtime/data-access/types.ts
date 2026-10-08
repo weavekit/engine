@@ -39,11 +39,21 @@ export interface FindOptions {
   fields?: string[];
   /** columns always excluded from the projection (RBAC fields.exclude) */
   exclude?: string[];
+  /**
+   * Opaque keyset cursor (see `cursor.ts`). When set on an object with a single
+   * primary key, the page is fetched with `pk > cursor` ordered by `pk` (a
+   * caller-provided `sort` is ignored); REST keeps using `offset`.
+   */
+  cursor?: string;
 }
 
 export interface FindResult<T = Record<string, unknown>> {
   rows: T[];
   total: number;
+  /** next-page keyset cursor (present only when a cursor was used and more remain) */
+  nextCursor?: string;
+  /** whether more rows exist beyond this page (offset or cursor mode) */
+  hasMore?: boolean;
 }
 
 /**

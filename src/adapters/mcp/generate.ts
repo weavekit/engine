@@ -90,6 +90,7 @@ function registryTools(engine: McpEngine, subject: IdentitySubject): CompiledToo
               },
               limit: { type: 'integer', minimum: 1, maximum: 1000 },
               offset: { type: 'integer', minimum: 0 },
+              cursor: { type: 'string', description: 'opaque next-page cursor (from a previous hasMore response); preferred over offset for deep pages' },
               fields: { type: 'array', items: { type: 'string' } },
             },
             required: ['object'],

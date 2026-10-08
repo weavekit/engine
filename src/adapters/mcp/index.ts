@@ -68,6 +68,8 @@ export interface McpRegisterDeps {
   corsOrigin?: string | string[] | boolean;
   /** engine identity directory; used as the on-behalf-of resolver when `mcp.identities` is unset */
   directory?: IdentityDirectory;
+  /** schema signature: part of the compiled-surface cache key so a schema change invalidates it */
+  schemaRevision?: string;
 }
 
 export interface McpServerHandle {
@@ -81,7 +83,7 @@ export interface McpServerHandle {
  * identity (`mcp.identities`: static directory or a customer-provided resolver).
  */
 export function registerMcp(app: FastifyInstance, deps: McpRegisterDeps): McpServerHandle {
-  const { engine, authenticator, mcp, locale, audit, alerts, tools, corsOrigin, directory } = deps;
+  const { engine, authenticator, mcp, locale, audit, alerts, tools, corsOrigin, directory, schemaRevision } = deps;
 
   // on-behalf-of resolver priority: a function `mcp.identities` wins, then a
   // static `mcp.identities` map, then the engine identity directory, else empty
@@ -113,6 +115,7 @@ export function registerMcp(app: FastifyInstance, deps: McpRegisterDeps): McpSer
     endpoint: mcp?.endpoint,
     corsOrigin,
     allowImpersonation: mcp?.impersonation === 'directory',
+    schemaRevision,
   });
 
   return {

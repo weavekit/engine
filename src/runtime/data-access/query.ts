@@ -7,7 +7,7 @@ import { AUDIT_ACTOR_TYPES, DATA_ACTIONS } from '../../core/audit/index.js';
 import type { EventPublisher } from '../../core/provider/event/index.js';
 import { NOOP_SCRIPT_DISPATCHER, SCRIPT_HOOKS, type GuardrailContext, type GuardrailPolicy, type ScriptDispatcher, type ScriptHook, type ScriptUser, type ToolDataAccess, type WorkflowTimerSync } from '../../core/index.js';
 import { evaluateTransition, type PolicyApprovals } from '../tools/policies.js';
-import { buildCountSql, buildFindSql, scopeSuffix, type BuildContext } from './builder.js';
+import { buildCountSql, buildFindSql, resolvePagination, scopeSuffix, type BuildContext } from './builder.js';
 import { deleteDetailsChildren, insertDetails } from './details.js';
 import { insertLinks, replaceLinks } from './link.js';
 import {
@@ -27,7 +27,8 @@ import { computeFormulas, type FormulaAuth } from './formula.js';
 import { generateSeqNo } from './seqno.js';
 import { subjectOf, principalOf, type DataAccessContext, type FindOptions, type FindResult, type ObjectDataAccess } from './types.js';
 import { validateRecord } from './validate.js';
-import { WRITE_MODES } from './values.js';
+import { FILTER_OPS, SORT_DIRS, WRITE_MODES } from './values.js';
+import { decodeCursor, encodeCursor } from './cursor.js';
 import { upsertRecordMeta, deleteRecordMeta } from '../record-meta/index.js';
 
 const q = (id: string) => `"${id}"`;
@@ -431,6 +432,40 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
   ): Promise<FindResult<T>> {
     const def = requireDef(ctx, objectName);
     const q = ctx.client ?? ctx.pool;
+    const pks = primaryFieldsOf(def);
+    const { limit } = resolvePagination(opts);
+
+    // keyset cursor (single primary key): `pk > cursor` ordered by pk. A
+    // caller-provided sort is ignored in cursor mode (documented) so pages
+    // traverse one deterministic sequence.
+    if (opts.cursor !== undefined && pks.length === 1) {
+      const pkName = pks[0]!.name;
+      const cursorValue = decodeCursor(opts.cursor)[0];
+      const pageOpts: FindOptions = {
+        ...opts,
+        filter: { ...(opts.filter ?? {}), [pkName]: { [FILTER_OPS.GT]: cursorValue } },
+        sort: [{ field: pkName, dir: SORT_DIRS.ASC }],
+        offset: 0,
+        limit: limit + 1,
+      };
+      const meta = needsSideTable(pageOpts) ? { table: recordMetaTableName(def.name) } : undefined;
+      const buildCtx = { ...bctx(ctx, objectName), ...(meta === undefined ? {} : { meta }) };
+      const { sql, params } = buildFindSql(def, pageOpts, buildCtx, ctx.rowScope, pageOpts.exclude);
+      const { rows } = await runTableQuery(q, objectName, sql, params, ctx.locale);
+      const hasMore = rows.length > limit;
+      const pageRows = hasMore ? rows.slice(0, limit) : rows;
+      const last = pageRows[pageRows.length - 1] as Record<string, unknown> | undefined;
+      const nextCursor = hasMore && last !== undefined ? encodeCursor([last[pkName]]) : undefined;
+      const { sql: countSql, params: countParams } = buildCountSql(def, opts, buildCtx, ctx.rowScope);
+      const { rows: countRows } = await runTableQuery(q, objectName, countSql, countParams, ctx.locale);
+      const loaded = await this.runOnLoad(objectName, pageRows as Record<string, unknown>[], ctx);
+      return {
+        rows: loaded as T[],
+        total: (countRows[0] as { total: number }).total,
+        hasMore,
+        ...(nextCursor === undefined ? {} : { nextCursor }),
+      };
+    }
 
     // `weave_*` virtual fields live in the engine side table; when referenced,
     // LEFT JOIN it and select/filter/sort them in SQL (never customer columns)
@@ -441,8 +476,9 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
     const { rows } = await runTableQuery(q, objectName, sql, params, ctx.locale);
     const { sql: countSql, params: countParams } = buildCountSql(def, opts, buildCtx, ctx.rowScope);
     const { rows: countRows } = await runTableQuery(q, objectName, countSql, countParams, ctx.locale);
+    const total = (countRows[0] as { total: number }).total;
     const loaded = await this.runOnLoad(objectName, rows as Record<string, unknown>[], ctx);
-    return { rows: loaded as T[], total: (countRows[0] as { total: number }).total };
+    return { rows: loaded as T[], total, hasMore: (opts.offset ?? 0) + rows.length < total };
   }
 
   async findOne<T = Record<string, unknown>>(

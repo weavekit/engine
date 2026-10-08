@@ -136,6 +136,7 @@ function toFindOptions(args: Record<string, unknown>): FindOptions {
   if (args.filter !== undefined && typeof args.filter === 'object') options.filter = args.filter as FindOptions['filter'];
   if (typeof args.limit === 'number') options.limit = args.limit;
   if (typeof args.offset === 'number') options.offset = args.offset;
+  if (typeof args.cursor === 'string') options.cursor = args.cursor;
   if (Array.isArray(args.fields)) options.fields = args.fields as string[];
   if (Array.isArray(args.sort)) {
     options.sort = (args.sort as Array<{ field: string; direction?: string }>).map((s) => ({
@@ -152,9 +153,16 @@ export async function searchRecordsHandler(
 ): Promise<McpToolResult> {
   return callProtected(ctx, REGISTRY_TOOLS.SEARCH, requestedObject(args), args, () => effectiveSubject(args, ctx), async (subject) => {
     const def = resolveObject(ctx, args);
-    const { rows, total } = await ctx.engine.dataAccess.find(def.name, toFindOptions(args), ctxWithSubject(ctx, subject));
+    const result = await ctx.engine.dataAccess.find(def.name, toFindOptions(args), ctxWithSubject(ctx, subject));
     const { limit, offset } = resolvePagination(toFindOptions(args));
-    return textResult(JSON.stringify({ rows, total, limit, offset }));
+    return textResult(JSON.stringify({
+      rows: result.rows,
+      total: result.total,
+      limit,
+      offset,
+      hasMore: result.hasMore ?? false,
+      ...(result.nextCursor === undefined ? {} : { nextCursor: result.nextCursor }),
+    }));
   });
 }
 

@@ -3,6 +3,7 @@ import type { FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
 import type { Pool } from 'pg';
 import { join } from 'node:path';
+import { createHash } from 'node:crypto';
 import {
   DEFAULT_LOCALE,
   NOOP_AUDIT_SINK,
@@ -795,6 +796,21 @@ export async function buildEngineFromRegistry(
   // customer-provided IdentityResolver).
   let mcp: McpServerHandle | undefined;
   if (mcpCfg?.enabled ?? true) {
+    // schema signature: folded into the MCP compiled-surface cache key so a
+    // schema change (a reload swapping the registry) invalidates the cache
+    const schemaRevision = createHash('sha256')
+      .update(
+        JSON.stringify(
+          [...registry.list()]
+            .map((d) => ({
+              n: d.name,
+              f: d.fields.map((x) => x.name),
+              p: (d as { permissions?: unknown }).permissions ?? null,
+            }))
+            .sort((a, b) => (a.n < b.n ? -1 : a.n > b.n ? 1 : 0)),
+        ),
+      )
+      .digest('hex');
     mcp = registerMcp(app, {
       engine: { registry, pool, dataAccess, locale },
       authenticator,
@@ -805,6 +821,7 @@ export async function buildEngineFromRegistry(
       tools,
       directory: identityDirectory,
       corsOrigin: config.adapters?.rest?.cors?.origin,
+      schemaRevision,
     });
   }
 

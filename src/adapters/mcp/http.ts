@@ -91,6 +91,8 @@ export interface McpHttpDeps {
   corsOrigin?: string | string[] | boolean;
   /** allow a call-level `onBehalfOf` override (default false) */
   allowImpersonation?: boolean;
+  /** schema signature folded into the compiled-surface cache key (schema change → cache miss) */
+  schemaRevision?: string;
 }
 
 interface SessionEntry {
@@ -134,10 +136,14 @@ export function registerMcpRoutes(app: FastifyInstance, deps: McpHttpDeps): void
 
   /** per-subject compiled surface cache (kills the per-request full recompile on list AND call) */
   const surfaceCache = new Map<string, CompiledTool[]>();
+  /** bound the cache so a churn of identities/roles cannot grow it without limit */
+  const MAX_SURFACE_CACHE = 512;
   function surfaceFor(session: McpSession): CompiledTool[] {
-    const key = `${session.user.id}:${[...session.user.roles].sort().join(',')}`;
+    const toolsSig = tools === undefined ? '' : [...new Set(tools.defs.map((d) => d.name))].sort().join(',');
+    const key = `${deps.schemaRevision ?? ''}|${toolsSig}|${session.user.id}:${[...session.user.roles].sort().join(',')}`;
     let cached = surfaceCache.get(key);
     if (cached === undefined) {
+      if (surfaceCache.size >= MAX_SURFACE_CACHE) surfaceCache.clear();
       cached = compileToolsFor(engine, session.user, tools);
       surfaceCache.set(key, cached);
     }
