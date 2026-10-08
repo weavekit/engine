@@ -85,9 +85,11 @@ Observability seam (metrics/trace) ✅
 
 ## Maintenance rules
 
+- **This file holds invariants + pointers only** (≤6KB, guarded by `scripts/check-memory-sizes.mjs`).
+  Do not accumulate detail: keep the invariant, push narrative/rationale/examples into `docs/`, and
+  lead with a link. When a section outgrows a summary, move it out and leave a pointer.
 - `pages:*` and the `./layout` export are UI-related pre-release surfaces: kept out of public
   `docs/` and the generated OpenAPI on purpose (not hidden from the API).
-- Keep this file to invariants only; put narrative detail in `docs/` and code comments
 - Every metadata change is auto-committed to Git by the engine; the `objects/` tree is the schema
   source of truth
 - The package version must match `src/version.ts` (the scaffolder injects it into generated projects)
