@@ -3,6 +3,36 @@
 All notable changes to `@weave-kit/engine`. Format follows [Keep a Changelog](https://keepachangelog.com/);
 the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.11.0]
+
+### Added
+
+- **Agent Execution pipeline + Evidence.** A protocol-agnostic orchestrator (`runPipeline`,
+  `EXECUTION_STAGES` / `ExecutionPlan` / `Evidence` / `EvidenceSink`) runs one execution through
+  Plan → Validate → Authorize → Guardrail → Approval → Execute → Commit → Evidence. The custom-tool
+  executor and the data-access write path (`create`/`update`/`delete`, action
+  `object.<object>.<op>`) now share the same guardrail/approval gate, so REST / MCP generic CRUD /
+  GraphQL / script writes are all covered (previously only custom tools and workflow transitions
+  were). Tool arguments are validated against the declared `ToolJsonSchema` (`tool.args.invalid`).
+  Enable `evidence.enabled` to record one `weavekit_evidence` row per gated execution
+  (request/trace/schema-revision correlated). Additive — with no guardrail policies configured and
+  evidence disabled, behavior and queries are unchanged.
+
+### Fixed
+
+- Guardrail/approval is no longer bypassed by MCP generic CRUD and REST writes (new action
+  `object.<object>.<op>`).
+
+## [0.10.0]
+
+### Added
+
+- **QueryBudget.** `EngineConfig.queryBudget` bounds a read/query across the engine:
+  rows / filters / sorts in data-access (all list paths), joins / SQL length / statement timeout in
+  restricted SQL (`this.db.query`), and GraphQL depth. Exported `QueryBudget` / `QUERY_BUDGET_DEFAULTS`
+  / `resolveQueryBudget` / `assertQueryBudget` (`runtime/data-access/query-budget.ts`); a per-context
+  `DataAccessContext.budget` overrides the instance default. Additive — default limits only.
+
 ## [0.9.0]
 
 A **breaking** consistency/authorization release. Read the **Breaking** section before upgrading.
