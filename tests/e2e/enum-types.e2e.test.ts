@@ -1,5 +1,6 @@
 import { describe, it, expect } from '../helpers/test.js';
 import { createPool, inspectSchema, mapToSchema, migrate, ObjectRegistry } from '../../src/core/index.js';
+import { buildEnumRegistry } from '../../src/core/index.js';
 import { createDataAccess } from '../../src/index.js';
 
 const url = process.env.DATABASE_URL;
@@ -62,6 +63,62 @@ maybe('Native enum E2E (local PG)', () => {
     } finally {
       await pool.query(`DROP TABLE IF EXISTS "${object}", "weavekit_record__${object}" CASCADE`);
       await pool.query(`DROP TYPE IF EXISTS "${statusType}", "${tagsType}" CASCADE`);
+      await pool.end();
+    }
+  });
+
+  it('named enum: two objects share one native PG type (schema v6)', async () => {
+    const a = 'wk_ne_a';
+    const b = 'wk_ne_b';
+    const type = 'invoice_status';
+    const pool = createPool(url!);
+    try {
+      await pool.query(
+        `DROP TABLE IF EXISTS "${a}", "${b}", "weavekit_record__${a}", "weavekit_record__${b}" CASCADE`,
+      );
+      await pool.query(`DROP TYPE IF EXISTS "${type}" CASCADE`);
+
+      const enums = buildEnumRegistry([{ name: type, values: ['open', 'paid'] }]);
+      const reg = new ObjectRegistry({ enums });
+      reg.register({
+        name: a,
+        fields: [
+          { name: 'id', type: 'string', primary: true },
+          { name: 'status', type: 'enum', enumType: type },
+        ],
+      });
+      reg.register({
+        name: b,
+        fields: [
+          { name: 'id', type: 'string', primary: true },
+          { name: 'state', type: 'enum', enumType: type },
+        ],
+      });
+      await migrate(reg, { databaseUrl: url! });
+
+      // both columns use the one shared native enum type
+      const cols = await pool.query(
+        `SELECT udt_name FROM information_schema.columns WHERE table_name IN ($1, $2) AND column_name IN ('status', 'state') ORDER BY column_name`,
+        [a, b],
+      );
+      expect((cols.rows as { udt_name: string }[]).map((r) => r.udt_name)).toEqual([type, type]);
+
+      const types = await pool.query(
+        `SELECT count(*)::int AS n FROM pg_type WHERE typname = $1 AND typtype = 'e'`,
+        [type],
+      );
+      expect((types.rows[0] as { n: number }).n).toBe(1);
+
+      // the named reference resolved into concrete values on the field
+      const status = reg.get(a)!.fields.find((f) => (f as { name: string }).name === 'status') as {
+        options?: unknown;
+      };
+      expect(status.options).toEqual(['open', 'paid']);
+    } finally {
+      await pool.query(
+        `DROP TABLE IF EXISTS "${a}", "${b}", "weavekit_record__${a}", "weavekit_record__${b}" CASCADE`,
+      );
+      await pool.query(`DROP TYPE IF EXISTS "${type}" CASCADE`);
       await pool.end();
     }
   });

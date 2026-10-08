@@ -113,4 +113,29 @@ describe('autoCommit — metadata tree git add + commit', () => {
       expect(status.stdout.trim()).toBe('?? README.md');
     });
   });
+
+  it('stages enums/ alongside objects/ when declarations are present', async () => {
+    await withRepo(async (root) => {
+      await writeObject(root, 'lead');
+      await mkdir(join(root, 'enums'), { recursive: true });
+      await writeFile(
+        join(root, 'enums', 'invoice_status.json'),
+        JSON.stringify({ name: 'invoice_status', values: ['open', 'paid'] }),
+      );
+      const result = await autoCommit({ dir: root });
+      expect(result.committed).toBe(true);
+      const files = await git(root, ['show', '--format=', '--name-only', 'HEAD']);
+      expect(files.stdout).toContain('objects/lead/schema.json');
+      expect(files.stdout).toContain('enums/invoice_status.json');
+    });
+  });
+
+  it('ignores an empty enums/ directory (no pathspec failure)', async () => {
+    await withRepo(async (root) => {
+      await writeObject(root, 'lead');
+      await mkdir(join(root, 'enums'), { recursive: true });
+      const result = await autoCommit({ dir: root });
+      expect(result.committed).toBe(true);
+    });
+  });
 });

@@ -2,7 +2,8 @@ import { createHash } from 'node:crypto';
 import { readdir, readFile, stat } from 'node:fs/promises';
 import { basename, dirname, join } from 'node:path';
 import { ObjectRegistry, SchemaError, parseObject } from '../../core/index.js';
-import type { FieldTypeRegistry, Locale, ObjectDefinition } from '../../core/index.js';
+import type { EnumRegistry, FieldTypeRegistry, Locale, ObjectDefinition } from '../../core/index.js';
+import { resolveEnumRegistry } from '../enums/index.js';
 
 export interface SchemaFile {
   /** absolute path to the schema.json file */
@@ -44,7 +45,15 @@ async function collectSchemaFiles(dir: string, out: string[]): Promise<void> {
 /** load and validate every `objects/<name>/schema.json` under a project root */
 export async function loadSchemaDir(
   dir: string,
-  options: { locale?: Locale; allowedFieldTypes?: readonly string[]; fieldTypes?: FieldTypeRegistry } = {},
+  options: {
+    locale?: Locale;
+    allowedFieldTypes?: readonly string[];
+    fieldTypes?: FieldTypeRegistry;
+    /** effective named-enum registry; defaults to auto-discovery of `<dir>/enums` */
+    enums?: EnumRegistry;
+    /** override the enum declaration directory (default `<dir>/enums`) */
+    enumsDir?: string;
+  } = {},
 ): Promise<LoadResult> {
   const objectsDir = join(dir, 'objects');
   let isDir = false;
@@ -57,10 +66,14 @@ export async function loadSchemaDir(
     throw new SchemaError('loader.dir.missing', { dir: objectsDir }, options.locale);
   }
 
+  // named-enum declarations (project `enums/*.json`); missing directory = empty
+  const enums =
+    options.enums ?? (await resolveEnumRegistry({ dir: options.enumsDir ?? join(dir, 'enums'), locale: options.locale }));
+
   const paths: string[] = [];
   await collectSchemaFiles(objectsDir, paths);
 
-  const registry = new ObjectRegistry({ fieldTypes: options.fieldTypes });
+  const registry = new ObjectRegistry({ fieldTypes: options.fieldTypes, enums });
   const files: SchemaFile[] = [];
   for (const path of paths.sort()) {
     const name = basename(dirname(path));
@@ -81,11 +94,13 @@ export async function loadSchemaDir(
       nameHint: name,
       allowedFieldTypes: options.allowedFieldTypes,
       fieldTypes: options.fieldTypes,
+      enums,
     });
     registry.register(object, {
       locale: options.locale,
       allowedFieldTypes: options.allowedFieldTypes,
       fieldTypes: options.fieldTypes,
+      enums,
     });
     files.push({
       path,

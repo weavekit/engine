@@ -1,3 +1,5 @@
+import { readdir } from 'node:fs/promises';
+import { join } from 'node:path';
 import { SchemaError } from '../../core/index.js';
 import type { Locale } from '../../core/index.js';
 import { runGit } from './runner.js';
@@ -6,7 +8,7 @@ import type { GitResult } from './runner.js';
 export interface AutoCommitOptions {
   /** project root containing `objects/**` */
   dir: string;
-  /** paths (relative to dir) to stage; defaults to `['objects']` */
+  /** paths (relative to dir) to stage; defaults to `objects` plus `enums` when present */
   paths?: string[];
   /** commit subject; defaults to `chore(metadata): sync schema objects` */
   message?: string;
@@ -36,10 +38,26 @@ export interface CommitPathOptions extends Omit<CommitPathsOptions, 'paths'> {
 
 const DEFAULT_IDENTITY = { name: 'weavekit', email: 'support@weavekit.io' };
 
+/**
+ * Default metadata paths to stage: `objects/` plus `enums/` when it holds at
+ * least one declaration. An absent/empty `enums/` is skipped so `git add` never
+ * fails on a missing pathspec.
+ */
+async function defaultMetadataPaths(dir: string): Promise<string[]> {
+  const paths = ['objects'];
+  try {
+    const entries = await readdir(join(dir, 'enums'));
+    if (entries.some((name) => name.endsWith('.json'))) paths.push('enums');
+  } catch {
+    // no enums/ directory (named enums are opt-in)
+  }
+  return paths;
+}
+
 /** stage the metadata tree and commit it; no-op when nothing changed */
 export async function autoCommit(options: AutoCommitOptions): Promise<AutoCommitResult> {
   const locale = options.locale;
-  const paths = options.paths ?? ['objects'];
+  const paths = options.paths ?? (await defaultMetadataPaths(options.dir));
 
   const repo = await runGit(['rev-parse', '--is-inside-work-tree'], {
     cwd: options.dir,
