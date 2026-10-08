@@ -2,7 +2,7 @@ import type { Pool, PoolClient } from "pg";
 import type { Locale } from "../../core/index.js";
 import type { ObjectRegistry } from "../../core/index.js";
 import type { AccessPrincipal, IdentitySubject } from "../../core/index.js";
-import { principalSubject } from "../../core/index.js";
+import { principalSubject, principalTenantId } from "../../core/index.js";
 import type { FilterOp, SortDir } from "./values.js";
 import type { QueryBudget } from "./query-budget.js";
 import type { WorkflowStatus, WorkflowHistory, WorkflowTodo, WorkflowOverride } from "./workflow.js";
@@ -79,6 +79,8 @@ export interface DataAccessContext {
   requestId?: string;
   /** schema signature (registry-derived) attached to evidence; falls back to the instance default */
   schemaRevision?: string;
+  /** tenant scope override (multi-tenancy); defaults to the principal's tenant */
+  tenantId?: string;
   /** per-context query budget override (defaults to the data-access instance's budget) */
   budget?: QueryBudget;
   /**
@@ -97,6 +99,11 @@ export function subjectOf(ctx: DataAccessContext): IdentitySubject | undefined {
 /** true when the context is an explicit system principal (unrestricted path) */
 export function isSystemCtx(ctx: DataAccessContext): boolean {
   return ctx.principal.kind === 'system';
+}
+
+/** the tenant scope of a context (explicit `tenantId`, else the principal's tenant) */
+export function tenantOf(ctx: DataAccessContext): string | undefined {
+  return ctx.tenantId ?? principalTenantId(ctx.principal);
 }
 
 /** contract for the controlled object data-access layer */

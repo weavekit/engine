@@ -18,6 +18,8 @@ export interface IdentitySubject {
   roles: string[];
   /** department whose subtree the subject may read (department scope) */
   departmentId?: string;
+  /** tenant the subject belongs to (multi-tenancy; absent = single-tenant) */
+  tenantId?: string;
 }
 
 /** an authenticated but not-yet-resolved identity (a verifier's output) */

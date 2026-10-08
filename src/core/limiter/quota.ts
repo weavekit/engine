@@ -45,6 +45,14 @@ export function periodBounds(now: Date, period: CounterPeriod): { start: Date; r
 }
 
 /**
+ * Namespace a quota/counter key by tenant (multi-tenancy). An absent tenant
+ * leaves the key unchanged (single-tenant), so existing keys are unaffected.
+ */
+export function scopedQuotaKey(tenantId: string | undefined, key: string): string {
+  return tenantId === undefined || tenantId === '' ? key : `${tenantId}:${key}`;
+}
+
+/**
  * Consume `amount` (default 1) against `policy`; never throws — inspect
  * `allowed`. Use this when the caller wants to decide what a denial means.
  */

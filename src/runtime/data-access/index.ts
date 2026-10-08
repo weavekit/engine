@@ -19,7 +19,7 @@ export {
   buildFindSql,
   buildCountSql,
 } from "./builder.js";
-export { isSystemCtx, subjectOf } from "./types.js";
+export { isSystemCtx, subjectOf, tenantOf } from "./types.js";
 export { decodeCursor, encodeCursor } from "./cursor.js";
 export {
   QUERY_BUDGET_DEFAULTS,
