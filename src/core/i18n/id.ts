@@ -25,6 +25,7 @@ export const id: Record<MessageKey, string> = {
   'storage.alter.requiredNoDefault': 'objek "{object}": tidak dapat menambahkan kolom wajib "{column}" tanpa nilai default ke tabel yang ada — tambahkan default atau hapus required',
   'storage.default.invalid': 'objek "{object}": bidang "{field}" default "{value}" bukan literal numerik yang valid',
   'tools.dir.missing': 'direktori tools "{dir}" tidak ditemukan',
+  'tool.args.invalid': "alat \"{tool}\": argumen tidak valid — {detail}",
   'tools.tool.invalid': 'definisi tool tidak valid: {detail}',
   'tools.tool.name.invalid': 'nama tool "{name}" harus cocok dengan {pattern}',
   'tools.tool.name.reserved': 'nama tool "{name}" telah dicadangkan',

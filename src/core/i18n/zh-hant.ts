@@ -25,6 +25,7 @@ export const zhHant: Record<MessageKey, string> = {
   'storage.alter.requiredNoDefault': '物件 "{object}"：不能為既有資料表新增無預設值的必填欄位 "{column}"——請新增預設值或移除 required',
   'storage.default.invalid': '物件 "{object}"：欄位 "{field}" 的預設值 "{value}" 不是有效的數字字面量',
   'tools.dir.missing': '工具目錄 "{dir}" 不存在',
+  'tool.args.invalid': "工具 \"{tool}\"：參數無效 —— {detail}",
   'tools.tool.invalid': '無效的工具定義: {detail}',
   'tools.tool.name.invalid': '工具名稱 "{name}" 必須符合 {pattern}',
   'tools.tool.name.reserved': '工具名稱 "{name}" 已被保留',

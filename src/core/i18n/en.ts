@@ -2,6 +2,7 @@ export const en = {
   'storage.alter.requiredNoDefault': 'object "{object}": cannot add required column "{column}" without a default to an existing table — add a default or drop required',
   'storage.default.invalid': 'object "{object}": field "{field}" default "{value}" is not a valid numeric literal',
   'tools.dir.missing': 'tools directory "{dir}" not found',
+  'tool.args.invalid': "tool \"{tool}\": invalid arguments — {detail}",
   'tools.tool.invalid': 'invalid tool definition: {detail}',
   'tools.tool.name.invalid': 'tool name "{name}" must match {pattern}',
   'tools.tool.name.reserved': 'tool name "{name}" is reserved',

@@ -25,6 +25,7 @@ export const ja: Record<MessageKey, string> = {
   'storage.alter.requiredNoDefault': 'オブジェクト "{object}"：既存テーブルにデフォルトなしの必須列 "{column}" を追加できません — デフォルトを追加するか required を外してください',
   'storage.default.invalid': 'オブジェクト "{object}"：フィールド "{field}" のデフォルト "{value}" は有効な数値リテラルではありません',
   'tools.dir.missing': 'ツールディレクトリ "{dir}" が見つかりません',
+  'tool.args.invalid': "ツール \"{tool}\": 引数が無効です — {detail}",
   'tools.tool.invalid': '無効なツール定義: {detail}',
   'tools.tool.name.invalid': 'ツール名 "{name}" は {pattern} に一致する必要があります',
   'tools.tool.name.reserved': 'ツール名 "{name}" は予約済みです',

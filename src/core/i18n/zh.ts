@@ -24,6 +24,7 @@ export const zh: Record<MessageKey, string> = {
   'storage.alter.requiredNoDefault': '对象 "{object}"：不能给已有表添加无默认值的必填列 "{column}"——请加默认值或去掉 required',
   'storage.default.invalid': '对象 "{object}"：字段 "{field}" 的默认值 "{value}" 不是有效的数字字面量',
   'tools.dir.missing': '工具目录 "{dir}" 不存在',
+  'tool.args.invalid': "工具 \"{tool}\"：参数无效 —— {detail}",
   'tools.tool.invalid': '无效的工具定义: {detail}',
   'tools.tool.name.invalid': '工具名 "{name}" 必须匹配 {pattern}',
   'tools.tool.name.reserved': '工具名 "{name}" 已被保留',

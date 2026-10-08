@@ -25,6 +25,7 @@ export const de: Record<MessageKey, string> = {
   'storage.alter.requiredNoDefault': 'Objekt "{object}": Pflichtspalte "{column}" kann ohne Standardwert nicht zu einer bestehenden Tabelle hinzugefügt werden — Standardwert hinzufügen oder required entfernen',
   'storage.default.invalid': 'Objekt "{object}": Feld "{field}" Standardwert "{value}" ist kein gültiges numerisches Literal',
   'tools.dir.missing': 'Werkzeugverzeichnis "{dir}" nicht gefunden',
+  'tool.args.invalid': "Tool \"{tool}\": ungültige Argumente — {detail}",
   'tools.tool.invalid': 'ungültige Werkzeugdefinition: {detail}',
   'tools.tool.name.invalid': 'Werkzeugname "{name}" muss {pattern} entsprechen',
   'tools.tool.name.reserved': 'Werkzeugname "{name}" ist reserviert',

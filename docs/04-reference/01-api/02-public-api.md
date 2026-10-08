@@ -60,8 +60,11 @@ The stable surface exists so you can extend the engine without patching internal
 - **Generic proxy** — `proxy.resolver` carries the application semantics.
 - **Protocol adapters** — the `adapters/*` registration functions.
 
-## Recent additions (0.9 / 0.10)
+## Recent additions (0.9 / 0.10 / 0.11)
 
+- **Execution pipeline + evidence contracts** — `EXECUTION_STAGES` / `ExecutionPlan` / `Evidence` /
+  `EvidenceSink` (`core/tools/pipeline.ts`); `validateToolArgs` (`core/tools/validate-args.ts`)
+  validates tool arguments against the declared `ToolJsonSchema` (MCP + custom tools).
 - **QueryBudget** — `QueryBudget` / `QUERY_BUDGET_DEFAULTS` / `resolveQueryBudget` /
   `assertQueryBudget` (`runtime/data-access/query-budget.ts`); config `EngineConfig.queryBudget`.
   Bounds rows/filters/sorts (data-access), joins / SQL length / statement timeout (restricted SQL)

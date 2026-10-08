@@ -25,6 +25,7 @@ export const ar: Record<MessageKey, string> = {
   'storage.alter.requiredNoDefault': 'الكائن "{object}": لا يمكن إضافة العمود المطلوب "{column}" بدون قيمة افتراضية إلى جدول موجود — أضف قيمة افتراضية أو أزل required',
   'storage.default.invalid': 'الكائن "{object}": الحقل "{field}" القيمة الافتراضية "{value}" ليست عددًا صحيحًا صالحًا',
   'tools.dir.missing': 'دليل الأدوات "{dir}" غير موجود',
+  'tool.args.invalid': "الأداة \"{tool}\": وسيطات غير صالحة — {detail}",
   'tools.tool.invalid': 'تعريف أداة غير صالح: {detail}',
   'tools.tool.name.invalid': 'يجب أن يطابق اسم الأداة "{name}" النمط {pattern}',
   'tools.tool.name.reserved': 'اسم الأداة "{name}" محجوز',

@@ -25,6 +25,7 @@ export const vi: Record<MessageKey, string> = {
   'storage.alter.requiredNoDefault': 'đối tượng "{object}": không thể thêm cột bắt buộc "{column}" không có giá trị mặc định vào bảng hiện có — hãy thêm giá trị mặc định hoặc bỏ required',
   'storage.default.invalid': 'đối tượng "{object}": trường "{field}" giá trị mặc định "{value}" không phải là ký tự số hợp lệ',
   'tools.dir.missing': 'không tìm thấy thư mục công cụ "{dir}"',
+  'tool.args.invalid': "công cụ \"{tool}\": đối số không hợp lệ — {detail}",
   'tools.tool.invalid': 'định nghĩa công cụ không hợp lệ: {detail}',
   'tools.tool.name.invalid': 'tên công cụ "{name}" phải khớp với {pattern}',
   'tools.tool.name.reserved': 'tên công cụ "{name}" đã được dành riêng',

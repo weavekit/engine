@@ -25,6 +25,7 @@ export const ko: Record<MessageKey, string> = {
   'storage.alter.requiredNoDefault': '객체 "{object}"：기존 테이블에 기본값 없는 필수 열 "{column}"을(를) 추가할 수 없습니다 — 기본값을 추가하거나 required를 제거하세요',
   'storage.default.invalid': '객체 "{object}": 필드 "{field}" 기본값 "{value}"이(가) 유효한 숫자 리터럴이 아닙니다',
   'tools.dir.missing': '도구 디렉터리 "{dir}"을(를) 찾을 수 없습니다',
+  'tool.args.invalid': "도구 \"{tool}\": 인수가 유효하지 않습니다 — {detail}",
   'tools.tool.invalid': '잘못된 도구 정의: {detail}',
   'tools.tool.name.invalid': '도구 이름 "{name}"은(는) {pattern}과(와) 일치해야 합니다',
   'tools.tool.name.reserved': '도구 이름 "{name}"은(는) 예약되었습니다',

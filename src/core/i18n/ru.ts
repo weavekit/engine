@@ -25,6 +25,7 @@ export const ru: Record<MessageKey, string> = {
   'storage.alter.requiredNoDefault': 'объект "{object}": нельзя добавить обязательный столбец "{column}" без значения по умолчанию в существующую таблицу — добавьте значение по умолчанию или уберите required',
   'storage.default.invalid': 'объект "{object}": поле "{field}" значение по умолчанию "{value}" не является допустимым числовым литералом',
   'tools.dir.missing': 'каталог инструментов "{dir}" не найден',
+  'tool.args.invalid': "инструмент \"{tool}\": недопустимые аргументы — {detail}",
   'tools.tool.invalid': 'недопустимое определение инструмента: {detail}',
   'tools.tool.name.invalid': 'имя инструмента "{name}" должно соответствовать {pattern}',
   'tools.tool.name.reserved': 'имя инструмента "{name}" зарезервировано',

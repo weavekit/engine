@@ -1,5 +1,5 @@
 import type { Pool } from 'pg';
-import { NOOP_AUDIT_SINK, createMemoryApprovalsBackend, userPrincipal } from '../../core/index.js';
+import { NOOP_AUDIT_SINK, createMemoryApprovalsBackend, userPrincipal, SchemaError, validateToolArgs, DEFAULT_LOCALE } from '../../core/index.js';
 import { AUDIT_ACTOR_TYPES } from '../../core/index.js';
 import type { AuditSink, IdentitySubject, Locale, ObjectRegistry, ToolActor, ToolApprovals, ApprovalsBackend, ApprovalListFilter, ToolCallContext, ToolDataAccess, ToolDefinition, ToolGuardrails, ToolJsonSchema, ToolResult, ApprovalStatus, PendingApproval, GuardrailContext, GuardrailPolicy } from '../../core/index.js';
 import type { ObjectDataAccess, DataAccessContext, FindOptions } from '../data-access/index.js';
@@ -204,6 +204,32 @@ export function createToolExecutor(options: ToolExecutorOptions): ToolExecutor {
         principal: userPrincipal(req.subject),
         locale: req.locale ?? options.locale,
       };
+      // validate arguments against the declared schema before any policy/handler
+      const argCheck = validateToolArgs(args, def.inputSchema);
+      if (!argCheck.ok) {
+        const locale = req.locale ?? options.locale;
+        const err = new SchemaError('tool.args.invalid', { tool: def.name, detail: argCheck.detail }, locale);
+        void audit
+          .record({
+            actorType: AUDIT_ACTOR_TYPES.AGENT,
+            actorId: req.actor.key,
+            action: req.action,
+            objectName: undefined,
+            changes: args,
+            isError: true,
+            errorCode: err.code,
+            meta: {
+              onBehalfOf: req.actor.onBehalfOf,
+              subjectId: req.subject.id,
+              roles: req.subject.roles,
+              agentLabel: req.actor.label,
+              tool: def.name,
+            },
+            timestamp: new Date(),
+          })
+          .catch(() => {});
+        return { content: [{ type: 'text', text: err.localize(locale ?? DEFAULT_LOCALE) }], isError: true };
+      }
       const ctx = toolContext(base, req);
       const started = Date.now();
       const event = (isError: boolean, errorCode?: string, extra?: Record<string, unknown>) => ({

@@ -5,8 +5,8 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { CallToolRequestSchema, ListToolsRequestSchema, isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
-import type { Locale, ToolDefinition } from '../../core/index.js';
-import { SchemaError } from '../../core/index.js';
+import type { Locale, ToolDefinition, ToolJsonSchema } from '../../core/index.js';
+import { SchemaError, validateToolArgs } from '../../core/index.js';
 import type { ToolExecutor } from '../../runtime/tools/index.js';
 import type { Authenticator } from '../auth/index.js';
 import { authenticate } from '../auth/index.js';
@@ -180,8 +180,17 @@ export function registerMcpRoutes(app: FastifyInstance, deps: McpHttpDeps): void
         auditDeniedTool(guardrails, session, name, request.params.arguments);
         throw new SchemaError('mcp.tool.notFound', { tool: name }, locale);
       }
-              const ctx = { engine, session, guardrails, resolveIdentity: identityResolver, allowImpersonation: deps.allowImpersonation === true };
-      const result: McpToolResult = await tool.spec.handler((request.params.arguments ?? {}) as Record<string, unknown>, ctx);
+      const args = (request.params.arguments ?? {}) as Record<string, unknown>;
+      // validate the arguments against the tool's declared input schema before
+      // the handler runs (the schema was descriptive only until 0.11)
+      const check = validateToolArgs(args, tool.spec.inputSchema as ToolJsonSchema);
+      if (!check.ok) {
+        auditDeniedTool(guardrails, session, name, args);
+        const message = new SchemaError('tool.args.invalid', { tool: name, detail: check.detail }, locale).localize(locale);
+        return { content: [{ type: 'text', text: message }], isError: true } as unknown as CallToolResult;
+      }
+      const ctx = { engine, session, guardrails, resolveIdentity: identityResolver, allowImpersonation: deps.allowImpersonation === true };
+      const result: McpToolResult = await tool.spec.handler(args, ctx);
       return result as unknown as CallToolResult;
     });
 

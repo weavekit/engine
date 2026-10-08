@@ -25,6 +25,7 @@ export const es: Record<MessageKey, string> = {
   'storage.alter.requiredNoDefault': 'objeto "{object}": no se puede añadir la columna obligatoria "{column}" sin valor por defecto a una tabla existente — añade un valor por defecto o quita required',
   'storage.default.invalid': 'objeto "{object}": el campo "{field}" valor por defecto "{value}" no es un literal numérico válido',
   'tools.dir.missing': 'directorio de herramientas "{dir}" no encontrado',
+  'tool.args.invalid': "herramienta \"{tool}\": argumentos no válidos — {detail}",
   'tools.tool.invalid': 'definición de herramienta no válida: {detail}',
   'tools.tool.name.invalid': 'el nombre de la herramienta "{name}" debe coincidir con {pattern}',
   'tools.tool.name.reserved': 'el nombre de la herramienta "{name}" está reservado',

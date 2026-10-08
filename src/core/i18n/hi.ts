@@ -25,6 +25,7 @@ export const hi: Record<MessageKey, string> = {
   'storage.alter.requiredNoDefault': 'ऑब्जेक्ट "{object}": मौजूदा तालिका में बिना डिफ़ॉल्ट मान के आवश्यक कॉलम "{column}" नहीं जोड़ा जा सकता — डिफ़ॉल्ट जोड़ें या required हटाएं',
   'storage.default.invalid': 'ऑब्जेक्ट "{object}": फ़ील्ड "{field}" डिफ़ॉल्ट "{value}" मान्य संख्यात्मक लिटरल नहीं है',
   'tools.dir.missing': 'उपकरण निर्देशिका "{dir}" नहीं मिली',
+  'tool.args.invalid': "टूल \"{tool}\": अमान्य आर्ग्युमेंट — {detail}",
   'tools.tool.invalid': 'अमान्य उपकरण परिभाषा: {detail}',
   'tools.tool.name.invalid': 'उपकरण नाम "{name}" को {pattern} से मेल खाना चाहिए',
   'tools.tool.name.reserved': 'उपकरण नाम "{name}" आरक्षित है',
