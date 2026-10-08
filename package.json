@@ -70,6 +70,7 @@
     "pretest": "tsc -p tsconfig.build.json",
     "test": "npm run test:unit && npm run test:e2e",
     "test:unit": "node --env-file-if-exists=.env --import tsx --test \"tests/unit/**/*.test.ts\"",
+    "test:coverage": "node --env-file-if-exists=.env --import tsx --test --experimental-test-coverage --test-coverage-include=\"src/runtime/data-access/**\" --test-coverage-include=\"src/core/rbac/**\" --test-coverage-include=\"src/core/audit/**\" --test-coverage-include=\"src/subsystems/audit/**\" --test-coverage-include=\"src/core/storage/**\" --test-coverage-include=\"src/subsystems/script/**\" --test-coverage-include=\"src/adapters/graphql/**\" --test-coverage-include=\"src/runtime/proxy/**\" --test-coverage-lines=80 --test-coverage-functions=75 --test-coverage-branches=75 \"tests/unit/**/*.test.ts\"",
     "test:e2e": "node scripts/test-e2e.mjs",
     "test:db": "node scripts/test-db.mjs start",
     "test:db:stop": "node scripts/test-db.mjs stop"

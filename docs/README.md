@@ -36,6 +36,7 @@ The pitch and quick start live in the [repository README](../README.md).
 ## Operations
 
 - [Deployment](02-operations/01-deployment/01-overview.md) — containerize, reverse-proxy, TLS
+- [Release checklist](02-operations/02-release.md) — the maintainer checklist for cutting an engine release
 
 ## Practices
 

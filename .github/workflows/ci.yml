@@ -32,10 +32,42 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: npm
       - run: npm ci
-      - run: npm run typecheck
-      - run: npm run lint
-      - run: npm test
-      - name: Verify OpenAPI document is in sync
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint (memory + docs guards)
+        run: npm run lint
+
+      - name: Build (dist)
+        run: npm run build
+
+      # Unit tests run under the coverage gate (security-critical paths only,
+      # progressive thresholds — see package.json#test:coverage).
+      - name: Unit tests + coverage gate
+        run: npm run test:coverage
+
+      - name: Contract-freeze gate
+        run: node --import tsx --test tests/unit/contract-freeze.test.ts
+
+      - name: Schema / workflow upgrade fixtures
+        run: node --import tsx --test tests/unit/schema-version.test.ts tests/unit/workflow.test.ts
+
+      - name: PostgreSQL e2e
+        run: npm run test:e2e
+
+      - name: Package exports resolve
+        run: node scripts/check-exports.mjs
+
+      - name: npm pack + clean install
+        run: |
+          npm pack --silent
+          mkdir -p /tmp/pack && cd /tmp/pack
+          npm init -y >/dev/null
+          npm install --silent "$GITHUB_WORKSPACE"/weave-kit-engine-*.tgz
+          node --input-type=module -e "import('@weave-kit/engine').then(m => { if (typeof m.createEngine !== 'function') { console.error('missing createEngine'); process.exit(1); } }).catch(e => { console.error(e); process.exit(1); })"
+
+      - name: OpenAPI document drift
         run: |
           npm run openapi:docs
           git diff --exit-code -- openapi/engine.json
