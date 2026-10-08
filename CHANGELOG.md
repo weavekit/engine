@@ -3,6 +3,50 @@
 All notable changes to `@weave-kit/engine`. Format follows [Keep a Changelog](https://keepachangelog.com/);
 the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.9.0]
+
+A **breaking** consistency/authorization release. Read the **Breaking** section before upgrading.
+
+### Breaking
+
+- **`DataAccessContext.principal` is now required; the implicit `subject` field is removed.** The old
+  convention — omit `subject` and get unrestricted access — is gone, so a forgotten actor is now a
+  **compile error** instead of a silent RBAC bypass. Migrate:
+  - a user call → `principal: userPrincipal(subject)` (or a literal `{ kind: 'user', subject }`);
+  - an internal/seed/system call → `principal: systemPrincipal(SYSTEM_CAPABILITIES.INTERNAL_ADMIN)`
+    (or `{ kind: 'system', capability: 'internal.admin' }`).
+  `AccessPrincipal`, `userPrincipal`, `systemPrincipal` and `SYSTEM_CAPABILITIES` are exported from
+  the package root. `withRbac` passes through only for an explicit **system** principal.
+
+### Added
+
+- **Global schema revisions + atomic deploys.** New `weavekit_schema_revision` (append-only, anchored
+  on a deterministic aggregate `computeSchemaHash(files)`). `weave migrate` / `weave deploy apply` now
+  commit the DDL, the metadata cache and the schema revision in **one transaction** (serialized by an
+  advisory lock) — a failure rolls the whole deploy back. New CLI: `weave deploy plan` (read-only
+  preview + risk) and `weave deploy apply`.
+- **Audit durability modes.** `subsystems.audit.mode`: `best-effort` (default, unchanged),
+  `transactional` (audit row written in the business transaction) and `durable` (transactional outbox
+  `weavekit_audit_outbox` + a crash-safe, at-least-once relay). New `AuditSink.recordInTx(event,
+  client)` seam; audit events gain `requestId` / `traceId` (new indexed columns).
+- **Cursor pagination.** `FindOptions.cursor` + `FindResult.nextCursor` / `hasMore` (opaque keyset on
+  the single primary key). MCP `search_records` accepts `cursor` and returns `hasMore`/`nextCursor`;
+  offset remains supported.
+- **Access principal types** (`core/types/principal.ts`): `AccessPrincipal`, `SYSTEM_CAPABILITIES`,
+  `userPrincipal`, `systemPrincipal`, `principalSubject`, `principalActorId`.
+
+### Changed
+
+- **MCP compiled-surface cache** key now includes a schema signature (registry-derived) and the
+  custom-tool set, and the cache is bounded — a schema/tool change no longer serves stale tools.
+- **Workflow privileged operations** (`releaseWorkflowLock` / `workflowTodos` / `overrideWorkflow`)
+  are now guarded in the RBAC decorator (fail-closed read/update checks) instead of passing through.
+
+### Fixed
+
+- **Implicit-unrestricted holes** in the custom-tool base context and the transition guardrail
+  context: both now carry a user principal, so a tool/policy cannot read unrestricted by omission.
+
 ## [0.8.0]
 
 ### Added
