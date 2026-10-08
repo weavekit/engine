@@ -87,8 +87,10 @@ export function registerAuditRoutes(app: FastifyInstance, deps: RestDeps, option
     });
     filter.limit = limit;
     filter.offset = offset;
+    const cursor = readString(query, 'cursor', locale);
+    if (cursor !== undefined) filter.cursor = cursor;
 
-    const { rows, total } = await audit.query(filter);
-    return { rows, total, limit, offset };
+    const { rows, total, nextCursor } = await audit.query(filter);
+    return { rows, total, limit, offset, ...(nextCursor === undefined ? {} : { nextCursor }) };
   });
 }

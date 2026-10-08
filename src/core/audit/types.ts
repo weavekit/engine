@@ -140,12 +140,20 @@ export interface AuditQuery {
   filter?: AuditFilter;
   limit?: number;
   offset?: number;
+  /**
+   * opaque keyset cursor (from a previous `AuditQueryResult.nextCursor`). When
+   * set, pagination is stable over the `(ts DESC, id DESC)` order and `offset`
+   * is ignored. An invalid/foreign cursor is a `http.param.invalid` (400).
+   */
+  cursor?: string;
 }
 
 /** paginated audit query result (rows newest-first: ORDER BY ts DESC, id DESC) */
 export interface AuditQueryResult {
   rows: AuditEvent[];
   total: number;
+  /** present when a full page was returned — pass back as `cursor` for the next page */
+  nextCursor?: string;
 }
 
 /**

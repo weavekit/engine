@@ -76,3 +76,30 @@ export interface EvidenceSink {
 export const NOOP_EVIDENCE_SINK: EvidenceSink = {
   record: async () => {},
 };
+
+/**
+ * Filter for reading persisted evidence (protocol-neutral + stable: raw
+ * `weavekit_evidence` columns). Export / retention / compliance reporting are
+ * enterprise E2 — the engine only offers basic scoped pagination.
+ */
+export interface EvidenceQuery {
+  action?: string;
+  objectName?: string;
+  subjectId?: string;
+  actorKey?: string;
+  isError?: boolean;
+  from?: Date;
+  to?: Date;
+  limit?: number;
+  offset?: number;
+  /** opaque keyset cursor over `(ts DESC, id DESC)` (from a previous `nextCursor`) */
+  cursor?: string;
+}
+
+/** paginated evidence query result (rows newest-first) */
+export interface EvidenceQueryResult {
+  rows: Evidence[];
+  total: number;
+  /** present when a full page was returned — pass back as `cursor` for the next page */
+  nextCursor?: string;
+}

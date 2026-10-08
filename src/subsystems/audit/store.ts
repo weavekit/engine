@@ -2,6 +2,7 @@ import type { Pool } from 'pg';
 import type { SqlQueryable } from '../../core/index.js';
 import type { AuditEvent, AuditQuery, AuditQueryResult } from '../../core/audit/index.js';
 import { FILTER_OPS } from '../../runtime/data-access/values.js';
+import { decodeCursor, encodeCursor } from '../../runtime/data-access/cursor.js';
 
 export type { AuditQuery, AuditQueryResult } from '../../core/audit/index.js';
 
@@ -197,14 +198,23 @@ export async function queryAudit(pool: Pool, query: AuditQuery = {}): Promise<Au
   const total = count.rows[0]?.n ?? 0;
 
   const limit = query.limit ?? 100;
-  const offset = query.offset ?? 0;
-  const pageParams = [...params, limit, offset];
+  // keyset cursor: strictly older than the last row of the previous page
+  const pageWhere = [...where];
+  const pageParams = [...params];
+  if (query.cursor !== undefined) {
+    const [cursorTs, cursorId] = decodeCursor(query.cursor);
+    pageParams.push(cursorTs, cursorId);
+    pageWhere.push(`("ts", "id") < ($${pageParams.length - 1}, $${pageParams.length})`);
+  }
+  // cursor mode is keyset-only (offset ignored); offset mode is unchanged
+  const offset = query.cursor === undefined ? (query.offset ?? 0) : 0;
+  const pageWhereSql = pageWhere.length === 0 ? '' : ` WHERE ${pageWhere.join(' AND ')}`;
   const result = await pool.query(
-    `SELECT ts, actor_type, actor_id, action, object, object_id, changes, before, after, is_error, error_code, request_id, trace_id, tenant_id, meta
-     FROM ${TABLE}${whereSql}
+    `SELECT ts, id, actor_type, actor_id, action, object, object_id, changes, before, after, is_error, error_code, request_id, trace_id, tenant_id, meta
+     FROM ${TABLE}${pageWhereSql}
      ORDER BY ts DESC, id DESC
-     LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
-    pageParams,
+     LIMIT $${pageParams.length + 1} OFFSET $${pageParams.length + 2}`,
+    [...pageParams, limit, offset],
   );
   const rows = result.rows.map((row) => ({
     actorType: row.actor_type as AuditEvent['actorType'],
@@ -223,5 +233,10 @@ export async function queryAudit(pool: Pool, query: AuditQuery = {}): Promise<Au
     meta: row.meta ?? undefined,
     timestamp: new Date(row.ts as string),
   }));
-  return { rows, total };
+  const last = result.rows[result.rows.length - 1] as { ts: unknown; id: unknown } | undefined;
+  const nextCursor =
+    last !== undefined && limit > 0 && result.rows.length === limit
+      ? encodeCursor([new Date(last.ts as string).toISOString(), last.id])
+      : undefined;
+  return nextCursor === undefined ? { rows, total } : { rows, total, nextCursor };
 }

@@ -1,1 +1,2 @@
-export { createEvidenceSink, insertEvidence } from './store.js';
+export { createEvidenceSink, insertEvidence, queryEvidence } from './store.js';
+export type { EvidenceQuery, EvidenceQueryResult } from '../../core/index.js';

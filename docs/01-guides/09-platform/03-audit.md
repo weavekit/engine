@@ -84,7 +84,7 @@ const engine = await createEngine({ /* ... */, subsystems: { audit: { enabled: t
 const { rows, total } = await engine.audit.query({
   actorId: 'u100',
   action: DATA_ACTIONS.UPDATE,
-  objectName: 'lead',
+  object: 'lead',
   from: new Date('2026-08-01'),
   to: new Date(),
   limit: 50,
@@ -92,6 +92,21 @@ const { rows, total } = await engine.audit.query({
 });
 // rows are AuditEvent[], ordered ts DESC
 ```
+
+For stable, offset-free paging over a growing trail, use the **keyset cursor**: pass the
+`nextCursor` from one page back as `cursor` (it walks `(ts DESC, id DESC)`, so concurrent inserts
+never duplicate or skip a row). `offset` is ignored in cursor mode; an invalid cursor is a
+`http.param.invalid` (400).
+
+```ts
+const page1 = await engine.audit.query({ action: DATA_ACTIONS.UPDATE, limit: 50 });
+const page2 = await engine.audit.query({ action: DATA_ACTIONS.UPDATE, limit: 50, cursor: page1.nextCursor! });
+```
+
+Over REST the same contract is `GET {prefix}/audit?…&limit&offset&cursor` → `{ rows, total, limit,
+offset, nextCursor? }`. The **evidence** stream (`evidence.enabled`) exposes the same shape through
+`queryEvidence({ action, objectName, subjectId, actorKey, isError, from, to, limit, offset, cursor })`.
+Export / retention / compliance reporting remain enterprise E2.
 
 ## Buffering semantics (fire-and-forget)
 
