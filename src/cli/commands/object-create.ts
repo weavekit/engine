@@ -58,7 +58,7 @@ export function afterDelete() {
 `;
 
 const SHOW_CLIENT_JS = `// Client-side hooks for this object's record surface (show detail + edit
-// form) — object-scoped (loaded at runtime by @weave-kit/ui via
+// form) — object-scoped (loaded at runtime by the frontend via
 // GET /api/objects/<object>/scripts/show.client). Isolated per instance.
 // Hooks run in the browser. They only shape the UX; the server remains the
 // security boundary (server.js validate / RBAC are authoritative).
@@ -117,7 +117,7 @@ export function afterSubmit(action, result) {
 `;
 
 const LIST_CLIENT_JS = `// Client-side hooks for this object's list surface (tables) — object-scoped
-// (loaded at runtime by @weave-kit/ui via GET /api/objects/<object>/scripts/list.client).
+// (loaded at runtime by the frontend via GET /api/objects/<object>/scripts/list.client).
 // Hooks run in the browser. They only shape the UX; the server remains the
 // security boundary (server.js validate / RBAC are authoritative).
 // Context is a single \`this\`:

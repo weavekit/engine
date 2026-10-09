@@ -1,7 +1,7 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { basename, dirname, join } from 'node:path';
 import { FIELD_TYPES, SCHEMA_FORMAT_VERSION } from '../core/index.js';
-import { isBusinessUI, projectTypeDef } from './project-types/manifest.js';
+import { projectTypeDef } from './project-types/manifest.js';
 import { runGit } from '../runtime/git/index.js';
 import { version } from '../version.js';
 import type { ProjectType } from './types/index.js';
@@ -151,11 +151,7 @@ function renderPackageJson(name: string): string {
 function renderReadme(dir: string, type?: ProjectType): string {
   const def = projectTypeDef(type);
   const line = type === undefined || def === undefined ? 'WeaveKit project' : `${type}: ${def.narrative}`;
-  const business =
-    isBusinessUI(type)
-      ? `\n> **Backend preset.** \`business\` currently scaffolds the headless engine only (REST/MCP/RBAC/audit/script) — no UI. Files such as \`objects/<name>/show.client.js\` and \`pages/<name>/layout.json\` are experimental groundwork for a future product line and have **no in-project renderer yet**.\n`
-      : '';
-  return `# ${basename(dir)}\n\n${line}\n${business}\n- \`weave dev\` — run with hot reload\n- \`weave migrate\` — sync schema to PostgreSQL\n- \`weave build\` — production bundle\n- \`weave test\` — run tests\nObjects live in \`objects/<name>/schema.json\`.\n`;
+  return `# ${basename(dir)}\n\n${line}\n\n- \`weave dev\` — run with hot reload\n- \`weave migrate\` — sync schema to PostgreSQL\n- \`weave build\` — production bundle\n- \`weave test\` — run tests\nObjects live in \`objects/<name>/schema.json\`.\n`;
 }
 
 async function isGitRepo(cwd: string): Promise<boolean> {

@@ -9,8 +9,8 @@ export { resolveLabel } from './core/object/display.js';
  * — e.g. `pages/app.layout.json` — while object pages live in per-object dirs
  * `pages/<object>/<view>.layout.json` mirroring `objects/<name>/`) — engine-owned
  * single source. Pure types + pure functions,
- * zero runtime imports (browser-safe via `@weave-kit/engine/layout` subpath —
- * consumers like `@weave-kit/ui` re-export these). Field entries are
+ * zero runtime imports. **FROZEN (2026-10): the `./layout` subpath export was
+ * removed and no renderer consumes this.** Field entries are
  * reference-only: `{ui_id, object, field}` point at schema fields; every
  * attribute comes from `schema.json`. Naming: content blocks (field/tabs/
  * accordion/grid/section/subtable/list/blocks) vs shell blocks (sidebar/outlet/
@@ -162,7 +162,7 @@ export interface LayoutBlock {
 
 /**
  * Sidebar nav **data** as stored in layout.json — no active flags (that is a UI
- * render concern; `@weave-kit/ui`'s `NavItem` is a superset with optional
+ * render concern; the frontend's `NavItem` is a superset with optional
  * `icon`/`active`, so these items are directly assignable to it). `icon` is a
  * **name string** resolved to a component by the UI layer (the engine stays
  * headless — it never imports icon components).
@@ -170,7 +170,7 @@ export interface LayoutBlock {
  */
 export interface SidebarItem {
   label: string;
-  /** icon name (lucide-style), resolved to a component by `@weave-kit/ui` */
+  /** icon name (lucide-style), resolved to a component by the frontend */
   icon?: string;
   /** built-in route / legacy config / external link */
   href?: string;

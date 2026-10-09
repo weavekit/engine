@@ -15,12 +15,10 @@ Narrative: *Business backend — objects and formulas on Postgres.*
 
 - **Script subsystem on**, same as `service`.
 - `features.fieldTypes` includes the opt-in types — formulas need the scalar types they compute.
-- **Business UI groundwork**: the scaffolder also emits `objects/<name>/*.client.js` and
-  `pages/<name>/layout.json`.
 
-> Heads up: those UI files are **experimental groundwork**. There's no in-project renderer yet — the
-> engine is headless and renders no DOM. Treat `business` as a normal headless backend for now; the
-> extra files are there for when a product line lands on top.
+> Heads up: `business` scaffolds the **headless engine only** (REST/MCP/RBAC/audit/script) — no UI.
+> The former business-UI groundwork (`objects/<name>/*.client.js`, `pages/<name>/layout.json`) was
+> **retired** and is no longer emitted.
 
 ## What it's for
 

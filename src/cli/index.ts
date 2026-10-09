@@ -358,7 +358,8 @@ program
     );
   });
 
-// `pages:*` is UI-related and pre-release: intentionally undocumented (see AGENTS.md), kept functional.
+// `pages:*` is retired (2026-10): the `./layout` export/subpath was removed; this command is kept
+// functional for migrating legacy custom-page layouts.
 program
   .command(WEAVE_COMMANDS.PAGES_MIGRATE)
   .description('migrate legacy flat custom pages (pages/<id>.layout.json) to directories (pages/<id>/layout.json) and auto-commit')

@@ -84,7 +84,7 @@ export interface FieldTypeRegistration {
   keyEligible?: boolean;
   /** relation-like (carries `target`). Defaults from `base`. */
   relationLike?: boolean;
-  /** frontend hints (consumed by `@weave-kit/ui`) */
+  /** frontend hints (consumed by the frontend client) */
   ui?: FieldTypeUiHints;
   /** OpenAPI `format` keyword for string-based types (e.g. `email`, `uri`) */
   openApiFormat?: string;

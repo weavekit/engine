@@ -318,7 +318,7 @@ maybe("CLI weave E2E (spawn + local PG + .tmp/weavekit-project)", () => {
     }
   }, 120000);
 
-  it("object:create in a business project generates object-level show.client.js + list.client.js + pages/<name>/layout.json", async () => {
+  it("object:create in a business project no longer generates UI groundwork (retired 2026-10)", async () => {
     await rmProjectDir();
     await mkdir(PROJECT_DIR, { recursive: true });
     try {
@@ -332,57 +332,19 @@ maybe("CLI weave E2E (spawn + local PG + .tmp/weavekit-project)", () => {
         listClient: string | null;
         layout: string | null;
       };
-      expect(createdJson.showClient).toContain(
-        join("pages", "purchase_order", "show.client.js"),
-      );
-      expect(createdJson.listClient).toContain(
-        join("pages", "purchase_order", "list.client.js"),
-      );
-      expect(createdJson.layout).toContain(
-        join("pages", "purchase_order", "show.layout.json"),
-      );
+      // business-UI groundwork retired: no client.js / page layouts
+      expect(createdJson.showClient).toBeNull();
+      expect(createdJson.listClient).toBeNull();
+      expect(createdJson.layout).toBeNull();
 
-      const show = await readFile(
-        join(PROJECT_DIR, "pages", "purchase_order", "show.client.js"),
-        "utf8",
-      );
-      expect(show).toContain("export function onLoad()");
-      expect(show).toContain("export async function onValidate(action)");
-      expect(show).toContain("this.api.objects('supplier').find({");
-      const list = await readFile(
-        join(PROJECT_DIR, "pages", "purchase_order", "list.client.js"),
-        "utf8",
-      );
-      expect(list).toContain("export function onLoad()");
-      expect(list).toContain("export async function onRowAction(actionName)");
-      expect(list).toContain("Return exactly false or throw to block it");
-      expect(list).toContain("export function onSelectionChange(rows)");
+      const readOrEmpty = async (rel: string): Promise<string> =>
+        readFile(join(PROJECT_DIR, ...rel.split("/")), "utf8").catch(() => "");
+      expect(await readOrEmpty("pages/purchase_order/show.client.js")).toBe("");
+      expect(await readOrEmpty("pages/purchase_order/list.client.js")).toBe("");
+      expect(await readOrEmpty("pages/purchase_order/show.layout.json")).toBe("");
 
-      // default view layout: show = composed fields > grid(2 columns) > column > field; list = list node columns
-      const layout = JSON.parse(
-        await readFile(
-          join(PROJECT_DIR, "pages", "purchase_order", "show.layout.json"),
-          "utf8",
-        ),
-      );
-      const fieldsNode = layout.viewports.desktop.layout[0];
-      expect(fieldsNode.type).toBe("fields");
-      expect(fieldsNode.columns).toBeUndefined();
-      const grid = fieldsNode.children[0];
-      expect(grid.type).toBe("grid");
-      expect(grid.columns).toHaveLength(2);
-      const fieldNames = grid.columns.flatMap((c: { children: Array<{ field: string }> }) =>
-        c.children.map((f) => f.field),
-      );
-      expect(fieldNames).toEqual(["id", "title"]);
-      const listLayout = JSON.parse(
-        await readFile(
-          join(PROJECT_DIR, "pages", "purchase_order", "list.layout.json"),
-          "utf8",
-        ),
-      );
-      expect(listLayout.viewports.desktop.layout[0].type).toBe("list");
-      expect(listLayout.viewports.desktop.layout[0].columns).toEqual(["id", "title"]);
+      // server hooks are still generated (business = headless backend)
+      expect((await readOrEmpty("objects/purchase_order/server.js")).length).toBeGreaterThan(0);
     } finally {
       await rmProjectDir();
     }

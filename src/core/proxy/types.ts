@@ -48,7 +48,7 @@ export const DEFAULT_PROXY_ALLOW: ProxyAllow = {
 
 /**
  * A resolvable remote (customer engine) — injected by the application layer
- * (agent-gov). `id` is the customer-engine connection id and doubles as the
+ * (cloud). `id` is the customer-engine connection id and doubles as the
  * `:instance` route segment; documented distinctly from the governance app
  * "instance" to avoid confusion.
  */
@@ -91,7 +91,7 @@ export interface ProxyResponse {
 /**
  * Narrow injection seam so core never depends on the application layer: the
  * engine doesn't parse connections or read tables, it only trusts this resolver.
- * The application layer (agent-gov) implements it from its own `connections`.
+ * The application layer (cloud) implements it from its own `connections`.
  *
  * Stable seam (`@enterprise-reserved`): target governance / Cloud control plane
  * is enterprise; the engine only frames and forwards.

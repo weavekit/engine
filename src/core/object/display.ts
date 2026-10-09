@@ -4,8 +4,8 @@ import { DEFAULT_LOCALE, type Locale } from '../i18n/index.js';
  * Resolve an object/field display name from its per-locale `labels` map: the
  * requested locale, then the default locale, then the first declared entry,
  * then `fallback` (usually the object/field name). This is the engine's single
- * label-resolution rule — used by the CLI, the mapping report and the default
- * layout generator, and re-exported from `./layout` for frontend consumers.
+ * label-resolution rule — used by the CLI, the mapping report and the (frozen)
+ * default layout generator.
  */
 export function resolveLabel(
   labels: Record<string, string> | undefined,

@@ -3,6 +3,17 @@
 All notable changes to `@weave-kit/engine`. Format follows [Keep a Changelog](https://keepachangelog.com/);
 the project uses [Semantic Versioning](https://semver.org/).
 
+## [1.1.0] - 2026-10-10
+
+### Removed
+
+- **Business-UI groundwork retired.** `--type=business` no longer emits `objects/<name>/*.client.js`
+  or `pages/<name>/*.layout.json`, and the `./layout` package export (page-layout format) was
+  removed. The engine stays headless — there is no in-project renderer. `PROJECT_TYPE_DEFINITIONS[*]
+  .businessUI` is now always `false`; the layout format and the `pages` REST routes remain
+  frozen/internal. No `CONTRACT_VERSION` bump: the removed surface was pre-release and never
+  documented or exposed in OpenAPI.
+
 ## [1.0.0]
 
 The **G1 contract-freeze** release: the public surface (schema/workflow formats, REST routes, MCP tool

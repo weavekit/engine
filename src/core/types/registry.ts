@@ -5,7 +5,7 @@ import type { FieldTypeRegistration, FieldTypeRegistry } from './field-type.js';
  * Field-type registry — the single source for the engine's field-type
  * descriptors. PG-native types carry `base: undefined`; custom types may carry a
  * `base` they fully inherit (storage/describe/gen-types/MCP behaviour) plus a
- * small `ui` hints block consumed by `@weave-kit/ui`. Schema-level gating lives
+ * small `ui` hints block consumed by the frontend client. Schema-level gating lives
  * in the config `features.fieldTypes` whitelist (see validate.ts), NOT here.
  *
  * The same registration shape carries user/plugin types (`buildFieldTypeRegistry`),

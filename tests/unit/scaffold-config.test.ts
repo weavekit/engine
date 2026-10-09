@@ -42,7 +42,7 @@ describe('scaffoldProject — subsystems config for starter presets', () => {
     expect(governance).not.toContain('subsystems');
   });
 
-  it('business → Desk frontend no longer generated (Desk line frozen), README only describes the pure backend', async () => {
+  it('business → headless backend only: no UI frontend, no UI groundwork note', async () => {
     const dir = dirs.find((d) => d.includes('business'))!;
     let hasFrontend = true;
     try {
@@ -56,6 +56,7 @@ describe('scaffoldProject — subsystems config for starter presets', () => {
     const pkg = await readFile(join(dir, 'package.json'), 'utf8');
     expect(readme).not.toContain('@weave-kit/ui');
     expect(pkg).not.toContain('@weave-kit/ui');
-    expect(readme).toContain('Backend preset');
+    // business-UI groundwork retired (2026-10): the former "Backend preset" UI note is gone
+    expect(readme).not.toContain('Backend preset');
   });
 });

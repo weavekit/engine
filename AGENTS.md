@@ -36,7 +36,7 @@ src/
 ├─ runtime/         Mechanism: data-access/enums/execution/fieldtypes/git/identity/metadata/
 │                   record-meta/sql-analyzer/tools/proxy/tunnel
 ├─ cli/             The `weave` command
-├─ index.ts         createEngine(config) assembly; values.ts / layout-format.ts / experimental.ts
+├─ index.ts         createEngine(config) assembly; values.ts / layout-format.ts (frozen) / experimental.ts
 └─ version.ts       Version single source of truth
 tests/              unit + e2e (node --test)
 ```
@@ -49,8 +49,9 @@ tests/              unit + e2e (node --test)
   `SandboxBackend` interface (`isolated-vm` is an optional dependency)
 - Data-access layers: object query (automatic RLS + RBAC) and restricted SQL (SELECT-only +
   parameterized + LIMIT + timeout)
-- Public surface is tiered: `.` (stable), `./experimental` (unstable internals), `./values` +
-  `./layout` (browser-safe, zero runtime imports); the `exports` map blocks unlisted subpaths.
+- Public surface is tiered: `.` (stable), `./experimental` (unstable internals), `./values`
+  (browser-safe, zero runtime imports); the `exports` map blocks unlisted subpaths (`./layout` was
+  removed in 2026-10).
 - Enums are always `as const` single sources of truth, with types derived via
   `typeof x[keyof typeof x]`; never a second hardcoded literal union
 - **Multi-tenancy (row)**: a `"tenant": true` field scopes reads/writes to the subject tenant (RBAC
@@ -88,8 +89,9 @@ Observability seam (metrics/trace) ✅
 - **This file holds invariants + pointers only** (≤6KB, guarded by `scripts/check-memory-sizes.mjs`).
   Do not accumulate detail: keep the invariant, push narrative/rationale/examples into `docs/`, and
   lead with a link. When a section outgrows a summary, move it out and leave a pointer.
-- `pages:*` and the `./layout` export are UI-related pre-release surfaces: kept out of public
-  `docs/` and the generated OpenAPI on purpose (not hidden from the API).
+- `pages:*`, the layout format and the former `./layout` export are **retired (2026-10)**: the
+  business-UI groundwork was removed (there is no in-project renderer) and `--type=business` no longer
+  emits `*.client.js` / `pages/*.layout.json`. Implementation files remain frozen/internal.
 - Every metadata change is auto-committed to Git by the engine; the `objects/` tree is the schema
   source of truth
 - The package version must match `src/version.ts` (the scaffolder injects it into generated projects)

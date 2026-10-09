@@ -1,6 +1,6 @@
 {
   "name": "@weave-kit/engine",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "WeaveKit engine — a metadata-driven headless backend runtime with Git-versioned metadata",
   "type": "module",
   "main": "./dist/index.js",
@@ -17,10 +17,6 @@
     "./values": {
       "types": "./dist/values.d.ts",
       "default": "./dist/values.js"
-    },
-    "./layout": {
-      "types": "./dist/layout-format.d.ts",
-      "default": "./dist/layout-format.js"
     }
   },
   "license": "MIT",

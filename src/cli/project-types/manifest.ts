@@ -15,7 +15,7 @@ export interface ProjectTypeDefinition {
   script: boolean;
   /** default `features.fieldTypes` whitelist (fail-closed gating) */
   fieldTypes: string[];
-  /** business-only extras: `pages/` layouts + generated `*.client.js` */
+  /** business-only extras: `pages/` layouts + generated `*.client.js` (retired 2026-10, always false) */
   businessUI: boolean;
 }
 
@@ -45,7 +45,7 @@ export const PROJECT_TYPE_DEFINITIONS: Record<ProjectType, ProjectTypeDefinition
     narrative: 'Business backend: objects and formulas on Postgres',
     script: true,
     fieldTypes: [...PRIMITIVES, ...OPT_IN],
-    businessUI: true,
+    businessUI: false,
   },
 };
 
@@ -54,7 +54,7 @@ export function projectTypeDef(type: ProjectType | undefined): ProjectTypeDefini
   return type === undefined ? undefined : PROJECT_TYPE_DEFINITIONS[type];
 }
 
-/** whether a project type carries business-only UI artifacts (`pages/`, `*.client.js`) */
+/** whether a project type carries business-only UI artifacts (`pages/`, `*.client.js`). Retired 2026-10: always false (no in-project renderer; `businessUI` groundwork removed). */
 export function isBusinessUI(type: ProjectType | undefined): boolean {
   return projectTypeDef(type)?.businessUI === true;
 }
