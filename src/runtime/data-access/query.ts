@@ -1,7 +1,7 @@
 import type { PoolClient } from 'pg';
 import type { ObjectDefinition, ObjectRegistry } from '../../core/index.js';
 import { SchemaError, METRIC_NAMES, primaryFieldsOf, encodeRecordKey, decodeRecordKey, canonicalizePrimaryValue, principalActorId, type Locale, type MetricsSink } from '../../core/index.js';
-import { DETAILS_COLUMNS, FIELD_TYPES, isSideTableVirtualField, RECORD_META_ID_FIELD, recordKeySql, recordMetaTableName } from '../../core/index.js';
+import { DETAILS_COLUMNS, FIELD_TYPES, isSideTableVirtualField, RECORD_META_ID_FIELD, recordKeySql, recordMetaTableName, scopeFieldName } from '../../core/index.js';
 import type { AuditEvent, AuditSink } from '../../core/audit/index.js';
 import { AUDIT_ACTOR_TYPES, DATA_ACTIONS } from '../../core/audit/index.js';
 import type { EventPublisher } from '../../core/provider/event/index.js';
@@ -25,7 +25,7 @@ import {
 } from './workflow.js';
 import { computeFormulas, type FormulaAuth } from './formula.js';
 import { generateSeqNo } from './seqno.js';
-import { subjectOf, tenantOf, type DataAccessContext, type FindOptions, type FindResult, type ObjectDataAccess } from './types.js';
+import { subjectOf, scopeOf, type DataAccessContext, type FindOptions, type FindResult, type ObjectDataAccess } from './types.js';
 import { validateRecord } from './validate.js';
 import { FILTER_OPS, SORT_DIRS, WRITE_MODES } from './values.js';
 import { decodeCursor, encodeCursor } from './cursor.js';
@@ -34,11 +34,6 @@ import { EXECUTION_OUTCOMES, EXECUTION_STAGES, type EvidenceSink, type Execution
 import { upsertRecordMeta, deleteRecordMeta } from '../record-meta/index.js';
 
 const q = (id: string) => `"${id}"`;
-
-/** the object's tenant column, when it declares a `tenant: true` field */
-function tenantFieldName(def: ObjectDefinition): string | undefined {
-  return def.fields.find((f) => (f as { tenant?: boolean }).tenant === true)?.name;
-}
 
 /** cross-object formula authorization derived from the request context */
 function formulaAuth(ctx: DataAccessContext): FormulaAuth {
@@ -122,7 +117,7 @@ async function auditWrite(
 ): Promise<void> {
   if (sink === undefined) return;
   const principal = ctx.principal;
-  const tenant = tenantOf(ctx);
+  const tenant = scopeOf(ctx);
   const event: AuditEvent = {
     actorType: principal.kind === 'user' ? AUDIT_ACTOR_TYPES.USER : AUDIT_ACTOR_TYPES.SYSTEM,
     actorId: principalActorId(principal),
@@ -135,7 +130,7 @@ async function auditWrite(
     ...(principal.kind === 'system' ? { meta: { capability: principal.capability } } : {}),
     ...(ctx.requestId === undefined ? {} : { requestId: ctx.requestId }),
     ...(ctx.traceId === undefined ? {} : { traceId: ctx.traceId }),
-    ...(tenant === undefined ? {} : { tenantId: tenant }),
+    ...(tenant === undefined ? {} : { tenantId: tenant, scopeId: tenant }),
     timestamp: new Date(),
   };
   if (before !== undefined) event.before = before;
@@ -157,6 +152,7 @@ function scriptUserOf(ctx: DataAccessContext): ScriptUser {
     roles: subject?.roles ?? [],
     departmentId: subject?.departmentId,
     ...(subject?.tenantId === undefined ? {} : { tenantId: subject.tenantId }),
+    ...(subject?.scopeId === undefined ? {} : { scopeId: subject.scopeId }),
   };
 }
 
@@ -665,10 +661,10 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
       }
       Object.assign(record, payload);
 
-      // multi-tenancy: force the tenant column to the subject's tenant — a
-      // tenant-scoped subject must not create rows attributed to another tenant
-      const tenantField = tenantFieldName(def);
-      const tenant = tenantOf(ctx);
+      // row-scope: force the scope column to the subject's scope — a scoped
+      // subject must not create rows attributed to another scope
+      const tenantField = scopeFieldName(def);
+      const tenant = scopeOf(ctx);
       if (tenantField !== undefined && tenant !== undefined) record[tenantField] = tenant;
 
       const seqFields = def.fields.filter((f) => f.type === FIELD_TYPES.SEQ_NO);
@@ -811,10 +807,10 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
         }
       }
 
-      // multi-tenancy: the tenant column is immutable — a tenant-scoped subject
-      // must not move a row into another tenant
-      const tenantField = tenantFieldName(def);
-      const tenant = tenantOf(ctx);
+      // row-scope: the scope column is immutable — a scoped subject must not move
+      // a row into another scope (error code kept as `object.tenant.immutable` for compat)
+      const tenantField = scopeFieldName(def);
+      const tenant = scopeOf(ctx);
       if (
         tenantField !== undefined &&
         tenant !== undefined &&

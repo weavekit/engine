@@ -3,6 +3,7 @@ import { READ_SCOPES, ROW_SCOPE_MARKERS, SCOPE_SOURCES } from '../types/index.js
 import type { Locale } from '../i18n/index.js';
 import { SchemaError } from '../types/errors.js';
 import type { IdentitySubject } from '../provider/identity/types.js';
+import { scopeFieldName } from './scopeMarker.js';
 
 export interface RowScopeFragment {
   sql: string;
@@ -99,16 +100,19 @@ export function buildRowScope(
   alias?: string,
 ): RowScopeFragment | undefined {
   const base = baseRowScope(def, scope, subject, roles, locale, alias);
-  // tenant boundary applies on top of RBAC (even for `all`); a tenant-less
-  // subject or an object without a tenant column leaves the scope unchanged
-  const tenantField = markerField(def, ROW_SCOPE_MARKERS.TENANT);
-  if (tenantField === undefined || subject.tenantId === undefined) return base;
-  const tenantFragment: RowScopeFragment = {
-    sql: `${col(alias, tenantField.name)} = $${base === undefined ? 1 : 2}`,
-    params: [subject.tenantId],
+  // scope boundary applies on top of RBAC (even for `all`); a scope-less
+  // subject or an object without a scope column leaves the scope unchanged.
+  // The row-scope key is the generic `scope` marker (the `tenant` alias still
+  // works), valued by `subject.scopeId ?? subject.tenantId`.
+  const scopeField = scopeFieldName(def);
+  const scopeValue = subject.scopeId ?? subject.tenantId;
+  if (scopeField === undefined || scopeValue === undefined) return base;
+  const scopeFragment: RowScopeFragment = {
+    sql: `${col(alias, scopeField)} = $${base === undefined ? 1 : 2}`,
+    params: [scopeValue],
   };
-  if (base === undefined) return tenantFragment;
-  return { sql: `${base.sql} AND ${tenantFragment.sql}`, params: [...base.params, ...tenantFragment.params] };
+  if (base === undefined) return scopeFragment;
+  return { sql: `${base.sql} AND ${scopeFragment.sql}`, params: [...base.params, ...scopeFragment.params] };
 }
 
 function baseRowScope(

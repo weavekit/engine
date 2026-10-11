@@ -93,12 +93,18 @@ export const READ_SCOPES = {
 } as const;
 export type ReadScope = typeof READ_SCOPES[keyof typeof READ_SCOPES];
 
-/** field markers that declare row-level scope columns (ownership/department/tenant) */
+/** field markers that declare row-level scope columns (ownership/department/tenant/scope) */
 export const ROW_SCOPE_MARKERS = {
   OWNERSHIP: 'ownership',
   DEPARTMENT: 'department',
   /** tenant column: every read/write is implicitly scoped to the subject's tenant */
   TENANT: 'tenant',
+  /**
+   * generic row-scope column: same semantics as `tenant` (a single column scopes
+   * every read/write to the subject's scope value). `scope` is the canonical
+   * name; `tenant` is the retained alias. An object may declare at most one.
+   */
+  SCOPE: 'scope',
 } as const;
 export type RowScopeMarker = typeof ROW_SCOPE_MARKERS[keyof typeof ROW_SCOPE_MARKERS];
 

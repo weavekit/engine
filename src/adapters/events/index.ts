@@ -62,8 +62,10 @@ function passesFilter(event: EngineEvent, subject: IdentitySubject, readable: Se
       const payload = event.payload as AuditEventPayload;
       if (isAdmin) return true;
       if (payload.event.actorId !== subject.id) return false;
-      // tenant boundary: a tenant-scoped identity never sees another tenant's events
-      return subject.tenantId === undefined || payload.event.tenantId === undefined || payload.event.tenantId === subject.tenantId;
+      // row-scope boundary: a scoped identity never sees another scope's events
+      const eventScope = payload.event.scopeId ?? payload.event.tenantId;
+      const subjectScope = subject.scopeId ?? subject.tenantId;
+      return subjectScope === undefined || eventScope === undefined || eventScope === subjectScope;
     }
     default:
       return true; // schema.changed — broadcast

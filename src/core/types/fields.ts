@@ -56,6 +56,8 @@ export interface StringField extends FieldBase {
   departmentSource?: ScopeSource;
   /** tenant marker: every read/write is implicitly scoped to the subject's tenant (at most one per object) */
   tenant?: boolean;
+  /** generic row-scope marker (canonical name; alias of `tenant`); at most one of `scope`/`tenant` per object */
+  scope?: boolean;
 }
 
 export interface TextField extends FieldBase {

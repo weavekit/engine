@@ -1,5 +1,6 @@
 export { registerObjectRoutes } from './plugin.js';
 export type { RestDeps, RestOptions } from './plugin.js';
+export type { PrincipalResolver } from './common.js';
 export { setErrorHandlers } from './errorHandler.js';
 export { registerMetadataRoutes } from './metadata.js';
 export { registerPermissionsRoutes } from './permissions.js';
@@ -14,6 +15,10 @@ export { registerGuardrailsRoutes } from './guardrails.js';
 export { registerIdentitiesRoutes } from './identities.js';
 export { registerIdentityAdminRoutes } from './identityAdmin.js';
 export type { IdentityAdminRouteDeps } from './identityAdmin.js';
+export { registerIdentitySyncRoutes } from './identitySync.js';
+export type { IdentitySyncRouteDeps } from './identitySync.js';
+export { registerCapabilitiesRoutes } from './capabilities.js';
+export type { CapabilitiesRouteDeps } from './capabilities.js';
 export { registerProxyRoutes } from './proxy.js';
 export type { ProxyRouteDeps } from './proxy.js';
 export { registerIngressRoutes } from './ingress.js';

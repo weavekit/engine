@@ -1,5 +1,5 @@
 import type { ObjectDefinition, IdentitySubject } from '../../core/index.js';
-import { DETAILS_COLUMNS, METRIC_NAMES, SchemaError, primaryFieldsOf, principalActorId, principalTenantId, recordKeySql } from '../../core/index.js';
+import { DETAILS_COLUMNS, METRIC_NAMES, SchemaError, primaryFieldsOf, principalActorId, principalScopeId, recordKeySql } from '../../core/index.js';
 import type { Locale, MetricsSink } from '../../core/index.js';
 import {
   assertCanCreate,
@@ -73,7 +73,7 @@ function denied(
 ): void {
   if (sink === undefined) return;
   const principal = ctx.principal;
-  const tenant = principalTenantId(principal);
+  const scope = principalScopeId(principal);
   void sink.record({
     actorType: principal.kind === 'user' ? AUDIT_ACTOR_TYPES.USER : AUDIT_ACTOR_TYPES.SYSTEM,
     actorId: principalActorId(principal),
@@ -85,7 +85,7 @@ function denied(
     ...(principal.kind === 'system' ? { meta: { capability: principal.capability } } : {}),
     ...(ctx.requestId === undefined ? {} : { requestId: ctx.requestId }),
     ...(ctx.traceId === undefined ? {} : { traceId: ctx.traceId }),
-    ...(tenant === undefined ? {} : { tenantId: tenant }),
+    ...(scope === undefined ? {} : { tenantId: scope, scopeId: scope }),
     timestamp: new Date(),
   });
 }

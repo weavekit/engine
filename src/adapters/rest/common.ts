@@ -1,7 +1,9 @@
 import { SchemaError } from '../../core/index.js';
-import type { Locale, IdentitySubject } from '../../core/index.js';
+import type { Locale, IdentitySubject, AccessPrincipal } from '../../core/index.js';
+import { userPrincipal } from '../../core/index.js';
 import type { SlidingWindow } from '../../core/limiter/index.js';
 import { authenticate, type Authenticator } from '../auth/index.js';
+import type { FastifyRequest } from 'fastify';
 
 /** raw API key from the Authorization header (rate-limit key, mirrors MCP) */
 export function rateKey(header: string | undefined): string | undefined {
@@ -30,6 +32,25 @@ export async function authenticateRequest(
   locale: Locale,
 ): Promise<IdentitySubject> {
   return authenticate(authenticator, request.headers.authorization, locale);
+}
+
+/**
+ * Map an authenticated subject to the {@link AccessPrincipal} the data-access
+ * layer runs as. A host may inject `principalFor` to elevate a request to a
+ * **system principal** (e.g. a control plane's cross-tenant admin scope, D32);
+ * absent = plain `userPrincipal(subject)` (unchanged behavior).
+ */
+export type PrincipalResolver = (
+  request: FastifyRequest,
+  subject: IdentitySubject,
+) => AccessPrincipal | Promise<AccessPrincipal>;
+
+export function resolvePrincipal(
+  principalFor: PrincipalResolver | undefined,
+  request: FastifyRequest,
+  subject: IdentitySubject,
+): AccessPrincipal | Promise<AccessPrincipal> {
+  return principalFor === undefined ? userPrincipal(subject) : principalFor(request, subject);
 }
 
 /**

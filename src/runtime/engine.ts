@@ -42,13 +42,15 @@ import { createApprovals, type ApprovalsQueue } from './tools/index.js';
 import { resolvePolicies } from './tools/policies.js';
 import type { ToolExecutor } from './tools/index.js';
 import type { ProxyForwarder } from './proxy/index.js';
-import { buildAuthenticator, createDirectoryAuthenticator, enforceSyncedIdentity, withDefaultTenant, type AuthSource, type AuthVerifier, type Authenticator } from '../adapters/auth/index.js';
+import { buildAuthenticator, createDirectoryAuthenticator, enforceSyncedIdentity, withDefaultTenant, withDefaultScope, type AuthSource, type AuthVerifier, type Authenticator } from '../adapters/auth/index.js';
 import type { IdentitySource, IdentityStore } from '../core/provider/identity/index.js';
+import type { CapabilitiesProvider } from '../core/provider/capabilities/index.js';
 import type { PgIdentitySourceConfig } from './identity/sources/pg.js';
 import { PgIdentityDirectory, PgIdentityStore, IdentityAdmin, resolveIdentitySource, runIdentitySync } from './identity/index.js';
 import {
   registerAuditRoutes,
   registerApprovalsRoutes,
+  registerCapabilitiesRoutes,
   registerMetadataRoutes,
   registerObjectRoutes,
   registerPagesRoutes,
@@ -58,10 +60,12 @@ import {
   registerSchemaRoutes,
   registerGuardrailsRoutes,
   registerIdentitiesRoutes,
+  registerIdentitySyncRoutes,
   registerWorkflowRoutes,
   registerWorkflowSourceRoutes,
   setErrorHandlers,
   type RestOptions,
+  type PrincipalResolver,
 } from '../adapters/rest/index.js';
 import { registerScriptRoutes } from '../adapters/rest/scripts.js';
 import { registerIdentityAdminRoutes } from '../adapters/rest/identityAdmin.js';
@@ -95,6 +99,12 @@ export interface EngineRestConfig {
   bodyLimit?: number;
   /** roles allowed to query the full audit trail and use admin script-source read/write routes */
   adminRoles?: string[];
+  /**
+   * maps an authenticated request to the data-access principal (see
+   * `PrincipalResolver`). A control plane injects this to run requests under a
+   * **system/admin scope** (cross-tenant global views, D32); absent = `userPrincipal`.
+   */
+  principalFor?: PrincipalResolver;
 }
 
 /** audit subsystem config (optional; disabled = not loaded = zero overhead) */
@@ -316,6 +326,13 @@ export interface EngineConfig {
    * scope (enterprise).
    */
   tenants?: { enabled?: boolean; defaultTenant?: string };
+  /**
+   * Generic row-scope (canonical twin of {@link tenants}). When enabled, a
+   * subject without a scope is stamped with `defaultScope`, and objects
+   * declaring a `scope` (or `tenant`) field are scoped to the subject's scope
+   * (RBAC row scope + RLS GUCs + audit). Absent = single-scope (unchanged).
+   */
+  scope?: { enabled?: boolean; defaultScope?: string };
   /** generic outbound proxy route wiring (applications provide the resolver) */
   proxy?: EngineProxyConfig;
   /**
@@ -352,6 +369,13 @@ export interface EngineConfig {
    * / `weavekit_department` before the engine serves scoped access.
    */
   identity?: EngineIdentityConfig;
+  /**
+   * capabilities (feature/entitlement) read-only seam (see
+   * `core/provider/capabilities`). The engine **never judges licensing** — a host
+   * (e.g. `@weave-kit/enterprise` E0) injects a `CapabilitiesProvider`; absent =
+   * baseline (no features). Surfaced at `GET {prefix}/capabilities`.
+   */
+  capabilities?: { provider?: CapabilitiesProvider };
   /**
    * host-level background services (e.g. an instance-liveness monitor). Started
    * after the engine is assembled and stopped in `close()`, so both `weave dev`
@@ -634,6 +658,10 @@ export async function buildEngineFromRegistry(
   if (config.tenants?.enabled === true && config.tenants.defaultTenant !== undefined) {
     authenticator = withDefaultTenant(authenticator, config.tenants.defaultTenant);
   }
+  // generic row-scope: stamp the configured default scope on subjects that lack one
+  if (config.scope?.enabled === true && config.scope.defaultScope !== undefined) {
+    authenticator = withDefaultScope(authenticator, config.scope.defaultScope);
+  }
 
   // tool mechanism: load custom tools when config.tools.toolsDir is set
   // (absent = not loaded = zero overhead). The executor wraps the RBAC-decorated
@@ -712,6 +740,7 @@ export async function buildEngineFromRegistry(
       restOptions.rateLimiter = createSlidingWindow(rest.rateLimit);
     }
     restOptions.adminRoles = rest?.adminRoles;
+    restOptions.principalFor = rest?.principalFor;
     if (rest?.cors !== undefined) {
       // @fastify/cors defaults to GET,HEAD,POST — the engine's REST also uses
       // PATCH/DELETE, so default the allowed methods to the engine surface when
@@ -793,6 +822,26 @@ export async function buildEngineFromRegistry(
     );
     // greenfield identity administration (admin-gated): list/create/enable users
     registerIdentityAdminRoutes(app, { authenticator, locale, admin: new IdentityAdmin(identityStore) }, restOptions);
+    // identity sync trigger (admin-gated): manually provision the configured source
+    if (identityCfg?.source !== undefined) {
+      registerIdentitySyncRoutes(
+        app,
+        {
+          authenticator,
+          locale,
+          store: identityStore,
+          source: resolveIdentitySource(identityCfg.source, pool),
+          ...(identityCfg.sync?.deactivateMissing === undefined ? {} : { deactivateMissingDefault: identityCfg.sync.deactivateMissing }),
+        },
+        restOptions,
+      );
+    }
+    // capabilities (feature/entitlement) read-only: baseline + host-injected provider
+    registerCapabilitiesRoutes(
+      app,
+      { authenticator, locale, ...(config.capabilities?.provider === undefined ? {} : { capabilities: config.capabilities.provider }) },
+      restOptions,
+    );
     // frontend metadata contract (framework-agnostic, all frontend adapters consume these)
     registerMetadataRoutes(app, { registry, pool, dataAccess, authenticator, locale }, restOptions);
     registerPermissionsRoutes(app, { registry, pool, dataAccess, authenticator, locale }, restOptions);

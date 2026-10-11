@@ -15,7 +15,7 @@ export type SystemCapability = typeof SYSTEM_CAPABILITIES[keyof typeof SYSTEM_CA
 
 export type AccessPrincipal =
   | { kind: 'user'; subject: IdentitySubject }
-  | { kind: 'system'; capability: SystemCapability; reason?: string; tenantId?: string };
+  | { kind: 'system'; capability: SystemCapability; reason?: string; tenantId?: string; scopeId?: string };
 
 /** build a user principal */
 export function userPrincipal(subject: IdentitySubject): AccessPrincipal {
@@ -40,6 +40,13 @@ export function principalSubject(principal: AccessPrincipal): IdentitySubject | 
 /** the tenant a principal acts within (user subject's tenant, or a system principal's) */
 export function principalTenantId(principal: AccessPrincipal): string | undefined {
   return principal.kind === 'user' ? principal.subject.tenantId : principal.tenantId;
+}
+
+/** the row-scope a principal acts within (canonical; `scopeId ?? tenantId`) */
+export function principalScopeId(principal: AccessPrincipal): string | undefined {
+  return principal.kind === 'user'
+    ? (principal.subject.scopeId ?? principal.subject.tenantId)
+    : (principal.scopeId ?? principal.tenantId);
 }
 
 /** true for a system principal */

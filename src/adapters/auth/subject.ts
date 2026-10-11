@@ -61,8 +61,23 @@ export function withDefaultTenant(inner: Authenticator, defaultTenant: string): 
   return {
     async resolve(header: string | undefined): Promise<IdentitySubject | null> {
       const subject = await inner.resolve(header);
-      if (subject === null || subject.tenantId !== undefined) return subject;
+      if (subject === null || subject.scopeId !== undefined || subject.tenantId !== undefined) return subject;
       return { ...subject, tenantId: defaultTenant };
+    },
+  };
+}
+
+/**
+ * Generic scope stamping (the `scope` twin of {@link withDefaultTenant}): a
+ * subject without a scope is stamped with the configured default scope. A
+ * subject that already carries `scopeId`/`tenantId` is left untouched.
+ */
+export function withDefaultScope(inner: Authenticator, defaultScope: string): Authenticator {
+  return {
+    async resolve(header: string | undefined): Promise<IdentitySubject | null> {
+      const subject = await inner.resolve(header);
+      if (subject === null || subject.scopeId !== undefined || subject.tenantId !== undefined) return subject;
+      return { ...subject, scopeId: defaultScope };
     },
   };
 }

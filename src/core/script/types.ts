@@ -32,6 +32,8 @@ export interface ScriptUser {
   departmentId?: string;
   /** tenant of the subject (multi-tenancy) */
   tenantId?: string;
+  /** generic row-scope of the subject (canonical; `scopeId ?? tenantId`) */
+  scopeId?: string;
 }
 
 /** filter/sort shapes are structurally compatible with the data-access layer */

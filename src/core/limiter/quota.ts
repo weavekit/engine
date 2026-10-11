@@ -45,12 +45,16 @@ export function periodBounds(now: Date, period: CounterPeriod): { start: Date; r
 }
 
 /**
- * Namespace a quota/counter key by tenant (multi-tenancy). An absent tenant
- * leaves the key unchanged (single-tenant), so existing keys are unaffected.
+ * Namespace a quota/counter key by row-scope (canonical; `scopeId ?? tenantId`).
+ * An absent scope leaves the key unchanged (single-scope), so existing keys are
+ * unaffected.
  */
-export function scopedQuotaKey(tenantId: string | undefined, key: string): string {
-  return tenantId === undefined || tenantId === '' ? key : `${tenantId}:${key}`;
+export function scopedKey(scopeId: string | undefined, key: string): string {
+  return scopeId === undefined || scopeId === '' ? key : `${scopeId}:${key}`;
 }
+
+/** @deprecated use {@link scopedKey} (retained tenant-named alias) */
+export const scopedQuotaKey = scopedKey;
 
 /**
  * Consume `amount` (default 1) against `policy`; never throws — inspect

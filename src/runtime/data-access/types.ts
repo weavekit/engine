@@ -2,7 +2,7 @@ import type { Pool, PoolClient } from "pg";
 import type { Locale } from "../../core/index.js";
 import type { ObjectRegistry } from "../../core/index.js";
 import type { AccessPrincipal, IdentitySubject } from "../../core/index.js";
-import { principalSubject, principalTenantId } from "../../core/index.js";
+import { principalSubject, principalScopeId, principalTenantId } from "../../core/index.js";
 import type { FilterOp, SortDir } from "./values.js";
 import type { QueryBudget } from "./query-budget.js";
 import type { WorkflowStatus, WorkflowHistory, WorkflowTodo, WorkflowOverride } from "./workflow.js";
@@ -83,6 +83,8 @@ export interface DataAccessContext {
   schemaRevision?: string;
   /** tenant scope override (multi-tenancy); defaults to the principal's tenant */
   tenantId?: string;
+  /** generic row-scope override (canonical; `scopeId ?? tenantId`); defaults to the principal's scope */
+  scopeId?: string;
   /** per-context query budget override (defaults to the data-access instance's budget) */
   budget?: QueryBudget;
   /**
@@ -106,6 +108,11 @@ export function isSystemCtx(ctx: DataAccessContext): boolean {
 /** the tenant scope of a context (explicit `tenantId`, else the principal's tenant) */
 export function tenantOf(ctx: DataAccessContext): string | undefined {
   return ctx.tenantId ?? principalTenantId(ctx.principal);
+}
+
+/** the generic row-scope of a context (explicit `scopeId`/`tenantId`, else the principal's scope) */
+export function scopeOf(ctx: DataAccessContext): string | undefined {
+  return ctx.scopeId ?? ctx.tenantId ?? principalScopeId(ctx.principal);
 }
 
 /** contract for the controlled object data-access layer */

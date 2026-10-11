@@ -81,6 +81,8 @@ export interface AuditEvent {
   traceId?: string;
   /** tenant the event belongs to (multi-tenancy); absent = single-tenant */
   tenantId?: string;
+  /** generic row-scope the event belongs to (canonical; `scopeId ?? tenantId`) */
+  scopeId?: string;
   /** extension: onBehalfOf/agentLabel/tool/latency etc. */
   meta?: Record<string, unknown>;
   timestamp: Date;
@@ -136,6 +138,8 @@ export interface AuditQuery {
   to?: Date;
   /** scope to one tenant (multi-tenancy); absent = all tenants (admin) */
   tenantId?: string;
+  /** scope to one row-scope value (canonical; `scopeId ?? tenantId`); absent = all (admin) */
+  scopeId?: string;
   /** generic `weavekit_audit` column filter; OR'd/AND'd with the typed fields above */
   filter?: AuditFilter;
   limit?: number;

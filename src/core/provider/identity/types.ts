@@ -20,6 +20,12 @@ export interface IdentitySubject {
   departmentId?: string;
   /** tenant the subject belongs to (multi-tenancy; absent = single-tenant) */
   tenantId?: string;
+  /**
+   * generic row-scope value (the canonical name; `scopeId ?? tenantId`). Scopes
+   * objects declaring a `scope`/`tenant` field to this value (RBAC row scope +
+   * RLS + audit).
+   */
+  scopeId?: string;
 }
 
 /** an authenticated but not-yet-resolved identity (a verifier's output) */

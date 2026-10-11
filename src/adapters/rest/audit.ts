@@ -62,13 +62,14 @@ export function registerAuditRoutes(app: FastifyInstance, deps: RestDeps, option
     } else if (!isAdmin) {
       filter.actorId = subject.id;
     }
-    // tenant boundary: an ordinary identity only sees its own tenant's events
-    // (admins may filter by tenantId explicitly)
-    const rawTenant = readString(query, 'tenantId', locale);
-    if (!isAdmin && subject.tenantId !== undefined) {
-      filter.tenantId = subject.tenantId;
-    } else if (isAdmin && rawTenant !== undefined) {
-      filter.tenantId = rawTenant;
+    // row-scope boundary: an ordinary identity only sees its own scope's events
+    // (admins may filter by scopeId / tenantId explicitly)
+    const rawScope = readString(query, 'scopeId', locale) ?? readString(query, 'tenantId', locale);
+    const subjectScope = subject.scopeId ?? subject.tenantId;
+    if (!isAdmin && subjectScope !== undefined) {
+      filter.scopeId = subjectScope;
+    } else if (isAdmin && rawScope !== undefined) {
+      filter.scopeId = rawScope;
     }
 
     const action = readString(query, 'action', locale);

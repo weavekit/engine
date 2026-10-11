@@ -39,7 +39,7 @@ export async function insertAudit(db: SqlQueryable, event: AuditEvent): Promise<
       event.errorCode ?? null,
       event.requestId ?? null,
       event.traceId ?? null,
-      event.tenantId ?? null,
+      event.scopeId ?? event.tenantId ?? null,
       event.meta === undefined ? null : JSON.stringify(event.meta),
       event.timestamp,
     ],
@@ -59,7 +59,7 @@ export async function insertAuditBatch(db: SqlQueryable, events: AuditEvent[]): 
       event.before === undefined ? null : JSON.stringify(event.before),
       event.after === undefined ? null : JSON.stringify(event.after),
       event.isError ?? false, event.errorCode ?? null,
-      event.requestId ?? null, event.traceId ?? null, event.tenantId ?? null,
+      event.requestId ?? null, event.traceId ?? null, event.scopeId ?? event.tenantId ?? null,
       event.meta === undefined ? null : JSON.stringify(event.meta),
       event.timestamp);
     values.push(
@@ -190,7 +190,8 @@ export async function queryAudit(pool: Pool, query: AuditQuery = {}): Promise<Au
   if (query.object !== undefined) push('object = ?', query.object);
   if (query.from !== undefined) push('ts >= ?', query.from);
   if (query.to !== undefined) push('ts <= ?', query.to);
-  if (query.tenantId !== undefined) push('tenant_id = ?', query.tenantId);
+  const scopeFilter = query.scopeId ?? query.tenantId;
+  if (scopeFilter !== undefined) push('tenant_id = ?', scopeFilter);
   auditFilterWhere(query.filter, where, params);
   const whereSql = where.length === 0 ? '' : ` WHERE ${where.join(' AND ')}`;
 
@@ -230,6 +231,7 @@ export async function queryAudit(pool: Pool, query: AuditQuery = {}): Promise<Au
     requestId: row.request_id ?? undefined,
     traceId: row.trace_id ?? undefined,
     tenantId: row.tenant_id ?? undefined,
+    scopeId: row.tenant_id ?? undefined,
     meta: row.meta ?? undefined,
     timestamp: new Date(row.ts as string),
   }));

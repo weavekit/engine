@@ -3,6 +3,28 @@
 All notable changes to `@weave-kit/engine`. Format follows [Keep a Changelog](https://keepachangelog.com/);
 the project uses [Semantic Versioning](https://semver.org/).
 
+## [1.2.0] - 2026-10-11
+
+Additive (no `CONTRACT_VERSION` bump): seams for the Cloud/Console control plane.
+
+### Added
+
+- **Generic row-scope (`scope`).** The canonical twin of `tenant`: a field marked `"scope": true`
+  scopes reads/writes to `subject.scopeId ?? subject.tenantId` — RBAC row scope + native RLS
+  (`weavekit.scope_id` GUC; `weavekit.tenant_id` retained and set alongside) + audit (`scopeId`).
+  `EngineConfig.scope`, `withDefaultScope`, `principalScopeId` / `scopeOf` / `scopedKey`, and the
+  `scopeId` alias on `IdentitySubject` / `AuditEvent` / `AuditQuery` / SSE events are additive; the
+  `tenant` names keep working.
+- **REST `principalFor` seam.** `EngineRestConfig.principalFor` maps an authenticated request to an
+  `AccessPrincipal`, letting a control plane run requests under a **system/admin scope**
+  (`systemPrincipal(SYSTEM_CAPABILITIES.INTERNAL_ADMIN)`) for cross-tenant global views.
+- **Identity sync trigger.** `POST {prefix}/identity/sync` (admin-gated) runs the configured
+  `identity.source` (`runIdentitySync`) on demand — the manual projection step for site members
+  (`dryRun` supported).
+- **Capabilities read seam.** `EngineConfig.capabilities.provider` + `GET {prefix}/capabilities`
+  (baseline + host-injected `Capabilities`). The engine surfaces entitlements verbatim and never
+  judges licensing.
+
 ## [1.1.0] - 2026-10-10
 
 ### Removed

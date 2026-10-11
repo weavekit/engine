@@ -15,5 +15,6 @@ export {
 } from './authorize.js';
 export { buildRowScope } from './rowScope.js';
 export { resolvePermissionFor, buildRowScopeFor, type ObjectLookup } from './details.js';
+export { scopeFieldName, scopeMarkerOf } from './scopeMarker.js';
 export { excludedFields } from './fields.js';
 export { buildRlsPolicy, buildRlsPolicyDdl, buildRlsGrantDdl, policyName, isSafeRlsRole } from './rls.js';

@@ -54,9 +54,9 @@ tests/              unit + e2e (node --test)
   removed in 2026-10).
 - Enums are always `as const` single sources of truth, with types derived via
   `typeof x[keyof typeof x]`; never a second hardcoded literal union
-- **Multi-tenancy (row)**: a `"tenant": true` field scopes reads/writes to the subject tenant (RBAC
-  row scope + RLS GUC `weavekit.tenant_id` + audit); forced on create, immutable on update; absent
-  tenant = single-tenant. Tenant lifecycle / schema-per-tenant are enterprise (out of engine scope)
+- **Multi-tenancy (row)**: a `tenant: true` field (alias `"scope": true`) scopes reads/writes to the subject
+  scope (RBAC row scope + RLS GUC `weavekit.scope_id`/`weavekit.tenant_id` + audit); immutable; absent = single-scope
+- **Control-plane seams**: REST `principalFor`; `POST {prefix}/identity/sync`; `GET {prefix}/capabilities`
 - **Execution**: `runtime/execution` `runPipeline` drives writes (gate `object.<obj>.<op>`) and tool
   calls (Plan→…→Evidence); `evidence.enabled` records `weavekit_evidence`. `CONTRACT_VERSION` freezes
   the public contract — post-1.0 evolution is additive only

@@ -9,8 +9,9 @@ export interface RestrictedSqlSubject {
   id: string;
   roles: string[];
   departmentId?: string;
-  /** tenant of the subject (multi-tenancy); carried to RLS via `weavekit.tenant_id` */
+  /** row-scope of the subject (scopeId ?? tenantId); carried to RLS via the `weavekit.scope_id`/`weavekit.tenant_id` GUCs */
   tenantId?: string;
+  scopeId?: string;
 }
 
 export interface RestrictedSqlRls {
@@ -117,8 +118,13 @@ export async function executeRestrictedSql(
       if (subject.departmentId !== undefined) {
         await client.query(`SET LOCAL weavekit.department_id = ${gucLiteral(subject.departmentId)}`);
       }
-      if (subject.tenantId !== undefined) {
-        await client.query(`SET LOCAL weavekit.tenant_id = ${gucLiteral(subject.tenantId)}`);
+      // row-scope key: set BOTH GUCs (generic `weavekit.scope_id` + the retained
+      // `weavekit.tenant_id` alias) from the resolved scope value, so policies
+      // generated for either marker name match.
+      const scopeValue = subject.scopeId ?? subject.tenantId;
+      if (scopeValue !== undefined) {
+        await client.query(`SET LOCAL weavekit.scope_id = ${gucLiteral(scopeValue)}`);
+        await client.query(`SET LOCAL weavekit.tenant_id = ${gucLiteral(scopeValue)}`);
       }
     }
     const result = await client.query(

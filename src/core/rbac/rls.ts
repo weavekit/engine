@@ -2,6 +2,7 @@ import type { ObjectDefinition } from '../types/index.js';
 import { READ_SCOPES, ROW_SCOPE_MARKERS } from '../types/index.js';
 import type { RowScopeMarker } from '../types/index.js';
 import { sqlIdent } from '../storage/sql-literals.js';
+import { scopeFieldName, scopeMarkerOf } from './scopeMarker.js';
 
 const q = (id: string) => `"${id}"`;
 
@@ -52,9 +53,14 @@ function markerField(def: ObjectDefinition, marker: RowScopeMarker): string | un
 export function buildRlsPolicy(def: ObjectDefinition): string | undefined {
   const base = baseRlsPolicy(def);
   if (base === undefined) return undefined;
-  const tenant = markerField(def, ROW_SCOPE_MARKERS.TENANT);
-  if (tenant === undefined) return base;
-  return `(${base}) AND current_setting('weavekit.tenant_id', true) = ${q(tenant)}`;
+  const marker = scopeMarkerOf(def);
+  if (marker === undefined) return base;
+  const field = scopeFieldName(def)!;
+  // the row-scope key is carried by a session GUC: `scope` marker → the generic
+  // `weavekit.scope_id`; the `tenant` alias keeps `weavekit.tenant_id`. The
+  // executor sets both from the resolved scope value, so either name works.
+  const guc = marker === 'scope' ? 'weavekit.scope_id' : 'weavekit.tenant_id';
+  return `(${base}) AND current_setting('${guc}', true) = ${q(field)}`;
 }
 
 function baseRlsPolicy(def: ObjectDefinition): string | undefined {
