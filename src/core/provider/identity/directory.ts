@@ -8,6 +8,9 @@ export interface IdentityUserRow {
   id: string;
   externalSource: string | null;
   externalId: string | null;
+  name?: string | null;
+  email?: string | null;
+  mobile?: string | null;
   roles: string[];
   departmentId: string | null;
   directorId: string | null;
@@ -19,6 +22,8 @@ export interface IdentityDepartmentRow {
   id: string;
   externalSource: string | null;
   externalId: string | null;
+  name?: string | null;
+  code?: string | null;
   parentId: string | null;
   managerId: string | null;
   enabled: boolean | null;
@@ -59,6 +64,15 @@ export interface IdentityUserCreate {
   enabled?: boolean | null;
 }
 
+/** greenfield department creation (an engine-owned department with no external source) */
+export interface IdentityDepartmentCreate {
+  name?: string | null;
+  code?: string | null;
+  parentId?: string | null;
+  managerId?: string | null;
+  enabled?: boolean | null;
+}
+
 /**
  * Replaceable persistence for the local identity directory (default: PG over
  * `weavekit_user`/`weavekit_department`). The engine-only `external_source` +
@@ -80,6 +94,14 @@ export interface IdentityStore {
   createUser(input: IdentityUserCreate): Promise<{ id: string }>;
   /** list local users (admin surface) */
   listUsers(): Promise<IdentityUserRow[]>;
+  /** set a user's roles (greenfield/external alike); false when the id is unknown */
+  updateUserRoles(id: string, roles: string[]): Promise<boolean>;
+  /** delete a user; false when the id is unknown */
+  deleteUser(id: string): Promise<boolean>;
+  /** create an engine-owned (greenfield) department with no external source */
+  createDepartment(input: IdentityDepartmentCreate): Promise<{ id: string }>;
+  /** list local departments (admin surface) */
+  listDepartments(): Promise<IdentityDepartmentRow[]>;
   setEnabled(kind: 'user' | 'department', id: string, enabled: boolean): Promise<void>;
   getCursor(source: string): Promise<string | null>;
   setCursor(source: string, cursor: string): Promise<void>;

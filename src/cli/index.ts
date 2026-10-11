@@ -11,7 +11,7 @@ import { dev } from './commands/dev.js';
 import { enumCheck, enumList } from './commands/enums.js';
 import { fieldAdd } from './commands/field-add.js';
 import { fieldTypeCheck, fieldTypeList } from './commands/field-types.js';
-import { identityCreate, identityList, identitySync, identityToggle } from './commands/identity.js';
+import { identityCreate, identityDelete, identityList, identitySetRoles, identitySync, identityToggle } from './commands/identity.js';
 import { introspect } from './commands/introspect.js';
 import { mcpConfig } from './commands/mcp-config.js';
 import { migrate } from './commands/migrate.js';
@@ -181,6 +181,21 @@ program
   .description('disable an identity (greenfield admin)')
   .action(async (id: string) => {
     await runAction(() => identityToggle(process.cwd(), { id, printer: printer() }, false));
+  });
+
+program
+  .command(`${WEAVE_COMMANDS.IDENTITY_SET_ROLES} <id>`)
+  .description("set an identity's roles (greenfield admin)")
+  .option('--roles <roles>', 'comma-separated roles (empty clears)')
+  .action(async (id: string, opts: { roles?: string }) => {
+    await runAction(() => identitySetRoles(process.cwd(), { id, roles: opts.roles, printer: printer() }));
+  });
+
+program
+  .command(`${WEAVE_COMMANDS.IDENTITY_DELETE} <id>`)
+  .description('delete an identity (greenfield admin)')
+  .action(async (id: string) => {
+    await runAction(() => identityDelete(process.cwd(), { id, printer: printer() }));
   });
 
 program

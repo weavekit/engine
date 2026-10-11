@@ -80,6 +80,41 @@ function memoryStore(): IdentityStore & { users: Map<string, IdentityUserRow>; d
     async listUsers() {
       return [...users.values()];
     },
+    async updateUserRoles(id, roles) {
+      for (const row of users.values()) {
+        if (row.id === id) {
+          row.roles = roles;
+          return true;
+        }
+      }
+      return false;
+    },
+    async deleteUser(id) {
+      for (const [k, row] of users) {
+        if (row.id === id) {
+          users.delete(k);
+          return true;
+        }
+      }
+      return false;
+    },
+    async createDepartment(input) {
+      const id = nextId();
+      depts.set(`local::${id}`, {
+        id,
+        externalSource: null,
+        externalId: null,
+        name: input.name ?? null,
+        code: input.code ?? null,
+        parentId: input.parentId ?? null,
+        managerId: input.managerId ?? null,
+        enabled: input.enabled ?? null,
+      });
+      return { id };
+    },
+    async listDepartments() {
+      return [...depts.values()];
+    },
     async setEnabled(kind, id, enabled) {
       const map: Map<string, { id: string; enabled: boolean | null }> = kind === 'user' ? users : depts;
       for (const row of map.values()) if (row.id === id) row.enabled = enabled;

@@ -39,6 +39,8 @@ accepts `--json` for machine-readable output.
 | `weave identity:list` | List engine-owned identities (greenfield admin) |
 | `weave identity:create <name>` | Create an engine-owned identity (greenfield admin) |
 | `weave identity:enable <id>` / `weave identity:disable <id>` | Enable / disable an identity |
+| `weave identity:set-roles <id> --roles a,b` | Replace an identity's roles (empty clears) |
+| `weave identity:delete <id>` | Delete an engine-owned identity |
 
 ## `create-weavekit-app` — project scaffolding
 
@@ -333,9 +335,10 @@ detection and optional soft-disable of rows missing from the snapshot. See [Iden
 
 - `--dry-run` — pull + diff the counts without writing.
 
-## `weave identity:list` / `identity:create <name>` / `identity:enable|disable <id>`
+## `weave identity:list` / `identity:create <name>` / `identity:enable|disable|set-roles|delete <id>`
 
 Greenfield administration of engine-owned identities (for projects with no external source): list,
-create (`--email`, `--roles a,b`, `--disabled`), and enable/disable. The same data is exposed by the
-admin REST surface `GET` / `POST /api/identity/users` and `PATCH /api/identity/users/:id`
-(gated by `adapters.rest.adminRoles`).
+create (`--email`, `--roles a,b`, `--disabled`), enable/disable, replace roles (`--roles a,b`), and
+delete. The same data is exposed by the admin REST surface under `/api/identity/*` (gated by
+`adapters.rest.adminRoles`): users (`GET` / `POST` / `PATCH :id` / `DELETE :id`) and departments
+(`GET` / `POST`).

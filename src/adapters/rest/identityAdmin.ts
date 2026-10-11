@@ -22,11 +22,21 @@ function parseRoles(value: unknown): string[] | undefined {
     .filter((s) => s !== '');
 }
 
+/** nullable string from a body value */
+function optString(value: unknown): string | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  return String(value);
+}
+
 /**
  * Greenfield identity administration (admin-gated, `adapters.rest.adminRoles`):
- *   GET   {prefix}/identity/users        → { users: [{ id, roles, departmentId, enabled, ... }] }
- *   POST  {prefix}/identity/users        → { id } (create an engine-owned user)
- *   PATCH {prefix}/identity/users/:id    → { id, enabled } (enable/disable)
+ *   GET    {prefix}/identity/users        → { users: [{ id, name, email, mobile, roles, departmentId, enabled }] }
+ *   POST   {prefix}/identity/users        → { id } (create an engine-owned user)
+ *   PATCH  {prefix}/identity/users/:id    → { id, enabled?, roles? } (enable/disable and/or set roles)
+ *   DELETE {prefix}/identity/users/:id    → 204
+ *   GET    {prefix}/identity/departments  → { departments: [...] }
+ *   POST   {prefix}/identity/departments  → { id } (create an engine-owned department)
  */
 export function registerIdentityAdminRoutes(
   app: FastifyInstance,
@@ -42,6 +52,8 @@ export function registerIdentityAdminRoutes(
     const subject = await authenticateRequest(authenticator, request, locale);
     requireAdmin(subject.roles, 'identity', options.adminRoles, locale);
   };
+
+  const notFound = (id: string): SchemaError => new SchemaError('data.recordNotFound', { object: 'weavekit_user', id }, locale);
 
   app.get(`${prefix}/identity/users`, async (request) => {
     await gate(request);
@@ -65,11 +77,43 @@ export function registerIdentityAdminRoutes(
     await gate(request);
     const { id } = request.params as { id: string };
     const body = (request.body ?? {}) as Record<string, unknown>;
-    if (typeof body.enabled !== 'boolean') {
-      throw new SchemaError('http.param.invalid', { param: 'enabled' }, locale);
+    const hasEnabled = body.enabled !== undefined;
+    const hasRoles = body.roles !== undefined;
+    if (!hasEnabled && !hasRoles) {
+      throw new SchemaError('http.param.invalid', { param: 'enabled|roles' }, locale);
     }
-    const ok = await admin.setEnabled(id, body.enabled);
-    if (!ok) throw new SchemaError('data.recordNotFound', { object: 'weavekit_user', id }, locale);
-    return { id, enabled: body.enabled };
+    if (hasEnabled) {
+      if (typeof body.enabled !== 'boolean') throw new SchemaError('http.param.invalid', { param: 'enabled' }, locale);
+      if (!(await admin.setEnabled(id, body.enabled))) throw notFound(id);
+    }
+    if (hasRoles) {
+      if (!(await admin.setRoles(id, parseRoles(body.roles) ?? []))) throw notFound(id);
+    }
+    return { id };
+  });
+
+  app.delete(`${prefix}/identity/users/:id`, async (request, reply) => {
+    await gate(request);
+    const { id } = request.params as { id: string };
+    if (!(await admin.remove(id))) throw notFound(id);
+    reply.code(204).send();
+  });
+
+  app.get(`${prefix}/identity/departments`, async (request) => {
+    await gate(request);
+    return { departments: await admin.listDepartments() };
+  });
+
+  app.post(`${prefix}/identity/departments`, async (request, reply) => {
+    await gate(request);
+    const body = (request.body ?? {}) as Record<string, unknown>;
+    const { id } = await admin.createDepartment({
+      name: optString(body.name) ?? null,
+      code: optString(body.code) ?? null,
+      parentId: optString(body.parentId) ?? null,
+      managerId: optString(body.managerId) ?? null,
+      enabled: body.enabled === undefined ? true : body.enabled === true,
+    });
+    return reply.code(201).send({ id });
   });
 }

@@ -94,6 +94,8 @@ weave identity:list
 weave identity:create "Alice" --email alice@x --roles admin,sales
 weave identity:disable <id>
 weave identity:enable  <id>
+weave identity:set-roles <id> --roles admin
+weave identity:delete  <id>
 ```
 
 Or the admin REST surface (gated by `adapters.rest.adminRoles`):
@@ -102,7 +104,10 @@ Or the admin REST surface (gated by `adapters.rest.adminRoles`):
 | --- | --- |
 | `GET /api/identity/users` | list local users |
 | `POST /api/identity/users` | create a user |
-| `PATCH /api/identity/users/:id` | enable/disable |
+| `PATCH /api/identity/users/:id` | enable/disable and/or set roles |
+| `DELETE /api/identity/users/:id` | delete a user |
+| `GET /api/identity/departments` | list local departments |
+| `POST /api/identity/departments` | create a department |
 
 ## Extending (enterprise)
 

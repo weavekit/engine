@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { Pool } from 'pg';
 import { getMeta, setMeta } from '../../core/storage/meta.js';
 import type {
+  IdentityDepartmentCreate,
   IdentityDepartmentInput,
   IdentityDepartmentRow,
   IdentityStore,
@@ -22,6 +23,10 @@ interface RawRow {
   id: string;
   external_source: string | null;
   external_id: string | null;
+  name?: string | null;
+  email?: string | null;
+  mobile?: string | null;
+  code?: string | null;
   roles?: unknown;
   department_id?: string | null;
   director_id?: string | null;
@@ -40,6 +45,9 @@ function mapUser(row: RawRow): IdentityUserRow {
     id: row.id,
     externalSource: row.external_source,
     externalId: row.external_id,
+    name: row.name ?? null,
+    email: row.email ?? null,
+    mobile: row.mobile ?? null,
     roles: toRoles(row.roles),
     departmentId: row.department_id ?? null,
     directorId: row.director_id ?? null,
@@ -52,6 +60,8 @@ function mapDepartment(row: RawRow): IdentityDepartmentRow {
     id: row.id,
     externalSource: row.external_source,
     externalId: row.external_id,
+    name: row.name ?? null,
+    code: row.code ?? null,
     parentId: row.parent_id ?? null,
     managerId: row.manager_id ?? null,
     enabled: row.enabled ?? null,
@@ -59,8 +69,8 @@ function mapDepartment(row: RawRow): IdentityDepartmentRow {
 }
 
 const USER_COLS =
-  'id, external_source, external_id, roles, department_id, director_id, enabled';
-const DEPT_COLS = 'id, external_source, external_id, parent_id, manager_id, enabled';
+  'id, external_source, external_id, name, email, mobile, roles, department_id, director_id, enabled';
+const DEPT_COLS = 'id, external_source, external_id, name, code, parent_id, manager_id, enabled';
 
 export class PgIdentityStore implements IdentityStore {
   constructor(private readonly pool: Pool) {}
@@ -192,6 +202,43 @@ export class PgIdentityStore implements IdentityStore {
   async listUsers(): Promise<IdentityUserRow[]> {
     const res = await this.pool.query(`SELECT ${USER_COLS} FROM weavekit_user ORDER BY name NULLS LAST, id`);
     return (res.rows as RawRow[]).map(mapUser);
+  }
+
+  async updateUserRoles(id: string, roles: string[]): Promise<boolean> {
+    const res = await this.pool.query(`UPDATE weavekit_user SET roles = $2::jsonb WHERE id = $1`, [
+      id,
+      JSON.stringify(roles),
+    ]);
+    return (res.rowCount ?? 0) > 0;
+  }
+
+  async deleteUser(id: string): Promise<boolean> {
+    const res = await this.pool.query(`DELETE FROM weavekit_user WHERE id = $1`, [id]);
+    return (res.rowCount ?? 0) > 0;
+  }
+
+  async createDepartment(input: IdentityDepartmentCreate): Promise<{ id: string }> {
+    const res = await this.pool.query(
+      `INSERT INTO weavekit_department (id, name, code, parent_id, manager_id, enabled)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING id`,
+      [
+        randomUUID(),
+        input.name ?? null,
+        input.code ?? null,
+        input.parentId ?? null,
+        input.managerId ?? null,
+        input.enabled ?? null,
+      ],
+    );
+    return { id: (res.rows[0] as { id: string }).id };
+  }
+
+  async listDepartments(): Promise<IdentityDepartmentRow[]> {
+    const res = await this.pool.query(
+      `SELECT ${DEPT_COLS} FROM weavekit_department ORDER BY name NULLS LAST, id`,
+    );
+    return (res.rows as RawRow[]).map(mapDepartment);
   }
 
   async getCursor(source: string): Promise<string | null> {

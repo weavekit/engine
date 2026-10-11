@@ -4,7 +4,9 @@ import { IdentityAdmin, PgIdentityStore, resolveIdentitySource, runIdentitySync 
 import { loadConfig } from '../load-config.js';
 import type {
   IdentityCreateOptions,
+  IdentityDeleteOptions,
   IdentityListOptions,
+  IdentityRolesOptions,
   IdentitySyncOptions,
   IdentityToggleOptions,
 } from '../types/index.js';
@@ -118,6 +120,33 @@ export async function identityToggle(
     if (!ok) throw new Error(`identity "${options.id}" not found`);
     options.printer.log(`${enabled ? 'enabled' : 'disabled'} identity ${options.id}`);
     options.printer.data({ id: options.id, enabled });
+  } finally {
+    await pool.end();
+  }
+}
+
+/** `weave identity:set-roles <id> --roles a,b` */
+export async function identitySetRoles(cwd: string, options: IdentityRolesOptions): Promise<void> {
+  const { admin, pool } = await openAdmin(cwd);
+  try {
+    const roles = parseRoles(options.roles) ?? [];
+    const ok = await admin.setRoles(options.id, roles);
+    if (!ok) throw new Error(`identity "${options.id}" not found`);
+    options.printer.log(`set roles for identity ${options.id}`);
+    options.printer.data({ id: options.id, roles });
+  } finally {
+    await pool.end();
+  }
+}
+
+/** `weave identity:delete <id>` */
+export async function identityDelete(cwd: string, options: IdentityDeleteOptions): Promise<void> {
+  const { admin, pool } = await openAdmin(cwd);
+  try {
+    const ok = await admin.remove(options.id);
+    if (!ok) throw new Error(`identity "${options.id}" not found`);
+    options.printer.log(`deleted identity ${options.id}`);
+    options.printer.data({ id: options.id });
   } finally {
     await pool.end();
   }

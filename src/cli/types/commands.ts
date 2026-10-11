@@ -80,6 +80,20 @@ export interface IdentityToggleOptions {
   printer: CliPrinter;
 }
 
+/** `weave identity:set-roles <id>` options */
+export interface IdentityRolesOptions {
+  id: string;
+  /** comma-separated roles (empty = clear) */
+  roles?: string;
+  printer: CliPrinter;
+}
+
+/** `weave identity:delete <id>` options */
+export interface IdentityDeleteOptions {
+  id: string;
+  printer: CliPrinter;
+}
+
 /** `weave test` options */
 export interface TestOptions {
   /** extra arguments forwarded to `bun test` */

@@ -24,6 +24,11 @@ Additive (no `CONTRACT_VERSION` bump): seams for the Cloud/Console control plane
 - **Capabilities read seam.** `EngineConfig.capabilities.provider` + `GET {prefix}/capabilities`
   (baseline + host-injected `Capabilities`). The engine surfaces entitlements verbatim and never
   judges licensing.
+- **Identity admin write completeness.** `IdentityStore`/`IdentityAdmin` gain `updateUserRoles` /
+  `deleteUser` / `createDepartment` / `listDepartments` (rows now carry `name`/`email`/`mobile`,
+  departments `name`/`code`). REST adds `PATCH` roles on `/identity/users/:id`, `DELETE`
+  `/identity/users/:id`, and `/identity/departments` (`GET`/`POST`); CLI adds
+  `weave identity:set-roles` / `weave identity:delete`.
 
 ## [1.1.0] - 2026-10-10
 

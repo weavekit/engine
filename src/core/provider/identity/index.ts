@@ -16,5 +16,6 @@ export type {
   IdentityUserInput,
   IdentityDepartmentInput,
   IdentityUserCreate,
+  IdentityDepartmentCreate,
 } from './directory.js';
 export { IDENTITY_STORE_API } from './directory.js';

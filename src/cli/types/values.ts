@@ -36,6 +36,8 @@ export const WEAVE_COMMANDS = {
   IDENTITY_CREATE: 'identity:create',
   IDENTITY_DISABLE: 'identity:disable',
   IDENTITY_ENABLE: 'identity:enable',
+  IDENTITY_SET_ROLES: 'identity:set-roles',
+  IDENTITY_DELETE: 'identity:delete',
   OPENAPI: 'openapi',
   GRAPHQL_SCHEMA: 'graphql:schema',
   DOCTOR: 'doctor',
