@@ -78,8 +78,8 @@ config switches — splitting core by type, or letting the validator open holes 
 
 Core: types/object/formula/i18n/storage ✅ · Data access + RBAC (row & field) ✅ · Identity + sync ✅ ·
 Workflow ✅ · REST + auth + ops + metadata ✅ · GraphQL adapter ✅ · Git metadata + cache ✅ · CLI ✅ ·
-Audit (log/modes/outbox) ✅ · Script sandbox ✅ · MCP adapter ✅ · OpenAPI 3.1 ✅ ·
-Tools + guardrails + approvals ✅ · SSE ✅ · Proxy ✅ · Quotas ✅ · Ingress ✅ · Tunnel ✅ ·
+Audit (log/modes/outbox) ✅ · Script sandbox ✅ · MCP adapter (tools + resources) ✅ · OpenAPI 3.1 ✅ ·
+Tools + guardrails + approvals (REST + MCP) ✅ · SSE ✅ · Proxy ✅ · Quotas ✅ · Ingress ✅ · Tunnel ✅ ·
 Named enums (schema v6) ✅ · Schema revision + `weave deploy` ✅ · QueryBudget ✅ ·
 Agent Execution + Evidence ✅ · Multi-tenancy (row) ✅ · Contract freeze ✅ ·
 Observability seam (metrics/trace) ✅
