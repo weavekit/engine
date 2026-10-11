@@ -11,7 +11,7 @@ Commits.
 Open metadata-driven headless engine. The only input is `schema.json`; the output is PostgreSQL
 tables + REST / GraphQL APIs + MCP tools + RBAC + TypeScript types. **Zero business
 dependencies, zero UI output** — it emits no UI components and renders no DOM, and the schema
-contains no UI attributes (widgets/radio buttons/dropdowns are the frontend's concern).
+contains no UI attributes.
 
 ## Architecture constraints (dependency DAG, eslint-enforced)
 
@@ -78,7 +78,7 @@ config switches — splitting core by type, or letting the validator open holes 
 
 Core: types/object/formula/i18n/storage ✅ · Data access + RBAC (row & field) ✅ · Identity + sync ✅ ·
 Workflow ✅ · REST + auth + ops + metadata ✅ · GraphQL adapter ✅ · Git metadata + cache ✅ · CLI ✅ ·
-Audit (log/modes/outbox) ✅ · Script sandbox ✅ · MCP adapter (tools + resources) ✅ · OpenAPI 3.1 ✅ ·
+Audit (log/modes/outbox) ✅ · Script sandbox ✅ · MCP adapter (tools/resources/prompts) ✅ · OpenAPI 3.1 ✅ ·
 Tools + guardrails + approvals (REST + MCP) ✅ · SSE ✅ · Proxy ✅ · Quotas ✅ · Ingress ✅ · Tunnel ✅ ·
 Named enums (schema v6) ✅ · Schema revision + `weave deploy` ✅ · QueryBudget ✅ ·
 Agent Execution + Evidence ✅ · Multi-tenancy (row) ✅ · Contract freeze ✅ ·

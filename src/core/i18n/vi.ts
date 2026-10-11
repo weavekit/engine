@@ -268,4 +268,6 @@ export const vi: Record<MessageKey, string> = {
   'graphql.complexityExceeded': 'Độ phức tạp truy vấn GraphQL {cost} vượt quá mức tối đa {max}',
   'graphql.aliasExceeded': 'Truy vấn GraphQL dùng {count} bí danh, vượt quá mức tối đa {max}',
   'graphql.allowList.denied': 'thao tác không nằm trong danh sách cho phép GraphQL',
+  'prompt.notFound': 'không tìm thấy prompt MCP "{name}"',
+  'prompt.args.invalid': 'prompt "{name}": {detail}',
 } as const;

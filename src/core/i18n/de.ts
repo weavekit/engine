@@ -268,4 +268,6 @@ export const de: Record<MessageKey, string> = {
   'graphql.complexityExceeded': 'GraphQL-Abfragekomplexität {cost} überschreitet das Maximum von {max}',
   'graphql.aliasExceeded': 'GraphQL-Abfrage verwendet {count} Aliase, überschreitet das Maximum von {max}',
   'graphql.allowList.denied': 'Vorgang ist nicht in der GraphQL-Allowlist',
+  'prompt.notFound': 'MCP-Prompt "{name}" nicht gefunden',
+  'prompt.args.invalid': 'Prompt "{name}": {detail}',
 } as const;

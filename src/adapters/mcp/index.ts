@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import type { Locale, IdentitySubject, ToolDefinition } from '../../core/index.js';
+import type { Locale, IdentitySubject, PromptsProvider, ToolDefinition } from '../../core/index.js';
 import type { AuditSink } from '../../core/audit/index.js';
 import type { AlertSink } from '../../core/provider/alerts/index.js';
 import type { IdentityDirectory, IdentityResolver } from '../../core/provider/identity/index.js';
@@ -9,6 +9,7 @@ import { McpSessionStore } from './session.js';
 import { createGuardrails, type RateLimitConfig } from './guardrails.js';
 import { registerMcpRoutes } from './http.js';
 import type { McpEngine } from './types.js';
+import type { McpPromptsConfig } from './prompts.js';
 
 /**
  * MCP adapter assembly. `registerMcp` wires the session store + guardrails +
@@ -54,6 +55,17 @@ export interface EngineMcpConfig {
    * when unset (mirrors the REST `/approvals` gate); empty = no subject.
    */
   adminRoles?: string[];
+  /**
+   * MCP prompts. Built-in, schema-derived prompts are on by default; `builtins:
+   * false` keeps only the host provider. `enabled: false` removes the prompts
+   * surface entirely. The provider authors business templates (opaque to the
+   * engine); built-in names are reserved and cannot be overridden.
+   */
+  prompts?: {
+    enabled?: boolean;
+    builtins?: boolean;
+    provider?: PromptsProvider;
+  };
 }
 
 export interface McpRegisterDeps {
@@ -110,6 +122,13 @@ export function registerMcp(app: FastifyInstance, deps: McpRegisterDeps): McpSer
   });
 
   const sessionStore = new McpSessionStore();
+  const prompts: McpPromptsConfig =
+    mcp?.prompts?.enabled === false
+      ? { builtins: false }
+      : {
+          ...(mcp?.prompts?.builtins === undefined ? {} : { builtins: mcp.prompts.builtins }),
+          ...(mcp?.prompts?.provider === undefined ? {} : { provider: mcp.prompts.provider }),
+        };
   registerMcpRoutes(app, {
     engine,
     authenticator,
@@ -121,6 +140,7 @@ export function registerMcp(app: FastifyInstance, deps: McpRegisterDeps): McpSer
     endpoint: mcp?.endpoint,
     corsOrigin,
     allowImpersonation: mcp?.impersonation === 'directory',
+    prompts,
     schemaRevision,
   });
 
@@ -138,4 +158,6 @@ export { createGuardrails } from './guardrails.js';
 export type { RateLimitConfig, McpGuardrails } from './guardrails.js';
 export type { McpEngine, McpToolSpec, McpToolResult, JsonSchema } from './types.js';
 export { compileToolsFor } from './generate.js';
+export { listPrompts, getPrompt } from './prompts.js';
+export type { McpPromptsConfig } from './prompts.js';
 export { registerMcpRoutes } from './http.js';

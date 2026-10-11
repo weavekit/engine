@@ -33,6 +33,15 @@ describe('G1 contract freeze', () => {
     });
   });
 
+  it('frozen MCP built-in prompt names', () => {
+    expect(engine.BUILTIN_PROMPTS).toEqual({
+      EXPLORE: 'explore_data',
+      OBJECT_GUIDE: 'object_guide',
+      BUILD_FILTER: 'build_filter',
+      RUN_WORKFLOW: 'run_workflow',
+    });
+  });
+
   it('frozen event types', () => {
     expect(engine.EVENT_TYPES).toEqual({
       RECORD_CREATED: 'record.created',
@@ -70,6 +79,7 @@ describe('G1 contract freeze', () => {
       'mapSchemaError', 'NOOP_AUDIT_SINK', 'AUDIT_MODES',
       'EXECUTION_STAGES', 'runPipeline', 'validateToolArgs', 'QUERY_BUDGET_DEFAULTS', 'resolveQueryBudget',
       'encodeCursor', 'decodeCursor', 'CURSOR_VERSION', 'REGISTRY_TOOLS', 'INTROSPECTION_TOOLS', 'WORKFLOW_TOOLS',
+      'APPROVAL_TOOLS', 'BUILTIN_PROMPTS', 'isBuiltinPromptName',
       'EVENT_TYPES', 'createAuth', 'createDirectoryAuthenticator',
     ];
     for (const name of names) {

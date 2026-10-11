@@ -268,4 +268,6 @@ export const hi: Record<MessageKey, string> = {
   'graphql.complexityExceeded': 'GraphQL क्वेरी जटिलता {cost} अधिकतम {max} से अधिक है',
   'graphql.aliasExceeded': 'GraphQL क्वेरी {count} उपनाम उपयोग करती है, जो अधिकतम {max} से अधिक है',
   'graphql.allowList.denied': 'ऑपरेशन GraphQL अनुमति सूची में नहीं है',
+  'prompt.notFound': 'MCP प्रॉम्प्ट "{name}" नहीं मिला',
+  'prompt.args.invalid': 'प्रॉम्प्ट "{name}": {detail}',
 } as const;

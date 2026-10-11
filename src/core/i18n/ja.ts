@@ -268,4 +268,6 @@ export const ja: Record<MessageKey, string> = {
   'graphql.complexityExceeded': 'GraphQL クエリの複雑度 {cost} が上限 {max} を超えています',
   'graphql.aliasExceeded': 'GraphQL クエリのエイリアス数 {count} が上限 {max} を超えています',
   'graphql.allowList.denied': '操作が GraphQL 許可リストに含まれていません',
+  'prompt.notFound': 'MCP プロンプト "{name}" が見つかりません',
+  'prompt.args.invalid': 'プロンプト "{name}": {detail}',
 } as const;

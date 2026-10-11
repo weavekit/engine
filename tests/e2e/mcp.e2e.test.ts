@@ -298,6 +298,30 @@ maybe('MCP E2E (SDK Client + streamable HTTP + local PG): auth + session identit
       expect(leadText.name).toBe('lead');
       expect(leadText.fields.map((f: { name: string }) => f.name)).not.toContain('secret');
 
+      // ── 9b. prompts: schema-derived built-ins (RBAC-filtered) over the SDK client
+      const prompts = await emma2.client.listPrompts();
+      const promptNames = prompts.prompts.map((p) => p.name);
+      expect(promptNames).toContain('explore_data');
+      expect(promptNames).toContain('object_guide');
+      expect(promptNames).toContain('build_filter');
+      // run_workflow only when a readable object has a workflow (ticket is sales-readable)
+      expect((await alice.client.listPrompts()).prompts.map((p) => p.name)).toContain('run_workflow');
+      expect(promptNames).not.toContain('run_workflow');
+
+      const guide = await emma2.client.getPrompt({ name: 'object_guide', arguments: { object: 'lead' } });
+      const guideText = (guide.messages[0]!.content as { text: string }).text;
+      expect(guideText).toContain('"name": "lead"');
+      expect(guideText).not.toContain('"name": "secret"');
+
+      // unknown prompt → protocol error (InvalidParams), not a tool result
+      let promptError: Error | undefined;
+      try {
+        await emma2.client.getPrompt({ name: 'nope' });
+      } catch (e) {
+        promptError = e as Error;
+      }
+      expect(promptError).toBeDefined();
+
       await closeClients(clients);
       clients.length = 0;
 

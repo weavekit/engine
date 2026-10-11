@@ -189,6 +189,8 @@ export const en = {
   'http.internal': 'internal server error',
   'audit.denied.actor': 'querying audit events for another actor requires an admin role',
   'approval.notFound': 'pending approval "{approvalKey}" not found',
+  'prompt.notFound': 'MCP prompt "{name}" not found',
+  'prompt.args.invalid': 'prompt "{name}": {detail}',
   'mcp.onBehalfOf.missing': 'the X-Weavekit-On-Behalf-Of header is required for MCP sessions',
   'mcp.identity.unknown': 'on-behalf-of identity "{ref}" is not known',
   'mcp.session.agentMismatch': "MCP session \"{session}\" belongs to a different agent credential",

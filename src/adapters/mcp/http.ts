@@ -6,6 +6,8 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import {
   CallToolRequestSchema,
+  GetPromptRequestSchema,
+  ListPromptsRequestSchema,
   ListResourcesRequestSchema,
   ListToolsRequestSchema,
   ReadResourceRequestSchema,
@@ -13,7 +15,7 @@ import {
   McpError,
   isInitializeRequest,
 } from '@modelcontextprotocol/sdk/types.js';
-import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
+import type { CallToolResult, GetPromptResult } from '@modelcontextprotocol/sdk/types.js';
 import type { Locale, ToolDefinition, ToolJsonSchema } from '../../core/index.js';
 import { SchemaError, traceIdOf, validateToolArgs } from '../../core/index.js';
 import type { ToolExecutor } from '../../runtime/tools/index.js';
@@ -25,6 +27,7 @@ import { credentialIdOf } from './session.js';
 import type { McpGuardrails } from './guardrails.js';
 import { compileToolsFor, type CompiledTool } from './generate.js';
 import { listResources, readResource } from './resources.js';
+import { getPrompt, listPrompts, type McpPromptsConfig } from './prompts.js';
 import type { McpEngine, McpToolResult } from './types.js';
 import type { AuditEvent } from '../../core/audit/index.js';
 import { ACTION_PREFIXES, AUDIT_ACTOR_TYPES } from '../../core/audit/index.js';
@@ -108,6 +111,8 @@ export interface McpHttpDeps {
   corsOrigin?: string | string[] | boolean;
   /** allow a call-level `onBehalfOf` override (default false) */
   allowImpersonation?: boolean;
+  /** prompts: built-in schema-derived + optional host provider (absent = built-ins only) */
+  prompts?: McpPromptsConfig;
   /** schema signature folded into the compiled-surface cache key (schema change → cache miss) */
   schemaRevision?: string;
 }
@@ -175,7 +180,7 @@ export function registerMcpRoutes(app: FastifyInstance, deps: McpHttpDeps): void
   function buildServer(sessionId: () => string | undefined): Server {
     const server = new Server(
       { name: 'weavekit', version },
-      { capabilities: { tools: {}, resources: {} } },
+      { capabilities: { tools: {}, resources: {}, prompts: {} } },
     );
 
     server.setRequestHandler(ListToolsRequestSchema, async () => {
@@ -206,6 +211,29 @@ export function registerMcpRoutes(app: FastifyInstance, deps: McpHttpDeps): void
       } catch (error) {
         // resource read failures are protocol errors (not tool results): surface
         // a localized message without leaking internals
+        const message = error instanceof SchemaError ? error.localize(locale) : new SchemaError('http.internal', {}, locale).message;
+        throw new McpError(ErrorCode.InvalidParams, message);
+      }
+    });
+
+    server.setRequestHandler(ListPromptsRequestSchema, async () => {
+      const sid = sessionId();
+      const session = sid === undefined ? undefined : sessionStore.get(sid);
+      if (session === undefined) throw new SchemaError('mcp.session.notFound', { session: sid }, locale);
+      return { prompts: await listPrompts(engine, session, deps.prompts) };
+    });
+
+    server.setRequestHandler(GetPromptRequestSchema, async (request) => {
+      const sid = sessionId();
+      const session = sid === undefined ? undefined : sessionStore.get(sid);
+      if (session === undefined) throw new SchemaError('mcp.session.notFound', { session: sid }, locale);
+      try {
+        const args = (request.params.arguments ?? {}) as Record<string, string>;
+        const result = await getPrompt(engine, session, request.params.name, args, locale, deps.prompts);
+        return result as unknown as GetPromptResult;
+      } catch (error) {
+        // prompt failures are protocol errors (not tool results): surface a
+        // localized message without leaking internals
         const message = error instanceof SchemaError ? error.localize(locale) : new SchemaError('http.internal', {}, locale).message;
         throw new McpError(ErrorCode.InvalidParams, message);
       }

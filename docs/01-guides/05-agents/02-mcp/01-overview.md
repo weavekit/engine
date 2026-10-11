@@ -24,6 +24,7 @@ undeclared = on).
 - [Tool surface](02-tool-surface.md) — the fixed registry of tools and how RBAC shapes it
 - [Identities](03-identities.md) — the on-behalf-of directory and plugging in your own user store
 - [Guardrails](04-guardrails.md) — rate limits, alerts, audit, impersonation
+- [Prompts](05-prompts.md) — user-invoked templates: schema-derived built-ins + a provider for business prompts
 
 ## Enable / configure
 
@@ -102,6 +103,7 @@ business projects can set `migrate.auto: true` instead.)
 | `tools.ts` | tool execution via data-access + audit + error mapping |
 | `approvals.ts` | admin-only `list_approvals` / `approve_approval` / `reject_approval` |
 | `resources.ts` | schema-derived, RBAC-filtered resources (`weavekit://objects…`) |
+| `prompts.ts` | schema-derived built-in prompts (RBAC-filtered) + host `PromptsProvider` |
 | `introspection.ts` | `list_objects` / `describe_object` |
 | `guardrails.ts` | sliding-window rate limit + alert/audit injection |
 | `session.ts` | session model + in-memory store (TTL expiry) |

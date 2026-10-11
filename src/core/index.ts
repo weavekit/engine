@@ -8,6 +8,7 @@ export * from './audit/index.js';
 export * from './script/index.js';
 export * from './limiter/index.js';
 export * from './provider/index.js';
+export * from './prompts/index.js';
 export * from './tools/index.js';
 export * from './proxy/index.js';
 export * from './trace.js';

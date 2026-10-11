@@ -268,4 +268,6 @@ export const zhHant: Record<MessageKey, string> = {
   'graphql.complexityExceeded': 'GraphQL 查詢複雜度 {cost} 超過上限 {max}',
   'graphql.aliasExceeded': 'GraphQL 查詢使用了 {count} 個別名，超過上限 {max}',
   'graphql.allowList.denied': '操作不在 GraphQL 白名單中',
+  'prompt.notFound': '找不到 MCP 提示 "{name}"',
+  'prompt.args.invalid': '提示 "{name}"：{detail}',
 } as const;

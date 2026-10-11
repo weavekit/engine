@@ -44,6 +44,12 @@ pull metadata as context instead of a tool call:
 
 Reading a URI outside the surface, or an object outside the identity's scope, is a protocol error.
 
+## Prompts
+
+The schema is also compiled into **prompts** — user-invoked templates (schema-derived built-ins,
+RBAC-filtered) that guide an agent, plus an optional provider for business prompts. See
+[Prompts](05-prompts.md).
+
 ## Ids and discovery
 
 `object` is the object name; `id` is the record's **external id** — its `record_key`, the

@@ -268,4 +268,6 @@ export const ru: Record<MessageKey, string> = {
   'graphql.complexityExceeded': 'Сложность GraphQL-запроса {cost} превышает максимум {max}',
   'graphql.aliasExceeded': 'GraphQL-запрос использует {count} псевдонимов, превышая максимум {max}',
   'graphql.allowList.denied': 'операция отсутствует в списке разрешённых GraphQL',
+  'prompt.notFound': 'MCP-промпт "{name}" не найден',
+  'prompt.args.invalid': 'промпт "{name}": {detail}',
 } as const;
