@@ -4,7 +4,15 @@ import { randomUUID } from 'node:crypto';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import { CallToolRequestSchema, ListToolsRequestSchema, isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
+import {
+  CallToolRequestSchema,
+  ListResourcesRequestSchema,
+  ListToolsRequestSchema,
+  ReadResourceRequestSchema,
+  ErrorCode,
+  McpError,
+  isInitializeRequest,
+} from '@modelcontextprotocol/sdk/types.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import type { Locale, ToolDefinition, ToolJsonSchema } from '../../core/index.js';
 import { SchemaError, traceIdOf, validateToolArgs } from '../../core/index.js';
@@ -16,6 +24,7 @@ import type { McpSessionStore, SessionInput, McpSession } from './session.js';
 import { credentialIdOf } from './session.js';
 import type { McpGuardrails } from './guardrails.js';
 import { compileToolsFor, type CompiledTool } from './generate.js';
+import { listResources, readResource } from './resources.js';
 import type { McpEngine, McpToolResult } from './types.js';
 import type { AuditEvent } from '../../core/audit/index.js';
 import { ACTION_PREFIXES, AUDIT_ACTOR_TYPES } from '../../core/audit/index.js';
@@ -166,7 +175,7 @@ export function registerMcpRoutes(app: FastifyInstance, deps: McpHttpDeps): void
   function buildServer(sessionId: () => string | undefined): Server {
     const server = new Server(
       { name: 'weavekit', version },
-      { capabilities: { tools: {} } },
+      { capabilities: { tools: {}, resources: {} } },
     );
 
     server.setRequestHandler(ListToolsRequestSchema, async () => {
@@ -179,6 +188,27 @@ export function registerMcpRoutes(app: FastifyInstance, deps: McpHttpDeps): void
         inputSchema: t.spec.inputSchema,
       }));
       return { tools: toolsList };
+    });
+
+    server.setRequestHandler(ListResourcesRequestSchema, async () => {
+      const sid = sessionId();
+      const session = sid === undefined ? undefined : sessionStore.get(sid);
+      if (session === undefined) throw new SchemaError('mcp.session.notFound', { session: sid }, locale);
+      return { resources: listResources(engine, session) };
+    });
+
+    server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
+      const sid = sessionId();
+      const session = sid === undefined ? undefined : sessionStore.get(sid);
+      if (session === undefined) throw new SchemaError('mcp.session.notFound', { session: sid }, locale);
+      try {
+        return { contents: [readResource(engine, session, request.params.uri, locale)] };
+      } catch (error) {
+        // resource read failures are protocol errors (not tool results): surface
+        // a localized message without leaking internals
+        const message = error instanceof SchemaError ? error.localize(locale) : new SchemaError('http.internal', {}, locale).message;
+        throw new McpError(ErrorCode.InvalidParams, message);
+      }
     });
 
     server.setRequestHandler(CallToolRequestSchema, async (request) => {

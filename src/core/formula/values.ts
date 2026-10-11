@@ -49,6 +49,20 @@ export const FORMULA_FUNCTIONS = {
   ROUND: 'round',
   NOW: 'now',
   CONCAT: 'concat',
+  // string
+  LOWER: 'lower',
+  UPPER: 'upper',
+  TRIM: 'trim',
+  LENGTH: 'length',
+  SUBSTR: 'substr',
+  REPLACE: 'replace',
+  // numeric
+  ABS: 'abs',
+  FLOOR: 'floor',
+  CEIL: 'ceil',
+  POW: 'pow',
+  // null
+  COALESCE: 'coalesce',
 } as const;
 export type FormulaFunction = typeof FORMULA_FUNCTIONS[keyof typeof FORMULA_FUNCTIONS];
 

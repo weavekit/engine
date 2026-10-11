@@ -287,6 +287,17 @@ maybe('MCP E2E (SDK Client + streamable HTTP + local PG): auth + session identit
       expect(descText.fields.map((f: { name: string }) => f.name)).not.toContain('secret');
       expect(descText.permissions.create).toBe(false); // finance has no create
 
+      // ── 9. resources: the schema is exposed as RBAC-filtered MCP resources
+      const resources = await emma2.client.listResources();
+      const resourceUris = resources.resources.map((r) => r.uri);
+      expect(resourceUris).toContain('weavekit://objects');
+      expect(resourceUris).toContain('weavekit://objects/lead');
+
+      const leadResource = await emma2.client.readResource({ uri: 'weavekit://objects/lead' });
+      const leadText = JSON.parse((leadResource.contents[0] as { text: string }).text);
+      expect(leadText.name).toBe('lead');
+      expect(leadText.fields.map((f: { name: string }) => f.name)).not.toContain('secret');
+
       await closeClients(clients);
       clients.length = 0;
 
@@ -322,6 +333,84 @@ maybe('MCP E2E (SDK Client + streamable HTTP + local PG): auth + session identit
         // pool already ended
       }
       await auditPool.end();
+    }
+  }, 60000);
+
+  it('approval tools: admin-only surface + list/approve over the SDK client', async () => {
+    let engine: Awaited<ReturnType<typeof buildEngineFromRegistry>> | undefined;
+    const clients: ClientHandle[] = [];
+    let pool = await freshPool();
+    try {
+      await pool.query('DROP TABLE IF EXISTS lead, weavekit_meta, weavekit_audit, weavekit_approvals CASCADE');
+      await pool.end();
+      pool = await freshPool();
+
+      const registry0 = new ObjectRegistry();
+      registry0.register(LEAD);
+      registry0.buildGraph();
+      engine = await buildEngineFromRegistry(registry0, {
+        databaseUrl: url!,
+        auth: { source: { 'key-admin': { id: 'a-admin', roles: ['agent'] }, 'key-sales': { id: 'a-sales', roles: ['agent'] } } },
+        tools: { approvals: { backend: 'memory' } },
+        adapters: {
+          mcp: {
+            identities: { admin: { id: 'u-admin', roles: ['admin'] }, alice: { id: 'u-alice', roles: ['sales'] } },
+            adminRoles: ['admin'],
+          },
+        },
+      });
+      await migrate(registry0, { databaseUrl: url! });
+      await engine.app.listen({ port: 0, host: '127.0.0.1' });
+      const addr = engine.app.server.address();
+      if (addr === null || typeof addr === 'string') throw new Error('no port');
+      const baseUrl = `http://127.0.0.1:${addr.port}`;
+
+      // seed one pending approval through the queue handle
+      await engine.approvals!.pending(
+        'object.lead.update',
+        { id: 'L1' },
+        { key: 'agent-x', label: 'agent', onBehalfOf: 'alice' },
+        'ap-e2e-1',
+      );
+
+      const admin = await newClient(baseUrl, 'key-admin', 'admin');
+      clients.push(admin);
+      const adminNames = (await admin.client.listTools()).tools.map((t) => t.name);
+      expect(adminNames).toContain('list_approvals');
+      expect(adminNames).toContain('approve_approval');
+      expect(adminNames).toContain('reject_approval');
+
+      const listed = await admin.client.callTool({ name: 'list_approvals', arguments: { status: 'pending' } });
+      const listedText = JSON.parse(textOf(listed)) as { rows: Array<{ approvalKey: string }> };
+      expect(listedText.rows.map((r) => r.approvalKey)).toContain('ap-e2e-1');
+
+      const approved = await admin.client.callTool({ name: 'approve_approval', arguments: { key: 'ap-e2e-1' } });
+      expect(approved.isError).toBe(false);
+      expect(JSON.parse(textOf(approved))).toMatchObject({ approvalKey: 'ap-e2e-1', status: 'approved', approver: 'u-admin' });
+
+      // a non-admin's surface has no approval tools
+      const sales = await newClient(baseUrl, 'key-sales', 'alice');
+      clients.push(sales);
+      const salesNames = (await sales.client.listTools()).tools.map((t) => t.name);
+      expect(salesNames).not.toContain('list_approvals');
+
+      await closeClients(clients);
+      clients.length = 0;
+    } finally {
+      await closeClients(clients);
+      if (engine !== undefined) {
+        try {
+          await engine.close();
+        } catch {
+          // already closed
+        }
+      }
+      try {
+        await pool.query('DROP TABLE IF EXISTS lead, weavekit_meta, weavekit_audit, weavekit_approvals CASCADE');
+      } catch {
+        // pool already ended
+      }
+      await pool.end();
     }
   }, 60000);
 });

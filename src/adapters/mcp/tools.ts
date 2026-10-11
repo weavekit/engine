@@ -32,7 +32,7 @@ function ctxWithSubject(ctx: ToolExecContext, subject: IdentitySubject): DataAcc
 }
 
 /** call-level `onBehalfOf` override: resolve a different identity for this call */
-async function effectiveSubject(args: Record<string, unknown>, ctx: ToolExecContext): Promise<IdentitySubject> {
+export async function effectiveSubject(args: Record<string, unknown>, ctx: ToolExecContext): Promise<IdentitySubject> {
   const override = args[ON_BEHALF_OF];
   if (override === undefined) return ctx.session.user;
   if (!ctx.allowImpersonation) {
@@ -99,7 +99,7 @@ function auditToolCall(
   void ctx.guardrails.audit(event);
 }
 
-function textResult(text: string, isError = false): McpToolResult {
+export function textResult(text: string, isError = false): McpToolResult {
   return { content: [{ type: 'text', text }], isError };
 }
 
@@ -113,7 +113,7 @@ function errorResult(error: unknown, ctx: ToolExecContext): McpToolResult {
   return textResult(new SchemaError('http.internal', {}, ctx.engine.locale).message, true);
 }
 
-async function callProtected(
+export async function callProtected(
   ctx: ToolExecContext,
   tool: string,
   objectName: string | undefined,

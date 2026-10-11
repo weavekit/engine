@@ -26,6 +26,11 @@ describe('G1 contract freeze', () => {
     });
     expect(engine.INTROSPECTION_TOOLS).toEqual({ LIST_OBJECTS: 'list_objects', DESCRIBE_OBJECT: 'describe_object' });
     expect(engine.WORKFLOW_TOOLS).toEqual({ TRANSITION: 'workflow_transition' });
+    expect(engine.APPROVAL_TOOLS).toEqual({
+      LIST: 'list_approvals',
+      APPROVE: 'approve_approval',
+      REJECT: 'reject_approval',
+    });
   });
 
   it('frozen event types', () => {

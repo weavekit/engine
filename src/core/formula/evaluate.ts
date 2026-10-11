@@ -96,6 +96,52 @@ export function evaluate(expr: FormulaExpr, ctx: FormulaEvalContext): unknown {
           return v === null || v === undefined ? '' : String(v);
         }).join('');
       }
+      if (fn === FORMULA_FUNCTIONS.LOWER || fn === FORMULA_FUNCTIONS.UPPER || fn === FORMULA_FUNCTIONS.TRIM) {
+        const v = evaluate(expr.args[0]!, ctx);
+        if (v === null || v === undefined) return null;
+        const s = String(v);
+        if (fn === FORMULA_FUNCTIONS.LOWER) return s.toLowerCase();
+        if (fn === FORMULA_FUNCTIONS.UPPER) return s.toUpperCase();
+        return s.trim();
+      }
+      if (fn === FORMULA_FUNCTIONS.LENGTH) {
+        const v = evaluate(expr.args[0]!, ctx);
+        return v === null || v === undefined ? null : String(v).length;
+      }
+      if (fn === FORMULA_FUNCTIONS.SUBSTR) {
+        const v = evaluate(expr.args[0]!, ctx);
+        if (v === null || v === undefined) return null;
+        const s = String(v);
+        const start = Number(evaluate(expr.args[1]!, ctx));
+        const len = expr.args[2] === undefined ? undefined : Number(evaluate(expr.args[2], ctx));
+        if (!Number.isFinite(start)) return null;
+        return len === undefined || !Number.isFinite(len) ? s.slice(start) : s.slice(start, start + len);
+      }
+      if (fn === FORMULA_FUNCTIONS.REPLACE) {
+        const v = evaluate(expr.args[0]!, ctx);
+        if (v === null || v === undefined) return null;
+        const search = evaluate(expr.args[1]!, ctx);
+        const replacement = evaluate(expr.args[2]!, ctx);
+        return String(v).split(String(search ?? '')).join(String(replacement ?? ''));
+      }
+      if (fn === FORMULA_FUNCTIONS.ABS || fn === FORMULA_FUNCTIONS.FLOOR || fn === FORMULA_FUNCTIONS.CEIL) {
+        const v = evaluate(expr.args[0]!, ctx);
+        if (!isNumeric(v)) return null;
+        if (fn === FORMULA_FUNCTIONS.ABS) return Math.abs(v);
+        return fn === FORMULA_FUNCTIONS.FLOOR ? Math.floor(v) : Math.ceil(v);
+      }
+      if (fn === FORMULA_FUNCTIONS.POW) {
+        const base = evaluate(expr.args[0]!, ctx);
+        const exponent = evaluate(expr.args[1]!, ctx);
+        return isNumeric(base) && isNumeric(exponent) ? base ** exponent : null;
+      }
+      if (fn === FORMULA_FUNCTIONS.COALESCE) {
+        for (const arg of expr.args) {
+          const v = evaluate(arg, ctx);
+          if (v !== null && v !== undefined) return v;
+        }
+        return null;
+      }
       return null;
     }
     case AST_KINDS.UNARY: {

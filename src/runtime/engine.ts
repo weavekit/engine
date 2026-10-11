@@ -945,7 +945,14 @@ export async function buildEngineFromRegistry(
   let mcp: McpServerHandle | undefined;
   if (mcpCfg?.enabled ?? true) {
     mcp = registerMcp(app, {
-      engine: { registry, pool, dataAccess, locale },
+      engine: {
+        registry,
+        pool,
+        dataAccess,
+        locale,
+        ...(approvals === undefined ? {} : { approvals }),
+        adminRoles: mcpCfg?.adminRoles ?? rest?.adminRoles ?? [],
+      },
       authenticator,
       mcp: mcpCfg,
       locale,

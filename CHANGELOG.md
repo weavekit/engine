@@ -3,6 +3,23 @@
 All notable changes to `@weave-kit/engine`. Format follows [Keep a Changelog](https://keepachangelog.com/);
 the project uses [Semantic Versioning](https://semver.org/).
 
+## [1.3.0] - 2026-10-11
+
+Additive (no `CONTRACT_VERSION` bump): MCP surface + formula catalog.
+
+### Added
+
+- **MCP approval tools.** When an approval queue is wired and the session identity holds an
+  `adapters.mcp.adminRoles` role, the surface exposes `list_approvals` / `approve_approval` /
+  `reject_approval` (names frozen in `APPROVAL_TOOLS`). Resolution is audited by the queue facade and
+  the tool call by `callProtected` — the same admin gate as the REST `/approvals` routes.
+- **MCP resources.** The schema is exposed as readable resources (`weavekit://objects`,
+  `weavekit://objects/{name}`), derived from the registry and RBAC-filtered per identity (mirrors
+  `list_objects` / `describe_object`). The server now advertises a `resources` capability.
+- **Formula catalog.** New functions (single-source `FORMULA_FUNCTIONS`): `lower` / `upper` / `trim` /
+  `length` / `substr` / `replace`, `abs` / `floor` / `ceil` / `pow`, and null-coalescing `coalesce`,
+  with arity/type validation.
+
 ## [1.2.0] - 2026-10-11
 
 Additive (no `CONTRACT_VERSION` bump): seams for the Cloud/Console control plane.

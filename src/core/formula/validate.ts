@@ -84,6 +84,27 @@ function opTypeOf(node: FormulaExpr, fieldTypeOf: FieldTypeOf): FormulaType {
       if (fn === FORMULA_FUNCTIONS.NOW) return FORMULA_TYPES.DATETIME;
       if (fn === FORMULA_FUNCTIONS.CONCAT) return FORMULA_TYPES.STRING;
       if (fn === FORMULA_FUNCTIONS.IF) return opTypeOf(node.args[1] ?? { kind: AST_KINDS.NULL }, fieldTypeOf);
+      if (
+        fn === FORMULA_FUNCTIONS.LOWER ||
+        fn === FORMULA_FUNCTIONS.UPPER ||
+        fn === FORMULA_FUNCTIONS.TRIM ||
+        fn === FORMULA_FUNCTIONS.SUBSTR ||
+        fn === FORMULA_FUNCTIONS.REPLACE
+      ) {
+        return FORMULA_TYPES.STRING;
+      }
+      if (fn === FORMULA_FUNCTIONS.LENGTH) return FORMULA_TYPES.INTEGER;
+      if (
+        fn === FORMULA_FUNCTIONS.ABS ||
+        fn === FORMULA_FUNCTIONS.FLOOR ||
+        fn === FORMULA_FUNCTIONS.CEIL ||
+        fn === FORMULA_FUNCTIONS.POW
+      ) {
+        return FORMULA_TYPES.NUMBER;
+      }
+      if (fn === FORMULA_FUNCTIONS.COALESCE) {
+        return node.args.length === 0 ? FORMULA_TYPES.ANY : opTypeOf(node.args[0]!, fieldTypeOf);
+      }
       return FORMULA_TYPES.ANY;
     }
     case AST_KINDS.UNARY:
@@ -202,6 +223,24 @@ export function checkOperands(expr: FormulaExpr, fieldTypeOf: FieldTypeOf): void
           }
         } else if (fn === FORMULA_FUNCTIONS.CONCAT || fn === FORMULA_FUNCTIONS.NOW) {
           // no static operand constraints
+        } else if (
+          fn === FORMULA_FUNCTIONS.LOWER ||
+          fn === FORMULA_FUNCTIONS.UPPER ||
+          fn === FORMULA_FUNCTIONS.TRIM ||
+          fn === FORMULA_FUNCTIONS.LENGTH ||
+          fn === FORMULA_FUNCTIONS.ABS ||
+          fn === FORMULA_FUNCTIONS.FLOOR ||
+          fn === FORMULA_FUNCTIONS.CEIL
+        ) {
+          if (node.args.length !== 1) throw new FormulaError(`${node.fn.toUpperCase()} requires exactly 1 argument`);
+        } else if (fn === FORMULA_FUNCTIONS.SUBSTR) {
+          if (node.args.length < 2 || node.args.length > 3) throw new FormulaError('SUBSTR requires 2 or 3 arguments');
+        } else if (fn === FORMULA_FUNCTIONS.REPLACE) {
+          if (node.args.length !== 3) throw new FormulaError('REPLACE requires exactly 3 arguments');
+        } else if (fn === FORMULA_FUNCTIONS.POW) {
+          if (node.args.length !== 2) throw new FormulaError('POW requires exactly 2 arguments');
+        } else if (fn === FORMULA_FUNCTIONS.COALESCE) {
+          if (node.args.length < 1) throw new FormulaError('COALESCE requires at least 1 argument');
         } else {
           throw new FormulaError(`unknown function "${node.fn}"`);
         }

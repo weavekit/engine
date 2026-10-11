@@ -24,6 +24,26 @@ Always present:
 | `list_objects` | objects the identity can read (`[{ name, labels }]`) |
 | `describe_object` | schema (fields, relations, registered-type `attrs` with their spec) + the identity's effective permissions |
 
+When an [approval queue](../04-approvals.md) is wired, an identity holding an `adminRoles` role also gets:
+
+| Tool | Purpose | Key args |
+| --- | --- | --- |
+| `list_approvals` | paged approval queue (carries request args) | `status`, `action`, `actorKey`, `limit`, `offset` |
+| `approve_approval` | resolve a pending entry as approved (the original call may then be replayed) | `key` |
+| `reject_approval` | resolve a pending entry as rejected | `key` |
+
+## Resources
+
+The schema is also exposed as MCP **resources** (no config; RBAC-filtered per identity), so an agent can
+pull metadata as context instead of a tool call:
+
+| URI | Contents |
+| --- | --- |
+| `weavekit://objects` | the objects the identity can read (same as `list_objects`) |
+| `weavekit://objects/{name}` | the full descriptor (same as `describe_object`) |
+
+Reading a URI outside the surface, or an object outside the identity's scope, is a protocol error.
+
 ## Ids and discovery
 
 `object` is the object name; `id` is the record's **external id** — its `record_key`, the

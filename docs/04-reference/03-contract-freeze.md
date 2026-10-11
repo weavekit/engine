@@ -17,7 +17,7 @@ as `contractVersion` and embedded in the OpenAPI document as `info.x-contract-ve
 | `workflow.json` on-disk format | `WORKFLOW_FORMAT_VERSION` (`2`) |
 | Pagination cursors | `CURSOR_VERSION` (`1`) |
 | REST routes | the `adapters/rest` route set |
-| MCP tool names | `search_records` / `get_record` / `create_record` / `update_record` / `delete_record` + `list_objects` / `describe_object` + `workflow_transition` |
+| MCP tool names | `search_records` / `get_record` / `create_record` / `update_record` / `delete_record` + `list_objects` / `describe_object` + `workflow_transition` + `list_approvals` / `approve_approval` / `reject_approval` |
 | Event types | `record.created` / `updated` / `deleted` / `transitioned`, `audit.event`, `schema.changed`, `schema.drift`, `lifecycle.shutdown` |
 | Error codes | the `SchemaError` message keys (`code`), mapped to HTTP status by `mapSchemaError` |
 | data-access / RBAC contracts | `ObjectDataAccess`, `DataAccessContext`, `resolvePermission` / `buildRowScope` |

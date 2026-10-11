@@ -100,6 +100,8 @@ business projects can set `migrate.auto: true` instead.)
 | --- | --- |
 | `generate.ts` | RBAC capability → generic registry tool surface |
 | `tools.ts` | tool execution via data-access + audit + error mapping |
+| `approvals.ts` | admin-only `list_approvals` / `approve_approval` / `reject_approval` |
+| `resources.ts` | schema-derived, RBAC-filtered resources (`weavekit://objects…`) |
 | `introspection.ts` | `list_objects` / `describe_object` |
 | `guardrails.ts` | sliding-window rate limit + alert/audit injection |
 | `session.ts` | session model + in-memory store (TTL expiry) |

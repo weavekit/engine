@@ -1,4 +1,5 @@
 import { describe, it, expect } from '../helpers/test.js';import {
+  checkOperands,
   evaluate,
   parseFormula,
   type FormulaEvalContext,
@@ -61,5 +62,45 @@ describe('parseFormula — syntax', () => {
     expect(() => parseFormula('1 +')).toThrow();
     expect(() => parseFormula('(1 + 2')).toThrow();
     expect(() => parseFormula('1 @ 2')).toThrow();
+  });
+});
+
+describe('formula functions (catalog)', () => {
+  it('string functions', () => {
+    expect(evaluate(parseFormula('LOWER("AbC")'), ctx({}))).toBe('abc');
+    expect(evaluate(parseFormula('UPPER("AbC")'), ctx({}))).toBe('ABC');
+    expect(evaluate(parseFormula('TRIM("  x  ")'), ctx({}))).toBe('x');
+    expect(evaluate(parseFormula('LENGTH("abcd")'), ctx({}))).toBe(4);
+    expect(evaluate(parseFormula('SUBSTR("abcdef", 1, 3)'), ctx({}))).toBe('bcd');
+    expect(evaluate(parseFormula('SUBSTR("abcdef", 2)'), ctx({}))).toBe('cdef');
+    expect(evaluate(parseFormula('REPLACE("a-b-a", "a", "X")'), ctx({}))).toBe('X-b-X');
+  });
+
+  it('numeric functions', () => {
+    expect(evaluate(parseFormula('ABS(0 - 3)'), ctx({}))).toBe(3);
+    expect(evaluate(parseFormula('ABS(-3)'), ctx({}))).toBe(3);
+    expect(evaluate(parseFormula('FLOOR(1.9)'), ctx({}))).toBe(1);
+    expect(evaluate(parseFormula('CEIL(1.1)'), ctx({}))).toBe(2);
+    expect(evaluate(parseFormula('POW(2, 10)'), ctx({}))).toBe(1024);
+  });
+
+  it('coalesce returns the first non-null', () => {
+    expect(evaluate(parseFormula('COALESCE(missing, name, "x")'), ctx({ name: null }))).toBe('x');
+    expect(evaluate(parseFormula('COALESCE(missing, name)'), ctx({ name: 'Ann' }))).toBe('Ann');
+    expect(evaluate(parseFormula('COALESCE(missing)'), ctx({}))).toBe(null);
+  });
+
+  it('null propagation for string/numeric functions', () => {
+    expect(evaluate(parseFormula('LOWER(missing)'), ctx({}))).toBe(null);
+    expect(evaluate(parseFormula('ABS(missing)'), ctx({}))).toBe(null);
+  });
+
+  it('arity violations throw at validation', () => {
+    const f = (s: string): void => checkOperands(parseFormula(s), () => undefined);
+    expect(() => f('ABS(1, 2)')).toThrow();
+    expect(() => f('REPLACE("a", "b")')).toThrow();
+    expect(() => f('POW(1)')).toThrow();
+    expect(() => f('SUBSTR("a")')).toThrow();
+    expect(() => f('NOPE(1)')).toThrow();
   });
 });

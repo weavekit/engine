@@ -1,5 +1,5 @@
 import type { ObjectRegistry, IdentitySubject, ToolDefinition } from '../../core/index.js';
-import { INTROSPECTION_TOOLS, REGISTRY_TOOLS, WORKFLOW_TOOLS, resolvePermissionFor } from '../../core/index.js';
+import { APPROVAL_TOOLS, INTROSPECTION_TOOLS, REGISTRY_TOOLS, WORKFLOW_TOOLS, resolvePermissionFor } from '../../core/index.js';
 import type { ResolvedPermission } from '../../core/index.js';
 import { ACTION_PREFIXES } from '../../core/audit/index.js';
 import type { ToolExecutor } from '../../runtime/tools/index.js';
@@ -11,6 +11,7 @@ import {
   updateRecordHandler,
   workflowTransitionHandler,
 } from './tools.js';
+import { approveApprovalHandler, listApprovalsHandler, rejectApprovalHandler } from './approvals.js';
 import { describeObjectHandler, listObjectsHandler } from './introspection.js';
 import type { JsonSchema, McpEngine, McpToolResult, McpToolSpec, ToolExecContext } from './types.js';
 
@@ -193,6 +194,54 @@ function registryTools(engine: McpEngine, subject: IdentitySubject): CompiledToo
   return tools;
 }
 
+/** approval-queue tools: admin-only, present only when a queue is wired (the queue carries request args) */
+function approvalTools(engine: McpEngine, subject: IdentitySubject): CompiledTool[] {
+  if (engine.approvals === undefined) return [];
+  const admin = new Set(engine.adminRoles ?? []);
+  if (!subject.roles.some((role) => admin.has(role))) return [];
+
+  const KEY_ARG: JsonSchema = { type: 'string', description: 'the approval key (see list_approvals)' };
+
+  return [
+    {
+      objectName: undefined,
+      spec: {
+        name: APPROVAL_TOOLS.LIST,
+        description: 'List the approval queue (paged; filtered to your admin scope)',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            status: { type: 'string', enum: ['pending', 'approved', 'rejected'] },
+            action: { type: 'string', description: 'filter by the gated action (e.g. object.lead.update)' },
+            actorKey: { type: 'string', description: 'filter by requester actor key' },
+            limit: { type: 'integer', minimum: 1, maximum: 1000 },
+            offset: { type: 'integer', minimum: 0 },
+          },
+        },
+        handler: (args: Record<string, unknown>, ctx: ToolExecContext) => listApprovalsHandler(args, ctx),
+      },
+    },
+    {
+      objectName: undefined,
+      spec: {
+        name: APPROVAL_TOOLS.APPROVE,
+        description: 'Approve a pending approval (the original call may then be replayed)',
+        inputSchema: { type: 'object', properties: { key: KEY_ARG }, required: ['key'] },
+        handler: (args: Record<string, unknown>, ctx: ToolExecContext) => approveApprovalHandler(args, ctx),
+      },
+    },
+    {
+      objectName: undefined,
+      spec: {
+        name: APPROVAL_TOOLS.REJECT,
+        description: 'Reject a pending approval',
+        inputSchema: { type: 'object', properties: { key: KEY_ARG }, required: ['key'] },
+        handler: (args: Record<string, unknown>, ctx: ToolExecContext) => rejectApprovalHandler(args, ctx),
+      },
+    },
+  ];
+}
+
 /** custom-tool surface merged into the session tool surface (roles filtered by the executor, cached per subject) */
 function customToolTools(
   engine: McpEngine,
@@ -275,6 +324,8 @@ export function compileToolsFor(
   if (custom !== undefined) {
     tools.push(...customToolTools(engine, subject, custom));
   }
+
+  tools.push(...approvalTools(engine, subject));
 
   return tools;
 }

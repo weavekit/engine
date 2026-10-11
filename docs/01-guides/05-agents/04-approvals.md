@@ -20,12 +20,13 @@ and the outcome decides whether the call proceeds. For the wider policy pipeline
 
 2. The call is suspended; the caller gets `isError` with `mcp.approval.pending` and the `approvalKey`.
    The pending entry is stored in the **approval queue**.
-3. An admin approves or rejects it (REST below). Resolution is recorded against the approver.
+3. An admin approves or rejects it (REST or MCP below). Resolution is recorded against the approver.
 4. On the next call with the same `approvalKey`, the policy can read the queue through `ctx.approvals`
    and allow it.
 
-The queue carries request **arguments**, so every endpoint is gated to `adapters.rest.adminRoles` —
-reading it is a write-authority boundary, not a read anyone gets.
+The queue carries request **arguments**, so every endpoint is gated to the admin roles — REST uses
+`adapters.rest.adminRoles`, MCP uses `adapters.mcp.adminRoles` (both default to none). Reading it is a
+write-authority boundary, not a read anyone gets.
 
 ## The queue
 
@@ -58,6 +59,12 @@ POST {prefix}/approvals/:key/reject          resolve → rejected   (admin)
 `sort`/`order` (default `createdAt` DESC). It returns `{ rows, total, limit, offset }`. Approve/reject
 return `{ approvalKey, status, approver }` and answer `approval.notFound` when the key is unknown or
 already resolved.
+
+## MCP
+
+When the queue is wired and the session identity holds an `adapters.mcp.adminRoles` role, the surface
+also exposes `list_approvals`, `approve_approval` and `reject_approval` (subject to the same admin
+gate and audited like any tool call). See the [MCP tool surface](02-mcp/02-tool-surface.md).
 
 ## Enable
 

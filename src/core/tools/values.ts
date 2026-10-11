@@ -31,6 +31,18 @@ export const WORKFLOW_TOOLS = {
 } as const;
 export type WorkflowTool = typeof WORKFLOW_TOOLS[keyof typeof WORKFLOW_TOOLS];
 
+/**
+ * fixed approval-queue tool names. Exposed only to admin subjects when an
+ * approval queue is wired (the queue carries request arguments — a write
+ * authority boundary, mirrors the REST `/approvals` admin gate).
+ */
+export const APPROVAL_TOOLS = {
+  LIST: 'list_approvals',
+  APPROVE: 'approve_approval',
+  REJECT: 'reject_approval',
+} as const;
+export type ApprovalTool = typeof APPROVAL_TOOLS[keyof typeof APPROVAL_TOOLS];
+
 /** custom tool `name` format (snake_case, lowercase start) */
 export const TOOL_NAME_PATTERN = '^[a-z][a-z0-9_]*$';
 
@@ -49,6 +61,7 @@ const reservedNames: readonly string[] = [
   ...Object.values(REGISTRY_TOOLS),
   ...Object.values(INTROSPECTION_TOOLS),
   ...Object.values(WORKFLOW_TOOLS),
+  ...Object.values(APPROVAL_TOOLS),
 ];
 
 /** true when a custom tool name collides with a built-in tool or the audit namespace */

@@ -48,6 +48,12 @@ export interface EngineMcpConfig {
    * (`X-Weavekit-On-Behalf-Of` at handshake) is always enforced.
    */
   impersonation?: 'off' | 'directory';
+  /**
+   * roles allowed to use the approval tools (`list_approvals` /
+   * `approve_approval` / `reject_approval`). Defaults to `adapters.rest.adminRoles`
+   * when unset (mirrors the REST `/approvals` gate); empty = no subject.
+   */
+  adminRoles?: string[];
 }
 
 export interface McpRegisterDeps {

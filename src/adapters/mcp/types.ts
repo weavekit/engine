@@ -1,5 +1,5 @@
 import type { Pool } from 'pg';
-import type { Locale, ObjectRegistry, ToolJsonSchema } from '../../core/index.js';
+import type { Locale, ObjectRegistry, ToolApprovals, ToolJsonSchema } from '../../core/index.js';
 import type { ObjectDataAccess } from '../../runtime/data-access/index.js';
 import type { McpSession } from './session.js';
 import type { McpGuardrails } from './guardrails.js';
@@ -20,6 +20,14 @@ export interface McpEngine {
   pool: Pool;
   dataAccess: ObjectDataAccess;
   locale: Locale;
+  /**
+   * approval queue handle — present only when the tool executor is enabled.
+   * Drives `list_approvals` / `approve_approval` / `reject_approval`, exposed to
+   * admin subjects only (the queue carries request arguments).
+   */
+  approvals?: ToolApprovals;
+  /** roles allowed to use the approval tools (mirrors `adapters.rest.adminRoles`); empty = no one */
+  adminRoles?: string[];
 }
 
 /** everything one tool-call handler needs at execution time */
