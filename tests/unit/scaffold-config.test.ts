@@ -42,6 +42,12 @@ describe('scaffoldProject — subsystems config for starter presets', () => {
     expect(governance).not.toContain('subsystems');
   });
 
+  it('generated config shows the MCP prompts provider example (customer path)', async () => {
+    const config = await readFile(join(dirs.find((d) => d.includes('agent'))!, 'weavekit.config.ts'), 'utf8');
+    expect(config).toContain('prompts: {');
+    expect(config).toContain('qualify_lead');
+  });
+
   it('business → headless backend only: no UI frontend, no UI groundwork note', async () => {
     const dir = dirs.find((d) => d.includes('business'))!;
     let hasFrontend = true;

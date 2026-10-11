@@ -102,6 +102,20 @@ ${projectType}${subsystems}${features}  schemaDir: '.',
         rateLimit: { windowMs: 60_000, max: 100 },
         alerts: { channel: 'console' },
       },
+      // Business prompts for your agents (MCP prompts: user-invoked templates).
+      // The schema-derived built-ins (explore_data / object_guide / build_filter /
+      // run_workflow) are always on; add your own domain prompts with a provider.
+      // prompts: {
+      //   provider: {
+      //     list: (ctx) => (ctx.roles.includes('sales')
+      //       ? [{ name: 'qualify_lead', description: 'Qualify a lead' }]
+      //       : []),
+      //     get: (name, args) =>
+      //       name === 'qualify_lead'
+      //         ? { messages: [{ role: 'user', content: { type: 'text', text: 'Qualify lead ' + args.id } }] }
+      //         : null,
+      //   },
+      // },
     },
   },
 } satisfies EngineConfig;
