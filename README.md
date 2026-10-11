@@ -9,7 +9,7 @@ stays in your database.
 objects/leads/schema.json   →   Git commit (source of truth)
                                 PostgreSQL tables + indexes + RLS
                                 REST + GraphQL APIs (CRUD + RBAC)
-                                MCP tools (per-identity surface + guardrails + approvals)
+                                MCP surface (per-identity tools + resources + prompts + approvals)
                                 Immutable audit log + execution evidence
                                 TypeScript types
 ```
@@ -55,8 +55,8 @@ write.
   `enumType`; every field shares one native PostgreSQL type and one set of per-value labels.
 - **Governed REST API** — object CRUD with row-level (`all`/`own`/`department`) and field-level RBAC
   and a uniform error contract.
-- **MCP tool surface** — a streamable HTTP endpoint at `/mcp` with a per-identity tool surface and
-  guardrails.
+- **MCP surface** — a streamable HTTP endpoint at `/mcp` with a per-identity tool surface, schema-derived
+  resources and prompts, guardrails, and an optional approvals queue.
 - **GraphQL API** — an opt-in read/write GraphQL endpoint compiled from the same `schema.json`, with
   nested relations, the same RBAC/audit, per-request batching and query hardening.
 - **Schema revisions & atomic deploys** — `weave deploy plan` previews the diff; `weave deploy apply`
@@ -117,7 +117,7 @@ Full documentation: **[docs.weavekit.io/engine](https://docs.weavekit.io/engine)
 - [Getting started](https://docs.weavekit.io/engine/guides/getting-started) — scaffold, migrate, run, consume
 - [Git-versioned metadata](https://docs.weavekit.io/engine/guides/model/git-versioned-metadata) — your data model as reviewable Git commits
 - [Schema guide](https://docs.weavekit.io/engine/guides/model/schema) · [RBAC](https://docs.weavekit.io/engine/guides/access/rbac) · [Multi-tenancy](https://docs.weavekit.io/engine/guides/access/multi-tenancy) · [Formulas](https://docs.weavekit.io/engine/guides/model/formulas) · [Audit](https://docs.weavekit.io/engine/guides/platform/audit)
-- [CLI reference](https://docs.weavekit.io/engine/guides/platform/cli) · [Observability](https://docs.weavekit.io/engine/guides/platform/observability) · [MCP](https://docs.weavekit.io/engine/guides/agents/mcp) · [Execution & evidence](https://docs.weavekit.io/engine/guides/agents/execution-and-evidence) · [Script hooks](https://docs.weavekit.io/engine/guides/automation/script-hooks)
+- [CLI reference](https://docs.weavekit.io/engine/guides/platform/cli) · [Observability](https://docs.weavekit.io/engine/guides/platform/observability) · [MCP](https://docs.weavekit.io/engine/guides/agents/mcp) · [Prompts](https://docs.weavekit.io/engine/guides/agents/mcp/prompts) · [Execution & evidence](https://docs.weavekit.io/engine/guides/agents/execution-and-evidence) · [Script hooks](https://docs.weavekit.io/engine/guides/automation/script-hooks)
 - [Custom tools & guardrails](https://docs.weavekit.io/engine/guides/agents/custom-tools-and-guardrails) · [Query budget](https://docs.weavekit.io/engine/guides/automation/query-budget) · [Custom field types](https://docs.weavekit.io/engine/reference/schema/custom-field-types) · [Quotas](https://docs.weavekit.io/engine/guides/automation/quotas) · [Inbound events](https://docs.weavekit.io/engine/guides/integration/ingress)
 - [Public API & dependency budget](https://docs.weavekit.io/engine/reference/api/public-api) · [Enterprise seams](https://docs.weavekit.io/engine/reference/enterprise-seams) · [Contract freeze](https://docs.weavekit.io/engine/reference/contract-freeze)
 - [Practices & operations](https://docs.weavekit.io/engine/practices/agent/existing-crm-to-mcp) · [Release checklist](https://docs.weavekit.io/engine/operations/release) — real integration and deployment walkthroughs
