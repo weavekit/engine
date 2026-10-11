@@ -3,6 +3,18 @@
 All notable changes to `@weave-kit/engine`. Format follows [Keep a Changelog](https://keepachangelog.com/);
 the project uses [Semantic Versioning](https://semver.org/).
 
+## [1.4.0] - 2026-10-11
+
+Additive (no `CONTRACT_VERSION` bump): MCP prompts.
+
+### Added
+
+- **MCP prompts.** The third MCP primitive: user-invoked templates. Built-in, **schema-derived** and
+  RBAC-filtered prompts (`explore_data`, `object_guide`, `build_filter`, `run_workflow` — names frozen
+  in `BUILTIN_PROMPTS`), plus a host `PromptsProvider` seam for business prompts
+  (`adapters.mcp.prompts.provider`; `builtins` / `enabled` toggles). The server now advertises a
+  `prompts` capability; built-in names are reserved and cannot be shadowed by a provider.
+
 ## [1.3.0] - 2026-10-11
 
 Additive (no `CONTRACT_VERSION` bump): MCP surface + formula catalog.
