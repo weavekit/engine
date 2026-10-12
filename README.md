@@ -74,9 +74,9 @@ write.
   refuses to start until the policies are in place.
 - **Query budget** — bound a read/query across the engine: rows, filters and sorts in data-access,
   joins / SQL length / statement timeout in restricted SQL, and GraphQL depth.
-- **Multi-tenancy (row)** — mark a field `"tenant": true` and every read/write is scoped to the
-  subject's tenant (RBAC row scope + audit, plus PostgreSQL RLS for scripts and with `rls.enforce`);
-  single-tenant by default.
+- **Multi-tenancy (row)** — mark a field `"scope": true` and every read/write is scoped to the
+  subject's scope (RBAC row scope + audit, plus PostgreSQL RLS for scripts and with `rls.enforce`);
+  single-scope by default.
 - **Audit log** — an immutable event log for data mutations, with durability modes
   (`best-effort` / `transactional` / `durable`) and a keyset-cursor query.
 - **Observability** — a low-level metrics/trace seam (`MetricsSink` / `TraceSink`, `METRIC_NAMES`)

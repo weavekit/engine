@@ -54,12 +54,12 @@ tests/              unit + e2e (node --test)
   removed in 2026-10).
 - Enums are always `as const` single sources of truth, with types derived via
   `typeof x[keyof typeof x]`; never a second hardcoded literal union
-- **Multi-tenancy (row)**: a `tenant: true` field (alias `"scope": true`) scopes reads/writes to the subject
-  scope (RBAC row scope + RLS GUC `weavekit.scope_id`/`weavekit.tenant_id` + audit); immutable; absent = single-scope
+- **Multi-tenancy (row)**: a `scope: true` field scopes reads/writes to the subject
+  scope (RBAC row scope + RLS GUC `weavekit.scope_id` + audit); immutable; absent = single-scope
 - **Control-plane seams**: REST `principalFor`; `POST {prefix}/identity/sync`; `GET {prefix}/capabilities`
 - **Execution**: `runPipeline` drives every data-access write/transition and tool call
   (Plan→…→Evidence; one post-execution evidence row each). `CONTRACT_VERSION` freezes
-  the public contract — post-1.0 evolution is additive only
+  the public contract — additive within a major; breaking changes only at a major (bump it)
 
 ## Schema relation model (summary)
 
@@ -89,9 +89,9 @@ Observability seam (metrics/trace) ✅ · Object-path RLS ✅
 - **This file holds invariants + pointers only** (≤6KB, guarded by `scripts/check-memory-sizes.mjs`).
   Do not accumulate detail: keep the invariant, push narrative/rationale/examples into `docs/`, and
   lead with a link. When a section outgrows a summary, move it out and leave a pointer.
-- `pages:*`, the layout format and the former `./layout` export are **retired (2026-10)**: the
-  business-UI groundwork was removed (there is no in-project renderer) and `--type=business` no longer
-  emits `*.client.js` / `pages/*.layout.json`. Implementation files remain frozen/internal.
+- **Retired + removed (2.0)**: the layout/pages groundwork (`pages:*`, `layout-format`, the
+  `default-view` / `pages:migrate` commands, the former `./layout` export) and `--type=business` are
+  gone; `PROJECT_TYPES` = `agent` | `governance` | `service` (there is no in-project renderer).
 - Every metadata change is auto-committed to Git by the engine; the `objects/` tree is the schema
   source of truth
 - The package version must match `src/version.ts` (the scaffolder injects it into generated projects)
