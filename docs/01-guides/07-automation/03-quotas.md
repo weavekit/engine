@@ -38,7 +38,7 @@ import { assertQuota, COUNTER_PERIODS } from '@weave-kit/engine';
 // inside a tool / service / proxy resolver, before calling the external API:
 await assertQuota(
   engine.quotas!,
-  `dingtalk:{{tenantId}`,           // opaque key — the engine never interprets it
+  `dingtalk:${scopeId}`,           // opaque key — the engine never interprets it
   { limit: 10_000, period: COUNTER_PERIODS.MONTH },
   locale,
 );
