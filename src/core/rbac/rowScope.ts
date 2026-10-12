@@ -103,9 +103,9 @@ export function buildRowScope(
   // scope boundary applies on top of RBAC (even for `all`); a scope-less
   // subject or an object without a scope column leaves the scope unchanged.
   // The row-scope key is the generic `scope` marker (the `tenant` alias still
-  // works), valued by `subject.scopeId ?? subject.scopeId`.
+  // works), valued by `subject.scopeId`.
   const scopeField = scopeFieldName(def);
-  const scopeValue = subject.scopeId ?? subject.scopeId;
+  const scopeValue = subject.scopeId;
   if (scopeField === undefined || scopeValue === undefined) return base;
   const scopeFragment: RowScopeFragment = {
     sql: `${col(alias, scopeField)} = $${base === undefined ? 1 : 2}`,

@@ -64,8 +64,8 @@ export function registerAuditRoutes(app: FastifyInstance, deps: RestDeps, option
     }
     // row-scope boundary: an ordinary identity only sees its own scope's events
     // (admins may filter by scopeId / scopeId explicitly)
-    const rawScope = readString(query, 'scopeId', locale) ?? readString(query, 'scopeId', locale);
-    const subjectScope = subject.scopeId ?? subject.scopeId;
+    const rawScope = readString(query, 'scopeId', locale);
+    const subjectScope = subject.scopeId;
     if (!isAdmin && subjectScope !== undefined) {
       filter.scopeId = subjectScope;
     } else if (isAdmin && rawScope !== undefined) {

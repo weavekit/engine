@@ -156,7 +156,6 @@ function scriptUserOf(ctx: DataAccessContext): ScriptUser {
     roles: subject?.roles ?? [],
     departmentId: subject?.departmentId,
     ...(subject?.scopeId === undefined ? {} : { scopeId: subject.scopeId }),
-    ...(subject?.scopeId === undefined ? {} : { scopeId: subject.scopeId }),
   };
 }
 

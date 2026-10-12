@@ -45,7 +45,7 @@ export function periodBounds(now: Date, period: CounterPeriod): { start: Date; r
 }
 
 /**
- * Namespace a quota/counter key by row-scope (canonical; `scopeId ?? scopeId`).
+ * Namespace a quota/counter key by row-scope (canonical; `scopeId`).
  * An absent scope leaves the key unchanged (single-scope), so existing keys are
  * unaffected.
  */
