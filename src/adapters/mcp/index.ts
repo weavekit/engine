@@ -23,6 +23,12 @@ export interface EngineMcpConfig {
   enabled?: boolean;
   /** HTTP path the endpoint is mounted on; defaults to `/mcp` */
   endpoint?: string;
+  /**
+   * Stateless Streamable HTTP (default false = stateful). Stateless makes each
+   * request self-contained so the engine scales horizontally without sticky
+   * routing; the `X-Weavekit-On-Behalf-Of` header must accompany every request.
+   */
+  stateless?: boolean;
   guardrails?: {
     rateLimit?: RateLimitConfig;
     /** alerts sink config (channel/url/...) — consumed by the assembly layer's createAlerts */
@@ -144,6 +150,7 @@ export function registerMcp(app: FastifyInstance, deps: McpRegisterDeps): McpSer
     allowImpersonation: mcp?.impersonation === 'directory',
     prompts,
     schemaRevision,
+    ...(mcp?.stateless === undefined ? {} : { stateless: mcp.stateless }),
     ...(oauth === undefined ? {} : { oauth }),
   });
 

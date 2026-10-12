@@ -117,6 +117,13 @@ export interface McpHttpDeps {
   schemaRevision?: string;
   /** when set (from `auth.oidc`), serve RFC 9728 protected-resource metadata at `/.well-known/oauth-protected-resource` */
   oauth?: OidcConfig;
+  /**
+   * Stateless Streamable HTTP: each request is self-contained (no server-side
+   * session), so the engine scales horizontally without sticky routing. The
+   * `X-Weavekit-On-Behalf-Of` header must accompany **every** request (there is
+   * no session to inherit it from). Default off (stateful; needs sticky routing).
+   */
+  stateless?: boolean;
 }
 
 interface SessionEntry {
@@ -179,16 +186,15 @@ export function registerMcpRoutes(app: FastifyInstance, deps: McpHttpDeps): void
   }
 
   /** one server per session: request handlers bound to that session's user identity */
-  function buildServer(sessionId: () => string | undefined): Server {
+  function buildServer(getSession: () => McpSession | undefined): Server {
     const server = new Server(
       { name: 'weavekit', version },
       { capabilities: { tools: {}, resources: {}, prompts: {} } },
     );
 
     server.setRequestHandler(ListToolsRequestSchema, async () => {
-      const sid = sessionId();
-      const session = sid === undefined ? undefined : sessionStore.get(sid);
-      if (session === undefined) throw new SchemaError('mcp.session.notFound', { session: sid }, locale);
+      const session = getSession();
+      if (session === undefined) throw new SchemaError('mcp.session.notFound', { session: '(none)' }, locale);
       const toolsList = surfaceFor(session).map((t) => ({
         name: t.spec.name,
         description: t.spec.description,
@@ -198,16 +204,14 @@ export function registerMcpRoutes(app: FastifyInstance, deps: McpHttpDeps): void
     });
 
     server.setRequestHandler(ListResourcesRequestSchema, async () => {
-      const sid = sessionId();
-      const session = sid === undefined ? undefined : sessionStore.get(sid);
-      if (session === undefined) throw new SchemaError('mcp.session.notFound', { session: sid }, locale);
+      const session = getSession();
+      if (session === undefined) throw new SchemaError('mcp.session.notFound', { session: '(none)' }, locale);
       return { resources: listResources(engine, session) };
     });
 
     server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
-      const sid = sessionId();
-      const session = sid === undefined ? undefined : sessionStore.get(sid);
-      if (session === undefined) throw new SchemaError('mcp.session.notFound', { session: sid }, locale);
+      const session = getSession();
+      if (session === undefined) throw new SchemaError('mcp.session.notFound', { session: '(none)' }, locale);
       try {
         return { contents: [readResource(engine, session, request.params.uri, locale)] };
       } catch (error) {
@@ -219,16 +223,14 @@ export function registerMcpRoutes(app: FastifyInstance, deps: McpHttpDeps): void
     });
 
     server.setRequestHandler(ListPromptsRequestSchema, async () => {
-      const sid = sessionId();
-      const session = sid === undefined ? undefined : sessionStore.get(sid);
-      if (session === undefined) throw new SchemaError('mcp.session.notFound', { session: sid }, locale);
+      const session = getSession();
+      if (session === undefined) throw new SchemaError('mcp.session.notFound', { session: '(none)' }, locale);
       return { prompts: await listPrompts(engine, session, deps.prompts) };
     });
 
     server.setRequestHandler(GetPromptRequestSchema, async (request) => {
-      const sid = sessionId();
-      const session = sid === undefined ? undefined : sessionStore.get(sid);
-      if (session === undefined) throw new SchemaError('mcp.session.notFound', { session: sid }, locale);
+      const session = getSession();
+      if (session === undefined) throw new SchemaError('mcp.session.notFound', { session: '(none)' }, locale);
       try {
         const args = (request.params.arguments ?? {}) as Record<string, string>;
         const result = await getPrompt(engine, session, request.params.name, args, locale, deps.prompts);
@@ -242,9 +244,8 @@ export function registerMcpRoutes(app: FastifyInstance, deps: McpHttpDeps): void
     });
 
     server.setRequestHandler(CallToolRequestSchema, async (request) => {
-      const sid = sessionId();
-      const session = sid === undefined ? undefined : sessionStore.get(sid);
-      if (session === undefined) throw new SchemaError('mcp.session.notFound', { session: sid }, locale);
+      const session = getSession();
+      if (session === undefined) throw new SchemaError('mcp.session.notFound', { session: '(none)' }, locale);
       const name = request.params.name;
       const tool = surfaceFor(session).find((t) => t.spec.name === name);
       if (tool === undefined) {
@@ -288,7 +289,10 @@ export function registerMcpRoutes(app: FastifyInstance, deps: McpHttpDeps): void
       },
     });
     entry.transport = transport;
-    entry.server = buildServer(() => transport.sessionId);
+    entry.server = buildServer(() => {
+      const sid = transport.sessionId;
+      return sid === undefined ? undefined : sessionStore.get(sid);
+    });
     entry.connected = false;
     return entry;
   }
@@ -297,6 +301,45 @@ export function registerMcpRoutes(app: FastifyInstance, deps: McpHttpDeps): void
     // authenticate before entering the transport (401 stays a plain HTTP error)
     const agentSubject = await authenticate(authenticator, request.headers.authorization, locale);
     const agentCredentialId = credentialIdOf(request.headers.authorization);
+
+    // stateless Streamable HTTP: self-contained request, no server-side session.
+    // The on-behalf-of reference must be present on every request (no session to
+    // inherit it), so the engine scales without sticky routing.
+    if (deps.stateless === true) {
+      const obh = request.headers[ON_BEHALF_OF_HEADER];
+      const onBehalfOf = Array.isArray(obh) ? obh[0] : obh;
+      if (onBehalfOf === undefined) {
+        throw new SchemaError('mcp.onBehalfOf.missing', {}, locale);
+      }
+      const user = await identityResolver(onBehalfOf);
+      if (user === null) {
+        throw new SchemaError('mcp.identity.unknown', { ref: onBehalfOf }, locale);
+      }
+      const ephemeral: McpSession = {
+        id: '(stateless)',
+        agentCredentialId,
+        agentSubject,
+        user,
+        onBehalfOf,
+        createdAt: new Date(),
+        lastActivity: new Date(),
+      };
+      const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
+      const server = buildServer(() => ephemeral);
+      await server.connect(transport);
+      const corsValue = allowOrigin(deps.corsOrigin, request.headers.origin);
+      if (corsValue !== undefined) injectCorsOrigin(reply.raw, corsValue);
+      reply.raw.on('close', () => {
+        void transport.close();
+        void server.close();
+      });
+      reply.hijack();
+      const traceHeader = request.headers.traceparent;
+      const traceId = traceIdOf(Array.isArray(traceHeader) ? traceHeader[0] : traceHeader);
+      const dispatch: () => Promise<void> = () => transport.handleRequest(request.raw, reply.raw, request.body);
+      await (traceId === undefined ? dispatch() : requestTrace.run(traceId, dispatch));
+      return;
+    }
 
     const header = request.headers[SESSION_HEADER];
     const sessionId = Array.isArray(header) ? header[0] : header;

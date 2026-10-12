@@ -437,5 +437,59 @@ maybe('MCP E2E (SDK Client + streamable HTTP + local PG): auth + session identit
       await pool.end();
     }
   }, 60000);
+
+  it('stateless mode: self-contained requests, no server-side session', async () => {
+    let engine: Awaited<ReturnType<typeof buildEngineFromRegistry>> | undefined;
+    const clients: ClientHandle[] = [];
+    let pool = await freshPool();
+    try {
+      await pool.query('DROP TABLE IF EXISTS lead, weavekit_meta, weavekit_audit CASCADE');
+      await pool.end();
+      pool = await freshPool();
+
+      const registry0 = new ObjectRegistry();
+      registry0.register(LEAD);
+      registry0.buildGraph();
+      engine = await buildEngineFromRegistry(registry0, {
+        databaseUrl: url!,
+        auth: { source: { [AGENT_KEYS.sales]: { id: 'a-sales', roles: ['agent'] } } },
+        adapters: { mcp: { identities: IDENTITIES, stateless: true } },
+      });
+      await migrate(registry0, { databaseUrl: url! });
+      await engine.app.listen({ port: 0, host: '127.0.0.1' });
+      const addr = engine.app.server.address();
+      if (addr === null || typeof addr === 'string') throw new Error('no port');
+      const baseUrl = `http://127.0.0.1:${addr.port}`;
+
+      const alice = await newClient(baseUrl, AGENT_KEYS.sales, 'alice');
+      clients.push(alice);
+      // no server-side session id is handed out in stateless mode
+      expect(alice.transport.sessionId).toBeUndefined();
+      const names = (await alice.client.listTools()).tools.map((t) => t.name);
+      expect(names).toContain('search_records');
+      expect(names).toContain('create_record');
+
+      const search = await alice.client.callTool({ name: 'search_records', arguments: { object: 'lead' } });
+      expect(search.isError).toBe(false);
+
+      await closeClients(clients);
+      clients.length = 0;
+    } finally {
+      await closeClients(clients);
+      if (engine !== undefined) {
+        try {
+          await engine.close();
+        } catch {
+          // already closed
+        }
+      }
+      try {
+        await pool.query('DROP TABLE IF EXISTS lead, weavekit_meta, weavekit_audit CASCADE');
+      } catch {
+        // pool already ended
+      }
+      await pool.end();
+    }
+  }, 60000);
 });
 

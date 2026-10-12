@@ -85,6 +85,23 @@ and run the OAuth flow:
 `authorization_servers` defaults to `[auth.oidc.issuer]`; override with `auth.oidc.authorizationServers`.
 The document is public (no auth).
 
+### Horizontal scaling (session vs stateless)
+
+By default the MCP endpoint is **stateful**: the `initialize` handshake creates a server-side session
+(in process memory) bound to the agent credential + on-behalf-of identity, and later requests carry
+the `Mcp-Session-Id`. That requires **sticky routing** across multiple engine instances.
+
+Set `adapters.mcp.stateless: true` for **stateless Streamable HTTP**: each request is self-contained
+(no server-side session), so the engine scales horizontally without sticky routing. The
+`X-Weavekit-On-Behalf-Of` header must accompany **every** request (there is no session to inherit it).
+
+```ts
+adapters: { mcp: { stateless: true } },
+```
+
+Enterprise E3 layers multi-instance coordination for timers/quotas/approvals; the base stateless MCP
+transport stays in the MIT engine.
+
 ## Wiring
 
 `createEngine` wires the endpoint for you:
