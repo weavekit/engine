@@ -30,9 +30,7 @@ export interface ScriptUser {
   roles: string[];
   /** team id, required for `team`-scoped row access (RLS + rowScope) */
   departmentId?: string;
-  /** tenant of the subject (multi-tenancy) */
-  tenantId?: string;
-  /** generic row-scope of the subject (canonical; `scopeId ?? tenantId`) */
+  /** row-scope of the subject (multi-tenancy; absent = single-scope) */
   scopeId?: string;
 }
 

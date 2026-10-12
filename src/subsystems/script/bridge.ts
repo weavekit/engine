@@ -66,7 +66,7 @@ export function createScriptRpcExecutor(options: ScriptBridgeOptions): RpcExecut
     const ctx: DataAccessContext = {
       pool,
       registry,
-      principal: userPrincipal({ id: req.user.id, roles: req.user.roles, departmentId: req.user.departmentId, ...(req.user.tenantId === undefined ? {} : { tenantId: req.user.tenantId }), ...(req.user.scopeId === undefined ? {} : { scopeId: req.user.scopeId }) }),
+      principal: userPrincipal({ id: req.user.id, roles: req.user.roles, departmentId: req.user.departmentId, ...(req.user.scopeId === undefined ? {} : { scopeId: req.user.scopeId }), ...(req.user.scopeId === undefined ? {} : { scopeId: req.user.scopeId }) }),
       locale,
     };
     const fn = (dataAccess as unknown as Record<string, unknown>)[method];
@@ -103,7 +103,7 @@ export function createScriptRpcExecutor(options: ScriptBridgeOptions): RpcExecut
           id: req.user.id,
           roles: req.user.roles,
           departmentId: req.user.departmentId,
-          ...(req.user.tenantId === undefined ? {} : { tenantId: req.user.tenantId }),
+          ...(req.user.scopeId === undefined ? {} : { scopeId: req.user.scopeId }),
           ...(req.user.scopeId === undefined ? {} : { scopeId: req.user.scopeId }),
         },
       },

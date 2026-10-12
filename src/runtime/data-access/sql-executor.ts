@@ -10,8 +10,7 @@ export interface RestrictedSqlSubject {
   id: string;
   roles: string[];
   departmentId?: string;
-  /** row-scope of the subject (scopeId ?? tenantId); carried to RLS via the `weavekit.scope_id`/`weavekit.tenant_id` GUCs */
-  tenantId?: string;
+  /** row-scope of the subject; carried to RLS via the `weavekit.scope_id` GUC */
   scopeId?: string;
 }
 

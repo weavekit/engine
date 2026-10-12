@@ -6,7 +6,7 @@ import { createAuth, type AuthConfig, type Authenticator } from './source.js';
 export type { Authenticator, AuthConfig, AuthResolver, AuthSource } from './source.js';
 export { createAuth } from './source.js';
 export type { AuthVerifier } from './verify.js';
-export { createDirectoryAuthenticator, enforceSyncedIdentity, withDefaultTenant, withDefaultScope } from './subject.js';
+export { createDirectoryAuthenticator, enforceSyncedIdentity, withDefaultScope } from './subject.js';
 export { createOidcVerifier } from './oidc.js';
 export type { OidcConfig, OidcVerifierOptions } from './oidc.js';
 export { OAUTH_PROTECTED_RESOURCE_PATH, oauthProtectedResourceMetadata, wwwAuthenticateChallenge } from './oauth-metadata.js';

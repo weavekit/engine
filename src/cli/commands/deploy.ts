@@ -40,11 +40,11 @@ function renderImpact(p: DeployPlanOptions['printer'], impact: SchemaImpact): vo
     { 'data-compat risk': impact.dataCompat.risk, 'api breaking': impact.apiBreaking },
   ]);
   for (const note of impact.dataCompat.notes) p.log(`  ! ${note}`);
-  if (impact.rbacTenant.tenantObjects.length > 0) {
-    p.log(`  tenant-scoped: ${impact.rbacTenant.tenantObjects.join(', ')}`);
+  if (impact.rbacScope.scopeObjects.length > 0) {
+    p.log(`  tenant-scoped: ${impact.rbacScope.scopeObjects.join(', ')}`);
   }
-  if (impact.rbacTenant.permissionObjects.length > 0) {
-    p.log(`  permissioned: ${impact.rbacTenant.permissionObjects.join(', ')}`);
+  if (impact.rbacScope.permissionObjects.length > 0) {
+    p.log(`  permissioned: ${impact.rbacScope.permissionObjects.join(', ')}`);
   }
 }
 

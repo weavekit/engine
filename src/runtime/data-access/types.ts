@@ -2,7 +2,7 @@ import type { Pool, PoolClient } from "pg";
 import type { Locale } from "../../core/index.js";
 import type { ObjectRegistry } from "../../core/index.js";
 import type { AccessPrincipal, IdentitySubject } from "../../core/index.js";
-import { principalSubject, principalScopeId, principalTenantId } from "../../core/index.js";
+import { principalSubject, principalScopeId } from "../../core/index.js";
 import type { QueryBudget } from "./query-budget.js";
 import type { WorkflowStatus, WorkflowHistory, WorkflowTodo, WorkflowOverride } from "./workflow.js";
 import type { FindOptions, FindResult } from "@weave-kit/contract";
@@ -38,9 +38,7 @@ export interface DataAccessContext {
   traceId?: string;
   /** schema signature (registry-derived) attached to evidence; falls back to the instance default */
   schemaRevision?: string;
-  /** tenant scope override (multi-tenancy); defaults to the principal's tenant */
-  tenantId?: string;
-  /** generic row-scope override (canonical; `scopeId ?? tenantId`); defaults to the principal's scope */
+  /** row-scope override (multi-tenancy); defaults to the principal's scope */
   scopeId?: string;
   /** per-context query budget override (defaults to the data-access instance's budget) */
   budget?: QueryBudget;
@@ -62,14 +60,9 @@ export function isSystemCtx(ctx: DataAccessContext): boolean {
   return ctx.principal.kind === 'system';
 }
 
-/** the tenant scope of a context (explicit `tenantId`, else the principal's tenant) */
-export function tenantOf(ctx: DataAccessContext): string | undefined {
-  return ctx.tenantId ?? principalTenantId(ctx.principal);
-}
-
-/** the generic row-scope of a context (explicit `scopeId`/`tenantId`, else the principal's scope) */
+/** the row-scope of a context (explicit `scopeId`, else the principal's scope) */
 export function scopeOf(ctx: DataAccessContext): string | undefined {
-  return ctx.scopeId ?? ctx.tenantId ?? principalScopeId(ctx.principal);
+  return ctx.scopeId ?? principalScopeId(ctx.principal);
 }
 
 /** contract for the controlled object data-access layer */

@@ -64,12 +64,12 @@ describe('analyzeImpact — schema impact classification', () => {
     const tenantDef = def('invoice', {
       fields: [
         { name: 'id', type: 'string', primary: true },
-        { name: 'tenant_id', type: 'string', [ROW_SCOPE_MARKERS.TENANT]: true },
+        { name: 'tenant_id', type: 'string', [ROW_SCOPE_MARKERS.SCOPE]: true },
       ],
       permissions: { admin: { read: 'all' } },
     } as Partial<ObjectDefinition>);
     const impact = analyzeImpact(['ALTER TABLE "invoice" ADD COLUMN "amount" NUMERIC;'], [tenantDef]);
-    expect(impact.rbacTenant.tenantObjects).toEqual(['invoice']);
-    expect(impact.rbacTenant.permissionObjects).toEqual(['invoice']);
+    expect(impact.rbacScope.scopeObjects).toEqual(['invoice']);
+    expect(impact.rbacScope.permissionObjects).toEqual(['invoice']);
   });
 });

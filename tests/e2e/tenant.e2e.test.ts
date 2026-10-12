@@ -32,7 +32,7 @@ maybe('tenant isolation E2E (app RBAC + PostgreSQL RLS)', () => {
       name: 'invoice',
       fields: [
         { name: 'id', type: 'string', primary: true },
-        { name: 'tenant_id', type: 'string', [ROW_SCOPE_MARKERS.TENANT]: true },
+        { name: 'tenant_id', type: 'string', [ROW_SCOPE_MARKERS.SCOPE]: true },
         { name: 'owner_id', type: 'string', [ROW_SCOPE_MARKERS.OWNERSHIP]: true },
         { name: 'amount', type: 'number' },
       ],
@@ -55,10 +55,10 @@ maybe('tenant isolation E2E (app RBAC + PostgreSQL RLS)', () => {
       );
 
       const da = withRbac(createDataAccess({}));
-      const ctx = (tenantId: string, id = 'u') => ({
+      const ctx = (scopeId: string, id = 'u') => ({
         pool,
         registry: reg,
-        principal: userPrincipal({ id, roles: ['admin'], tenantId }),
+        principal: userPrincipal({ id, roles: ['admin'], scopeId }),
       });
 
       // app-layer read isolation applies even with read: 'all'
@@ -80,7 +80,7 @@ maybe('tenant isolation E2E (app RBAC + PostgreSQL RLS)', () => {
         immutable = error;
       }
       expect(immutable).toBeInstanceOf(SchemaError);
-      expect((immutable as SchemaError).code).toBe('object.tenant.immutable');
+      expect((immutable as SchemaError).code).toBe('object.scope.immutable');
 
       // a cross-tenant write is invisible to the row scope (not found, not updated)
       let notFound: unknown;
@@ -94,11 +94,11 @@ maybe('tenant isolation E2E (app RBAC + PostgreSQL RLS)', () => {
       expect(Number(bAmount.rows[0].amount)).toBe(3);
 
       // PostgreSQL RLS: same confinement bypassing the app layer (restricted role)
-      const viaRls = async (tenantId?: string): Promise<string[]> => {
+      const viaRls = async (scopeId?: string): Promise<string[]> => {
         const res = await executeRestrictedSql(pool, 'SELECT id FROM invoice', [], {
           rls: {
             role: RLS_ROLE,
-            subject: { id: 'x', roles: ['admin'], ...(tenantId === undefined ? {} : { tenantId }) },
+            subject: { id: 'x', roles: ['admin'], ...(scopeId === undefined ? {} : { scopeId }) },
           },
         });
         return (res.rows as { id: string }[]).map((r) => r.id).sort();
@@ -110,10 +110,10 @@ maybe('tenant isolation E2E (app RBAC + PostgreSQL RLS)', () => {
 
       // audit query is tenant-scoped
       const audit = await createAudit(pool);
-      await audit.record({ actorType: 'system', actorId: 'engine', action: 'test.a', tenantId: tA, timestamp: new Date() });
-      await audit.record({ actorType: 'system', actorId: 'engine', action: 'test.b', tenantId: tB, timestamp: new Date() });
-      const q = await audit.query({ tenantId: tA });
-      expect(q.rows.every((e) => e.tenantId === tA)).toBe(true);
+      await audit.record({ actorType: 'system', actorId: 'engine', action: 'test.a', scopeId: tA, timestamp: new Date() });
+      await audit.record({ actorType: 'system', actorId: 'engine', action: 'test.b', scopeId: tB, timestamp: new Date() });
+      const q = await audit.query({ scopeId: tA });
+      expect(q.rows.every((e) => e.scopeId === tA)).toBe(true);
       expect(q.rows.some((e) => e.action === 'test.a')).toBe(true);
       expect(q.rows.some((e) => e.action === 'test.b')).toBe(false);
     } finally {

@@ -41,7 +41,7 @@ export interface DeploymentReport {
     tools: boolean;
   };
   adapters: { rest: boolean; mcp: boolean; graphql: boolean; events: boolean };
-  security: { rlsEnforce: boolean; tenants: boolean; scope: boolean; systemSchema: boolean };
+  security: { rlsEnforce: boolean; scope: boolean; systemSchema: boolean };
   identity: { mode: 'none' | 'static' | 'resolver' | 'oidc' | 'verifier' };
   checks: Record<string, string>;
 }
@@ -113,7 +113,6 @@ export function buildDeploymentReport(input: DeploymentReportInput): DeploymentR
     },
     security: {
       rlsEnforce: config.rls?.enforce === true,
-      tenants: config.tenants?.enabled === true,
       scope: config.scope?.enabled === true,
       systemSchema: config.systemSchema !== undefined,
     },

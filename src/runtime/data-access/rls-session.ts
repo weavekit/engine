@@ -6,7 +6,6 @@ export interface RlsSubject {
   id: string;
   roles: readonly string[];
   departmentId?: string;
-  tenantId?: string;
   scopeId?: string;
 }
 
@@ -14,14 +13,13 @@ export interface RlsSubject {
  * Set the subject GUCs for the current transaction. Every GUC is set (absent →
  * `''`, which policies read as unset → fail-closed), so a value left by an
  * earlier statement in the same transaction never leaks into this one. The row
- * scope goes to both `weavekit.scope_id` and the `weavekit.tenant_id` alias.
+ * scope goes to both `weavekit.scope_id` and the `weavekit.scope_id` alias.
  */
 export async function setRlsSubject(client: PoolClient, subject: RlsSubject): Promise<void> {
   await client.query(
     `SELECT set_config('weavekit.actor_id', $1, true), set_config('weavekit.roles', $2, true),
-            set_config('weavekit.department_id', $3, true), set_config('weavekit.scope_id', $4, true),
-            set_config('weavekit.tenant_id', $4, true)`,
-    [subject.id, subject.roles.join(','), subject.departmentId ?? '', subject.scopeId ?? subject.tenantId ?? ''],
+            set_config('weavekit.department_id', $3, true), set_config('weavekit.scope_id', $4, true)`,
+    [subject.id, subject.roles.join(','), subject.departmentId ?? '', subject.scopeId ?? ''],
   );
 }
 

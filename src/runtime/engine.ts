@@ -48,7 +48,7 @@ import { createApprovals, type ApprovalsQueue } from './tools/index.js';
 import { resolvePolicies } from './tools/policies.js';
 import type { ToolExecutor } from './tools/index.js';
 import type { ProxyForwarder } from './proxy/index.js';
-import { buildAuthenticator, createDirectoryAuthenticator, createOidcVerifier, enforceSyncedIdentity, withDefaultTenant, withDefaultScope, wwwAuthenticateChallenge, type AuthSource, type AuthVerifier, type Authenticator, type OidcConfig } from '../adapters/auth/index.js';
+import { buildAuthenticator, createDirectoryAuthenticator, createOidcVerifier, enforceSyncedIdentity, withDefaultScope, wwwAuthenticateChallenge, type AuthSource, type AuthVerifier, type Authenticator, type OidcConfig } from '../adapters/auth/index.js';
 import type { IdentitySource, IdentityStore } from '../core/provider/identity/index.js';
 import type { CapabilitiesProvider } from '../core/provider/capabilities/index.js';
 import type { PgIdentitySourceConfig } from './identity/sources/pg.js';
@@ -356,18 +356,11 @@ export interface EngineConfig {
    */
   evidence?: { enabled?: boolean };
   /**
-   * Multi-tenancy (row mode). When enabled, a subject without a tenant is
-   * stamped with `defaultTenant`, and objects declaring a `tenant: true` field
-   * are scoped to the subject's tenant (RBAC row scope + RLS + audit). Absent =
-   * single-tenant (unchanged). Tenant lifecycle / schema-per-tenant are out of
-   * scope (enterprise).
-   */
-  tenants?: { enabled?: boolean; defaultTenant?: string };
-  /**
-   * Generic row-scope (canonical twin of {@link tenants}). When enabled, a
-   * subject without a scope is stamped with `defaultScope`, and objects
-   * declaring a `scope` (or `tenant`) field are scoped to the subject's scope
-   * (RBAC row scope + RLS GUCs + audit). Absent = single-scope (unchanged).
+   * Row-scope / multi-tenancy (row mode). When enabled, a subject without a
+   * scope is stamped with `defaultScope`, and objects declaring a `scope` field
+   * are scoped to the subject's scope (RBAC row scope + RLS GUC + audit). Absent
+   * = single-scope (unchanged). Lifecycle / schema-per-tenant are out of scope
+   * (enterprise).
    */
   scope?: { enabled?: boolean; defaultScope?: string };
   /** generic outbound proxy route wiring (applications provide the resolver) */
@@ -737,11 +730,7 @@ export async function buildEngineFromRegistry(
   if (identityCfg?.required === true) {
     authenticator = enforceSyncedIdentity(authenticator, identityDirectory, locale);
   }
-  // multi-tenancy: stamp the configured default tenant on subjects that lack one
-  if (config.tenants?.enabled === true && config.tenants.defaultTenant !== undefined) {
-    authenticator = withDefaultTenant(authenticator, config.tenants.defaultTenant);
-  }
-  // generic row-scope: stamp the configured default scope on subjects that lack one
+  // row-scope: stamp the configured default scope on subjects that lack one
   if (config.scope?.enabled === true && config.scope.defaultScope !== undefined) {
     authenticator = withDefaultScope(authenticator, config.scope.defaultScope);
   }

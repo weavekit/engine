@@ -5,6 +5,30 @@ the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-10-12
+
+**Breaking** — `CONTRACT_VERSION` 1 → 2.
+
+### Changed
+
+- **Shared `@weave-kit/contract`.** The shared type/value vocabulary (schema, query, REST, audit,
+  approvals, workflow schema, metadata descriptor) now lives in the zero-dependency
+  `@weave-kit/contract` package (types + `./values`); the engine re-exports it. `@weave-kit/client`
+  now depends on the contract instead of the engine.
+- **`tenant` removed — `scope` is the single row-scope name.** Removed: the `tenant: true` field
+  marker (`ROW_SCOPE_MARKERS.TENANT`), `EngineConfig.tenants`, the `weavekit.tenant_id` GUC,
+  `withDefaultTenant`, `principalTenantId`, `tenantOf`, the `.tenantId` property on
+  `IdentitySubject`/`AuditEvent`/`DataAccessContext`, and the `weavekit_audit.tenant_id` column/index
+  (now `scope_id` / `weavekit_audit_scope_idx`). Use `scope` / `scopeId` / `EngineConfig.scope` /
+  `weavekit.scope_id`. The `object.tenant.immutable` error code is now `object.scope.immutable`.
+
+### Removed
+
+- The retired layout/pages groundwork: `src/layout-format.ts`, runtime/git `layoutSource` /
+  `pageCatalog` / `pageScripts`, the REST `pages` routes, the `default-view` and `pages:migrate`
+  commands, and `--type=business` (`PROJECT_TYPES` = agent | governance | service; `businessUI` /
+  `isBusinessUI` gone).
+
 ## [1.8.0] - 2026-10-12
 
 Additive (no `CONTRACT_VERSION` bump).

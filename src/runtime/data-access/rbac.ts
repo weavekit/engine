@@ -85,7 +85,7 @@ function denied(
     ...(principal.kind === 'system' ? { meta: { capability: principal.capability } } : {}),
     ...(ctx.requestId === undefined ? {} : { requestId: ctx.requestId }),
     ...(ctx.traceId === undefined ? {} : { traceId: ctx.traceId }),
-    ...(scope === undefined ? {} : { tenantId: scope, scopeId: scope }),
+    ...(scope === undefined ? {} : { scopeId: scope }),
     timestamp: new Date(),
   });
 }

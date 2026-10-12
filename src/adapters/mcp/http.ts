@@ -143,7 +143,7 @@ function auditDeniedTool(
     isError: true,
     errorCode,
     ...(traceId === undefined ? {} : { traceId }),
-    ...(session.user.tenantId === undefined ? {} : { tenantId: session.user.tenantId }),
+    ...(session.user.scopeId === undefined ? {} : { scopeId: session.user.scopeId }),
     meta: {
       onBehalfOf: session.onBehalfOf,
       subjectId: session.user.id,

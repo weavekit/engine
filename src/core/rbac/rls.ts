@@ -3,7 +3,7 @@ import type { ObjectDefinition, ReadScope } from '../types/index.js';
 import { READ_SCOPES, ROW_SCOPE_MARKERS } from '../types/index.js';
 import type { RowScopeMarker } from '../types/index.js';
 import { sqlIdent } from '../storage/sql-literals.js';
-import { scopeFieldName, scopeMarkerOf } from './scopeMarker.js';
+import { scopeFieldName } from './scopeMarker.js';
 import { buildRowScopeFor, resolvePermissionFor, type ObjectLookup } from './details.js';
 import type { ResolvedPermission } from './resolve.js';
 
@@ -50,20 +50,17 @@ function markerField(def: ObjectDefinition, marker: RowScopeMarker): string | un
 /**
  * The read-policy predicate for one object, or `undefined` when no declared role
  * can read (default deny — no policy is created, RLS denies everything). When the
- * object declares a tenant column, a tenant predicate (`weavekit.tenant_id` GUC)
+ * object declares a tenant column, a tenant predicate (`weavekit.scope_id` GUC)
  * is AND'd on top — an unset GUC is NULL → fail-closed.
  */
 export function buildRlsPolicy(def: ObjectDefinition): string | undefined {
   const base = baseRlsPolicy(def);
   if (base === undefined) return undefined;
-  const marker = scopeMarkerOf(def);
-  if (marker === undefined) return base;
-  const field = scopeFieldName(def)!;
-  // the row-scope key is carried by a session GUC: `scope` marker → the generic
-  // `weavekit.scope_id`; the `tenant` alias keeps `weavekit.tenant_id`. The
-  // executor sets both from the resolved scope value, so either name works.
-  const guc = marker === 'scope' ? 'weavekit.scope_id' : 'weavekit.tenant_id';
-  return `(${base}) AND current_setting('${guc}', true) = ${q(field)}`;
+  const field = scopeFieldName(def);
+  if (field === undefined) return base;
+  // the row-scope key is carried by the `weavekit.scope_id` session GUC
+  // (unset → NULL → fail-closed)
+  return `(${base}) AND current_setting('weavekit.scope_id', true) = ${q(field)}`;
 }
 
 function baseRlsPolicy(def: ObjectDefinition): string | undefined {

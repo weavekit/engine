@@ -40,7 +40,7 @@ describe('buildDeploymentReport — redacted, local-only deployment profile', ()
     expect(profile.identity.mode).toBe('oidc');
     expect(profile.subsystems).toMatchObject({ audit: { mode: 'transactional' }, script: true, evidence: true, quotas: false, tools: false });
     expect(profile.adapters).toEqual({ rest: true, mcp: true, graphql: true, events: false });
-    expect(profile.security).toEqual({ rlsEnforce: true, tenants: false, scope: false, systemSchema: true });
+    expect(profile.security).toEqual({ rlsEnforce: true, scope: false, systemSchema: true });
     expect(profile.checks).toEqual({ connection: 'pass', 'schema-drift': 'warn' });
 
     // redaction: nothing identifying leaks into the profile

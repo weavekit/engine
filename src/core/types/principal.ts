@@ -15,20 +15,20 @@ export type SystemCapability = typeof SYSTEM_CAPABILITIES[keyof typeof SYSTEM_CA
 
 export type AccessPrincipal =
   | { kind: 'user'; subject: IdentitySubject }
-  | { kind: 'system'; capability: SystemCapability; reason?: string; tenantId?: string; scopeId?: string };
+  | { kind: 'system'; capability: SystemCapability; reason?: string; scopeId?: string };
 
 /** build a user principal */
 export function userPrincipal(subject: IdentitySubject): AccessPrincipal {
   return { kind: 'user', subject };
 }
 
-/** build a system principal (an optional tenant scopes a system actor) */
-export function systemPrincipal(capability: SystemCapability, reason?: string, tenantId?: string): AccessPrincipal {
+/** build a system principal (an optional scope scopes a system actor) */
+export function systemPrincipal(capability: SystemCapability, reason?: string, scopeId?: string): AccessPrincipal {
   return {
     kind: 'system',
     capability,
     ...(reason === undefined ? {} : { reason }),
-    ...(tenantId === undefined ? {} : { tenantId }),
+    ...(scopeId === undefined ? {} : { scopeId }),
   };
 }
 
@@ -37,16 +37,9 @@ export function principalSubject(principal: AccessPrincipal): IdentitySubject | 
   return principal.kind === 'user' ? principal.subject : undefined;
 }
 
-/** the tenant a principal acts within (user subject's tenant, or a system principal's) */
-export function principalTenantId(principal: AccessPrincipal): string | undefined {
-  return principal.kind === 'user' ? principal.subject.tenantId : principal.tenantId;
-}
-
-/** the row-scope a principal acts within (canonical; `scopeId ?? tenantId`) */
+/** the row-scope a principal acts within (a user subject's scope, or a system principal's) */
 export function principalScopeId(principal: AccessPrincipal): string | undefined {
-  return principal.kind === 'user'
-    ? (principal.subject.scopeId ?? principal.subject.tenantId)
-    : (principal.scopeId ?? principal.tenantId);
+  return principal.kind === 'user' ? principal.subject.scopeId : principal.scopeId;
 }
 
 /** true for a system principal */

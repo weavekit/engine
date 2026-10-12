@@ -84,7 +84,7 @@ function auditToolCall(
     errorCode,
     ...(ctx.requestId === undefined ? {} : { requestId: ctx.requestId }),
     ...(ctx.traceId === undefined ? {} : { traceId: ctx.traceId }),
-    ...(ctx.session.user.tenantId === undefined ? {} : { tenantId: ctx.session.user.tenantId }),
+    ...(ctx.session.user.scopeId === undefined ? {} : { scopeId: ctx.session.user.scopeId }),
     meta: {
       onBehalfOf,
       subjectId: subject.id,

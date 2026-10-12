@@ -53,30 +53,15 @@ export function enforceSyncedIdentity(
 }
 
 /**
- * Multi-tenancy: decorate an authenticator so a resolved subject without a
- * tenant is stamped with the configured default tenant (row-mode single-tenant
- * deployments). A subject that already carries a tenant is left untouched.
- */
-export function withDefaultTenant(inner: Authenticator, defaultTenant: string): Authenticator {
-  return {
-    async resolve(header: string | undefined): Promise<IdentitySubject | null> {
-      const subject = await inner.resolve(header);
-      if (subject === null || subject.scopeId !== undefined || subject.tenantId !== undefined) return subject;
-      return { ...subject, tenantId: defaultTenant };
-    },
-  };
-}
-
-/**
- * Generic scope stamping (the `scope` twin of {@link withDefaultTenant}): a
- * subject without a scope is stamped with the configured default scope. A
- * subject that already carries `scopeId`/`tenantId` is left untouched.
+ * Row-scope: decorate an authenticator so a resolved subject without a scope is
+ * stamped with the configured default scope (row-mode single-scope deployments).
+ * A subject that already carries a scope is left untouched.
  */
 export function withDefaultScope(inner: Authenticator, defaultScope: string): Authenticator {
   return {
     async resolve(header: string | undefined): Promise<IdentitySubject | null> {
       const subject = await inner.resolve(header);
-      if (subject === null || subject.scopeId !== undefined || subject.tenantId !== undefined) return subject;
+      if (subject === null || subject.scopeId !== undefined) return subject;
       return { ...subject, scopeId: defaultScope };
     },
   };

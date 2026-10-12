@@ -121,7 +121,7 @@ async function auditWrite(
 ): Promise<void> {
   if (sink === undefined) return;
   const principal = ctx.principal;
-  const tenant = scopeOf(ctx);
+  const scopeValue = scopeOf(ctx);
   const event: AuditEvent = {
     actorType: principal.kind === 'user' ? AUDIT_ACTOR_TYPES.USER : AUDIT_ACTOR_TYPES.SYSTEM,
     actorId: principalActorId(principal),
@@ -134,7 +134,7 @@ async function auditWrite(
     ...(principal.kind === 'system' ? { meta: { capability: principal.capability } } : {}),
     ...(ctx.requestId === undefined ? {} : { requestId: ctx.requestId }),
     ...(ctx.traceId === undefined ? {} : { traceId: ctx.traceId }),
-    ...(tenant === undefined ? {} : { tenantId: tenant, scopeId: tenant }),
+    ...(scopeValue === undefined ? {} : { scopeId: scopeValue }),
     timestamp: new Date(),
   };
   if (before !== undefined) event.before = before;
@@ -155,7 +155,7 @@ function scriptUserOf(ctx: DataAccessContext): ScriptUser {
     id: subject?.id ?? 'system',
     roles: subject?.roles ?? [],
     departmentId: subject?.departmentId,
-    ...(subject?.tenantId === undefined ? {} : { tenantId: subject.tenantId }),
+    ...(subject?.scopeId === undefined ? {} : { scopeId: subject.scopeId }),
     ...(subject?.scopeId === undefined ? {} : { scopeId: subject.scopeId }),
   };
 }
@@ -795,9 +795,9 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
 
       // row-scope: force the scope column to the subject's scope — a scoped
       // subject must not create rows attributed to another scope
-      const tenantField = scopeFieldName(def);
-      const tenant = scopeOf(ctx);
-      if (tenantField !== undefined && tenant !== undefined) record[tenantField] = tenant;
+      const scopeField = scopeFieldName(def);
+      const scopeValue = scopeOf(ctx);
+      if (scopeField !== undefined && scopeValue !== undefined) record[scopeField] = scopeValue;
 
       const seqFields = def.fields.filter((f) => f.type === FIELD_TYPES.SEQ_NO);
       if (seqFields.length > 0) {
@@ -939,16 +939,16 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
       }
 
       // row-scope: the scope column is immutable — a scoped subject must not move
-      // a row into another scope (error code kept as `object.tenant.immutable` for compat)
-      const tenantField = scopeFieldName(def);
-      const tenant = scopeOf(ctx);
+      // a row into another scope (error code kept as `object.scope.immutable` for compat)
+      const scopeField = scopeFieldName(def);
+      const scopeValue = scopeOf(ctx);
       if (
-        tenantField !== undefined &&
-        tenant !== undefined &&
-        payload[tenantField] !== undefined &&
-        payload[tenantField] !== tenant
+        scopeField !== undefined &&
+        scopeValue !== undefined &&
+        payload[scopeField] !== undefined &&
+        payload[scopeField] !== scopeValue
       ) {
-        throw new SchemaError('object.tenant.immutable', { object: objectName, field: tenantField }, ctx.locale);
+        throw new SchemaError('object.scope.immutable', { object: objectName, field: scopeField }, ctx.locale);
       }
 
       const now = new Date();

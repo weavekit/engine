@@ -52,10 +52,10 @@ describe('createOidcVerifier — built-in OIDC/JWT validation', () => {
   it('resolves a valid bearer token to its ref + claims', async () => {
     const { verifier, sign } = await setup();
     const token = await sign({ sub: 'u-1', roles: ['admin', 'sales'], tenant: 't1' }, {});
-    const verified = await verifier({ subjectClaim: 'sub', rolesClaim: 'roles', tenantClaim: 'tenant' }).verify(`Bearer ${token}`);
+    const verified = await verifier({ subjectClaim: 'sub', rolesClaim: 'roles', scopeClaim: 'tenant' }).verify(`Bearer ${token}`);
     expect(verified?.ref).toBe('u-1');
     expect(verified?.claims?.roles).toEqual(['admin', 'sales']);
-    expect(verified?.claims?.tenantId).toBe('t1');
+    expect(verified?.claims?.scopeId).toBe('t1');
   });
 
   it('rejects a missing header, non-bearer header, and garbage token', async () => {

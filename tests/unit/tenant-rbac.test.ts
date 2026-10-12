@@ -8,7 +8,7 @@ const TENANT_DEF = defineObject({
   fields: [
     { name: 'id', type: 'string', primary: true },
     { name: 'owner_id', type: 'string', [ROW_SCOPE_MARKERS.OWNERSHIP]: true },
-    { name: 'tenant_id', type: 'string', [ROW_SCOPE_MARKERS.TENANT]: true },
+    { name: 'tenant_id', type: 'string', [ROW_SCOPE_MARKERS.SCOPE]: true },
   ],
   permissions: { sales: { read: 'own' }, admin: { read: 'all', create: true, update: true } },
 });
@@ -24,39 +24,39 @@ const NO_TENANT_DEF = defineObject({
 
 describe('buildRowScope — tenant boundary (W3.2)', () => {
   it('own + tenant → owner predicate AND tenant predicate', () => {
-    const frag = buildRowScope(TENANT_DEF, 'own', { id: 'u1', roles: ['sales'], tenantId: 't1' }, ['sales'])!;
+    const frag = buildRowScope(TENANT_DEF, 'own', { id: 'u1', roles: ['sales'], scopeId: 't1' }, ['sales'])!;
     expect(frag.sql).toContain('"owner_id" = $1');
     expect(frag.sql).toContain('"tenant_id" = $2');
     expect(frag.params).toEqual(['u1', 't1']);
   });
 
   it('all + tenant → tenant predicate only', () => {
-    const frag = buildRowScope(TENANT_DEF, 'all', { id: 'u1', roles: ['admin'], tenantId: 't1' }, ['admin'])!;
+    const frag = buildRowScope(TENANT_DEF, 'all', { id: 'u1', roles: ['admin'], scopeId: 't1' }, ['admin'])!;
     expect(frag.sql).toBe('"tenant_id" = $1');
     expect(frag.params).toEqual(['t1']);
   });
 
-  it('no tenantId → unchanged (single-tenant)', () => {
+  it('no scopeId → unchanged (single-tenant)', () => {
     const frag = buildRowScope(TENANT_DEF, 'own', { id: 'u1', roles: ['sales'] }, ['sales'])!;
     expect(frag.sql).toBe('"owner_id" = $1');
     // object without a tenant column is never tenant-scoped
-    expect(buildRowScope(NO_TENANT_DEF, 'own', { id: 'u1', roles: ['sales'], tenantId: 't1' }, ['sales'])!.sql).toBe('"owner_id" = $1');
+    expect(buildRowScope(NO_TENANT_DEF, 'own', { id: 'u1', roles: ['sales'], scopeId: 't1' }, ['sales'])!.sql).toBe('"owner_id" = $1');
   });
 });
 
 describe('buildRlsPolicy — tenant predicate', () => {
   it('adds the tenant GUC clause when the object declares a tenant column', () => {
     const policy = buildRlsPolicy(TENANT_DEF)!;
-    expect(policy).toContain("current_setting('weavekit.tenant_id', true) = \"tenant_id\"");
+    expect(policy).toContain("current_setting('weavekit.scope_id', true) = \"tenant_id\"");
   });
 
   it('no tenant clause when the object has no tenant column', () => {
-    expect(buildRlsPolicy(NO_TENANT_DEF)!).not.toContain('weavekit.tenant_id');
+    expect(buildRlsPolicy(NO_TENANT_DEF)!).not.toContain('weavekit.scope_id');
   });
 });
 
 describe('restricted SQL sets the tenant GUC', () => {
-  it('sets weavekit.tenant_id (and scope_id) when the subject has a tenant', async () => {
+  it('sets weavekit.scope_id (and scope_id) when the subject has a tenant', async () => {
     const calls: { sql: string; params?: unknown[] }[] = [];
     const client = {
       query: async (sql: string, params?: unknown[]) => { calls.push({ sql, params }); return { rows: [] }; },
@@ -64,10 +64,10 @@ describe('restricted SQL sets the tenant GUC', () => {
     };
     const pool = { connect: async () => client };
     await executeRestrictedSql(pool as never, 'SELECT 1', [], {
-      rls: { role: 'weavekit_query', subject: { id: 'u1', roles: [], tenantId: 't1' } },
+      rls: { role: 'weavekit_query', subject: { id: 'u1', roles: [], scopeId: 't1' } },
       analyzer: { ensureLoaded: async () => {}, analyzeSelect: async () => ({ tables: [], resolvers: {}, columnRefs: [], joinCount: 0 }) } as never,
     });
-    const gucs = calls.find((c) => c.sql.includes("set_config('weavekit.tenant_id', $4, true)"));
+    const gucs = calls.find((c) => c.sql.includes("set_config('weavekit.scope_id', $4, true)"));
     expect(gucs?.params?.[3]).toBe('t1');
   });
 });
@@ -79,17 +79,17 @@ describe('data-access find applies the tenant scope', () => {
     const registry = new ObjectRegistry();
     registry.register(TENANT_DEF);
     const da = withRbac(createDataAccess());
-    await da.find('lead', {}, { pool: pool as never, registry, principal: { kind: 'user', subject: { id: 'u1', roles: ['sales'], tenantId: 't1' } } });
+    await da.find('lead', {}, { pool: pool as never, registry, principal: { kind: 'user', subject: { id: 'u1', roles: ['sales'], scopeId: 't1' } } });
     expect(calls.some((c) => c.sql.includes('"tenant_id"'))).toBe(true);
   });
 });
 
 describe('audit tenant scope (W3.3)', () => {
-  it('queryAudit filters by tenant_id when a tenantId is given', async () => {
+  it('queryAudit filters by tenant_id when a scopeId is given', async () => {
     const calls: { sql: string; params: unknown[] }[] = [];
     const pool = { query: async (sql: string, params: unknown[] = []) => { calls.push({ sql, params }); return { rows: sql.includes('count') ? [{ n: 0 }] : [] }; } };
-    await queryAudit(pool as never, { tenantId: 't1' });
-    expect(calls[0]!.sql).toContain('tenant_id = $1');
+    await queryAudit(pool as never, { scopeId: 't1' });
+    expect(calls[0]!.sql).toContain('scope_id = $1');
     expect(calls[0]!.params).toEqual(['t1']);
   });
 });
@@ -97,7 +97,7 @@ describe('audit tenant scope (W3.3)', () => {
 describe('tenant write isolation (W3.2 fix)', () => {
   const registry = new ObjectRegistry();
   registry.register(TENANT_DEF);
-  const admin = userPrincipal({ id: 'u1', roles: ['admin'], tenantId: 't1' });
+  const admin = userPrincipal({ id: 'u1', roles: ['admin'], scopeId: 't1' });
 
   it('create forces the tenant column to the subject tenant', async () => {
     const calls: { sql: string; params: unknown[] }[] = [];
@@ -127,6 +127,6 @@ describe('tenant write isolation (W3.2 fix)', () => {
     } catch (error) {
       caught = error;
     }
-    expect((caught as SchemaError).code).toBe('object.tenant.immutable');
+    expect((caught as SchemaError).code).toBe('object.scope.immutable');
   });
 });

@@ -10,7 +10,7 @@ import { DEFAULT_LOCALE } from '../../src/core/i18n/index.js';
  */
 describe('G1 contract freeze', () => {
   it('frozen format/revision version markers', () => {
-    expect(engine.CONTRACT_VERSION).toBe(1);
+    expect(engine.CONTRACT_VERSION).toBe(2);
     expect(engine.SCHEMA_FORMAT_VERSION).toBe(6);
     expect(engine.WORKFLOW_FORMAT_VERSION).toBe(2);
     expect(engine.CURSOR_VERSION).toBe(1);
@@ -65,7 +65,7 @@ describe('G1 contract freeze', () => {
 
   it('frozen RBAC/data-access values', () => {
     expect(engine.READ_SCOPES).toEqual({ OWN: 'own', DEPARTMENT: 'department', ALL: 'all' });
-    expect(engine.ROW_SCOPE_MARKERS).toEqual({ OWNERSHIP: 'ownership', DEPARTMENT: 'department', TENANT: 'tenant' });
+    expect(engine.ROW_SCOPE_MARKERS).toEqual({ OWNERSHIP: 'ownership', DEPARTMENT: 'department', SCOPE: 'scope' });
     expect(Object.values(engine.FILTER_OPS).sort()).toEqual(['contains', 'eq', 'gt', 'gte', 'in', 'like', 'lt', 'lte', 'ne']);
   });
 
@@ -75,7 +75,7 @@ describe('G1 contract freeze', () => {
       'createEngine', 'buildEngineFromRegistry', 'createPool', 'migrate', 'loadSchemaDir',
       'createDataAccess', 'withRbac', 'withTx', 'executeRestrictedSql', 'enforceSqlGates',
       'resolvePermissionFor', 'buildRowScope', 'userPrincipal', 'systemPrincipal', 'SYSTEM_CAPABILITIES',
-      'principalSubject', 'principalActorId', 'principalTenantId', 'tenantOf', 'subjectOf', 'scopedQuotaKey',
+      'principalSubject', 'principalActorId', 'principalScopeId', 'scopeOf', 'subjectOf', 'scopedQuotaKey',
       'mapSchemaError', 'NOOP_AUDIT_SINK', 'AUDIT_MODES',
       'EXECUTION_STAGES', 'runPipeline', 'validateToolArgs', 'QUERY_BUDGET_DEFAULTS', 'resolveQueryBudget',
       'encodeCursor', 'decodeCursor', 'CURSOR_VERSION', 'REGISTRY_TOOLS', 'INTROSPECTION_TOOLS', 'WORKFLOW_TOOLS',

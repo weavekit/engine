@@ -18,12 +18,9 @@ export interface IdentitySubject {
   roles: string[];
   /** department whose subtree the subject may read (department scope) */
   departmentId?: string;
-  /** tenant the subject belongs to (multi-tenancy; absent = single-tenant) */
-  tenantId?: string;
   /**
-   * generic row-scope value (the canonical name; `scopeId ?? tenantId`). Scopes
-   * objects declaring a `scope`/`tenant` field to this value (RBAC row scope +
-   * RLS + audit).
+   * row-scope value (multi-tenancy; absent = single-scope). Scopes objects
+   * declaring a `scope` field to this value (RBAC row scope + RLS + audit).
    */
   scopeId?: string;
 }

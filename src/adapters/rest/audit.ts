@@ -63,9 +63,9 @@ export function registerAuditRoutes(app: FastifyInstance, deps: RestDeps, option
       filter.actorId = subject.id;
     }
     // row-scope boundary: an ordinary identity only sees its own scope's events
-    // (admins may filter by scopeId / tenantId explicitly)
-    const rawScope = readString(query, 'scopeId', locale) ?? readString(query, 'tenantId', locale);
-    const subjectScope = subject.scopeId ?? subject.tenantId;
+    // (admins may filter by scopeId / scopeId explicitly)
+    const rawScope = readString(query, 'scopeId', locale) ?? readString(query, 'scopeId', locale);
+    const subjectScope = subject.scopeId ?? subject.scopeId;
     if (!isAdmin && subjectScope !== undefined) {
       filter.scopeId = subjectScope;
     } else if (isAdmin && rawScope !== undefined) {

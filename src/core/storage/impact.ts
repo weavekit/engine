@@ -39,7 +39,7 @@ export interface SchemaImpact {
   /** destructive statements (drop/rename/type-change) — none from the engine today */
   drops: string[];
   dataCompat: { risk: ImpactRisk; notes: string[] };
-  rbacTenant: { tenantObjects: string[]; permissionObjects: string[] };
+  rbacScope: { scopeObjects: string[]; permissionObjects: string[] };
   /** true when a statement could break an existing API/schema consumer */
   apiBreaking: boolean;
 }
@@ -60,11 +60,11 @@ function isSystemSubject(stmt: string): boolean {
   return subject !== undefined && subject.startsWith('weavekit_');
 }
 
-function objectOf(def: ObjectDefinition): { tenant: boolean; permissions: boolean } {
-  const tenant = def.fields.some(
-    (field) => (field as unknown as Record<string, unknown>)[ROW_SCOPE_MARKERS.TENANT] === true,
+function objectOf(def: ObjectDefinition): { scope: boolean; permissions: boolean } {
+  const scope = def.fields.some(
+    (field) => (field as unknown as Record<string, unknown>)[ROW_SCOPE_MARKERS.SCOPE] === true,
   );
-  return { tenant, permissions: Object.keys(def.permissions ?? {}).length > 0 };
+  return { scope, permissions: Object.keys(def.permissions ?? {}).length > 0 };
 }
 
 /** analyze the planned DDL + the definitions of the objects it touches */
@@ -143,11 +143,11 @@ export function analyzeImpact(statements: readonly string[], changedDefs: readon
     notes.push('enum value additions are irreversible (PostgreSQL cannot remove an enum label)');
   }
 
-  const tenantObjects: string[] = [];
+  const scopeObjects: string[] = [];
   const permissionObjects: string[] = [];
   for (const def of changedDefs) {
     const info = objectOf(def);
-    if (info.tenant) tenantObjects.push(def.name);
+    if (info.scope) scopeObjects.push(def.name);
     if (info.permissions) permissionObjects.push(def.name);
   }
 
@@ -160,7 +160,7 @@ export function analyzeImpact(statements: readonly string[], changedDefs: readon
     rlsChanges,
     drops,
     dataCompat: { risk, notes },
-    rbacTenant: { tenantObjects, permissionObjects },
+    rbacScope: { scopeObjects, permissionObjects },
     apiBreaking: drops.length > 0,
   };
 }

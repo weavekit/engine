@@ -232,7 +232,7 @@ export function createToolExecutor(options: ToolExecutorOptions): ToolExecutor {
             errorCode: err.code,
             ...(req.requestId === undefined ? {} : { requestId: req.requestId }),
             ...(req.traceId === undefined ? {} : { traceId: req.traceId }),
-            ...(req.subject.tenantId === undefined ? {} : { tenantId: req.subject.tenantId }),
+            ...(req.subject.scopeId === undefined ? {} : { scopeId: req.subject.scopeId }),
             meta: {
               onBehalfOf: req.actor.onBehalfOf,
               subjectId: req.subject.id,
@@ -257,7 +257,7 @@ export function createToolExecutor(options: ToolExecutorOptions): ToolExecutor {
         errorCode,
         ...(req.requestId === undefined ? {} : { requestId: req.requestId }),
         ...(req.traceId === undefined ? {} : { traceId: req.traceId }),
-        ...(req.subject.tenantId === undefined ? {} : { tenantId: req.subject.tenantId }),
+        ...(req.subject.scopeId === undefined ? {} : { scopeId: req.subject.scopeId }),
         meta: {
           onBehalfOf: req.actor.onBehalfOf,
           subjectId: req.subject.id,

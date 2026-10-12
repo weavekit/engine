@@ -26,8 +26,8 @@ export interface OidcConfig {
   subjectClaim?: string;
   /** when set, the named claim's value is also exposed as `claims.roles` */
   rolesClaim?: string;
-  /** when set, the named claim's value is also exposed as `claims.tenantId` */
-  tenantClaim?: string;
+  /** when set, the named claim's value is also exposed as `claims.scopeId` */
+  scopeClaim?: string;
   /** allowed signing algorithms (default: asymmetric RS/ES/PS/EdDSA — never `none`/HMAC) */
   algorithms?: string[];
   /** clock-skew tolerance in seconds (default 5) */
@@ -123,9 +123,9 @@ export function createOidcVerifier(config: OidcConfig, options: OidcVerifierOpti
         const roles = payload[config.rolesClaim];
         if (roles !== undefined) claims.roles = roles;
       }
-      if (config.tenantClaim !== undefined && claims.tenantId === undefined) {
-        const tenant = stringClaim(payload, config.tenantClaim);
-        if (tenant !== undefined) claims.tenantId = tenant;
+      if (config.scopeClaim !== undefined && claims.scopeId === undefined) {
+        const scope = stringClaim(payload, config.scopeClaim);
+        if (scope !== undefined) claims.scopeId = scope;
       }
       return { ref, claims };
     },

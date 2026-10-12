@@ -1,5 +1,5 @@
 /** engine version — single source of truth for CLI, ops routes and MCP metadata */
-export const version = '1.8.0';
+export const version = '2.0.0';
 
 /**
  * Frozen public-contract version (G1). Bump only on a **breaking** change to the
@@ -7,4 +7,4 @@ export const version = '1.8.0';
  * types, error codes, data-access/RBAC contracts, package exports) — i.e. at a
  * major release. Additive changes do not bump it. See `docs/` "Contract freeze".
  */
-export const CONTRACT_VERSION = 1;
+export const CONTRACT_VERSION = 2;

@@ -63,8 +63,8 @@ function passesFilter(event: EngineEvent, subject: IdentitySubject, readable: Se
       if (isAdmin) return true;
       if (payload.event.actorId !== subject.id) return false;
       // row-scope boundary: a scoped identity never sees another scope's events
-      const eventScope = payload.event.scopeId ?? payload.event.tenantId;
-      const subjectScope = subject.scopeId ?? subject.tenantId;
+      const eventScope = payload.event.scopeId ?? payload.event.scopeId;
+      const subjectScope = subject.scopeId ?? subject.scopeId;
       return subjectScope === undefined || eventScope === undefined || eventScope === subjectScope;
     }
     default:
