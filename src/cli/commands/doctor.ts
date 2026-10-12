@@ -4,6 +4,7 @@ import {
   buildMappingReport,
   buildSystemTables,
   createPool,
+  createSchemaScope,
   diffAll,
   inspectSchema,
   planObjectRls,
@@ -59,6 +60,7 @@ export async function runDoctor(cwd: string): Promise<DoctorReport> {
   }
   add('database-url', DOCTOR_STATUSES.PASS, redactUrl(databaseUrl));
 
+  const scope = createSchemaScope(config.systemSchema);
   const pool = createPool(databaseUrl);
   try {
     try {
@@ -83,6 +85,9 @@ export async function runDoctor(cwd: string): Promise<DoctorReport> {
     let actual: Map<string, ActualTable>;
     try {
       actual = await inspectSchema(pool);
+      if (scope.systemSchema !== undefined) {
+        actual = new Map([...actual, ...(await inspectSchema(pool, { schema: scope.systemSchema }))]);
+      }
     } catch (error) {
       add('schema-inspect', DOCTOR_STATUSES.FAIL, message(error));
       return { checks, ok: false };
@@ -108,7 +113,7 @@ export async function runDoctor(cwd: string): Promise<DoctorReport> {
     }
 
     // engine-owned system tables present + shaped as the current engine expects
-    const systemStatements = diffAll(buildSystemTables(), actual);
+    const systemStatements = diffAll(buildSystemTables(scope), actual);
     if (systemStatements.length === 0) {
       add('system-tables', DOCTOR_STATUSES.PASS, 'engine system tables provisioned');
     } else {
@@ -156,7 +161,7 @@ export async function runDoctor(cwd: string): Promise<DoctorReport> {
         });
         registry.buildGraph({ locale: config.locale });
         const role = await pool.query('SELECT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = $1) AS present', [objectRlsRole]);
-        const plan = planObjectRls(registry, actual, objectRlsRole);
+        const plan = planObjectRls(registry, actual, objectRlsRole, { scope });
         if ((role.rows[0] as { present: boolean }).present !== true) {
           add('object-rls', DOCTOR_STATUSES.FAIL, `role "${objectRlsRole}" is missing — run "weave migrate"`);
         } else if (plan.statements.length > 0) {

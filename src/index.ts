@@ -1,5 +1,5 @@
 import type { ObjectRegistry } from './core/index.js';
-import { createPool } from './core/index.js';
+import { createPool, searchPathOptions } from './core/index.js';
 import {
   autoCommit,
   buildCommitMessage,
@@ -89,6 +89,7 @@ export async function createEngine(config: EngineConfig): Promise<WeaveKitEngine
       databaseUrl: config.migrationDatabaseUrl ?? config.databaseUrl,
       locale,
       ...(objectRlsRole === undefined ? {} : { objectRls: { role: objectRlsRole } }),
+      ...(config.systemSchema === undefined ? {} : { systemSchema: config.systemSchema }),
       allowedFieldTypes: config.features?.fieldTypes,
       fieldTypes,
     });
@@ -106,6 +107,7 @@ export async function createEngine(config: EngineConfig): Promise<WeaveKitEngine
         // reached only after a successful sync, which required a DB URL
         const pool = createPool(
           config.migrationDatabaseUrl ?? config.databaseUrl ?? process.env.DATABASE_URL!,
+          searchPathOptions(config.systemSchema),
         );
         try {
           await recordSchemaChanges(pool, changes, sync.files, {

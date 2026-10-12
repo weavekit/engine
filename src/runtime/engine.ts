@@ -15,11 +15,13 @@ import {
   SUPPORTED_LOCALES,
   AUDIT_MODES,
   createPool,
+  createSchemaScope,
   createSlidingWindow,
   parseTraceparent,
   inspectSchema,
   isSafeRlsRole,
   planObjectRls,
+  searchPathOptions,
   OBJECT_RLS_ROLE_DEFAULT,
   type AuditMode,
   type AuditSink,
@@ -324,6 +326,15 @@ export interface EngineConfig {
    */
   query?: { total?: TotalMode };
   /**
+   * Dedicated schema for the engine's own tables (`weavekit_*` system tables,
+   * `weavekit_record__<object>` side tables, `weavekit_m2m__*` link tables), so
+   * a DBA reviewing the customer schema does not see engine plumbing. Default
+   * (absent) keeps them in the object schema (legacy). Set the same value on
+   * `weave migrate`; the runtime appends it to `search_path`. Only affects new
+   * databases (existing installs need a manual `ALTER TABLE … SET SCHEMA`).
+   */
+  systemSchema?: string;
+  /**
    * Object-path row-level security (defense in depth; default off in 1.x).
    * With `enforce`, the engine runs user-principal customer-table reads /
    * updates / deletes under `role` (default `weavekit_object`), so PostgreSQL
@@ -473,6 +484,7 @@ export async function assertObjectRlsProvisioned(
   registry: ObjectRegistry,
   role: string,
   locale: Locale,
+  scope?: import('../core/index.js').SchemaScope,
 ): Promise<void> {
   if (!isSafeRlsRole(role)) throw new SchemaError('engine.rls.notProvisioned', { detail: `invalid role "${role}"` }, locale);
   const { rows } = await pool.query<{ present: boolean; member: boolean }>(
@@ -485,7 +497,12 @@ export async function assertObjectRlsProvisioned(
     const detail = rows[0]?.present === true ? `role "${role}" is not granted to the runtime account` : `role "${role}" is missing`;
     throw new SchemaError('engine.rls.notProvisioned', { detail }, locale);
   }
-  const plan = planObjectRls(registry, await inspectSchema(pool), role);
+  const objectActual = await inspectSchema(pool);
+  const actual =
+    scope?.systemSchema === undefined
+      ? objectActual
+      : new Map([...objectActual, ...(await inspectSchema(pool, { schema: scope.systemSchema }))]);
+  const plan = planObjectRls(registry, actual, role, { scope });
   if (plan.statements.length > 0) {
     const tables = [...new Set(plan.statements.map((s) => /"([^"]+)"/.exec(s)?.[1]).filter((t): t is string => t !== undefined))];
     throw new SchemaError('engine.rls.notProvisioned', { detail: `missing policies/privileges on ${tables.join(', ')}` }, locale);
@@ -531,11 +548,12 @@ export async function buildEngineFromRegistry(
     throw new SchemaError('auth.notConfigured', {}, locale);
   }
 
-  const pool = createPool(databaseUrl);
+  const scope = createSchemaScope(config.systemSchema);
+  const pool = createPool(databaseUrl, searchPathOptions(scope.systemSchema));
   const objectRlsRole = resolveObjectRlsRole(config);
   try {
     await assertRestrictedRuntimeAccount(pool, config, locale);
-    if (objectRlsRole !== undefined) await assertObjectRlsProvisioned(pool, registry, objectRlsRole, locale);
+    if (objectRlsRole !== undefined) await assertObjectRlsProvisioned(pool, registry, objectRlsRole, locale, scope);
   } catch (error) {
     await pool.end();
     throw error;

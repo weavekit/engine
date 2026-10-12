@@ -1,5 +1,6 @@
 import type { ExpectedTable } from './diff.js';
 import { FIELD_TYPES, WEAVE_STATUS } from '../types/index.js';
+import type { SchemaScope } from './schema-scope.js';
 
 /**
  * Engine-owned per-object record metadata ("side table").
@@ -96,12 +97,14 @@ export function isRecordMetaTable(name: string): boolean {
  * tables (`weavekit_user`) land with the identity subsystem, and orphan cleanup
  * is handled at the data-access layer, not by a hard FK.
  */
-export function buildRecordMetaTable(object: string): ExpectedTable {
+export function buildRecordMetaTable(object: string, scope?: SchemaScope): ExpectedTable {
   const name = recordMetaTableName(object);
+  const schema = scope?.systemSchema;
   const text = { type: 'TEXT', notNull: false, primary: false, unique: false } as const;
   const ts = { type: 'TIMESTAMPTZ', notNull: false, primary: false, unique: false } as const;
   return {
     name,
+    ...(schema === undefined ? {} : { schema }),
     columns: [
       { name: RECORD_META_COLUMNS.RECORD_KEY, type: 'TEXT', notNull: true, primary: true, unique: false },
       {

@@ -10,11 +10,12 @@ import type { ExpectedTable } from './diff.js';
 import { inspectSchema } from './inspect.js';
 import { buildLinkTables } from './link-table.js';
 import { setMeta } from './meta.js';
-import { createPool } from './pool.js';
+import { createPool, searchPathOptions } from './pool.js';
 import type { SqlQueryable } from './queryable.js';
 import { buildRecordMetaTable } from './record-meta.js';
 import { sqlIdent, sqlLiteral } from './sql-literals.js';
 import { SYSTEM_TABLES, buildSystemTables, systemHardeningStatements } from './system-tables.js';
+import { createSchemaScope, qualifyTable } from './schema-scope.js';
 import { isSafeRlsRole } from '../rbac/index.js';
 import { planObjectRls } from './object-rls.js';
 import type { ActualTable } from './inspect.js';
@@ -45,6 +46,14 @@ export interface MigrateOptions {
    * runs under. Same table gating as `rls` (new tables, or `alter` + owned).
    */
   objectRls?: { role: string };
+  /**
+   * dedicated schema for the engine's own tables (`weavekit_*` system tables,
+   * `weavekit_record__<object>` side tables, `weavekit_m2m__*` link tables).
+   * Default undefined = create them in the connection's `current_schema()`
+   * (legacy). When set, `migrate` creates the schema and qualifies those tables;
+   * customer/identity object tables stay in the object schema.
+   */
+  systemSchema?: string;
   /**
    * Run additional writes in the SAME transaction as the DDL (after DDL +
    * `schema.applied.*` meta + workflow-definition registration, before COMMIT).
@@ -151,16 +160,22 @@ async function objectRlsStatements(
   actual: Map<string, ActualTable>,
   objectRls: { role: string } | undefined,
   warnings: string[],
+  scope?: import('./schema-scope.js').SchemaScope,
 ): Promise<string[]> {
   if (objectRls === undefined) return [];
   if (!(await provisionRlsRole(pool, objectRls.role, warnings))) return [];
   const { rows } = await pool.query('SELECT current_user AS u');
   const owner = String((rows[0] as { u: string }).u);
-  const plan = planObjectRls(registry, actual, objectRls.role, { owner });
+  const plan = planObjectRls(registry, actual, objectRls.role, { owner, scope });
   for (const name of plan.skipped) {
     warnings.push(`skip object RLS on "${name}": existing table needs "alter": true and ownership by ${owner}`);
   }
-  return plan.statements;
+  const stmts = [...plan.statements];
+  // the RLS role must be able to resolve engine tables that live in the system schema
+  if (scope?.systemSchema !== undefined) {
+    stmts.unshift(`GRANT USAGE ON SCHEMA ${q(scope.systemSchema)} TO ${sqlIdent(objectRls.role)};`);
+  }
+  return stmts;
 }
 
 /**
@@ -198,11 +213,16 @@ export async function migrate(registry: ObjectRegistry, options: MigrateOptions 
   if (!url) throw new Error('DATABASE_URL is not set');
   const dryRun = options.dryRun ?? false;
   const warnings: string[] = [];
+  const scope = createSchemaScope(options.systemSchema);
 
-  const pool = createPool(url);
+  const pool = createPool(url, searchPathOptions(scope.systemSchema));
   try {
     const defs = new Map([...systemObjects(), ...registry.list()].map((d) => [d.name, d]));
-    const actual = await inspectSchema(pool);
+    const objectActual = await inspectSchema(pool);
+    const systemActual =
+      scope.systemSchema === undefined ? objectActual : await inspectSchema(pool, { schema: scope.systemSchema });
+    // merged view for object-RLS planning (spans object + system tables)
+    const actual = systemActual === objectActual ? objectActual : new Map([...objectActual, ...systemActual]);
 
     if (options.rls !== undefined && !isSafeRlsRole(options.rls.role)) {
       throw new Error(`invalid RLS role name "${options.rls.role}"`);
@@ -215,10 +235,10 @@ export async function migrate(registry: ObjectRegistry, options: MigrateOptions 
     // that opted in via `alter: true` are diffed against their existing table
     // too (additive ALTER DDL only)
     const expected: ExpectedTable[] = [...defs.values()]
-      .filter((d) => d.alter === true || actual.get(d.name) === undefined)
+      .filter((d) => d.alter === true || objectActual.get(d.name) === undefined)
       .map((d) => buildExpectedTable(d, defs, registry.fieldTypes));
 
-    const statements = diffAll(expected, actual);
+    const statements = diffAll(expected, objectActual);
 
     // native enum types must exist before the tables that reference them
     const enumStatements = await buildEnumStatements(pool, defs, new Set(expected.map((t) => t.name)));
@@ -226,13 +246,13 @@ export async function migrate(registry: ObjectRegistry, options: MigrateOptions 
     // engine-owned per-object record metadata side tables: one per object (R1),
     // created idempotently for every object regardless of `alter`/ownership —
     // they never touch the customer's own table
-    const metaTables = [...defs.keys()].map((name) => buildRecordMetaTable(name));
-    const metaStatements = diffAll(metaTables, actual);
+    const metaTables = [...defs.keys()].map((name) => buildRecordMetaTable(name, scope));
+    const metaStatements = diffAll(metaTables, systemActual);
 
     // engine-owned many-to-many link tables for every `multiRelation` field:
     // one per (object, field), created idempotently regardless of `alter`.
-    const linkTables = buildLinkTables(defs, registry.fieldTypes);
-    const linkStatements = diffAll(linkTables, actual);
+    const linkTables = buildLinkTables(defs, registry.fieldTypes, scope);
+    const linkStatements = diffAll(linkTables, systemActual);
 
     // engine-owned system tables (metadata cache / seq / audit / approvals /
     // timers / counters) + their ACL hardening: provisioned here (and only
@@ -240,21 +260,21 @@ export async function migrate(registry: ObjectRegistry, options: MigrateOptions 
     // one-time reshape of the legacy workflow timer table
     // (id/state/workflow_version -> record_key/node_id): engine-owned and
     // transient, so drop+recreate is safe (there are no users yet).
-    const legacyTimers = actual.get(SYSTEM_TABLES.WORKFLOW_TIMERS);
+    const legacyTimers = systemActual.get(SYSTEM_TABLES.WORKFLOW_TIMERS);
     const dropLegacyTimers =
       legacyTimers !== undefined &&
       legacyTimers.columns.some((c) => c.name === 'state') &&
       !legacyTimers.columns.some((c) => c.name === 'record_key');
-    if (dropLegacyTimers) actual.delete(SYSTEM_TABLES.WORKFLOW_TIMERS);
-    const systemStatements = diffAll(buildSystemTables(), actual);
-    const hardening = (await publicHasTruncate(pool, SYSTEM_TABLES.AUDIT)) ? systemHardeningStatements() : [];
+    if (dropLegacyTimers) systemActual.delete(SYSTEM_TABLES.WORKFLOW_TIMERS);
+    const systemStatements = diffAll(buildSystemTables(scope), systemActual);
+    const hardening = (await publicHasTruncate(pool, qualifyTable(SYSTEM_TABLES.AUDIT, scope))) ? systemHardeningStatements(scope) : [];
 
     // existing tables are read-only unless the object opted in (`alter: true`):
     // verify every declared field is a live column (prevents REST/MCP pointing
     // at ghost columns). With `alter: true`, missing fields become ADD COLUMN
     // instead of throwing.
     for (const def of defs.values()) {
-      const actualTable = actual.get(def.name);
+      const actualTable = objectActual.get(def.name);
       if (actualTable === undefined) continue; // new object, handled above
       const cols = new Set(actualTable.columns.map((c) => c.name));
       const pk = primaryKeyOf(def);
@@ -275,7 +295,7 @@ export async function migrate(registry: ObjectRegistry, options: MigrateOptions 
       }
     }
 
-    const applied = expected.filter((t) => diffTable(t, actual.get(t.name)).length > 0).map((t) => t.name);
+    const applied = expected.filter((t) => diffTable(t, objectActual.get(t.name)).length > 0).map((t) => t.name);
 
     // row-level security for the restricted-SQL role: provision the role
     // (non-transactional) then diff the policy against the live RLS state.
@@ -289,7 +309,7 @@ export async function migrate(registry: ObjectRegistry, options: MigrateOptions 
         const { rows } = await pool.query('SELECT current_user AS u');
         const currentUser = String((rows[0] as { u: string }).u);
         for (const def of registry.list()) {
-          const actualTable = actual.get(def.name);
+          const actualTable = objectActual.get(def.name);
           const applies = actualTable === undefined || (def.alter === true && actualTable.owner === currentUser);
           if (!applies) {
             if (actualTable !== undefined) {
@@ -304,22 +324,24 @@ export async function migrate(registry: ObjectRegistry, options: MigrateOptions 
         // ever granted, a second layer behind the sql-gate. The engine runs as
         // the owner and bypasses RLS, so its own reads are unaffected.
         for (const table of linkTables) {
-          if (actual.get(table.name)?.rlsEnabled !== true) {
-            rlsStatements.push(`ALTER TABLE ${q(table.name)} ENABLE ROW LEVEL SECURITY;`);
+          if (systemActual.get(table.name)?.rlsEnabled !== true) {
+            rlsStatements.push(`ALTER TABLE ${qualifyTable(table.name, scope)} ENABLE ROW LEVEL SECURITY;`);
           }
         }
       }
     }
 
+    const sysSchema = scope.systemSchema;
     const allStatements = [
+      ...(sysSchema === undefined ? [] : [`CREATE SCHEMA IF NOT EXISTS ${q(sysSchema)};`]),
       ...enumStatements,
-      ...(dropLegacyTimers ? [`DROP TABLE ${q(SYSTEM_TABLES.WORKFLOW_TIMERS)};`] : []),
+      ...(dropLegacyTimers ? [`DROP TABLE ${qualifyTable(SYSTEM_TABLES.WORKFLOW_TIMERS, scope)};`] : []),
       ...statements,
       ...metaStatements,
       ...linkStatements,
       ...systemStatements,
       ...rlsStatements,
-      ...(await objectRlsStatements(pool, registry, actual, options.objectRls, warnings)),
+      ...(await objectRlsStatements(pool, registry, actual, options.objectRls, warnings, scope)),
       ...hardening,
     ];
 
@@ -336,8 +358,8 @@ export async function migrate(registry: ObjectRegistry, options: MigrateOptions 
         await client.query('SELECT pg_advisory_xact_lock($1)', [SCHEMA_MIGRATION_LOCK_KEY]);
         await applyStatementsOn(client, allStatements);
         const ts = new Date().toISOString();
-        for (const name of applied) await setMeta(client, `schema.applied.${name}`, ts);
-        await registerWorkflowDefinitions(client, defs);
+        for (const name of applied) await setMeta(client, `schema.applied.${name}`, ts, scope);
+        await registerWorkflowDefinitions(client, defs, scope);
         if (options.onCommit !== undefined) await options.onCommit(client);
         await client.query('COMMIT');
       } catch (error) {
@@ -363,8 +385,9 @@ export async function migrate(registry: ObjectRegistry, options: MigrateOptions 
 async function registerWorkflowDefinitions(
   db: SqlQueryable,
   defs: ReadonlyMap<string, ObjectDefinition>,
+  scope?: import('./schema-scope.js').SchemaScope,
 ): Promise<void> {
-  const table = q(SYSTEM_TABLES.WORKFLOW_DEFINITIONS);
+  const table = qualifyTable(SYSTEM_TABLES.WORKFLOW_DEFINITIONS, scope);
   for (const def of defs.values()) {
     if (def.workflow === undefined || def.workflowHash === undefined) continue;
     await db.query(

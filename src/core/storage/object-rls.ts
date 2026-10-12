@@ -5,6 +5,7 @@ import { diffGrants, diffObjectRls } from './diff.js';
 import type { ActualTable } from './inspect.js';
 import { buildLinkTables } from './link-table.js';
 import { recordMetaTableName } from './record-meta.js';
+import type { SchemaScope } from './schema-scope.js';
 
 /** customer tables: the role reads/updates/deletes under the generated policies (INSERT stays with the owner) */
 const OBJECT_PRIVILEGES = ['SELECT', 'UPDATE', 'DELETE'] as const;
@@ -31,10 +32,11 @@ export function planObjectRls(
   registry: ObjectRegistry,
   actual: ReadonlyMap<string, ActualTable>,
   role: string,
-  options: { owner?: string } = {},
+  options: { owner?: string; scope?: SchemaScope } = {},
 ): ObjectRlsPlan {
   const statements: string[] = [];
   const skipped: string[] = [];
+  const systemSchema = options.scope?.systemSchema;
   for (const def of registry.list()) {
     const table = actual.get(def.name);
     if (table !== undefined && options.owner !== undefined && !(def.alter === true && table.owner === options.owner)) {
@@ -43,7 +45,7 @@ export function planObjectRls(
     }
     statements.push(...diffObjectRls(def.name, table, role, buildObjectRlsPolicies(registry, def), OBJECT_PRIVILEGES));
     const meta = recordMetaTableName(def.name);
-    statements.push(...diffGrants(meta, actual.get(meta), role, ['SELECT']));
+    statements.push(...diffGrants(meta, actual.get(meta), role, ['SELECT'], systemSchema));
   }
   for (const name of SYSTEM_OBJECT_NAMES) {
     statements.push(...diffGrants(name, actual.get(name), role, ['SELECT']));
@@ -51,8 +53,8 @@ export function planObjectRls(
   const defs = new Map([...systemObjects(), ...registry.list()].map((d) => [d.name, d]));
   // link rows are scoped by the target-visibility predicate the query carries
   const linkPolicy = [{ name: OBJECT_RLS_POLICIES.SELECT, command: 'SELECT' as const, using: 'true' }];
-  for (const link of buildLinkTables(defs, registry.fieldTypes)) {
-    statements.push(...diffObjectRls(link.name, actual.get(link.name), role, linkPolicy, ['SELECT']));
+  for (const link of buildLinkTables(defs, registry.fieldTypes, options.scope)) {
+    statements.push(...diffObjectRls(link.name, actual.get(link.name), role, linkPolicy, ['SELECT'], systemSchema));
   }
   return { statements, skipped };
 }

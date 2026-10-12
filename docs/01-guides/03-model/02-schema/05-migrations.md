@@ -46,6 +46,26 @@ Before a deploy — especially against a new or existing database — run `weave
 preflight (connection, PostgreSQL compatibility, schema/DB drift, engine system tables, RLS + sandbox)
 that exits non-zero on any failure. `weave migrate --preflight` runs it first.
 
+## Where engine tables live
+
+Besides your objects, `weave migrate` provisions the engine's own tables: the `weavekit_*` **system
+tables** (metadata cache, sequence counters, audit, approvals, workflow, evidence, counters), the
+`weavekit_record__<object>` metadata **side tables** and the `weavekit_m2m__*` **link tables**.
+
+By default they are created in the **object schema** (the connection's `current_schema()`), alongside
+your tables. Set `EngineConfig.systemSchema` (e.g. `"weavekit"`) to keep them in a **dedicated
+schema** instead — useful when a DBA reviews the customer schema and does not want engine plumbing in
+it. When set:
+
+- `weave migrate` creates the schema and qualifies every engine table into it; your object tables stay
+  in the object schema.
+- the runtime appends the schema to `search_path` (`$user,public,<systemSchema>`), so its unqualified
+  engine-table references resolve to the dedicated schema while your tables still resolve to the object
+  schema first.
+
+This applies to **new** databases. For an existing install, move the engine tables yourself
+(`ALTER TABLE <name> SET SCHEMA <systemSchema>`) — the engine does not migrate their location.
+
 ## Related
 
 - [Fields & types](02-fields-and-types.md)

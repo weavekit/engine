@@ -75,6 +75,12 @@ metadata cache → auto-commit the `objects/` tree ([Git-versioned metadata](../
   `weavekit_workflow_timers`, `weavekit_counters`, `weavekit_meta`) and their row-level security. Run
   it at least once before the first boot; the runtime account can then be least-privileged
   (`runtime.requireRestrictedAccount`, default on).
+- By default these engine tables (plus the `weavekit_record__<object>` side tables and `weavekit_m2m__*`
+  link tables) are created in the object schema. Set `EngineConfig.systemSchema` (e.g. `"weavekit"`)
+  to keep them in a **dedicated schema** instead — useful when a DBA reviews the customer schema. Set
+  the same value on `weave migrate`; the runtime appends it to `search_path`. This applies to **new**
+  databases (existing installs need a manual `ALTER TABLE … SET SCHEMA`). See
+  [Where engine tables live](../03-model/02-schema/05-migrations.md).
 - Existing tables are validated **read-only** by default. A declared field with no matching column
   aborts with `object.field.columnMissing`. An object opts into additive auto-DDL with `"alter": true`
   in its `schema.json`. See

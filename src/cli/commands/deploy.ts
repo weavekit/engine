@@ -1,4 +1,4 @@
-import { analyzeImpact, createPool, type ObjectDefinition, type SchemaImpact } from '../../core/index.js';
+import { analyzeImpact, createPool, searchPathOptions, type ObjectDefinition, type SchemaImpact } from '../../core/index.js';
 import { syncSchema } from '../../runtime/git/index.js';
 import { resolveObjectRlsRole } from '../../runtime/engine.js';
 import { latestSchemaRevision, type SchemaRevision } from '../../runtime/metadata/index.js';
@@ -21,10 +21,10 @@ function riskOf(statements: readonly string[]): RiskLevel {
 }
 
 /** latest recorded schema revision (null when none / no DB) — the deploy drift anchor */
-async function readRevision(databaseUrl: string | undefined): Promise<SchemaRevision | null> {
+async function readRevision(databaseUrl: string | undefined, systemSchema?: string): Promise<SchemaRevision | null> {
   const url = databaseUrl ?? process.env.DATABASE_URL;
   if (url === undefined) return null;
-  const pool = createPool(url);
+  const pool = createPool(url, searchPathOptions(systemSchema));
   try {
     return await latestSchemaRevision(pool);
   } finally {
@@ -63,6 +63,7 @@ async function loadSyncOptions(cwd: string, dryRun: boolean) {
     dryRun,
     rls: rlsRole !== undefined ? { role: rlsRole } : undefined,
     objectRls: objectRlsRole !== undefined ? { role: objectRlsRole } : undefined,
+    ...(config.systemSchema === undefined ? {} : { systemSchema: config.systemSchema }),
     allowedFieldTypes: config.features?.fieldTypes,
     fieldTypes,
   } as const;
@@ -81,7 +82,7 @@ export async function deployPlan(cwd: string, options: DeployPlanOptions): Promi
     .filter((def): def is ObjectDefinition => def !== undefined);
   const impact = analyzeImpact(statements, changedDefs);
 
-  const revision = await readRevision(syncOptions.databaseUrl);
+  const revision = await readRevision(syncOptions.databaseUrl, syncOptions.systemSchema);
   const configDrift = revision !== null && revision.contentHash !== result.schemaHash;
 
   p.table([['object', 'status'], ...result.files.map((f) => [

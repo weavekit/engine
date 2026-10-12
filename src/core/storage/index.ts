@@ -1,4 +1,4 @@
-export { createPool } from './pool.js';
+export { createPool, searchPathOptions } from './pool.js';
 export { inspectSchema } from './inspect.js';
 export type { ActualColumn, ActualFk, ActualTable, InspectOptions } from './inspect.js';
 export { mapToSchema } from './introspect.js';
@@ -62,5 +62,13 @@ export {
   buildLinkTables,
 } from './link-table.js';
 export { SYSTEM_TABLES, SYSTEM_TABLE_NAMES, buildSystemTables, systemHardeningStatements } from './system-tables.js';
+export {
+  DEFAULT_SCHEMA_SCOPE,
+  assertSchemaName,
+  createSchemaScope,
+  isScoped,
+  qualifyTable,
+} from './schema-scope.js';
+export type { SchemaScope } from './schema-scope.js';
 export { migrate } from './migrate.js';
 export type { MigrateOptions, MigrationResult } from './migrate.js';

@@ -5,6 +5,23 @@ the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-10-12
+
+Additive (no `CONTRACT_VERSION` bump): a dedicated system schema for brownfield installs.
+
+### Added
+
+- **`EngineConfig.systemSchema`** — create the engine's own tables (the `weavekit_*` system tables,
+  the `weavekit_record__<object>` metadata side tables and the `weavekit_m2m__*` link tables) in a
+  **dedicated schema** instead of the object schema, so a DBA reviewing the customer schema does not
+  see engine plumbing. `weave migrate` / `weave deploy` create the schema and qualify those tables
+  (explicit qualification — object tables stay in the object schema); the runtime appends the schema to
+  `search_path` so its unqualified engine-table references resolve there. `MigrateOptions.systemSchema`,
+  `weave doctor` checks the dedicated schema, and `inspectSchema` takes a `schema` option. New exports
+  `SchemaScope`, `createSchemaScope`, `qualifyTable`, `assertSchemaName`, `searchPathOptions`.
+  Default (`undefined`) is unchanged; existing installs move tables manually
+  (`ALTER TABLE … SET SCHEMA`).
+
 ## [1.5.0] - 2026-10-12
 
 Additive (no `CONTRACT_VERSION` bump): P0 security/governance fixes.

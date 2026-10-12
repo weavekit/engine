@@ -1,4 +1,5 @@
 import type { ExpectedColumn, ExpectedTable } from './diff.js';
+import { qualifyTable, type SchemaScope } from './schema-scope.js';
 
 /**
  * Engine-owned **system tables**.
@@ -340,8 +341,9 @@ const counters = (): ExpectedTable => ({
  * unconditionally, so a single `weave migrate` provisions everything the
  * runtime needs; the runtime itself never runs DDL.
  */
-export function buildSystemTables(): ExpectedTable[] {
-  return [
+export function buildSystemTables(scope?: SchemaScope): ExpectedTable[] {
+  const schema = scope?.systemSchema;
+  const tables: ExpectedTable[] = [
     meta(),
     metadata(),
     schemaRevision(),
@@ -358,6 +360,7 @@ export function buildSystemTables(): ExpectedTable[] {
     workflowTimers(),
     counters(),
   ];
+  return schema === undefined ? tables : tables.map((t) => ({ ...t, schema }));
 }
 
 /**
@@ -365,6 +368,6 @@ export function buildSystemTables(): ExpectedTable[] {
  * trail is append-only: non-owners must not be able to erase history.
  * (`DROP` is ownership-only in PostgreSQL; `TRUNCATE` is the grantable risk.)
  */
-export function systemHardeningStatements(): string[] {
-  return [`REVOKE TRUNCATE ON ${SYSTEM_TABLES.AUDIT} FROM PUBLIC;`];
+export function systemHardeningStatements(scope?: SchemaScope): string[] {
+  return [`REVOKE TRUNCATE ON ${qualifyTable(SYSTEM_TABLES.AUDIT, scope)} FROM PUBLIC;`];
 }

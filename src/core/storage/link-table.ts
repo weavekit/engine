@@ -7,6 +7,7 @@ import {
 } from '../types/index.js';
 import { pgType } from './map.js';
 import type { ExpectedColumn, ExpectedFk, ExpectedIndex, ExpectedTable } from './diff.js';
+import type { SchemaScope } from './schema-scope.js';
 
 /**
  * Engine-owned many-to-many **link tables** backing `multiRelation` fields.
@@ -78,8 +79,10 @@ export function buildLinkTable(
   field: Extract<ObjectDefinition['fields'][number], { type: typeof FIELD_TYPES.MULTI_RELATION }>,
   target: ObjectDefinition,
   registry: FieldTypeRegistry = DEFAULT_FIELD_TYPE_REGISTRY,
+  scope?: SchemaScope,
 ): ExpectedTable {
   const name = linkTableName(owner.name, field.name);
+  const schema = scope?.systemSchema;
   const ownerPks = primaryFieldsOf(owner);
   const targetPks = primaryFieldsOf(target);
 
@@ -128,18 +131,19 @@ export function buildLinkTable(
     { name: `${name}_target_idx`, method: 'btree', columns: targetCols.map((c) => c.column) },
   ];
 
-  return { name, columns, fks, indexes, uniques: [] };
+  return { name, ...(schema === undefined ? {} : { schema }), columns, fks, indexes, uniques: [] };
 }
 
 /** every link table implied by the given object definitions, in stable order */
 export function buildLinkTables(
   defs: ReadonlyMap<string, ObjectDefinition>,
   registry: FieldTypeRegistry = DEFAULT_FIELD_TYPE_REGISTRY,
+  scope?: SchemaScope,
 ): ExpectedTable[] {
   const tables: ExpectedTable[] = [];
   for (const owner of defs.values()) {
     for (const { field, target } of multiRelationsOf(owner, defs)) {
-      tables.push(buildLinkTable(owner, field, target, registry));
+      tables.push(buildLinkTable(owner, field, target, registry, scope));
     }
   }
   return tables;

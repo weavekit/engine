@@ -1,6 +1,6 @@
 import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { createPool, WORKFLOW_FORMAT_VERSION } from '../../core/index.js';
+import { createPool, searchPathOptions, WORKFLOW_FORMAT_VERSION } from '../../core/index.js';
 import type { WorkflowDefinition } from '../../core/index.js';
 import { autoCommit } from '../../runtime/git/index.js';
 import { loadConfig } from '../load-config.js';
@@ -42,7 +42,7 @@ export async function workflowSwitch(
     return;
   }
 
-  const pool = createPool(databaseUrl);
+  const pool = createPool(databaseUrl, searchPathOptions(config.systemSchema));
   try {
     const res = await pool.query(
       `SELECT definition FROM weavekit_workflow_definitions WHERE object = $1 AND version_seq = $2`,

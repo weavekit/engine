@@ -63,6 +63,12 @@ export interface InspectOptions {
    * extra queries.
    */
   detail?: boolean;
+  /**
+   * schema to inspect; undefined = the connection's `current_schema()`. Used to
+   * inspect a dedicated system schema (`EngineConfig.systemSchema`) separately
+   * from the object schema.
+   */
+  schema?: string;
 }
 
 /** map a pg `confdeltype` char to a readable action name */
@@ -77,12 +83,14 @@ const FK_DELETE_ACTIONS: Record<string, string> = {
 /** read the current schema of every table in the connection's schema */
 export async function inspectSchema(pool: Pool, options: InspectOptions = {}): Promise<Map<string, ActualTable>> {
   const tables = new Map<string, ActualTable>();
+  const schemaParam = options.schema ?? null;
 
   const cols = await pool.query(
     `SELECT table_name, column_name, data_type, is_nullable, column_default,
             udt_name, numeric_precision, numeric_scale, character_maximum_length
        FROM information_schema.columns
-      WHERE table_schema = current_schema()`,
+      WHERE table_schema = COALESCE($1::text, current_schema())`,
+    [schemaParam],
   );
   for (const row of cols.rows as {
     table_name: string;
@@ -124,8 +132,9 @@ export async function inspectSchema(pool: Pool, options: InspectOptions = {}): P
        FROM information_schema.table_constraints tc
        JOIN information_schema.key_column_usage kcu
          ON tc.constraint_name = kcu.constraint_name AND tc.constraint_schema = kcu.constraint_schema
-      WHERE tc.constraint_type = 'PRIMARY KEY' AND tc.table_schema = current_schema()
+      WHERE tc.constraint_type = 'PRIMARY KEY' AND tc.table_schema = COALESCE($1::text, current_schema())
       ORDER BY tc.table_name, kcu.ordinal_position`,
+    [schemaParam],
   );
   for (const row of pkRows.rows as { table_name: string; column_name: string }[]) {
     tables.get(row.table_name)?.pk.push(row.column_name);
@@ -145,8 +154,9 @@ export async function inspectSchema(pool: Pool, options: InspectOptions = {}): P
        JOIN pg_attribute a ON a.attrelid = con.conrelid AND a.attnum = k.attnum
        JOIN unnest(con.confkey) WITH ORDINALITY AS fk(attnum, ord) ON fk.ord = k.ord
        JOIN pg_attribute fa ON fa.attrelid = con.confrelid AND fa.attnum = fk.attnum
-      WHERE con.contype = 'f' AND n.nspname = current_schema()
+      WHERE con.contype = 'f' AND n.nspname = COALESCE($1::text, current_schema())
       GROUP BY c.relname, rc.relname, con.conname, con.confdeltype`,
+    [schemaParam],
   );
   for (const row of fkRows.rows as {
     table_name: string;
@@ -164,7 +174,8 @@ export async function inspectSchema(pool: Pool, options: InspectOptions = {}): P
   }
 
   const idxRows = await pool.query(
-    `SELECT tablename, indexname FROM pg_indexes WHERE schemaname = current_schema()`,
+    `SELECT tablename, indexname FROM pg_indexes WHERE schemaname = COALESCE($1::text, current_schema())`,
+    [schemaParam],
   );
   for (const row of idxRows.rows as { tablename: string; indexname: string }[]) {
     tables.get(row.tablename)?.indexNames.push(row.indexname);
@@ -175,7 +186,8 @@ export async function inspectSchema(pool: Pool, options: InspectOptions = {}): P
     `SELECT c.relname, c.relrowsecurity, r.rolname AS owner
        FROM pg_class c
        JOIN pg_roles r ON c.relowner = r.oid
-      WHERE c.relkind = 'r' AND c.relnamespace = current_schema()::regnamespace`,
+      WHERE c.relkind = 'r' AND c.relnamespace = to_regnamespace(COALESCE($1::text, current_schema()))`,
+    [schemaParam],
   );
   for (const row of rlsRows.rows as { relname: string; relrowsecurity: boolean; owner: string }[]) {
     const t = tables.get(row.relname);
@@ -190,7 +202,8 @@ export async function inspectSchema(pool: Pool, options: InspectOptions = {}): P
        FROM pg_policy p
        JOIN pg_class c ON c.oid = p.polrelid
        LEFT JOIN pg_description d ON d.objoid = p.oid AND d.classoid = 'pg_policy'::regclass
-      WHERE c.relnamespace = current_schema()::regnamespace`,
+      WHERE c.relnamespace = to_regnamespace(COALESCE($1::text, current_schema()))`,
+    [schemaParam],
   );
   for (const row of policyRows.rows as { tablename: string; policyname: string; description: string | null }[]) {
     const t = tables.get(row.tablename);
@@ -208,7 +221,8 @@ export async function inspectSchema(pool: Pool, options: InspectOptions = {}): P
        JOIN pg_namespace n ON c.relnamespace = n.oid
        CROSS JOIN LATERAL aclexplode(COALESCE(c.relacl, acldefault('r', c.relowner))) acl
        JOIN pg_roles r ON r.oid = acl.grantee
-      WHERE n.nspname = current_schema()`,
+      WHERE n.nspname = COALESCE($1::text, current_schema())`,
+    [schemaParam],
   );
   for (const row of grantRows.rows as { table_name: string; role: string; privilege: string }[]) {
     const t = tables.get(row.table_name);
@@ -218,7 +232,7 @@ export async function inspectSchema(pool: Pool, options: InspectOptions = {}): P
   }
 
   if (options.detail === true) {
-    await loadDetail(pool, tables);
+    await loadDetail(pool, tables, schemaParam);
   }
 
   return tables;
@@ -229,7 +243,7 @@ export async function inspectSchema(pool: Pool, options: InspectOptions = {}): P
  * unique constraints, FK on-delete actions). Runs only when `detail` is set so
  * `migrate`/drift checks stay query-lean.
  */
-async function loadDetail(pool: Pool, tables: Map<string, ActualTable>): Promise<void> {
+async function loadDetail(pool: Pool, tables: Map<string, ActualTable>, schemaParam: string | null): Promise<void> {
   const enumRows = await pool.query(
     `SELECT c.relname AS table_name, a.attname AS column_name, e.enumlabel AS label
        FROM pg_attribute a
@@ -237,8 +251,9 @@ async function loadDetail(pool: Pool, tables: Map<string, ActualTable>): Promise
        JOIN pg_namespace n ON c.relnamespace = n.oid
        JOIN pg_type t ON a.atttypid = t.oid
        JOIN pg_enum e ON e.enumtypid = t.oid
-      WHERE n.nspname = current_schema() AND a.attnum > 0 AND NOT a.attisdropped
+      WHERE n.nspname = COALESCE($1::text, current_schema()) AND a.attnum > 0 AND NOT a.attisdropped
       ORDER BY c.relname, a.attnum, e.enumsortorder`,
+    [schemaParam],
   );
   for (const row of enumRows.rows as { table_name: string; column_name: string; label: string }[]) {
     const col = tables.get(row.table_name)?.columns.find((c) => c.name === row.column_name);
@@ -254,8 +269,9 @@ async function loadDetail(pool: Pool, tables: Map<string, ActualTable>): Promise
        JOIN pg_type at ON a.atttypid = at.oid
        JOIN pg_type et ON at.typelem = et.oid
        JOIN pg_enum e ON e.enumtypid = et.oid
-      WHERE n.nspname = current_schema() AND a.attnum > 0 AND NOT a.attisdropped
+      WHERE n.nspname = COALESCE($1::text, current_schema()) AND a.attnum > 0 AND NOT a.attisdropped
       ORDER BY c.relname, a.attnum, e.enumsortorder`,
+    [schemaParam],
   );
   for (const row of arrayEnumRows.rows as {
     table_name: string;
@@ -273,7 +289,8 @@ async function loadDetail(pool: Pool, tables: Map<string, ActualTable>): Promise
     `SELECT c.relname AS table_name, obj_description(c.oid, 'pg_class') AS comment
        FROM pg_class c
        JOIN pg_namespace n ON c.relnamespace = n.oid
-      WHERE n.nspname = current_schema() AND c.relkind = 'r'`,
+      WHERE n.nspname = COALESCE($1::text, current_schema()) AND c.relkind = 'r'`,
+    [schemaParam],
   );
   for (const row of tableComments.rows as { table_name: string; comment: string | null }[]) {
     const t = tables.get(row.table_name);
@@ -285,7 +302,8 @@ async function loadDetail(pool: Pool, tables: Map<string, ActualTable>): Promise
        FROM pg_class c
        JOIN pg_namespace n ON c.relnamespace = n.oid
        JOIN pg_attribute a ON a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped
-      WHERE n.nspname = current_schema() AND c.relkind = 'r'`,
+      WHERE n.nspname = COALESCE($1::text, current_schema()) AND c.relkind = 'r'`,
+    [schemaParam],
   );
   for (const row of columnComments.rows as { table_name: string; column_name: string; comment: string | null }[]) {
     const col = tables.get(row.table_name)?.columns.find((c) => c.name === row.column_name);
@@ -298,7 +316,8 @@ async function loadDetail(pool: Pool, tables: Map<string, ActualTable>): Promise
        JOIN pg_class c ON i.indrelid = c.oid
        JOIN pg_namespace n ON c.relnamespace = n.oid
        JOIN pg_attribute a ON a.attrelid = c.oid AND a.attnum = ANY(i.indkey)
-      WHERE n.nspname = current_schema() AND i.indisunique AND NOT i.indisprimary AND i.indnkeyatts = 1`,
+      WHERE n.nspname = COALESCE($1::text, current_schema()) AND i.indisunique AND NOT i.indisprimary AND i.indnkeyatts = 1`,
+    [schemaParam],
   );
   for (const row of uniqueRows.rows as { table_name: string; column_name: string }[]) {
     const t = tables.get(row.table_name);

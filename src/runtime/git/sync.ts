@@ -19,6 +19,8 @@ export interface SyncSchemaOptions {
   rls?: { role: string };
   /** provision object-path RLS (`EngineConfig.rls.enforce`) for this role */
   objectRls?: { role: string };
+  /** dedicated schema for engine-owned tables (`EngineConfig.systemSchema`) */
+  systemSchema?: string;
   locale?: Locale;
   allowedFieldTypes?: readonly string[];
   /** effective field-type registry (built-ins + user registrations) */
@@ -73,6 +75,7 @@ export async function syncSchema(options: SyncSchemaOptions): Promise<SyncResult
     dryRun: options.dryRun,
     rls: options.rls,
     objectRls: options.objectRls,
+    systemSchema: options.systemSchema,
     onCommit:
       options.dryRun === true
         ? undefined

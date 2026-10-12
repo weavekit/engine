@@ -10,6 +10,9 @@ import type { ActualTable } from './inspect.js';
 
 const q = (id: string) => `"${id}"`;
 
+/** quote a table name, qualified to `schema` when set (engine system tables) */
+const qualify = (name: string, schema?: string): string => (schema === undefined ? q(name) : `${q(schema)}.${q(name)}`);
+
 /** exact, order-sensitive column-list equality (FK columns are ordered) */
 function sameColumns(a: readonly string[], b: readonly string[]): boolean {
   return a.length === b.length && a.every((c, i) => c === b[i]);
@@ -47,6 +50,8 @@ export interface ExpectedUnique {
 
 export interface ExpectedTable {
   name: string;
+  /** target schema for DDL; undefined = the connection's object schema (customer tables) */
+  schema?: string;
   columns: ExpectedColumn[];
   fks: ExpectedFk[];
   indexes: ExpectedIndex[];
@@ -169,7 +174,7 @@ function createTableSql(t: ExpectedTable): string {
   for (const u of t.uniques) {
     lines.push(`  CONSTRAINT ${q(u.name)} UNIQUE (${u.columns.map(q).join(', ')})`);
   }
-  return `CREATE TABLE ${q(t.name)} (\n${lines.join(',\n')}\n);`;
+  return `CREATE TABLE ${qualify(t.name, t.schema)} (\n${lines.join(',\n')}\n);`;
 }
 
 /** statements to bring one expected table in line with the actual table (undefined = missing) */
@@ -192,7 +197,7 @@ export function diffTable(t: ExpectedTable, actual: ActualTable | undefined, loc
         if (c.notNull && c.default === undefined && !c.primary) {
           throw new SchemaError('storage.alter.requiredNoDefault', { object: t.name, column: c.name }, locale);
         }
-        let sql = `ALTER TABLE ${q(t.name)} ADD COLUMN ${q(c.name)} ${c.type}`;
+        let sql = `ALTER TABLE ${qualify(t.name, t.schema)} ADD COLUMN ${q(c.name)} ${c.type}`;
         if (c.default !== undefined) sql += ` DEFAULT ${c.default}`;
         if (c.notNull) sql += ' NOT NULL';
         statements.push(`${sql};`);
@@ -201,18 +206,18 @@ export function diffTable(t: ExpectedTable, actual: ActualTable | undefined, loc
 
     const pkCols = t.columns.filter((c) => c.primary).map((c) => c.name);
     if (pkCols.length > 0 && !pkCols.every((col) => actual.pk.includes(col))) {
-      constraintAdds.push(`ALTER TABLE ${q(t.name)} ADD CONSTRAINT ${q(`${t.name}_pkey`)} PRIMARY KEY (${pkCols.map(q).join(', ')})`);
+      constraintAdds.push(`ALTER TABLE ${qualify(t.name, t.schema)} ADD CONSTRAINT ${q(`${t.name}_pkey`)} PRIMARY KEY (${pkCols.map(q).join(', ')})`);
     }
 
     for (const c of t.columns.filter((col) => col.unique)) {
       if (!actual.indexNames.includes(`${t.name}_${c.name}_key`)) {
-        constraintAdds.push(`ALTER TABLE ${q(t.name)} ADD CONSTRAINT ${q(`${t.name}_${c.name}_key`)} UNIQUE (${q(c.name)})`);
+        constraintAdds.push(`ALTER TABLE ${qualify(t.name, t.schema)} ADD CONSTRAINT ${q(`${t.name}_${c.name}_key`)} UNIQUE (${q(c.name)})`);
       }
     }
 
     for (const u of t.uniques) {
       if (!actual.indexNames.includes(u.name)) {
-        constraintAdds.push(`ALTER TABLE ${q(t.name)} ADD CONSTRAINT ${q(u.name)} UNIQUE (${u.columns.map(q).join(', ')})`);
+        constraintAdds.push(`ALTER TABLE ${qualify(t.name, t.schema)} ADD CONSTRAINT ${q(u.name)} UNIQUE (${u.columns.map(q).join(', ')})`);
       }
     }
   }
@@ -223,7 +228,7 @@ export function diffTable(t: ExpectedTable, actual: ActualTable | undefined, loc
       actual.fks.some((a) => a.refTable === fk.refTable && sameColumns(a.columns, fk.columns));
     if (!hasFk) {
       constraintAdds.push(
-        `ALTER TABLE ${q(t.name)} ADD CONSTRAINT ${q(`${t.name}_${fk.columns.join('_')}_fkey`)} ` +
+        `ALTER TABLE ${qualify(t.name, t.schema)} ADD CONSTRAINT ${q(`${t.name}_${fk.columns.join('_')}_fkey`)} ` +
           `FOREIGN KEY (${fk.columns.map(q).join(', ')}) REFERENCES ${q(fk.refTable)}(${fk.refColumns.map(q).join(', ')}) ON DELETE ${onDeleteClause(fk.onDelete)}`,
       );
     }
@@ -233,7 +238,7 @@ export function diffTable(t: ExpectedTable, actual: ActualTable | undefined, loc
     if (actual !== undefined && actual.indexNames.includes(idx.name)) continue;
     const using = idx.method === 'gin' ? ' USING gin' : '';
     indexAdds.push(
-      `CREATE INDEX ${q(idx.name)} ON ${q(t.name)}${using} (${idx.columns.map(q).join(', ')})`,
+      `CREATE INDEX ${q(idx.name)} ON ${qualify(t.name, t.schema)}${using} (${idx.columns.map(q).join(', ')})`,
     );
   }
 
@@ -320,9 +325,10 @@ export function diffObjectRls(
   role: string,
   policies: readonly ObjectRlsPolicy[],
   privileges: readonly string[],
+  schema?: string,
 ): string[] {
   const stmts: string[] = [];
-  const name = q(table);
+  const name = qualify(table, schema);
   if (actual?.rlsEnabled !== true) stmts.push(`ALTER TABLE ${name} ENABLE ROW LEVEL SECURITY;`);
   const expected = new Set<string>(policies.map((p) => p.name));
   for (const existing of actual?.rlsPolicies ?? []) {
@@ -340,12 +346,18 @@ export function diffObjectRls(
     );
     stmts.push(`COMMENT ON POLICY ${p.name} ON ${name} IS '${comment}';`);
   }
-  return [...stmts, ...diffGrants(table, actual, role, privileges)];
+  return [...stmts, ...diffGrants(table, actual, role, privileges, schema)];
 }
 
 /** `GRANT` the privileges `role` is missing on `table` (all of them when the table is new) */
-export function diffGrants(table: string, actual: ActualTable | undefined, role: string, privileges: readonly string[]): string[] {
+export function diffGrants(
+  table: string,
+  actual: ActualTable | undefined,
+  role: string,
+  privileges: readonly string[],
+  schema?: string,
+): string[] {
   const have = new Set(actual?.grants?.[role] ?? []);
   const missing = privileges.filter((p) => !have.has(p));
-  return missing.length === 0 ? [] : [`GRANT ${missing.join(', ')} ON ${q(table)} TO ${sqlIdent(role)};`];
+  return missing.length === 0 ? [] : [`GRANT ${missing.join(', ')} ON ${qualify(table, schema)} TO ${sqlIdent(role)};`];
 }
