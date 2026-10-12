@@ -85,7 +85,7 @@ maybe('Workflow runtime E2E (three-layer: instance/step/workitem, local PG)', ()
   before(async () => {
     pool = createPool(url!);
     await pool.query(
-      `DROP TABLE IF EXISTS wf_doc, wf_gap, wf_gated, wf_denied,
+      `DROP TABLE IF EXISTS wf_doc, wf_gap, wf_gated, wf_denied, weavekit_approvals,
          weavekit_record__wf_doc, weavekit_record__wf_gap, weavekit_record__wf_gated, weavekit_record__wf_denied CASCADE`,
     );
     await pool.query(

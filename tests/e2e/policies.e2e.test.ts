@@ -75,7 +75,7 @@ maybe('policy pipeline E2E (deny / approval pending·host approve·client retry 
     let auditPool = await new (await import('pg')).Pool({ connectionString: url });
     let root = '';
     try {
-      await auditPool.query('DROP TABLE IF EXISTS lead, weavekit_meta, weavekit_audit CASCADE');
+      await auditPool.query('DROP TABLE IF EXISTS lead, weavekit_meta, weavekit_audit, weavekit_approvals CASCADE');
       await auditPool.end();
       auditPool = await new (await import('pg')).Pool({ connectionString: url });
 
@@ -168,7 +168,7 @@ maybe('policy pipeline E2E (deny / approval pending·host approve·client retry 
         }
       }
       try {
-        await auditPool.query('DROP TABLE IF EXISTS lead, weavekit_meta, weavekit_audit CASCADE');
+        await auditPool.query('DROP TABLE IF EXISTS lead, weavekit_meta, weavekit_audit, weavekit_approvals CASCADE');
       } catch {
         // pool already ended
       }
