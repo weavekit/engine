@@ -81,7 +81,7 @@ import { registerGraphQL, type EngineGraphQLConfig, type GraphQLServerHandle } f
 import { createAlerts } from '../infrastructure/index.js';
 import type { AuditEngine } from '../subsystems/audit/index.js';
 import type { EvidenceSink } from '../core/index.js';
-import { resolveQueryBudget, type QueryBudget } from './data-access/index.js';
+import { resolveQueryBudget, type QueryBudget, type TotalMode } from './data-access/index.js';
 import type { WorkflowTimerScheduler } from '../subsystems/workflow/index.js';
 import { version } from '../version.js';
 
@@ -315,6 +315,14 @@ export interface EngineConfig {
    * defaults (see `QUERY_BUDGET_DEFAULTS`).
    */
   queryBudget?: Partial<QueryBudget>;
+  /**
+   * List-query defaults for every read surface (REST / GraphQL / MCP).
+   * `query.total` selects how a page's `total` is computed: `exact` (default,
+   * `COUNT(*)`), `estimate` (`pg_class.reltuples` — approximate, cheap on large
+   * tables) or `none` (skip counting; `total` omitted). A per-request `total`
+   * argument overrides this.
+   */
+  query?: { total?: TotalMode };
   /**
    * Object-path row-level security (defense in depth; default off in 1.x).
    * With `enforce`, the engine runs user-principal customer-table reads /
@@ -648,6 +656,7 @@ export async function buildEngineFromRegistry(
   };
   const replay = subsystems.audit?.replay === true;
   const budget = resolveQueryBudget(config.queryBudget);
+  const totalMode = config.query?.total;
   // schema signature: registry-derived; used by the MCP compiled-surface cache
   // key (schema change invalidates it) and recorded on evidence for correlation
   const schemaRevision = createHash('sha256')
@@ -668,7 +677,7 @@ export async function buildEngineFromRegistry(
     const { createEvidenceSink } = await import('../subsystems/evidence/index.js');
     evidenceSink = createEvidenceSink(pool);
   }
-  const baseDataAccess = createDataAccess({ audit: auditSink, metrics, replay, events: eventPublisher, policies, approvals, workflowTimers, budget, evidence: evidenceSink, schemaRevision, ...(objectRlsRole === undefined ? {} : { rls: { role: objectRlsRole } }) });
+  const baseDataAccess = createDataAccess({ audit: auditSink, metrics, replay, events: eventPublisher, policies, approvals, workflowTimers, budget, evidence: evidenceSink, schemaRevision, ...(objectRlsRole === undefined ? {} : { rls: { role: objectRlsRole } }), ...(totalMode === undefined ? {} : { total: totalMode }) });
 
   let script: ScriptDispatcher | undefined;
   let dataAccess: ObjectDataAccess;
@@ -685,7 +694,7 @@ export async function buildEngineFromRegistry(
       budget,
       locale,
     });
-    dataAccess = withRbac(createDataAccess({ audit: auditSink, metrics, script, replay, events: eventPublisher, policies, approvals, workflowTimers, budget, evidence: evidenceSink, schemaRevision, ...(objectRlsRole === undefined ? {} : { rls: { role: objectRlsRole } }) }), { audit: auditSink, metrics });
+    dataAccess = withRbac(createDataAccess({ audit: auditSink, metrics, script, replay, events: eventPublisher, policies, approvals, workflowTimers, budget, evidence: evidenceSink, schemaRevision, ...(objectRlsRole === undefined ? {} : { rls: { role: objectRlsRole } }), ...(totalMode === undefined ? {} : { total: totalMode }) }), { audit: auditSink, metrics });
   } else {
     dataAccess = withRbac(baseDataAccess, { audit: auditSink, metrics });
   }

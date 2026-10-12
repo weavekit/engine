@@ -56,6 +56,11 @@ describe('parseFindParams — syntax parsing (pure function, no fastify)', () =>
     expect(parseFindParams({ limit: '10', offset: '5' })).toEqual({ limit: 10, offset: 5 });
   });
 
+  it('total: passes the raw mode string through (validated by the adapter)', () => {
+    expect(parseFindParams({ total: 'none' })).toEqual({ total: 'none' });
+    expect(parseFindParams({ total: 'estimate' })).toEqual({ total: 'estimate' });
+  });
+
   it('limit non-integer/non-numeric → http.param.invalid', () => {
     expect(codeOf(() => parseFindParams({ limit: '10.5' }))).toBe('http.param.invalid');
     expect(codeOf(() => parseFindParams({ limit: 'abc' }))).toBe('http.param.invalid');

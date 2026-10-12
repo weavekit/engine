@@ -34,6 +34,17 @@ export const WRITE_MODES = {
 } as const;
 export type WriteMode = (typeof WRITE_MODES)[keyof typeof WRITE_MODES];
 
+/** how the `total` of a find result is computed (default `exact`) */
+export const TOTAL_MODES = {
+  /** `SELECT COUNT(*)` with the same filter/scope (default) */
+  EXACT: "exact",
+  /** `pg_class.reltuples` estimate — table-level, ignores filter/scope (approximate) */
+  ESTIMATE: "estimate",
+  /** skip counting entirely; `total` is omitted from the result */
+  NONE: "none",
+} as const;
+export type TotalMode = (typeof TOTAL_MODES)[keyof typeof TOTAL_MODES];
+
 /** pagination defaults */
 export const PAGINATION = {
   DEFAULT_LIMIT: 100,

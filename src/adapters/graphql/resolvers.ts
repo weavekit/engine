@@ -9,7 +9,7 @@ import {
   type Locale,
   type ObjectDefinition,
 } from '../../core/index.js';
-import type { DataAccessContext, Filter, Sort } from '../../runtime/data-access/index.js';
+import type { DataAccessContext, Filter, Sort, TotalMode } from '../../runtime/data-access/index.js';
 import type { GraphQLContext } from './types.js';
 
 /**
@@ -25,6 +25,7 @@ interface ListArgs {
   sort?: Sort[];
   limit?: number;
   offset?: number;
+  total?: TotalMode;
 }
 
 /** the columns a read projects: every non-details field plus the derived `weave_id` */
@@ -66,7 +67,7 @@ export function listResolver(objectName: string) {
     _parent: unknown,
     args: ListArgs,
     context: GraphQLContext,
-  ): Promise<{ rows: unknown[]; total: number }> => {
+  ): Promise<{ rows: unknown[]; total?: number }> => {
     const def = context.engine.registry.get(objectName);
     if (def === undefined) {
       throw new GraphQLError(`unknown object "${objectName}"`, { extensions: { code: 'data.objectUnknown' } });
@@ -80,6 +81,7 @@ export function listResolver(objectName: string) {
             ...(args.sort === undefined ? {} : { sort: args.sort }),
             ...(args.limit === undefined ? {} : { limit: args.limit }),
             ...(args.offset === undefined ? {} : { offset: args.offset }),
+            ...(args.total === undefined ? {} : { total: args.total }),
             fields: projectionOf(def),
           },
           dataContext(context),

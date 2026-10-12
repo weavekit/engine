@@ -35,11 +35,15 @@ describe('scaffoldProject — subsystems config for starter presets', () => {
     expect(config).toContain('script: { enabled: true }');
   });
 
-  it('agent / governance → script subsystem not preset', async () => {
+  it('agent → no subsystems preset', async () => {
     const agent = await readFile(join(dirs.find((d) => d.includes('agent'))!, 'weavekit.config.ts'), 'utf8');
-    const governance = await readFile(join(dirs.find((d) => d.includes('governance'))!, 'weavekit.config.ts'), 'utf8');
     expect(agent).not.toContain('subsystems');
-    expect(governance).not.toContain('subsystems');
+  });
+
+  it('governance → subsystems.audit transactional preset, no script', async () => {
+    const governance = await readFile(join(dirs.find((d) => d.includes('governance'))!, 'weavekit.config.ts'), 'utf8');
+    expect(governance).toContain("audit: { enabled: true, mode: 'transactional' }");
+    expect(governance).not.toContain('script: { enabled: true }');
   });
 
   it('generated config shows the MCP prompts provider example (customer path)', async () => {

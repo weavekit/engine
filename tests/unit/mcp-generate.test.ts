@@ -71,6 +71,16 @@ describe('compileToolsFor — registry tool surface', () => {
     );
   });
 
+  it('search tool exposes the total mode arg (exact/estimate/none)', () => {
+    const registry = new ObjectRegistry();
+    registry.register(LEAD);
+    registry.buildGraph();
+    const engine: McpEngine = { registry, pool: {} as never, dataAccess: {} as never, locale: 'en' };
+    const search = compileToolsFor(engine, { id: 'u1', roles: ['sales'] }).find((t) => t.spec.name === REGISTRY_TOOLS.SEARCH);
+    const props = (search?.spec.inputSchema as { properties?: Record<string, { enum?: string[] }> }).properties;
+    expect(props?.total?.enum).toEqual(['exact', 'estimate', 'none']);
+  });
+
   it('finance (read only): search + get only', () => {
     const { names } = engineFor([LEAD], { id: 'u2', roles: ['finance'] });
     expect(names).toContain(REGISTRY_TOOLS.SEARCH);

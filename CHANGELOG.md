@@ -24,6 +24,13 @@ Additive (no `CONTRACT_VERSION` bump): P0 security/governance fixes.
   `OBJECT_RLS_ROLE_DEFAULT`, `resolveObjectRlsRole`, `assertObjectRlsProvisioned`.
 - **Protocol parity e2e.** REST / GraphQL / MCP return the same rows, excluded fields, error codes and
   messages, audit trail and evidence for the same identity (with and without `rls.enforce`).
+- **Configurable list `total`.** `EngineConfig.query.total` — and a per-request `total=` on REST /
+  GraphQL / MCP (client `FindParams.total`) — selects `exact` (default, `COUNT(*)`), `estimate`
+  (`pg_class.reltuples`; cheap on large tables, approximate) or `none` (skip counting). New data-access
+  export `buildEstimateSql`, `TOTAL_MODES` / `TotalMode`.
+- **`weave doctor` RLS-role check.** New `role-createrole` check: when a required RLS role
+  (`weavekit_query`, the object-path role) is missing and the migration account lacks `CREATEROLE`,
+  doctor fails and prints the exact `CREATE ROLE …` to run (as an owner/DBA).
 
 ### Changed
 
@@ -37,6 +44,12 @@ Additive (no `CONTRACT_VERSION` bump): P0 security/governance fixes.
   migrate after upgrading recreates existing script policies once.
 - Restricted-SQL GUCs are set with one parameterized `set_config` statement (shared with the object
   path); absent values are set to `''` (still fail-closed).
+- **`--type=governance` scaffolds audit on.** The governance preset emits
+  `subsystems.audit = { enabled: true, mode: 'transactional' }` (crash-safe); the other presets leave
+  audit off (enable it in production — see the audit guide).
+- **List `total` may be omitted.** `FindResult.total` and the REST list envelope `total` are now
+  optional, and GraphQL `<Object>Page.total` is nullable — a request with `total=none` omits it.
+  Existing callers (default `exact`) are unaffected.
 
 ### Fixed
 

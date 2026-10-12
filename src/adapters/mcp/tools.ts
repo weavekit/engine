@@ -148,6 +148,7 @@ function toFindOptions(args: Record<string, unknown>): FindOptions {
   if (typeof args.limit === 'number') options.limit = args.limit;
   if (typeof args.offset === 'number') options.offset = args.offset;
   if (typeof args.cursor === 'string') options.cursor = args.cursor;
+  if (typeof args.total === 'string') options.total = args.total as FindOptions['total'];
   if (Array.isArray(args.fields)) options.fields = args.fields as string[];
   if (Array.isArray(args.sort)) {
     options.sort = (args.sort as Array<{ field: string; direction?: string }>).map((s) => ({

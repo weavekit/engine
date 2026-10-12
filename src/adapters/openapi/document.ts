@@ -71,6 +71,7 @@ const P = {
   id: { name: 'id', in: 'path', required: true, schema: { type: 'string' }, description: 'Record id — the `record_key` encoding of the (possibly composite) primary key; returned as `weave_id`.' },
   limit: { name: 'limit', in: 'query', schema: { type: 'integer', minimum: 1 }, description: 'Page size.' },
   offset: { name: 'offset', in: 'query', schema: { type: 'integer', minimum: 0 }, description: 'Rows to skip.' },
+  total: { name: 'total', in: 'query', schema: { type: 'string', enum: ['exact', 'estimate', 'none'] }, description: 'How `total` is computed: `exact` (default, COUNT), `estimate` (`pg_class.reltuples`, approximate) or `none` (omit `total`).' },
   filter: { name: 'filter', in: 'query', schema: { type: 'string' }, description: 'URL-encoded JSON object of field filters.', example: '{"status":"open"}' },
   sort: { name: 'sort', in: 'query', schema: { type: 'string' }, description: 'Comma-separated `field:direction` pairs.', example: 'created_at:desc' },
   fields: { name: 'fields', in: 'query', schema: { type: 'string' }, description: 'Comma-separated field projection.', example: 'id,title' },
@@ -112,7 +113,7 @@ function op(tag: string, operationId: string, summary: string, extra: Json): Jso
 route('get', (c) => `${c.prefix}/objects/{name}`, op(OPENAPI_TAGS.OBJECTS, 'listRecords', 'List records', {
   description:
     'Returns one page of records. Row scope (`all`/`own`/`team`), field exclusions and sensitive-field masking follow the identity\'s RBAC.',
-  parameters: [P.name, P.filter, P.sort, P.fields, P.limit, P.offset],
+  parameters: [P.name, P.filter, P.sort, P.fields, P.limit, P.offset, P.total],
   responses: { 200: ok('A page of records.', LIST_REF), ...errors() },
 }));
 route('post', (c) => `${c.prefix}/objects/{name}`, op(OPENAPI_TAGS.OBJECTS, 'createRecord', 'Create a record', {
@@ -357,10 +358,10 @@ export function buildOpenApiDocument(input: BuildOpenApiInput): OpenApiDocument 
     ObjectRecord: { type: 'object', additionalProperties: true, description: "A record shaped by the object's `schema.json`." },
     ListResult: {
       type: 'object',
-      required: ['rows', 'total', 'limit', 'offset'],
+      required: ['rows', 'limit', 'offset'],
       properties: {
         rows: { type: 'array', items: RECORD_REF },
-        total: { type: 'integer' },
+        total: { type: 'integer', description: 'Row count (exact or estimated); omitted when `total=none`.' },
         limit: { type: 'integer' },
         offset: { type: 'integer' },
       },

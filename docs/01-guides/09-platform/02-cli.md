@@ -114,6 +114,7 @@ to migrate/serve and prints a `check / status / detail` table (`pass` / `warn` /
 - **system-tables** — engine system tables present and shaped as the current engine expects.
 - **rls-role** / **sandbox** — when the script subsystem is enabled: the restricted-SQL role exists and is grantable, and `isolated-vm` resolves (otherwise `skip`).
 - **object-rls** — when `rls.enforce` is on: the object-path role exists and every object table carries the current policies and privileges (otherwise `skip`).
+- **role-createrole** — the RLS roles the engine must provision (`weavekit_query`, the object-path role) exist or are creatable by the current account; when a role is missing and the account lacks `CREATEROLE`, it fails and prints the exact `CREATE ROLE …` to hand a DBA (otherwise `skip`).
 
 Exit code is `1` when any check fails, so it gates CI and deploys. `weave migrate --preflight` runs
 the same checks first and aborts on any failure (convenience for release jobs). `--json` emits the

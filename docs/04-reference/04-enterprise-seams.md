@@ -42,7 +42,9 @@ transaction; `durable` writes a transactional outbox row plus a relay
 (crash-safe, at-least-once). `transactional`/`durable` require an
 in-transaction sink — startup fails closed (`assertAuditSinkCapability`) unless
 the host sets `allowBestEffortFallback: true`. **Export, retention and
-compliance policy are enterprise E2**; the engine only captures.
+compliance policy are enterprise E2**; the engine only captures. For production
+governance use, prefer `transactional`/`durable` (the `governance` starter preset
+scaffolds `transactional`); `best-effort` may lose the tail on a crash.
 
 ## Observability (metrics & trace)
 

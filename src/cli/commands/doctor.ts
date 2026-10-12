@@ -168,6 +168,45 @@ export async function runDoctor(cwd: string): Promise<DoctorReport> {
         add('object-rls', DOCTOR_STATUSES.FAIL, message(error));
       }
     }
+
+    // RLS roles must be creatable by the migration account (or pre-created by a DBA).
+    // A missing role is fine only when current_user can CREATE ROLE (superuser/CREATEROLE);
+    // otherwise `weave migrate` will fail, so we hand the operator the exact SQL.
+    const requiredRoles: string[] = [];
+    if (config.subsystems?.script?.enabled === true) {
+      requiredRoles.push(config.subsystems.script.sandbox?.rls?.role ?? 'weavekit_query');
+    }
+    if (objectRlsRole !== undefined) {
+      requiredRoles.push(objectRlsRole);
+    }
+    const roles = [...new Set(requiredRoles)];
+    if (roles.length === 0) {
+      add('role-createrole', DOCTOR_STATUSES.SKIP, 'no RLS roles required');
+    } else {
+      const existing = await pool.query('SELECT rolname::text AS rolname FROM pg_roles WHERE rolname::text = ANY($1)', [roles]);
+      const present = new Set(existing.rows.map((row) => (row as { rolname: string }).rolname));
+      const missing = roles.filter((role) => !present.has(role));
+      if (missing.length === 0) {
+        add('role-createrole', DOCTOR_STATUSES.PASS, `RLS role(s) present: ${roles.join(', ')}`);
+      } else {
+        const priv = await pool.query('SELECT rolsuper OR rolcreaterole AS can_create FROM pg_roles WHERE rolname = current_user');
+        const canCreate = (priv.rows[0] as { can_create: boolean } | undefined)?.can_create === true;
+        const sql = missing.map((role) => `CREATE ROLE ${role};`).join(' ');
+        if (canCreate) {
+          add(
+            'role-createrole',
+            DOCTOR_STATUSES.WARN,
+            `role(s) ${missing.join(', ')} missing — "weave migrate" creates them (current_user has CREATEROLE)`,
+          );
+        } else {
+          add(
+            'role-createrole',
+            DOCTOR_STATUSES.FAIL,
+            `role(s) ${missing.join(', ')} missing and current_user lacks CREATEROLE — have a DB admin run: ${sql}`,
+          );
+        }
+      }
+    }
   } finally {
     await pool.end();
   }

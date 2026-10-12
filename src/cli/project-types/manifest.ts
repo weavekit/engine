@@ -1,3 +1,4 @@
+import type { AuditMode } from '../../core/audit/types.js';
 import { OPT_IN_FIELD_TYPES, PRIMITIVE_FIELD_TYPES } from '../../core/types/registry.js';
 import { PROJECT_TYPES, type ProjectType } from '../types/values.js';
 
@@ -13,6 +14,12 @@ export interface ProjectTypeDefinition {
   narrative: string;
   /** enable the script subsystem sandbox at scaffold time */
   script: boolean;
+  /**
+   * audit mode enabled at scaffold time (`false` = audit off, not preconfigured).
+   * `transactional` writes the audit row inside the business transaction
+   * (crash-safe) — the governance preset relies on it.
+   */
+  audit: AuditMode | false;
   /** default `features.fieldTypes` whitelist (fail-closed gating) */
   fieldTypes: string[];
   /** business-only extras: `pages/` layouts + generated `*.client.js` (retired 2026-10, always false) */
@@ -26,24 +33,28 @@ export const PROJECT_TYPE_DEFINITIONS: Record<ProjectType, ProjectTypeDefinition
   agent: {
     narrative: 'AI-Agent backend: metadata-driven objects with REST access for AI agents',
     script: false,
+    audit: false,
     fieldTypes: [...PRIMITIVES],
     businessUI: false,
   },
   governance: {
     narrative: 'Governance platform: auditable, permission-scoped business objects',
     script: false,
+    audit: 'transactional',
     fieldTypes: [...PRIMITIVES, ...OPT_IN],
     businessUI: false,
   },
   service: {
     narrative: 'Business service: headless backend with RBAC and a REST API',
     script: true,
+    audit: false,
     fieldTypes: [...PRIMITIVES, ...OPT_IN],
     businessUI: false,
   },
   business: {
     narrative: 'Business backend: objects and formulas on Postgres',
     script: true,
+    audit: false,
     fieldTypes: [...PRIMITIVES, ...OPT_IN],
     businessUI: false,
   },

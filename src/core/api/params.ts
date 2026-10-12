@@ -79,5 +79,7 @@ export function parseFindParams(
   if (limit !== undefined) out.limit = parseIntParam(limit, 'limit', locale);
   const offset = readString(query, 'offset', locale);
   if (offset !== undefined) out.offset = parseIntParam(offset, 'offset', locale);
+  const total = readString(query, 'total', locale);
+  if (total !== undefined) out.total = total;
   return out;
 }

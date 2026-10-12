@@ -136,6 +136,19 @@ maybe("REST API E2E (local PG + fastify inject): auth + RBAC full path", () => {
       expect(aliceOpenBody.total).toBe(1);
       expect(aliceOpenBody.rows[0].id).toBe("L1");
 
+      // 4b. total mode: `none` omits total; `estimate` returns a number; unknown → 400
+      const aliceNone = await get("/api/objects/lead?limit=1&total=none", "key-sales-rep");
+      expect(aliceNone.statusCode).toBe(200);
+      const aliceNoneBody = aliceNone.json();
+      expect("total" in aliceNoneBody).toBe(false);
+      expect(aliceNoneBody.rows).toHaveLength(1);
+      const aliceEstimate = await get("/api/objects/lead?total=estimate", "key-sales-rep");
+      expect(aliceEstimate.statusCode).toBe(200);
+      expect(typeof aliceEstimate.json().total).toBe("number");
+      const badTotal = await get("/api/objects/lead?total=bogus", "key-sales-rep");
+      expect(badTotal.statusCode).toBe(400);
+      expect(badTotal.json().error.code).toBe("http.param.invalid");
+
       // 5. GET /:id denied (row outside own) → 404, does not leak existence
       const scopedOut = await get("/api/objects/lead/" + encodeRecordKey(["L2"]), "key-sales-rep");
       expect(scopedOut.statusCode).toBe(404);

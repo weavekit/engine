@@ -1,5 +1,5 @@
-export { FILTER_OPS, SORT_DIRS, PAGINATION, WRITE_MODES } from "./values.js";
-export type { FilterOp, SortDir, WriteMode } from "./values.js";
+export { FILTER_OPS, SORT_DIRS, PAGINATION, WRITE_MODES, TOTAL_MODES } from "./values.js";
+export type { FilterOp, SortDir, WriteMode, TotalMode } from "./values.js";
 export type {
   Filter,
   FilterGroup,
@@ -18,6 +18,7 @@ export {
   resolvePagination,
   buildFindSql,
   buildCountSql,
+  buildEstimateSql,
 } from "./builder.js";
 export { isSystemCtx, subjectOf, tenantOf, scopeOf } from "./types.js";
 export { CURSOR_VERSION, decodeCursor, encodeCursor } from "./cursor.js";

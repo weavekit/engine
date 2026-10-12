@@ -3,7 +3,7 @@ import type { Locale } from "../../core/index.js";
 import type { ObjectRegistry } from "../../core/index.js";
 import type { AccessPrincipal, IdentitySubject } from "../../core/index.js";
 import { principalSubject, principalScopeId, principalTenantId } from "../../core/index.js";
-import type { FilterOp, SortDir } from "./values.js";
+import type { FilterOp, SortDir, TotalMode } from "./values.js";
 import type { QueryBudget } from "./query-budget.js";
 import type { WorkflowStatus, WorkflowHistory, WorkflowTodo, WorkflowOverride } from "./workflow.js";
 
@@ -46,11 +46,19 @@ export interface FindOptions {
    * caller-provided `sort` is ignored); REST keeps using `offset`.
    */
   cursor?: string;
+  /**
+   * How `total` is computed (default: the instance/config default, itself
+   * `exact`). `exact` runs `COUNT(*)`; `estimate` reads `pg_class.reltuples`
+   * (table-level, ignores filter/scope — approximate); `none` skips counting
+   * and omits `total` from the result.
+   */
+  total?: TotalMode;
 }
 
 export interface FindResult<T = Record<string, unknown>> {
   rows: T[];
-  total: number;
+  /** row count for the query (exact or estimated); omitted when `total: 'none'` */
+  total?: number;
   /** next-page keyset cursor (present only when a cursor was used and more remain) */
   nextCursor?: string;
   /** whether more rows exist beyond this page (offset or cursor mode) */

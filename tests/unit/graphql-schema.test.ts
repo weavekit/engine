@@ -99,6 +99,10 @@ describe('GraphQL schema (Phase 1)', () => {
     expect(sdl).toContain('lead_by_id(id: ID!): Lead');
     expect(sdl).toContain('input SortInput {');
     expect(sdl).toContain('enum SortDir {');
+    expect(sdl).toContain('enum TotalMode {');
+    expect(sdl).toContain('total: TotalMode');
+    expect(sdl).toContain('total: Int');
+    expect(sdl).not.toContain('total: Int!'); // nullable: omitted when total: NONE
   });
 
   it('maps list args to data-access and returns rows + total', async () => {
@@ -125,6 +129,15 @@ describe('GraphQL schema (Phase 1)', () => {
       expect(call.opts.filter).toEqual({ status: 'open' });
       expect(call.opts.fields?.includes('weave_id')).toBe(true);
       expect((call.ctx.principal as { kind: string; subject: { id: string } }).subject.id).toBe('admin');
+
+      // the `total` arg maps through to data-access (Page.total is nullable)
+      await harness.app.inject({
+        method: 'POST',
+        url: '/graphql',
+        headers: AUTH,
+        payload: { query: '{ lead(total: none) { total } }' },
+      });
+      expect(harness.finds.at(-1)?.opts.total).toBe('none');
     } finally {
       await harness.app.close();
     }

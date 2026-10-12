@@ -54,6 +54,7 @@ maybe('weave doctor preflight (real PG)', () => {
       expect(byName(before, 'schema-drift')?.status).toBe('warn');
       expect(byName(before, 'rls-role')?.status).toBe('skip');
       expect(byName(before, 'sandbox')?.status).toBe('skip');
+      expect(byName(before, 'role-createrole')?.status).toBe('skip');
 
       // apply the schema, then doctor should be clean
       const { registry } = await loadSchemaDir(dir, {});
@@ -70,6 +71,25 @@ maybe('weave doctor preflight (real PG)', () => {
       } finally {
         await pool.end();
       }
+      await rm(dir, { recursive: true, force: true });
+    }
+  }, 60000);
+
+  it('enabling the script subsystem surfaces the RLS role CREATEROLE check', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'wk-doctor-rls-'));
+    try {
+      await mkdir(join(dir, 'objects', 'lead'), { recursive: true });
+      await writeFile(join(dir, 'objects', 'lead', 'schema.json'), JSON.stringify(SCHEMA, null, 2));
+      await writeFile(
+        join(dir, 'weavekit.config.ts'),
+        `export default { databaseUrl: process.env.DATABASE_URL, subsystems: { script: { enabled: true } } };\n`,
+      );
+      const report = await runDoctor(dir);
+      const check = report.checks.find((c) => c.name === 'role-createrole');
+      expect(check).toBeDefined();
+      expect(check?.status).not.toBe('skip');
+      expect(check?.detail).toContain('weavekit_query');
+    } finally {
       await rm(dir, { recursive: true, force: true });
     }
   }, 60000);

@@ -11,6 +11,7 @@ import type {
 } from "../../runtime/data-access/index.js";
 import {
   SORT_DIRS,
+  TOTAL_MODES,
   resolvePagination,
   withTx,
 } from "../../runtime/data-access/index.js";
@@ -124,6 +125,13 @@ function toFindOptions(list: ListQuery, locale: Locale): FindOptions {
   if (list.fields !== undefined) options.fields = list.fields;
   if (list.limit !== undefined) options.limit = list.limit;
   if (list.offset !== undefined) options.offset = list.offset;
+  if (list.total !== undefined) {
+    const modes = Object.values(TOTAL_MODES) as string[];
+    if (!modes.includes(list.total)) {
+      throw new SchemaError("http.param.invalid", { param: "total" }, locale);
+    }
+    options.total = list.total as FindOptions["total"];
+  }
   if (list.sort !== undefined) {
     const sort: FindOptions["sort"] = [];
     for (const s of list.sort) {

@@ -3,6 +3,7 @@ import { APPROVAL_TOOLS, INTROSPECTION_TOOLS, REGISTRY_TOOLS, WORKFLOW_TOOLS, re
 import type { ResolvedPermission } from '../../core/index.js';
 import { ACTION_PREFIXES } from '../../core/audit/index.js';
 import type { ToolExecutor } from '../../runtime/tools/index.js';
+import { TOTAL_MODES } from '../../runtime/data-access/index.js';
 import {
   createRecordHandler,
   deleteRecordHandler,
@@ -90,6 +91,7 @@ function registryTools(engine: McpEngine, subject: IdentitySubject): CompiledToo
               limit: { type: 'integer', minimum: 1, maximum: 1000 },
               offset: { type: 'integer', minimum: 0 },
               cursor: { type: 'string', description: 'opaque next-page cursor (from a previous hasMore response); preferred over offset for deep pages' },
+              total: { type: 'string', enum: [TOTAL_MODES.EXACT, TOTAL_MODES.ESTIMATE, TOTAL_MODES.NONE], description: 'how total is computed: exact (default), estimate (reltuples, approximate) or none (omit total)' },
               fields: { type: 'array', items: { type: 'string' } },
             },
             required: ['object'],

@@ -34,6 +34,11 @@ require an in-transaction sink — the built-in sinks provide it; if a custom si
 startup fails unless you set `allowBestEffortFallback: true`. Storage growth, retention, export
 and compliance are product/enterprise concerns; the engine only captures.
 
+**In production, prefer `transactional` (or `durable`)** so a crash cannot lose audit events. The
+`governance` starter preset scaffolds `audit: { enabled: true, mode: 'transactional' }` for you;
+the `agent` / `service` / `business` presets leave audit off — turn it on and pick a crash-safe mode
+before going live.
+
 ## What gets audited automatically
 
 Because events are recorded at the **data-access boundary**, every `create` / `update` / `delete`

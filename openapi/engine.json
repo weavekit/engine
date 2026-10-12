@@ -93,7 +93,6 @@
         "type": "object",
         "required": [
           "rows",
-          "total",
           "limit",
           "offset"
         ],
@@ -105,7 +104,8 @@
             }
           },
           "total": {
-            "type": "integer"
+            "type": "integer",
+            "description": "Row count (exact or estimated); omitted when `total=none`."
           },
           "limit": {
             "type": "integer"
@@ -197,6 +197,19 @@
           "minimum": 0
         },
         "description": "Rows to skip."
+      },
+      "total": {
+        "name": "total",
+        "in": "query",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "exact",
+            "estimate",
+            "none"
+          ]
+        },
+        "description": "How `total` is computed: `exact` (default, COUNT), `estimate` (`pg_class.reltuples`, approximate) or `none` (omit `total`)."
       },
       "filter": {
         "name": "filter",
@@ -412,6 +425,19 @@
               "minimum": 0
             },
             "description": "Rows to skip."
+          },
+          {
+            "name": "total",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "exact",
+                "estimate",
+                "none"
+              ]
+            },
+            "description": "How `total` is computed: `exact` (default, COUNT), `estimate` (`pg_class.reltuples`, approximate) or `none` (omit `total`)."
           }
         ],
         "responses": {

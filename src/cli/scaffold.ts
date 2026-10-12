@@ -57,18 +57,28 @@ function renderFeatures(type?: ProjectType): string {
 `;
 }
 
+/** `subsystems` snippet for a project-type preset (undefined → no subsystems block) */
+function renderSubsystems(type?: ProjectType): string {
+  const def = projectTypeDef(type);
+  if (def === undefined) return '';
+  const lines: string[] = [];
+  if (def.script) {
+    lines.push('    // sandbox hooks run in isolated workers (*.server.js)');
+    lines.push('    script: { enabled: true },');
+  }
+  if (def.audit !== false) {
+    lines.push('    // audit every write inside the business transaction (crash-safe)');
+    lines.push(`    audit: { enabled: true, mode: '${def.audit}' },`);
+  }
+  if (lines.length === 0) return '';
+  return `  subsystems: {\n${lines.join('\n')}\n  },\n`;
+}
+
 function renderConfig(type?: ProjectType): string {
   const def = projectTypeDef(type);
   const narrative = def === undefined ? '' : `  // ${def.narrative}\n`;
   const projectType = type === undefined ? '' : `  projectType: '${type}',\n`;
-  const subsystems =
-    def?.script === true
-      ? `  subsystems: {
-    // sandbox hooks run in isolated workers (*.server.js)
-    script: { enabled: true },
-  },
-`
-      : '';
+  const subsystems = renderSubsystems(type);
   const features = renderFeatures(type);
   return `import type { EngineConfig } from '@weave-kit/engine';\n
   // WeaveKit engine configuration.

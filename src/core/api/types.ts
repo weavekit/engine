@@ -18,6 +18,8 @@ export interface ListQuery {
   fields?: string[];
   limit?: number;
   offset?: number;
+  /** `exact` (default) | `estimate` | `none`; validated by the adapter layer */
+  total?: string;
 }
 
 /** uniform error body returned by every REST endpoint */
@@ -38,7 +40,8 @@ export interface ApiErrorSpec {
 /** paginated list response envelope (pagination convention, consumed by the client SDK) */
 export interface RestResult<T = Record<string, unknown>> {
   rows: T[];
-  total: number;
+  /** row count (exact or estimated); omitted when the request asked for `total=none` */
+  total?: number;
   limit: number;
   offset: number;
 }

@@ -31,6 +31,7 @@ import {
   type ObjectRegistry,
 } from '../../core/index.js';
 import { GraphQLJSON } from './scalars.js';
+import { TOTAL_MODES } from '../../runtime/data-access/index.js';
 import {
   createResolver,
   deleteResolver,
@@ -284,6 +285,14 @@ export function buildGraphQLSchema(input: { registry: ObjectRegistry }): GraphQL
       dir: { type: new GraphQLNonNull(sortDir) },
     },
   });
+  const totalMode = new GraphQLEnumType({
+    name: 'TotalMode',
+    values: {
+      [TOTAL_MODES.EXACT]: { value: TOTAL_MODES.EXACT },
+      [TOTAL_MODES.ESTIMATE]: { value: TOTAL_MODES.ESTIMATE },
+      [TOTAL_MODES.NONE]: { value: TOTAL_MODES.NONE },
+    },
+  });
 
   const queryFields: GraphQLFieldConfigMap<unknown, GraphQLContext> = {};
   const mutationFields: GraphQLFieldConfigMap<unknown, GraphQLContext> = {};
@@ -299,7 +308,7 @@ export function buildGraphQLSchema(input: { registry: ObjectRegistry }): GraphQL
           name: `${typeName}Page`,
           fields: {
             rows: { type: new GraphQLNonNull(new GraphQLList(new GraphQLNonNull(objectType))) },
-            total: { type: new GraphQLNonNull(GraphQLInt) },
+            total: { type: GraphQLInt },
           },
         }),
       ),
@@ -309,6 +318,7 @@ export function buildGraphQLSchema(input: { registry: ObjectRegistry }): GraphQL
         sort: { type: new GraphQLList(new GraphQLNonNull(sortInput)) },
         limit: { type: GraphQLInt },
         offset: { type: GraphQLInt },
+        total: { type: totalMode, description: 'how `total` is computed: `exact` (default), `estimate` (reltuples) or `none` (omit total)' },
       },
       resolve: listResolver(def.name),
     };

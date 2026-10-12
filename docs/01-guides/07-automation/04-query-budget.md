@@ -47,6 +47,22 @@ Every key is optional; absent keys fall back to `QUERY_BUDGET_DEFAULTS`:
 - **Per-context override** — `DataAccessContext.budget` overrides the instance budget for one
   operation (e.g. a trusted internal job), without changing global config.
 
+## List `total` (count cost)
+
+A list response carries `total` (the full count, not just the page). Exact counting is a second query;
+on large tables you can trade it for speed with `EngineConfig.query.total` (default `exact`):
+
+```ts
+export default { query: { total: 'estimate' } }; // or 'none'
+```
+
+- `exact` — `SELECT COUNT(*)` with the same filter/scope (default).
+- `estimate` — `pg_class.reltuples` (table-level, ignores the filter; approximate, refreshed by `ANALYZE`).
+- `none` — skip counting entirely; `total` is omitted and `hasMore` is derived by fetching one extra row.
+
+A request can override it per call: REST `?total=none`, GraphQL `total: ESTIMATE`, MCP `total: "none"`
+(client `FindParams.total`). With `none`, `total` is absent from the REST envelope and `null` in GraphQL.
+
 This is deliberately **not** the same as [Quotas](03-quotas.md): quotas are durable, cross-request
 usage counters (`weavekit_counters`); the query budget is a per-query structural cap.
 

@@ -554,3 +554,16 @@ export function buildCountSql(
     params,
   };
 }
+
+/**
+ * Estimated total via `pg_class.reltuples` (table-level, ignores filter/scope).
+ * Cheap on large tables; approximate and stale until the next ANALYZE (0/-1
+ * before the first vacuum/analyze). `to_regclass` resolves the (optionally
+ * schema-qualified) table name through the connection search_path.
+ */
+export function buildEstimateSql(object: ObjectDefinition): BuiltQuery {
+  return {
+    sql: `SELECT COALESCE((SELECT GREATEST(reltuples, 0) FROM pg_class WHERE oid = to_regclass($1)), 0)::int AS total`,
+    params: [object.name],
+  };
+}

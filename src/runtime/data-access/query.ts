@@ -7,7 +7,7 @@ import { AUDIT_ACTOR_TYPES, DATA_ACTIONS } from '../../core/audit/index.js';
 import type { EventPublisher } from '../../core/provider/event/index.js';
 import { NOOP_SCRIPT_DISPATCHER, SCRIPT_HOOKS, type GuardrailContext, type GuardrailPolicy, type ScriptDispatcher, type ScriptHook, type ScriptUser, type ToolDataAccess, type WorkflowTimerSync } from '../../core/index.js';
 import { evaluateTransition, type PolicyApprovals } from '../tools/policies.js';
-import { buildCountSql, buildFindSql, resolvePagination, scopeSuffix, type BuildContext } from './builder.js';
+import { buildCountSql, buildEstimateSql, buildFindSql, resolvePagination, scopeSuffix, type BuildContext } from './builder.js';
 import { deleteDetailsChildren, insertDetails } from './details.js';
 import { insertLinks, replaceLinks } from './link.js';
 import {
@@ -28,7 +28,7 @@ import { computeFormulas, type FormulaAuth } from './formula.js';
 import { generateSeqNo } from './seqno.js';
 import { subjectOf, scopeOf, type DataAccessContext, type FindOptions, type FindResult, type ObjectDataAccess } from './types.js';
 import { validateRecord } from './validate.js';
-import { FILTER_OPS, SORT_DIRS, WRITE_MODES } from './values.js';
+import { FILTER_OPS, SORT_DIRS, TOTAL_MODES, WRITE_MODES, type TotalMode } from './values.js';
 import { decodeCursor, encodeCursor } from './cursor.js';
 import { QUERY_BUDGET_DEFAULTS, assertQueryBudget, type QueryBudget } from './query-budget.js';
 import { EXECUTION_OUTCOMES, type EvidenceSink, type ExecutionPlan, type MessageKey } from '../../core/index.js';
@@ -335,6 +335,8 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
   private readonly metrics?: MetricsSink;
   /** object-path RLS role (`rls.enforce`); user-principal customer-table reads/updates/deletes run under it */
   private readonly rlsRole?: string;
+  /** default `total` computation for `find` (per-call `opts.total` overrides) */
+  private readonly totalMode: TotalMode;
 
   constructor(
     options: {
@@ -350,6 +352,7 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
       schemaRevision?: string;
       metrics?: MetricsSink;
       rls?: { role: string };
+      total?: TotalMode;
     } = {},
   ) {
     this.audit = options.audit;
@@ -367,6 +370,7 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
       throw new Error(`invalid RLS role name "${options.rls.role}"`);
     }
     this.rlsRole = options.rls?.role;
+    this.totalMode = options.total ?? TOTAL_MODES.EXACT;
   }
 
   /**
@@ -503,6 +507,7 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
     const def = requireDef(ctx, objectName);
     const pks = primaryFieldsOf(def);
     const budget = ctx.budget ?? this.budget;
+    const totalMode = opts.total ?? this.totalMode;
     try {
       assertQueryBudget(opts, budget, ctx.locale);
     } catch (error) {
@@ -515,6 +520,24 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
       throw error;
     }
     const { limit } = resolvePagination(opts, budget.maxRows);
+    const noneTotal = totalMode === TOTAL_MODES.NONE;
+
+    // `total` per the effective mode: exact COUNT(*), a reltuples estimate, or
+    // nothing (none). Counts run on the same (RLS-scoped) connection as the page.
+    const countTotal = async (
+      db: Pool | PoolClient,
+      buildCtx: BuildContext,
+    ): Promise<number | undefined> => {
+      if (noneTotal) return undefined;
+      if (totalMode === TOTAL_MODES.ESTIMATE) {
+        const { sql, params } = buildEstimateSql(def);
+        const { rows } = await runTableQuery(db, objectName, sql, params, ctx.locale);
+        return (rows[0] as { total: number } | undefined)?.total;
+      }
+      const { sql, params } = buildCountSql(def, opts, buildCtx, ctx.rowScope);
+      const { rows } = await runTableQuery(db, objectName, sql, params, ctx.locale);
+      return (rows[0] as { total: number }).total;
+    };
 
     // keyset cursor (single primary key): `pk > cursor` ordered by pk. A
     // caller-provided sort is ignored in cursor mode (documented) so pages
@@ -532,10 +555,9 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
       const meta = needsSideTable(pageOpts) ? { table: recordMetaTableName(def.name) } : undefined;
       const buildCtx = { ...bctx(ctx, objectName), ...(meta === undefined ? {} : { meta }) };
       const { sql, params } = buildFindSql(def, pageOpts, buildCtx, ctx.rowScope, pageOpts.exclude, undefined, budget.maxRows + 1);
-      const { sql: countSql, params: countParams } = buildCountSql(def, opts, buildCtx, ctx.rowScope);
-      const [{ rows }, { rows: countRows }] = await this.readScoped(ctx, async (db) => [
+      const [{ rows }, total] = await this.readScoped(ctx, async (db) => [
         await runTableQuery(db, objectName, sql, params, ctx.locale),
-        await runTableQuery(db, objectName, countSql, countParams, ctx.locale),
+        await countTotal(db, buildCtx),
       ]);
       const hasMore = rows.length > limit;
       const pageRows = hasMore ? rows.slice(0, limit) : rows;
@@ -544,7 +566,7 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
       const loaded = await this.runOnLoad(objectName, pageRows as Record<string, unknown>[], ctx);
       return {
         rows: loaded as T[],
-        total: (countRows[0] as { total: number }).total,
+        ...(total === undefined ? {} : { total }),
         hasMore,
         ...(nextCursor === undefined ? {} : { nextCursor }),
       };
@@ -555,15 +577,19 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
     const meta = needsSideTable(opts) ? { table: recordMetaTableName(def.name) } : undefined;
     const buildCtx = { ...bctx(ctx, objectName), ...(meta === undefined ? {} : { meta }) };
 
-    const { sql, params } = buildFindSql(def, opts, buildCtx, ctx.rowScope, opts.exclude, undefined, budget.maxRows);
-    const { sql: countSql, params: countParams } = buildCountSql(def, opts, buildCtx, ctx.rowScope);
-    const [{ rows }, { rows: countRows }] = await this.readScoped(ctx, async (db) => [
+    // with `total: 'none'` there is no count query to derive `hasMore`, so fetch
+    // one extra row (like cursor mode) and slice it off
+    const findOpts: FindOptions = noneTotal ? { ...opts, limit: limit + 1 } : opts;
+    const { sql, params } = buildFindSql(def, findOpts, buildCtx, ctx.rowScope, findOpts.exclude, undefined, noneTotal ? budget.maxRows + 1 : budget.maxRows);
+    const [{ rows }, total] = await this.readScoped(ctx, async (db) => [
       await runTableQuery(db, objectName, sql, params, ctx.locale),
-      await runTableQuery(db, objectName, countSql, countParams, ctx.locale),
+      await countTotal(db, buildCtx),
     ]);
-    const total = (countRows[0] as { total: number }).total;
-    const loaded = await this.runOnLoad(objectName, rows as Record<string, unknown>[], ctx);
-    return { rows: loaded as T[], total, hasMore: (opts.offset ?? 0) + rows.length < total };
+    const offset = opts.offset ?? 0;
+    const hasMore = noneTotal ? rows.length > limit : offset + rows.length < (total ?? 0);
+    const pageRows = noneTotal && hasMore ? rows.slice(0, limit) : rows;
+    const loaded = await this.runOnLoad(objectName, pageRows as Record<string, unknown>[], ctx);
+    return { rows: loaded as T[], ...(total === undefined ? {} : { total }), hasMore };
   }
 
   async findOne<T = Record<string, unknown>>(
@@ -1342,6 +1368,7 @@ export function createDataAccess(
     schemaRevision?: string;
     metrics?: MetricsSink;
     rls?: { role: string };
+    total?: TotalMode;
   } = {},
 ): ObjectDataAccess {
   return new DefaultObjectDataAccess(options);
