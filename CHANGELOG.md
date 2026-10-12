@@ -5,6 +5,31 @@ the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-10-12
+
+Additive (no `CONTRACT_VERSION` bump): built-in OIDC/JWT auth + MCP OAuth discovery.
+
+### Added
+
+- **Built-in OIDC/JWT verifier (`auth.oidc`).** The engine validates bearer JWTs locally — JWKS
+  (explicit `jwksUri` or OIDC discovery from `issuer`), `iss`/`aud`/`exp`/`nbf` with clock skew, and
+  **asymmetric algorithms only** (never `none`/HMAC) — and resolves them to the identity directory
+  (`ref` from `subjectClaim`, default `sub`; `rolesClaim`/`tenantClaim` surfaced as `claims.roles` /
+  `claims.tenantId`). `auth.source` is now optional and `auth` may carry `oidc`. Powered by `jose`.
+  New exports `createOidcVerifier`, `OidcConfig`.
+- **MCP OAuth Protected Resource Metadata (RFC 9728).** With `auth.oidc`, `GET
+  /.well-known/oauth-protected-resource` advertises `authorization_servers` (default `[issuer]`,
+  override `auth.oidc.authorizationServers`) and 401 responses carry a
+  `WWW-Authenticate: Bearer resource_metadata="…"` challenge — so standards-based MCP hosts (Claude,
+  ChatGPT connectors, VS Code) can discover and run the OAuth flow. New exports
+  `oauthProtectedResourceMetadata`, `wwwAuthenticateChallenge`, `OAUTH_PROTECTED_RESOURCE_PATH`.
+
+### Changed
+
+- **E1 boundary:** OIDC/JWT is now **MIT** (built-in `auth.oidc`). `@weave-kit/enterprise` E1 now
+  covers SAML, SCIM/LDAP/HRIS directory sync, group→role mapping, multi-IdP and identity-event audit.
+  The `AuthVerifier` seam stays open for custom/SAML verifiers.
+
 ## [1.6.0] - 2026-10-12
 
 Additive (no `CONTRACT_VERSION` bump): a dedicated system schema for brownfield installs.

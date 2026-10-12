@@ -4,7 +4,7 @@ import type { AuditSink } from '../../core/audit/index.js';
 import type { AlertSink } from '../../core/provider/alerts/index.js';
 import type { IdentityDirectory, IdentityResolver } from '../../core/provider/identity/index.js';
 import type { ToolExecutor } from '../../runtime/tools/index.js';
-import type { Authenticator } from '../auth/index.js';
+import type { Authenticator, OidcConfig } from '../auth/index.js';
 import { McpSessionStore } from './session.js';
 import { createGuardrails, type RateLimitConfig } from './guardrails.js';
 import { registerMcpRoutes } from './http.js';
@@ -88,6 +88,8 @@ export interface McpRegisterDeps {
   directory?: IdentityDirectory;
   /** schema signature: part of the compiled-surface cache key so a schema change invalidates it */
   schemaRevision?: string;
+  /** `auth.oidc` — enables the RFC 9728 protected-resource metadata endpoint */
+  oauth?: OidcConfig;
 }
 
 export interface McpServerHandle {
@@ -101,7 +103,7 @@ export interface McpServerHandle {
  * identity (`mcp.identities`: static directory or a customer-provided resolver).
  */
 export function registerMcp(app: FastifyInstance, deps: McpRegisterDeps): McpServerHandle {
-  const { engine, authenticator, mcp, locale, audit, alerts, tools, corsOrigin, directory, schemaRevision } = deps;
+  const { engine, authenticator, mcp, locale, audit, alerts, tools, corsOrigin, directory, schemaRevision, oauth } = deps;
 
   // on-behalf-of resolver priority: a function `mcp.identities` wins, then a
   // static `mcp.identities` map, then the engine identity directory, else empty
@@ -142,6 +144,7 @@ export function registerMcp(app: FastifyInstance, deps: McpRegisterDeps): McpSer
     allowImpersonation: mcp?.impersonation === 'directory',
     prompts,
     schemaRevision,
+    ...(oauth === undefined ? {} : { oauth }),
   });
 
   return {

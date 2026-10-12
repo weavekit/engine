@@ -85,6 +85,31 @@ Either keep the static key map / custom resolver:
 with `identity.notSynced` (403) — run `weave sync:identity` first. `identity.required` also gates a
 custom `auth.source` on the directory.
 
+### Built-in OIDC/JWT (`auth.oidc`)
+
+For a standards-based IdP you don't need a custom verifier — point `auth.oidc` at it and the engine
+validates bearer JWTs locally (signature via JWKS, `iss`/`aud`/`exp`/`nbf`, asymmetric algs only):
+
+```ts
+{
+  auth: {
+    oidc: {
+      issuer: 'https://idp.example.com',   // discovery at <issuer>/.well-known/openid-configuration
+      // jwksUri: 'https://idp.example.com/.well-known/jwks.json', // or set JWKS directly
+      audience: 'weavekit-engine',
+      subjectClaim: 'sub',                 // → the external user ref (default: sub)
+      rolesClaim: 'roles',                 // also exposed as claims.roles for the directory
+      // tenantClaim: 'tenant',
+    },
+  },
+}
+```
+
+It composes with the identity directory exactly like a custom verifier: the resolved `ref` must have
+a synced local user (`weave sync:identity`). The `subjectClaim` value identifies the user; roles come
+from the directory. `createOidcVerifier` is exported for hosts that assemble the authenticator
+themselves.
+
 ## Managing identities
 
 Greenfield projects (no external source) manage users directly:
@@ -111,6 +136,7 @@ Or the admin REST surface (gated by `adapters.rest.adminRoles`):
 
 ## Extending (enterprise)
 
-The engine ships the seam and the `pg`/`function` sources; `@weave-kit/enterprise` adds OIDC/JWT/SAML
-verifiers, a SCIM 2.0 server, LDAP and HRIS connectors against the same `IdentitySource` /
+The engine ships the seam and the `pg`/`function` sources **plus a built-in OIDC/JWT verifier**
+(`auth.oidc`). `@weave-kit/enterprise` adds SAML, a SCIM 2.0 server, LDAP/HRIS directory connectors,
+group→role mapping, multi-IdP and identity-event audit against the same `IdentitySource` /
 `AuthVerifier` contracts. See [RBAC](02-rbac.md) for how the resulting subject scopes rows.

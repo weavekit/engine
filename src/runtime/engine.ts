@@ -48,7 +48,7 @@ import { createApprovals, type ApprovalsQueue } from './tools/index.js';
 import { resolvePolicies } from './tools/policies.js';
 import type { ToolExecutor } from './tools/index.js';
 import type { ProxyForwarder } from './proxy/index.js';
-import { buildAuthenticator, createDirectoryAuthenticator, enforceSyncedIdentity, withDefaultTenant, withDefaultScope, type AuthSource, type AuthVerifier, type Authenticator } from '../adapters/auth/index.js';
+import { buildAuthenticator, createDirectoryAuthenticator, createOidcVerifier, enforceSyncedIdentity, withDefaultTenant, withDefaultScope, wwwAuthenticateChallenge, type AuthSource, type AuthVerifier, type Authenticator, type OidcConfig } from '../adapters/auth/index.js';
 import type { IdentitySource, IdentityStore } from '../core/provider/identity/index.js';
 import type { CapabilitiesProvider } from '../core/provider/capabilities/index.js';
 import type { PgIdentitySourceConfig } from './identity/sources/pg.js';
@@ -296,8 +296,13 @@ export interface EngineConfig {
    * - `identity` — commit identity; falls back to a local weavekit identity
    */
   commit?: { meta?: boolean; identity?: { name: string; email: string } };
-  /** authentication source (static key map or custom resolver); required unless `identity.verifier` is set */
-  auth?: { source: AuthSource };
+  /**
+   * Authentication: a static key map / custom resolver (`source`), a built-in
+   * OIDC/JWT verifier (`oidc`), or `identity.verifier` for a custom protocol
+   * verifier. At least one is required. `oidc` requires a resolvable identity
+   * directory (run `weave sync:identity`).
+   */
+  auth?: { source?: AuthSource; oidc?: OidcConfig };
   /** protocol adapters (REST/MCP/events/GraphQL), closable via config */
   adapters?: { rest?: EngineRestConfig; mcp?: EngineMcpConfig; events?: EngineEventsConfig; graphql?: EngineGraphQLConfig };
   /** engine-level tool mechanism: custom tools + guardrail policies; disabled when absent */
@@ -544,7 +549,7 @@ export async function buildEngineFromRegistry(
   if (databaseUrl === undefined) {
     throw new SchemaError('engine.databaseUrl.missing', {}, locale);
   }
-  if (config.auth?.source === undefined && config.identity?.verifier === undefined) {
+  if (config.auth?.source === undefined && config.auth?.oidc === undefined && config.identity?.verifier === undefined) {
     throw new SchemaError('auth.notConfigured', {}, locale);
   }
 
@@ -727,7 +732,9 @@ export async function buildEngineFromRegistry(
   let authenticator: Authenticator =
     identityCfg?.verifier !== undefined
       ? createDirectoryAuthenticator({ verifier: identityCfg.verifier, directory: identityDirectory, locale })
-      : buildAuthenticator(config.auth ?? { source: {} });
+      : config.auth?.oidc !== undefined
+        ? createDirectoryAuthenticator({ verifier: createOidcVerifier(config.auth.oidc), directory: identityDirectory, locale })
+        : buildAuthenticator({ source: config.auth?.source ?? {} });
   if (identityCfg?.required === true) {
     authenticator = enforceSyncedIdentity(authenticator, identityDirectory, locale);
   }
@@ -811,7 +818,13 @@ export async function buildEngineFromRegistry(
     }
   });
   if (rest?.enabled ?? true) {
-    setErrorHandlers(app, locale);
+    setErrorHandlers(
+      app,
+      locale,
+      config.auth?.oidc === undefined
+        ? {}
+        : { wwwAuthenticate: (request) => wwwAuthenticateChallenge(`${request.protocol}://${request.host}`) },
+    );
     const restOptions: RestOptions = { prefix: rest?.prefix };
     if (rest?.rateLimit !== undefined) {
       restOptions.rateLimiter = createSlidingWindow(rest.rateLimit);
@@ -1039,6 +1052,7 @@ export async function buildEngineFromRegistry(
       directory: identityDirectory,
       corsOrigin: config.adapters?.rest?.cors?.origin,
       schemaRevision,
+      ...(config.auth?.oidc === undefined ? {} : { oauth: config.auth.oidc }),
     });
   }
 

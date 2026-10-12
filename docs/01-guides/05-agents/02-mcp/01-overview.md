@@ -70,6 +70,21 @@ export default {
 Auth failures return `401` **before** the transport is entered. A missing or unknown on-behalf-of ref
 fails the session with a clear error.
 
+### OAuth host discovery (`auth.oidc`)
+
+When the engine authenticates with a built-in OIDC/JWT verifier (`auth.oidc`; see
+[Identity](../../04-access/03-identity.md)), it exposes OAuth 2.0 Protected Resource Metadata so a
+standards-based MCP host (Claude, ChatGPT connectors, VS Code) can discover the authorization server
+and run the OAuth flow:
+
+- `GET /.well-known/oauth-protected-resource` returns `{ resource, authorization_servers,
+  bearer_methods_supported, scopes_supported? }` (RFC 9728).
+- `401` responses carry `WWW-Authenticate: Bearer resource_metadata="…/.well-known/oauth-protected-resource"`,
+  pointing the host at that document.
+
+`authorization_servers` defaults to `[auth.oidc.issuer]`; override with `auth.oidc.authorizationServers`.
+The document is public (no auth).
+
 ## Wiring
 
 `createEngine` wires the endpoint for you:

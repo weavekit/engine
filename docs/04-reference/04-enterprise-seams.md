@@ -23,15 +23,17 @@ plug in without depending on engine internals.
 | `AuditSink` | `core/audit/types.ts` | PG store + best-effort / transactional / durable modes | **E2** export, retention, WORM/compliance |
 | `ApprovalsBackend` | `core/tools/types.ts` | in-memory + PG | **E3** Redis / HA coordination |
 | `WorkflowTimerStore` / `WorkflowBackend` | `core/types/workflow.ts` | PG `weavekit_workflow_timers` (`FOR UPDATE SKIP LOCKED`) | **E3** Redis / HA timers |
-| `IdentityStore` | `core/provider/identity/directory.ts` | PG `weavekit_user` / `weavekit_department` | **E1** SSO / SCIM directory sync |
-| `AuthSource` / `Authenticator` | `adapters/auth/source.ts` | static key map or custom resolver | **E1** SSO / OIDC / SAML |
-| `AuthVerifier` | `adapters/auth/verify.ts` | — (contract only) | **E1** protocol verifiers |
+| `IdentityStore` | `core/provider/identity/directory.ts` | PG `weavekit_user` / `weavekit_department` | **E1** SCIM / LDAP / HRIS directory sync |
+| `AuthSource` / `Authenticator` | `adapters/auth/source.ts` | static key map or custom resolver | **E1** SAML / multi-IdP |
+| `AuthVerifier` | `adapters/auth/verify.ts` | built-in OIDC/JWT (`auth.oidc`); custom verifiers pluggable | **E1** SAML / group→role mapping |
 | `GuardrailPolicy` | `core/tools/types.ts` | in-process policies | **E5** Redis-backed advanced guardrails |
 | `ProxyTargetResolver` | `core/proxy/types.ts` | app-supplied resolver | target governance / Cloud control plane |
 | `MetricsSink` / `TraceSink` | `core/observability/index.ts` | no-op | telemetry backend / Cloud metering (**E6**) |
 
 Every seam except the observability sinks is marked `@enterprise-reserved` in
-source. `tests/unit/seams/` pins the consumer-facing guarantees (error, close,
+source — with one MIT carry-over: the engine ships a **built-in OIDC/JWT
+verifier** (`auth.oidc`), and the `AuthVerifier` seam stays open for SAML and
+other protocols. `tests/unit/seams/` pins the consumer-facing guarantees (error, close,
 retry, idempotency) so an enterprise implementation can rely on them.
 
 ## Audit durability

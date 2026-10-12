@@ -17,8 +17,9 @@ export type AuthResolver = (header: string | undefined) => IdentitySubject | nul
  * The authentication source: either a static key map or a resolver function.
  * `source` is required whenever `auth` is configured (fail fast otherwise).
  *
- * Stable seam (`@enterprise-reserved`): SSO/OIDC/SAML is enterprise E1; the
- * engine ships static-key and custom-resolver sources.
+ * Stable seam (`@enterprise-reserved`): SAML / multi-IdP federation is enterprise
+ * E1. The engine ships static-key and custom-resolver sources plus a built-in
+ * OIDC/JWT verifier (`auth.oidc`).
  */
 export type AuthSource = Record<string, IdentitySubject> | AuthResolver;
 

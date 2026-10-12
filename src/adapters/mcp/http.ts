@@ -20,7 +20,7 @@ import type { Locale, ToolDefinition, ToolJsonSchema } from '../../core/index.js
 import { SchemaError, traceIdOf, validateToolArgs } from '../../core/index.js';
 import type { ToolExecutor } from '../../runtime/tools/index.js';
 import type { Authenticator } from '../auth/index.js';
-import { authenticate } from '../auth/index.js';
+import { authenticate, OAUTH_PROTECTED_RESOURCE_PATH, oauthProtectedResourceMetadata, type OidcConfig } from '../auth/index.js';
 import type { IdentityResolver } from '../../core/provider/identity/index.js';
 import type { McpSessionStore, SessionInput, McpSession } from './session.js';
 import { credentialIdOf } from './session.js';
@@ -115,6 +115,8 @@ export interface McpHttpDeps {
   prompts?: McpPromptsConfig;
   /** schema signature folded into the compiled-surface cache key (schema change → cache miss) */
   schemaRevision?: string;
+  /** when set (from `auth.oidc`), serve RFC 9728 protected-resource metadata at `/.well-known/oauth-protected-resource` */
+  oauth?: OidcConfig;
 }
 
 interface SessionEntry {
@@ -362,6 +364,16 @@ export function registerMcpRoutes(app: FastifyInstance, deps: McpHttpDeps): void
   app.post(path, handle);
   app.get(path, handle);
   app.delete(path, handle);
+
+  // OAuth 2.0 Protected Resource Metadata (RFC 9728): a public document letting a
+  // standards-based MCP host discover the authorization server and run the OAuth
+  // flow. Served only when OIDC is configured (`auth.oidc`).
+  if (deps.oauth !== undefined) {
+    app.get(OAUTH_PROTECTED_RESOURCE_PATH, async (request, reply) => {
+      const origin = `${request.protocol}://${request.host}`;
+      reply.type('application/json').send(oauthProtectedResourceMetadata(deps.oauth, origin));
+    });
+  }
 
   app.addHook('onClose', async () => {
     for (const entry of sessions.values()) {
