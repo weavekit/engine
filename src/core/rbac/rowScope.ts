@@ -102,8 +102,7 @@ export function buildRowScope(
   const base = baseRowScope(def, scope, subject, roles, locale, alias);
   // scope boundary applies on top of RBAC (even for `all`); a scope-less
   // subject or an object without a scope column leaves the scope unchanged.
-  // The row-scope key is the generic `scope` marker (the `tenant` alias still
-  // works), valued by `subject.scopeId`.
+  // The row-scope key is the `scope` marker, valued by `subject.scopeId`.
   const scopeField = scopeFieldName(def);
   const scopeValue = subject.scopeId;
   if (scopeField === undefined || scopeValue === undefined) return base;

@@ -53,9 +53,6 @@ export function scopedKey(scopeId: string | undefined, key: string): string {
   return scopeId === undefined || scopeId === '' ? key : `${scopeId}:${key}`;
 }
 
-/** @deprecated use {@link scopedKey} (retained tenant-named alias) */
-export const scopedQuotaKey = scopedKey;
-
 /**
  * Consume `amount` (default 1) against `policy`; never throws — inspect
  * `allowed`. Use this when the caller wants to decide what a denial means.

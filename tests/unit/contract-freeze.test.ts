@@ -75,7 +75,7 @@ describe('G1 contract freeze', () => {
       'createEngine', 'buildEngineFromRegistry', 'createPool', 'migrate', 'loadSchemaDir',
       'createDataAccess', 'withRbac', 'withTx', 'executeRestrictedSql', 'enforceSqlGates',
       'resolvePermissionFor', 'buildRowScope', 'userPrincipal', 'systemPrincipal', 'SYSTEM_CAPABILITIES',
-      'principalSubject', 'principalActorId', 'principalScopeId', 'scopeOf', 'subjectOf', 'scopedQuotaKey',
+      'principalSubject', 'principalActorId', 'principalScopeId', 'scopeOf', 'subjectOf',
       'mapSchemaError', 'NOOP_AUDIT_SINK', 'AUDIT_MODES',
       'EXECUTION_STAGES', 'runPipeline', 'validateToolArgs', 'QUERY_BUDGET_DEFAULTS', 'resolveQueryBudget',
       'encodeCursor', 'decodeCursor', 'CURSOR_VERSION', 'REGISTRY_TOOLS', 'INTROSPECTION_TOOLS', 'WORKFLOW_TOOLS',

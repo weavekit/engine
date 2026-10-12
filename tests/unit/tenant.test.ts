@@ -2,15 +2,15 @@ import { describe, it, expect } from '../helpers/test.js';
 import {
   SYSTEM_CAPABILITIES,
   principalScopeId,
-  scopedQuotaKey,
+  scopedKey,
   systemPrincipal,
   userPrincipal,
 } from '../../src/core/index.js';
 import { scopeOf } from '../../src/runtime/data-access/index.js';
 import { withDefaultScope } from '../../src/adapters/auth/index.js';
 
-describe('tenant mechanics (W3.1)', () => {
-  it('principalScopeId: user subject tenant / system principal tenant', () => {
+describe('scope mechanics (W3.1)', () => {
+  it('principalScopeId: user subject scope / system principal scope', () => {
     expect(principalScopeId(userPrincipal({ id: 'u1', roles: [], scopeId: 't1' }))).toBe('t1');
     expect(principalScopeId(userPrincipal({ id: 'u1', roles: [] }))).toBeUndefined();
     expect(principalScopeId(systemPrincipal(SYSTEM_CAPABILITIES.WORKFLOW_TIMER, 'timer', 't2'))).toBe('t2');
@@ -23,13 +23,13 @@ describe('tenant mechanics (W3.1)', () => {
     expect(scopeOf({ principal: systemPrincipal(SYSTEM_CAPABILITIES.INTERNAL_ADMIN) } as never)).toBeUndefined();
   });
 
-  it('scopedQuotaKey namespaces by tenant; absent tenant is unchanged', () => {
-    expect(scopedQuotaKey('t1', 'calls')).toBe('t1:calls');
-    expect(scopedQuotaKey(undefined, 'calls')).toBe('calls');
-    expect(scopedQuotaKey('', 'calls')).toBe('calls');
+  it('scopedKey namespaces by scope; absent scope is unchanged', () => {
+    expect(scopedKey('t1', 'calls')).toBe('t1:calls');
+    expect(scopedKey(undefined, 'calls')).toBe('calls');
+    expect(scopedKey('', 'calls')).toBe('calls');
   });
 
-  it('withDefaultScope stamps a tenant only when the subject lacks one', async () => {
+  it('withDefaultScope stamps a scope only when the subject lacks one', async () => {
     const plain = { resolve: async (h: string | undefined) => (h === 'Bearer x' ? { id: 'u1', roles: ['r'] } : null) };
     expect((await withDefaultScope(plain, 't1').resolve('Bearer x'))!.scopeId).toBe('t1');
     expect(await withDefaultScope(plain, 't1').resolve('nope')).toBeNull();

@@ -41,7 +41,7 @@ function renderImpact(p: DeployPlanOptions['printer'], impact: SchemaImpact): vo
   ]);
   for (const note of impact.dataCompat.notes) p.log(`  ! ${note}`);
   if (impact.rbacScope.scopeObjects.length > 0) {
-    p.log(`  tenant-scoped: ${impact.rbacScope.scopeObjects.join(', ')}`);
+    p.log(`  scope-scoped: ${impact.rbacScope.scopeObjects.join(', ')}`);
   }
   if (impact.rbacScope.permissionObjects.length > 0) {
     p.log(`  permissioned: ${impact.rbacScope.permissionObjects.join(', ')}`);
