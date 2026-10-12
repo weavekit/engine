@@ -3,6 +3,8 @@ import type { DoctorStatus } from './values.js';
 
 /** `weave doctor` options */
 export interface DoctorOptions {
+  /** write a redacted, local-only deployment profile (JSON) — `true` = `weavekit-report.json`, or a path */
+  report?: string | boolean;
   printer: CliPrinter;
 }
 

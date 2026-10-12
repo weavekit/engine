@@ -126,6 +126,12 @@ Exit code is `1` when any check fails, so it gates CI and deploys. `weave migrat
 the same checks first and aborts on any failure (convenience for release jobs). `--json` emits the
 report structurally.
 
+`--report [path]` additionally writes a **redacted, local-only deployment profile** (JSON, default
+`weavekit-report.json`) — engine/runtime versions, enabled subsystems/adapters, capability switches
+and object-count buckets, plus the check statuses. It contains **no hosts, URLs, ids, object names or
+other customer data**, and is **never uploaded** (the engine has no telemetry); it exists so a design
+partner can hand it back voluntarily.
+
 ## `weave dev [--port <n>]`
 
 Loads the schema, syncs Git → PG (per-object `alter`), starts the REST API (default

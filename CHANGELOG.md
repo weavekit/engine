@@ -5,6 +5,18 @@ the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-10-12
+
+Additive (no `CONTRACT_VERSION` bump).
+
+### Added
+
+- **`weave doctor --report [path]`** — write a **redacted, local-only** deployment profile (JSON,
+  default `weavekit-report.json`): engine/runtime versions, enabled subsystems/adapters, capability
+  switches (`rls.enforce`, tenants, scope, `systemSchema`, …) and object/field-count buckets, plus the
+  doctor check statuses. It contains no hosts, URLs, ids, object names or other customer data and is
+  never uploaded (the engine has no telemetry). New export `buildDeploymentReport`.
+
 ## [1.7.0] - 2026-10-12
 
 Additive (no `CONTRACT_VERSION` bump): built-in OIDC/JWT auth + MCP OAuth discovery.

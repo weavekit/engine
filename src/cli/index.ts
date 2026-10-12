@@ -81,8 +81,9 @@ program
 program
   .command(WEAVE_COMMANDS.DOCTOR)
   .description('read-only preflight: connection, PostgreSQL compatibility, schema/DB drift, system tables, RLS + sandbox')
-  .action(async () => {
-    await runAction(() => doctor(process.cwd(), { printer: printer() }));
+  .option('--report [path]', 'write a redacted, local-only deployment profile (JSON); default weavekit-report.json')
+  .action(async (opts: { report?: string | boolean }) => {
+    await runAction(() => doctor(process.cwd(), { report: opts.report, printer: printer() }));
   });
 
 program

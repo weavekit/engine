@@ -1,4 +1,6 @@
 import { createRequire } from 'node:module';
+import { writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import kleur from 'kleur';
 import {
   buildMappingReport,
@@ -11,10 +13,114 @@ import {
   type ActualTable,
 } from '../../core/index.js';
 import { loadSchemaDir } from '../../runtime/git/index.js';
-import { resolveObjectRlsRole } from '../../runtime/engine.js';
+import { resolveObjectRlsRole, type EngineConfig } from '../../runtime/engine.js';
+import { version, CONTRACT_VERSION } from '../../version.js';
 import { loadConfig } from '../load-config.js';
 import { resolveProjectFieldTypes } from '../resolve-field-types.js';
 import { DOCTOR_STATUSES, type DoctorCheck, type DoctorOptions, type DoctorReport } from '../types/index.js';
+
+/**
+ * A redacted, local-only deployment profile (`weave doctor --report`). Contains
+ * no hosts, URLs, ids, object names or other customer data — only coarse shape
+ * (version, enabled subsystems/adapters, capability switches and object-count
+ * buckets) a design partner can hand back without leaking anything. The engine
+ * never uploads it; it is written to a local file only.
+ */
+export interface DeploymentReport {
+  tool: 'weave doctor --report';
+  generatedAt: string;
+  engine: { version: string; contractVersion: number };
+  runtime: { node: string; platform: string; postgresVersion?: number };
+  projectType?: string;
+  schema: { objects: string; fields: string; workflowObjects: string };
+  subsystems: {
+    audit?: { mode: string };
+    script: boolean;
+    evidence: boolean;
+    quotas: boolean;
+    tools: boolean;
+  };
+  adapters: { rest: boolean; mcp: boolean; graphql: boolean; events: boolean };
+  security: { rlsEnforce: boolean; tenants: boolean; scope: boolean; systemSchema: boolean };
+  identity: { mode: 'none' | 'static' | 'resolver' | 'oidc' | 'verifier' };
+  checks: Record<string, string>;
+}
+
+/** coarse count bucket (keeps object/field counts non-identifying) */
+function bucket(n: number): string {
+  if (n === 0) return '0';
+  if (n <= 5) return '1-5';
+  if (n <= 20) return '6-20';
+  if (n <= 50) return '21-50';
+  if (n <= 200) return '51-200';
+  return '200+';
+}
+
+export interface DeploymentReportInput {
+  config: EngineConfig;
+  objectCount: number;
+  fieldCount: number;
+  workflowObjects: number;
+  postgresVersion?: number;
+  checks: readonly DoctorCheck[];
+  now?: Date;
+}
+
+/** build the redacted deployment profile (pure; no I/O) */
+export function buildDeploymentReport(input: DeploymentReportInput): DeploymentReport {
+  const { config } = input;
+  const auth = config.auth;
+  const identity: DeploymentReport['identity']['mode'] =
+    config.identity?.verifier !== undefined
+      ? 'verifier'
+      : auth?.oidc !== undefined
+        ? 'oidc'
+        : typeof auth?.source === 'function'
+          ? 'resolver'
+          : auth?.source !== undefined
+            ? 'static'
+            : 'none';
+  const checks: Record<string, string> = {};
+  for (const check of input.checks) checks[check.name] = check.status;
+  const audit = config.subsystems?.audit;
+  return {
+    tool: 'weave doctor --report',
+    generatedAt: (input.now ?? new Date()).toISOString(),
+    engine: { version, contractVersion: CONTRACT_VERSION },
+    runtime: {
+      node: process.version,
+      platform: process.platform,
+      ...(input.postgresVersion === undefined ? {} : { postgresVersion: input.postgresVersion }),
+    },
+    ...(config.projectType === undefined ? {} : { projectType: config.projectType }),
+    schema: {
+      objects: bucket(input.objectCount),
+      fields: bucket(input.fieldCount),
+      workflowObjects: bucket(input.workflowObjects),
+    },
+    subsystems: {
+      ...(audit?.enabled === true ? { audit: { mode: audit.mode ?? 'best-effort' } } : {}),
+      script: config.subsystems?.script?.enabled === true,
+      evidence: config.evidence?.enabled === true,
+      quotas: config.quotas !== undefined,
+      tools: config.tools !== undefined,
+    },
+    adapters: {
+      rest: config.adapters?.rest?.enabled ?? true,
+      mcp: config.adapters?.mcp?.enabled ?? true,
+      graphql: config.adapters?.graphql?.enabled === true,
+      events: config.adapters?.events?.enabled === true,
+    },
+    security: {
+      rlsEnforce: config.rls?.enforce === true,
+      tenants: config.tenants?.enabled === true,
+      scope: config.scope?.enabled === true,
+      systemSchema: config.systemSchema !== undefined,
+    },
+    identity: { mode: identity },
+    checks,
+  };
+}
 
 /**
  * `weave doctor` — read-only preflight. Verifies the connection, PostgreSQL
@@ -219,10 +325,47 @@ export async function runDoctor(cwd: string): Promise<DoctorReport> {
   return { checks, ok: !checks.some((check) => check.status === DOCTOR_STATUSES.FAIL) };
 }
 
+/** load the project shape and write a redacted, local-only deployment profile; returns the path */
+export async function writeDeploymentReport(
+  cwd: string,
+  report: DoctorReport,
+  target: string | true,
+): Promise<string> {
+  const config = await loadConfig(cwd);
+  const { registry } = await loadSchemaDir(config.schemaDir ?? cwd, {
+    locale: config.locale,
+    allowedFieldTypes: config.features?.fieldTypes,
+    fieldTypes: await resolveProjectFieldTypes(cwd, config),
+  });
+  const objects = registry.list();
+  const pgDetail = report.checks.find((check) => check.name === 'postgres-version')?.detail ?? '';
+  const pgMatch = /^(\d+)/.exec(pgDetail);
+  const profile = buildDeploymentReport({
+    config,
+    objectCount: objects.length,
+    fieldCount: objects.reduce((n, def) => n + def.fields.length, 0),
+    workflowObjects: objects.filter((def) => def.workflow !== undefined).length,
+    ...(pgMatch?.[1] === undefined ? {} : { postgresVersion: Number(pgMatch[1]) }),
+    checks: report.checks,
+  });
+  const out = target === true ? join(cwd, 'weavekit-report.json') : target;
+  await writeFile(out, `${JSON.stringify(profile, null, 2)}\n`);
+  return out;
+}
+
 /** `weave doctor` — run the preflight and print a report; exit 1 on any failure */
 export async function doctor(cwd: string, options: DoctorOptions): Promise<void> {
   const p = options.printer;
   const report = await runDoctor(cwd);
+
+  if (options.report !== undefined && options.report !== false) {
+    try {
+      const out = await writeDeploymentReport(cwd, report, options.report);
+      p.log(`deployment report written to ${out}`);
+    } catch (error) {
+      p.error(`could not write deployment report: ${message(error)}`);
+    }
+  }
 
   if (p.json) {
     p.data(report);
