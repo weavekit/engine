@@ -59,7 +59,6 @@ import {
   registerCapabilitiesRoutes,
   registerMetadataRoutes,
   registerObjectRoutes,
-  registerPagesRoutes,
   registerPermissionsRoutes,
   registerProxyRoutes,
   registerIngressRoutes,
@@ -853,17 +852,6 @@ export async function buildEngineFromRegistry(
       restOptions,
     );
     registerScriptRoutes(
-      app,
-      {
-        registry,
-        authenticator,
-        locale,
-        projectDir: config.schemaDir,
-        commitIdentity: config.commit?.identity,
-      },
-      restOptions,
-    );
-    registerPagesRoutes(
       app,
       {
         registry,

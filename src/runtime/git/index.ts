@@ -28,27 +28,9 @@ export type {
   WriteGuardrailPolicyOptions,
   WriteGuardrailPolicyResult,
 } from './guardrailSource.js';
-export {
-  readLayoutSource,
-  writeLayoutSource,
-  validateLayoutCandidate,
-  layoutPathOf,
-  throwLayoutIssues,
-  listableFieldsOf,
-} from './layoutSource.js';
-export type { LayoutSourceDocument, WriteLayoutSourceOptions, WriteLayoutSourceResult } from './layoutSource.js';
 export { readSchemaSource, writeSchemaSource, validateSchemaCandidate, schemaPathOf } from './schemaSource.js';
 export type { SchemaSourceDocument, WriteSchemaSourceOptions, WriteSchemaSourceResult } from './schemaSource.js';
 export { readWorkflowSource, writeWorkflowSource, validateWorkflowCandidate, workflowPathOf } from './workflowSource.js';
 export type { WorkflowSourceDocument, WriteWorkflowSourceOptions, WriteWorkflowSourceResult } from './workflowSource.js';
-export {
-  listPages,
-  createCustomPage,
-  deleteCustomPage,
-  renameCustomPage,
-  findCustomPageRefs,
-  emptyCustomLayout,
-} from './pageCatalog.js';
-export type { PageSummary, CreateCustomPageOptions, DeleteCustomPageOptions, RenameCustomPageOptions } from './pageCatalog.js';
 export { buildCommitMessage, diffMetadata, gitCommitAuthor, recordSchemaChanges, recordWorkflowMigration } from './schemaChange.js';
 export type { SchemaAuditCommit, SchemaChange, WorkflowMigrationAuditEntry } from './schemaChange.js';

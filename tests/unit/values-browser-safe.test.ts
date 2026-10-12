@@ -40,11 +40,4 @@ describe('values barrel is browser-safe (@weave-kit/engine/values)', () => {
       expect(spec.match(/node:|\bpg\b|fastify|isolated-vm/)).toBeNull();
     }
   });
-
-  it('layout-format uses type-only imports only (browser-safe)', () => {
-    const src = readFileSync(join(srcRoot, 'layout-format.ts'), 'utf8');
-    const runtimeImports = src.match(/^\s*import\s(?!type\b)/m) ?? [];
-    expect(runtimeImports.length).toBe(0);
-    expect(src.match(/require\(/g) ?? []).toHaveLength(0);
-  });
 });

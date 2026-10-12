@@ -9,7 +9,6 @@ export { registerApprovalsRoutes } from './approvals.js';
 export { registerWorkflowRoutes } from './workflow.js';
 export { registerWorkflowSourceRoutes } from './workflowSource.js';
 export { registerScriptRoutes } from './scripts.js';
-export { registerPagesRoutes } from './pages.js';
 export { registerSchemaRoutes } from './schemas.js';
 export { registerGuardrailsRoutes } from './guardrails.js';
 export { registerIdentitiesRoutes } from './identities.js';

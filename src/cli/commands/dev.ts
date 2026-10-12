@@ -17,9 +17,7 @@ import {
 import type { SchemaFile } from '../../runtime/git/index.js';
 import { loadConfig } from '../load-config.js';
 import { resolveProjectFieldTypes } from '../resolve-field-types.js';
-import { isBusinessUI } from '../project-types/manifest.js';
 import type { DevOptions } from '../types/index.js';
-import { backfillDefaultViews } from './default-view.js';
 import { firstStaticKey } from '../facts.js';
 import { readyScreen, renderReadyScreen } from '../ready-screen.js';
 
@@ -82,7 +80,6 @@ export async function dev(cwd: string, options: DevOptions): Promise<void> {
       const commit = await autoCommit({
         dir: schemaDir,
         message: buildCommitMessage(changes),
-        paths: isBusinessUI(config.projectType) ? ['objects', 'pages'] : undefined,
       });
       if (commit.committed) p.log(`committed ${commit.sha}`);
       if (commit.committed && changes.length > 0) {
@@ -135,23 +132,11 @@ export async function dev(cwd: string, options: DevOptions): Promise<void> {
     }
   }
 
-  /** backfill missing default page layouts for business projects */
-  async function backfillViews(sync: SyncResult): Promise<void> {
-    if (!isBusinessUI(config.projectType)) return;
-    const written = await backfillDefaultViews(
-      schemaDir,
-      sync.registry.list().map((o) => ({ name: o.name, fields: o.fields })),
-      config.locale,
-    );
-    if (written.length > 0) p.log(`generated default page layouts for ${written.length} object(s)`);
-  }
-
   async function start(): Promise<void> {
     // always sync Git → PG before serving: per-object `alter: true` objects get
     // additive DDL; alter:false objects fail fast on a missing column
     const fieldTypes = await resolveProjectFieldTypes(cwd, config);
     const sync = await syncSchema({ dir: schemaDir, databaseUrl: config.migrationDatabaseUrl ?? config.databaseUrl, locale: config.locale, ...(config.systemSchema === undefined ? {} : { systemSchema: config.systemSchema }), allowedFieldTypes: config.features?.fieldTypes, fieldTypes });
-    await backfillViews(sync);
     await regenerateTypes(sync.files, fieldTypes);
     await commitMetadata(sync.files, sync.migration.applied);
     engine = await buildEngineFromRegistry(sync.registry, devConfig(config));
@@ -207,7 +192,6 @@ export async function dev(cwd: string, options: DevOptions): Promise<void> {
     }
 
     try {
-      await backfillViews(sync);
       await regenerateTypes(sync.files, fieldTypes);
       await commitMetadata(sync.files, sync.migration.applied);
       const next = await buildEngineFromRegistry(sync.registry, devConfig(config));

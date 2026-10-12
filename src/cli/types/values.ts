@@ -25,7 +25,6 @@ export const WEAVE_COMMANDS = {
   WORKFLOW_CLOSE: 'workflow:close',
   WORKFLOW_SWITCH: 'workflow:switch',
   WORKFLOW_UPGRADE: 'workflow:upgrade',
-  PAGES_MIGRATE: 'pages:migrate',
   CONNECT: 'connect',
   INTROSPECT: 'introspect',
   MCP_CONFIG: 'mcp:config',
@@ -58,6 +57,5 @@ export const PROJECT_TYPES = {
   AGENT: 'agent',
   GOVERNANCE: 'governance',
   SERVICE: 'service',
-  BUSINESS: 'business',
 } as const;
 export type ProjectType = typeof PROJECT_TYPES[keyof typeof PROJECT_TYPES];

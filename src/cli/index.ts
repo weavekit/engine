@@ -19,7 +19,6 @@ import { moduleToggle } from './commands/module.js';
 import { objectCreate } from './commands/object-create.js';
 import { openapi } from './commands/openapi.js';
 import { graphqlSchema } from './commands/graphql-schema.js';
-import { migratePages } from './commands/pages-migrate.js';
 import { schemaMap } from './commands/schema-map.js';
 import { schemaUpgrade } from './commands/schema-upgrade.js';
 import { test } from './commands/test.js';
@@ -372,15 +371,6 @@ program
     await runAction(() =>
       workflowUpgrade(process.cwd(), { dryRun: opts.dryRun, printer: printer() }),
     );
-  });
-
-// `pages:*` is retired (2026-10): the `./layout` export/subpath was removed; this command is kept
-// functional for migrating legacy custom-page layouts.
-program
-  .command(WEAVE_COMMANDS.PAGES_MIGRATE)
-  .description('migrate legacy flat custom pages (pages/<id>.layout.json) to directories (pages/<id>/layout.json) and auto-commit')
-  .action(async () => {
-    await runAction(() => migratePages(process.cwd(), { printer: printer() }));
   });
 
 program

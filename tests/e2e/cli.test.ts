@@ -318,38 +318,6 @@ maybe("CLI weave E2E (spawn + local PG + .tmp/weavekit-project)", () => {
     }
   }, 120000);
 
-  it("object:create in a business project no longer generates UI groundwork (retired 2026-10)", async () => {
-    await rmProjectDir();
-    await mkdir(PROJECT_DIR, { recursive: true });
-    try {
-      await scaffoldProject(PROJECT_DIR, { type: "business", git: false });
-      await linkEngineModule();
-
-      const res = await runCli(["object:create", "purchase_order", "--json"]);
-      expect(res.code).toBe(0);
-      const createdJson = JSON.parse(res.stdout) as {
-        showClient: string | null;
-        listClient: string | null;
-        layout: string | null;
-      };
-      // business-UI groundwork retired: no client.js / page layouts
-      expect(createdJson.showClient).toBeNull();
-      expect(createdJson.listClient).toBeNull();
-      expect(createdJson.layout).toBeNull();
-
-      const readOrEmpty = async (rel: string): Promise<string> =>
-        readFile(join(PROJECT_DIR, ...rel.split("/")), "utf8").catch(() => "");
-      expect(await readOrEmpty("pages/purchase_order/show.client.js")).toBe("");
-      expect(await readOrEmpty("pages/purchase_order/list.client.js")).toBe("");
-      expect(await readOrEmpty("pages/purchase_order/show.layout.json")).toBe("");
-
-      // server hooks are still generated (business = headless backend)
-      expect((await readOrEmpty("objects/purchase_order/server.js")).length).toBeGreaterThan(0);
-    } finally {
-      await rmProjectDir();
-    }
-  }, 120000);
-
   it("workflow:open/close: enable the node-chain workflow + autoCommit", async () => {
     await rmProjectDir();
     await mkdir(PROJECT_DIR, { recursive: true });

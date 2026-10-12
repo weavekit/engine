@@ -2,9 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { FIELD_TYPES, SCHEMA_FORMAT_VERSION } from "../../core/index.js";
 import { autoCommit } from "../../runtime/git/index.js";
-import { writeDefaultLayout } from "./default-view.js";
 import { loadConfig } from "../load-config.js";
-import { isBusinessUI } from "../project-types/manifest.js";
 import type { ObjectCreateOptions } from "../types/index.js";
 
 const SNAKE_CASE = /^[a-z][a-z0-9_]*$/;
@@ -57,109 +55,6 @@ export function afterDelete() {
 }
 `;
 
-const SHOW_CLIENT_JS = `// Client-side hooks for this object's record surface (show detail + edit
-// form) — object-scoped (loaded at runtime by the frontend via
-// GET /api/objects/<object>/scripts/show.client). Isolated per instance.
-// Hooks run in the browser. They only shape the UX; the server remains the
-// security boundary (server.js validate / RBAC are authoritative).
-// Context is a single \`this\`:
-//   this.form     form instance: setValue / getValue / toggleDisplay /
-//                 toggleReadOnly / toggleRequired / showHint / setButtonState
-//   this.record   current record data ({} when creating)
-//   this.changes  fields the user edited this session
-//   this.user     optional { id, name, roles } supplied by the UI host
-//   this.actions  action buttons available on the form (hide/show/disable)
-//   this.api      @weave-kit/client instance scoped to the current permissions
-//   this.block    optional layout block ui_id
-//
-// Reserved for future use; the loader imports the module but does not call it.
-export function onLoad() {
-  // Future: dynamic defaults and role-based action visibility.
-}
-
-// Runs after a user or script field change. It may be async. Calls to
-// this.form.setValue trigger onFieldChange again, enabling explicit cascades.
-export async function onFieldChange(fieldName) {
-  //   if (fieldName === 'supplier_id') {
-  //     // relation values are the target's primary value (or record_key for a
-  //     // composite target) — filter on the target's primary field
-  //     const found = await this.api.objects('supplier').find({
-  //       filter: { id: this.form.getValue('supplier_id') },
-  //     });
-  //     this.form.setValue('tax_rate', found.rows[0]?.default_tax_rate);
-  //   }
-}
-
-// Reserved for future use.
-export function onActionClick(actionName) {
-  // Future: intercept/confirm/custom action flows.
-}
-
-// Runs before create/save. Return exactly false or throw to stop this
-// submission; every other return value allows it. This is UX validation only;
-// server.js and RBAC remain authoritative.
-export async function onValidate(action) {
-  //   if (action === 'save' && this.form.getValue('amount') > 50000) {
-  //     return confirm('Amount over 50,000 - save anyway?');
-  //   }
-  //   return true;
-}
-
-// Reserved for future use.
-export function beforeSubmit(action) {
-  // Future: lock buttons or add fields immediately before transport.
-}
-
-// Reserved for future use.
-export function afterSubmit(action, result) {
-  // Future: unlock buttons, notify, or navigate after the response.
-}
-`;
-
-const LIST_CLIENT_JS = `// Client-side hooks for this object's list surface (tables) — object-scoped
-// (loaded at runtime by the frontend via GET /api/objects/<object>/scripts/list.client).
-// Hooks run in the browser. They only shape the UX; the server remains the
-// security boundary (server.js validate / RBAC are authoritative).
-// Context is a single \`this\`:
-//   this.list     page/pageSize/sort/filter/records getters plus
-//                 setPage/setSort/setFilter/refetch
-//   this.records  rows of the current page
-//   this.row      the row for onRowAction
-//   this.user     optional { id, name, roles } supplied by the UI host
-//   this.api      @weave-kit/client instance scoped to the current permissions
-//   this.block    optional layout block ui_id
-//
-// Runs once after this list instance's first successful data response. The
-// list values are an invocation snapshot; its setters update that snapshot and
-// the UI. Subsequent query/live refreshes do not rerun this hook.
-export function onLoad() {
-  // this.list.setSort({ key: 'created_at', desc: true });
-}
-
-// Runs before built-in show/edit. Return exactly false or throw to block it;
-// every other return value allows the action.
-export async function onRowAction(actionName) {
-  // if (actionName === 'edit' && this.row.locked) return false;
-  // return true;
-}
-
-// Reserved for future use.
-export function onCellRender(fieldName, value) {
-  // Future: customize one rendered cell.
-}
-
-export function onFilter(filter) {
-  // Future: observe or intercept filter changes.
-}
-
-export function onSort(sort) {
-  // Future: observe or intercept sort changes.
-}
-
-export function onSelectionChange(rows) {
-  // Future: react to selected rows.
-}
-`;
 
 /**
  * `weave object:create <name>` — scaffold `objects/<name>/schema.json` +
@@ -192,44 +87,18 @@ export async function objectCreate(
   await writeFile(scriptPath, SERVER_JS, { flag: "wx" });
 
   const files = [`objects/${name}/schema.json`, `objects/${name}/server.js`];
-  let showClientPath: string | undefined;
-  let listClientPath: string | undefined;
-  let layoutPath: string | undefined;
-  if (isBusinessUI(config.projectType)) {
-    const pageDir = join(schemaDir, "pages", name);
-    await mkdir(pageDir, { recursive: true });
-    showClientPath = join(pageDir, "show.client.js");
-    listClientPath = join(pageDir, "list.client.js");
-    await writeFile(showClientPath, SHOW_CLIENT_JS, { flag: "wx" });
-    await writeFile(listClientPath, LIST_CLIENT_JS, { flag: "wx" });
-    files.push(
-      `pages/${name}/show.client.js`,
-      `pages/${name}/list.client.js`,
-    );
-    const layout = await writeDefaultLayout(schemaDir, name, schema.fields, config.locale);
-    layoutPath = layout.paths[0];
-    if (layout.written) files.push(...layout.paths);
-  }
 
   const commit = await autoCommit({
     dir: schemaDir,
-    paths: isBusinessUI(config.projectType) ? ["objects", "pages"] : undefined,
+    paths: ["objects"],
   });
   p.log(
     `created object "${name}" (${files.join(", ")})${commit.committed ? ` · committed ${commit.sha}` : ""}`,
   );
-  if (isBusinessUI(config.projectType)) {
-    p.log(
-      "note: *.client.js and pages/<name>/layout.json are experimental groundwork for a future product line (no in-project renderer yet)",
-    );
-  }
   p.data({
     object: name,
     schema: schemaPath,
     script: scriptPath,
-    showClient: showClientPath ?? null,
-    listClient: listClientPath ?? null,
-    layout: layoutPath ?? null,
     committed: commit.committed,
   });
 }
