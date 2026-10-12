@@ -1,5 +1,4 @@
 import Fastify from 'fastify';
-import cors from '@fastify/cors';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
 import {
@@ -12,15 +11,12 @@ import {
   AUDIT_MODES,
   createPool,
   createSchemaScope,
-  createSlidingWindow,
   parseTraceparent,
   searchPathOptions,
   type AuditSink,
   type CounterStore,
   type EventPublisher,
   type GuardrailPolicy,
-  type ProxyTargetResolver,
-  type IdentitySubject,
   type ScriptDispatcher,
   type ToolDefinition,
   type WorkflowTimerSync,
@@ -31,32 +27,12 @@ import { createToolExecutor, loadToolsDir } from './tools/index.js';
 import { createApprovals, type ApprovalsQueue } from './tools/index.js';
 import { resolvePolicies } from './tools/policies.js';
 import type { ToolExecutor } from './tools/index.js';
-import type { ProxyForwarder } from './proxy/index.js';
-import { buildAuthenticator, createDirectoryAuthenticator, createOidcVerifier, enforceSyncedIdentity, withDefaultScope, wwwAuthenticateChallenge, type Authenticator } from '../adapters/auth/index.js';
-import { PgIdentityDirectory, PgIdentityStore, IdentityAdmin, resolveIdentitySource, runIdentitySync } from './identity/index.js';
-import {
-  registerAuditRoutes,
-  registerApprovalsRoutes,
-  registerCapabilitiesRoutes,
-  registerMetadataRoutes,
-  registerObjectRoutes,
-  registerPermissionsRoutes,
-  registerProxyRoutes,
-  registerIngressRoutes,
-  registerSchemaRoutes,
-  registerGuardrailsRoutes,
-  registerIdentitiesRoutes,
-  registerIdentitySyncRoutes,
-  registerWorkflowRoutes,
-  registerWorkflowSourceRoutes,
-  setErrorHandlers,
-  type RestOptions,
-} from '../adapters/rest/index.js';
-import { registerScriptRoutes } from '../adapters/rest/scripts.js';
-import { registerIdentityAdminRoutes } from '../adapters/rest/identityAdmin.js';
+import { buildAuthenticator, createDirectoryAuthenticator, createOidcVerifier, enforceSyncedIdentity, withDefaultScope, type Authenticator } from '../adapters/auth/index.js';
+import { PgIdentityDirectory, PgIdentityStore, resolveIdentitySource, runIdentitySync } from './identity/index.js';
 import { registerEventsRoutes } from '../adapters/events/index.js';
 import type { EventBus } from '../core/provider/event/index.js';
 import { registerOpsRoutes } from '../adapters/ops/index.js';
+import { registerHttpRoutes } from './register-http-routes.js';
 import { registerMcp, type McpServerHandle } from '../adapters/mcp/index.js';
 import { registerGraphQL, type GraphQLServerHandle } from '../adapters/graphql/index.js';
 import { createAlerts } from '../infrastructure/index.js';
@@ -330,7 +306,6 @@ export async function buildEngineFromRegistry(
   const rest = config.adapters?.rest;
   const mcpCfg = config.adapters?.mcp;
   const graphqlCfg = config.adapters?.graphql;
-  let proxyHandle: { forwarder: ProxyForwarder; resolver: ProxyTargetResolver } | undefined;
   const logLevel = (process.env.WEAVEKIT_LOG_LEVEL as 'fatal' | 'error' | 'warn' | 'info' | 'debug' | 'trace' | 'silent') ?? 'info';
   // forceCloseConnections: on close, terminate lingering keep-alive/long-lived
   // connections (e.g. SSE /api/events) instead of letting `server.close()` wait
@@ -360,182 +335,22 @@ export async function buildEngineFromRegistry(
       });
     }
   });
-  if (rest?.enabled ?? true) {
-    setErrorHandlers(
-      app,
-      locale,
-      config.auth?.oidc === undefined
-        ? {}
-        : { wwwAuthenticate: (request) => wwwAuthenticateChallenge(`${request.protocol}://${request.host}`) },
-    );
-    const restOptions: RestOptions = { prefix: rest?.prefix };
-    if (rest?.rateLimit !== undefined) {
-      restOptions.rateLimiter = createSlidingWindow(rest.rateLimit);
-    }
-    restOptions.adminRoles = rest?.adminRoles;
-    restOptions.principalFor = rest?.principalFor;
-    if (rest?.cors !== undefined) {
-      // @fastify/cors defaults to GET,HEAD,POST — the engine's REST also uses
-      // PATCH/DELETE, so default the allowed methods to the engine surface when
-      // the caller didn't pin them (otherwise cross-origin PATCH preflights fail)
-      await app.register(cors, {
-        ...rest.cors,
-        methods: rest.cors.methods ?? ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-      });
-    }
-    registerObjectRoutes(
-      app,
-      {
-        registry,
-        pool,
-        dataAccess,
-        authenticator,
-        locale,
-        audit,
-      },
-      restOptions,
-    );
-    registerScriptRoutes(
-      app,
-      {
-        registry,
-        authenticator,
-        locale,
-        projectDir: config.schemaDir,
-        commitIdentity: config.commit?.identity,
-      },
-      restOptions,
-    );
-    registerSchemaRoutes(
-      app,
-      {
-        registry,
-        authenticator,
-        locale,
-        projectDir: config.schemaDir,
-        commitIdentity: config.commit?.identity,
-      },
-      restOptions,
-    );
-    // guardrail policy source (list/read/write, admin) — only when the
-    // `tools.guardrails.policies` config is a directory path.
-    const guardrailsPolicies = config.tools?.guardrails?.policies;
-    registerGuardrailsRoutes(
-      app,
-      {
-        authenticator,
-        locale,
-        projectDir: config.schemaDir,
-        policiesDir: typeof guardrailsPolicies === 'string' ? guardrailsPolicies : undefined,
-        commitIdentity: config.commit?.identity,
-      },
-      restOptions,
-    );
-    // identity directory (admin read) — only the static `mcp.identities` map
-    // has an introspectable surface; a function resolver returns `[]`.
-    registerIdentitiesRoutes(
-      app,
-      {
-        authenticator,
-        locale,
-        identities: typeof mcpCfg?.identities === 'object' ? (mcpCfg.identities as Record<string, IdentitySubject>) : undefined,
-      },
-      restOptions,
-    );
-    // greenfield identity administration (admin-gated): list/create/enable users
-    registerIdentityAdminRoutes(app, { authenticator, locale, admin: new IdentityAdmin(identityStore) }, restOptions);
-    // identity sync trigger (admin-gated): manually provision the configured source
-    if (identityCfg?.source !== undefined) {
-      registerIdentitySyncRoutes(
-        app,
-        {
-          authenticator,
-          locale,
-          store: identityStore,
-          source: resolveIdentitySource(identityCfg.source, pool),
-          ...(identityCfg.sync?.deactivateMissing === undefined ? {} : { deactivateMissingDefault: identityCfg.sync.deactivateMissing }),
-        },
-        restOptions,
-      );
-    }
-    // capabilities (feature/entitlement) read-only: baseline + host-injected provider
-    registerCapabilitiesRoutes(
-      app,
-      { authenticator, locale, ...(config.capabilities?.provider === undefined ? {} : { capabilities: config.capabilities.provider }) },
-      restOptions,
-    );
-    // frontend metadata contract (framework-agnostic, all frontend adapters consume these)
-    registerMetadataRoutes(app, { registry, pool, dataAccess, authenticator, locale }, restOptions);
-    registerPermissionsRoutes(app, { registry, pool, dataAccess, authenticator, locale }, restOptions);
-    registerAuditRoutes(app, { registry, pool, dataAccess, authenticator, locale, audit }, restOptions);
-    // approval queue routes (depth-1 read + local write): present when the
-    // tool executor is enabled (toolsDir set) — `tools.executor.approvals`.
-    registerApprovalsRoutes(
-      app,
-      { registry, pool, dataAccess, authenticator, locale, approvals },
-      restOptions,
-    );
-    // workflow transitions — available for any object declaring objects/<name>/workflow.json
-    registerWorkflowRoutes(app, { registry, pool, dataAccess, authenticator, locale }, restOptions);
-    // workflow definition source (admin GET/PUT spec) — only when a project dir is configured
-    registerWorkflowSourceRoutes(
-      app,
-      { registry, authenticator, locale, projectDir: config.schemaDir, commitIdentity: config.commit?.identity },
-      restOptions,
-    );
-
-    // Generic outbound proxy (P-4). Wired only when `config.proxy.resolver` is
-    // provided (absent = createProxyForwarder is not imported = zero overhead).
-    // The resolver carries the app semantics incl. which connection a subject
-    // may reach; the engine only supplies the gateway (forwarder + routes).
-    if (config.proxy?.resolver !== undefined) {
-      const { createProxyForwarder } = await import('./proxy/index.js');
-      // A host may inject a custom forwarder (e.g. a tunnel-aware one that routes
-      // `transport: 'tunnel'` targets over a live connector). Builder form receives
-      // the runtime deps so it can read its own metadata. Default = plain fetch forwarder.
-      const forwarder =
-        typeof config.proxy.forwarder === 'function'
-          ? config.proxy.forwarder({ dataAccess, pool, registry, authenticator, locale })
-          : config.proxy.forwarder ??
-            createProxyForwarder({
-              locale,
-              ...(config.proxy.fetchImpl !== undefined ? { fetchImpl: config.proxy.fetchImpl } : {}),
-            });
-      const resolver =
-        typeof config.proxy.resolver === 'function'
-          ? config.proxy.resolver({ dataAccess, pool, registry, authenticator, locale })
-          : config.proxy.resolver;
-      registerProxyRoutes(
-        app,
-        {
-          authenticator,
-          locale,
-          resolver,
-          forwarder,
-          audit: auditSink,
-        },
-        restOptions,
-      );
-      proxyHandle = { forwarder, resolver };
-    }
-
-    // Inbound external events (first-class ingress seam). Enabled only when
-    // `config.ingress` is set (absent = no parser/routes = zero overhead); the
-    // app's verifier is the auth gate (fail-closed), the engine audits receipts.
-    if (config.ingress !== undefined) {
-      registerIngressRoutes(
-        app,
-        {
-          audit: auditSink,
-          locale,
-          ...(config.ingress.rateLimit !== undefined
-            ? { rateLimiter: createSlidingWindow(config.ingress.rateLimit) }
-            : {}),
-        },
-        config.ingress,
-      );
-    }
-  }
+  const httpRoutes = await registerHttpRoutes({
+    app,
+    locale,
+    config,
+    registry,
+    pool,
+    dataAccess,
+    authenticator,
+    audit,
+    auditSink,
+    mcpCfg,
+    identityCfg,
+    identityStore,
+    approvals,
+  });
+  const proxyHandle = httpRoutes.proxy;
 
   // live channel: SSE endpoint (Bearer auth, subject-filtered, replay)
   if (eventBus !== undefined && eventPublisher !== undefined) {
