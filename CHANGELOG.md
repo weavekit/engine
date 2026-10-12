@@ -3,6 +3,14 @@
 All notable changes to `@weave-kit/engine`. Format follows [Keep a Changelog](https://keepachangelog.com/);
 the project uses [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Removed
+
+- Internal dead field `CompiledTool.objectName` — always `undefined` since the fixed-registry MCP
+  surface (a9263c3) and never read (the audit's `objectName` comes from the runtime `object`
+  argument). No behavior change.
+
 ## [1.4.0] - 2026-10-11
 
 Additive (no `CONTRACT_VERSION` bump): MCP prompts.

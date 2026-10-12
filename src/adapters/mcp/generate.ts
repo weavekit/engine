@@ -30,7 +30,6 @@ import type { JsonSchema, McpEngine, McpToolResult, McpToolSpec, ToolExecContext
 /** a compiled MCP tool (per-session; the surface is filtered by RBAC) */
 export interface CompiledTool {
   spec: McpToolSpec;
-  objectName: string | undefined;
 }
 
 /** capabilities the subject holds on at least one object (drives which generic ops appear) */
@@ -67,7 +66,6 @@ function registryTools(engine: McpEngine, subject: IdentitySubject): CompiledToo
   if (caps.read) {
     tools.push(
       {
-        objectName: undefined,
         spec: {
           name: REGISTRY_TOOLS.SEARCH,
           description: 'Search records of an object (rows are filtered to your read scope)',
@@ -100,7 +98,6 @@ function registryTools(engine: McpEngine, subject: IdentitySubject): CompiledToo
         },
       },
       {
-        objectName: undefined,
         spec: {
           name: REGISTRY_TOOLS.GET,
           description: 'Fetch one record of an object by its primary key (not found → error)',
@@ -117,7 +114,6 @@ function registryTools(engine: McpEngine, subject: IdentitySubject): CompiledToo
 
   if (caps.create) {
     tools.push({
-      objectName: undefined,
       spec: {
         name: REGISTRY_TOOLS.CREATE,
         description: 'Create a record of an object (only fields you may write are accepted)',
@@ -136,7 +132,6 @@ function registryTools(engine: McpEngine, subject: IdentitySubject): CompiledToo
 
   if (caps.update) {
     tools.push({
-      objectName: undefined,
       spec: {
         name: REGISTRY_TOOLS.UPDATE,
         description: 'Update a record of an object (only fields you may update are accepted)',
@@ -156,7 +151,6 @@ function registryTools(engine: McpEngine, subject: IdentitySubject): CompiledToo
 
   if (caps.delete) {
     tools.push({
-      objectName: undefined,
       spec: {
         name: REGISTRY_TOOLS.DELETE,
         description: 'Delete a record of an object by its primary key',
@@ -172,7 +166,6 @@ function registryTools(engine: McpEngine, subject: IdentitySubject): CompiledToo
 
   if (caps.transition) {
     tools.push({
-      objectName: undefined,
       spec: {
         name: WORKFLOW_TOOLS.TRANSITION,
         description:
@@ -204,7 +197,6 @@ function approvalTools(engine: McpEngine, subject: IdentitySubject): CompiledToo
 
   return [
     {
-      objectName: undefined,
       spec: {
         name: APPROVAL_TOOLS.LIST,
         description: 'List the approval queue (paged; filtered to your admin scope)',
@@ -222,7 +214,6 @@ function approvalTools(engine: McpEngine, subject: IdentitySubject): CompiledToo
       },
     },
     {
-      objectName: undefined,
       spec: {
         name: APPROVAL_TOOLS.APPROVE,
         description: 'Approve a pending approval (the original call may then be replayed)',
@@ -231,7 +222,6 @@ function approvalTools(engine: McpEngine, subject: IdentitySubject): CompiledToo
       },
     },
     {
-      objectName: undefined,
       spec: {
         name: APPROVAL_TOOLS.REJECT,
         description: 'Reject a pending approval',
@@ -251,7 +241,6 @@ function customToolTools(
   return custom.executor.surface(subject, custom.defs).map((entry) => {
     const def = custom.defs.find((d) => d.name === entry.name) as ToolDefinition;
     return {
-      objectName: undefined,
       spec: {
         name: def.name,
         description: def.description,
@@ -298,7 +287,6 @@ export function compileToolsFor(
 
   tools.push(
     {
-      objectName: undefined,
       spec: {
         name: INTROSPECTION_TOOLS.LIST_OBJECTS,
         description: 'List objects the current identity can read',
@@ -307,7 +295,6 @@ export function compileToolsFor(
       },
     },
     {
-      objectName: undefined,
       spec: {
         name: INTROSPECTION_TOOLS.DESCRIBE_OBJECT,
         description: 'Describe an object schema (fields, relations, permissions) for the current identity',
