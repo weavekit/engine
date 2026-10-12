@@ -1,6 +1,6 @@
 ---
 title: Project types
-description: "The four starting presets — agent, governance, service, business — and what each one scaffolds."
+description: "The three starting presets — agent, governance, service — and what each one scaffolds."
 ---
 
 # Project types
@@ -19,11 +19,9 @@ written to `projectType` in config, mostly so the scaffolder and tooling know th
 | [agent](02-agent.md) | AI-agent backend | off | primitives only |
 | [governance](03-governance.md) | auditable, permission-scoped objects | off | primitives + opt-in |
 | [service](04-service.md) | headless backend with RBAC | on | primitives + opt-in |
-| [business](05-business.md) | objects + formulas | on | primitives + opt-in |
 
 Pick one with `create-weavekit-app my-app --type=agent` (default is `agent`).
 
 - [agent](02-agent.md) — objects + REST for agents
 - [governance](03-governance.md) — audit and row/field scoping
 - [service](04-service.md) — RBAC plus script hooks
-- [business](05-business.md) — formulas on Postgres

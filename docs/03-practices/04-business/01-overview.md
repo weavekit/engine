@@ -6,7 +6,7 @@ description: "Object-and-formula backends: derived values on Postgres."
 # Business
 
 Walkthroughs for object-and-formula backends (the
-[`business`](../../01-guides/02-project-types/05-business.md) preset): derived values computed on write.
+[`service`](../../01-guides/02-project-types/04-service.md) preset): derived values computed on write.
 
 No business-specific practice pages yet. In the meantime:
 

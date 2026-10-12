@@ -99,7 +99,7 @@ validates bearer JWTs locally (signature via JWKS, `iss`/`aud`/`exp`/`nbf`, asym
       audience: 'weavekit-engine',
       subjectClaim: 'sub',                 // → the external user ref (default: sub)
       rolesClaim: 'roles',                 // also exposed as claims.roles for the directory
-      // tenantClaim: 'tenant',
+      // scopeClaim: 'tenant',
     },
   },
 }

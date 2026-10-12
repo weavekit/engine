@@ -12,7 +12,7 @@ The pitch and quick start live in the [repository README](../README.md).
 
 - [Getting started](01-guides/01-getting-started.md) — scaffold, migrate, run, call the API
 - [Connect an agent](03-practices/01-agent/04-connect-agent.md) — a local first run in five minutes
-- Scaffolding a preset? `--type=agent|governance|service|business` → [Project types](01-guides/02-project-types/01-overview.md)
+- Scaffolding a preset? `--type=agent|governance|service` → [Project types](01-guides/02-project-types/01-overview.md)
 
 ## By goal
 
@@ -24,7 +24,7 @@ The pitch and quick start live in the [repository README](../README.md).
 
 ## Guides
 
-- [Project types](01-guides/02-project-types/01-overview.md) — the four presets and what each scaffolds
+- [Project types](01-guides/02-project-types/01-overview.md) — the three presets and what each scaffolds
 - [Model](01-guides/03-model/01-overview.md) — schema, formulas, git-versioned metadata
 - [Access](01-guides/04-access/01-overview.md) — RBAC, identity and multi-tenancy
 - [Agents](01-guides/05-agents/01-overview.md) — MCP, custom tools & guardrails, approvals, execution & evidence
@@ -52,3 +52,4 @@ The pitch and quick start live in the [repository README](../README.md).
 - [Schema](04-reference/02-schema/01-overview.md) — custom field types
 - [Contract freeze](04-reference/03-contract-freeze.md) — what is frozen at 1.0 and the deprecation policy
 - [Enterprise seams](04-reference/04-enterprise-seams.md) — the stable extension points behind the enterprise layer
+- [Migrating to 2.0](04-reference/05-migration-2.0.md) — the breaking changes (contract package, `scope`, retired groundwork)

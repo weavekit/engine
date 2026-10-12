@@ -33,7 +33,7 @@ describe('buildDeploymentReport — redacted, local-only deployment profile', ()
     expect(profile.tool).toBe('weave doctor --report');
     expect(profile.generatedAt).toBe('2026-01-01T00:00:00.000Z');
     expect(profile.engine.version).toMatch(/^\d+\.\d+\.\d+/);
-    expect(profile.engine.contractVersion).toBe(1);
+    expect(profile.engine.contractVersion).toBe(2);
     expect(profile.runtime.postgresVersion).toBe(150000);
     expect(profile.projectType).toBe('governance');
     expect(profile.schema).toEqual({ objects: '6-20', fields: '51-200', workflowObjects: '1-5' });

@@ -125,7 +125,7 @@ export default { /* ... */ rls: { enforce: true /* , role: 'weavekit_object' */ 
   account) and, per object table, `TO <role>` policies generated from the **same row-scope builder**
   as the application layer: `SELECT` covers read ∪ manage, `UPDATE`/`DELETE` the manage scope,
   `UPDATE … WITH CHECK` only the scope column. Department subtrees, external-id ownership, details
-  children (through the parent) and the `scope`/`tenant` boundary are all covered.
+  children (through the parent) and the `scope` boundary are all covered.
 - At runtime, user-principal reads/updates/deletes run under `SET LOCAL ROLE <role>` with the
   subject in `weavekit.*` session GUCs. A missing application filter therefore cannot expose rows:
   the database returns only what the policies allow. System principals and **inserts** still run as
@@ -175,5 +175,5 @@ field `exclude`), the reference resolves to `null` rather than leaking data.
 ## Related
 
 - [Identity](03-identity.md) — where the subject and its roles come from
-- [Multi-tenancy](04-multi-tenancy.md) — the tenant predicate layered on top of the row scope
+- [Multi-tenancy](04-multi-tenancy.md) — the scope predicate layered on top of the row scope
 - [Audit](../09-platform/03-audit.md) — denied reads/writes are recorded

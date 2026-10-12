@@ -8,6 +8,8 @@ description: "What is frozen at 1.0 and how the engine evolves after it."
 From **1.0** the engine's public contract is frozen under a single
 `CONTRACT_VERSION` (exported from `@weave-kit/engine`, also returned by `GET /version`
 as `contractVersion` and embedded in the OpenAPI document as `info.x-contract-version`).
+**`CONTRACT_VERSION` is currently `2`** (the 2.0 major). See
+[Migrating to 2.0](05-migration-2.0.md).
 
 ## What is frozen
 
