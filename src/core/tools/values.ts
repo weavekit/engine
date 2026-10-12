@@ -50,12 +50,9 @@ export const TOOL_NAME_PATTERN = '^[a-z][a-z0-9_]*$';
 export const RESERVED_TOOL_NAMESPACE = 'mcp.';
 
 /** approval queue statuses — single source of truth (as const, AGENTS hard rule) */
-export const APPROVAL_STATUSES = {
-  PENDING: 'pending',
-  APPROVED: 'approved',
-  REJECTED: 'rejected',
-} as const;
-export type ApprovalStatus = typeof APPROVAL_STATUSES[keyof typeof APPROVAL_STATUSES];
+// approval queue statuses live in @weave-kit/contract (single source of truth)
+export { APPROVAL_STATUSES } from '@weave-kit/contract/values';
+export type { ApprovalStatus } from '@weave-kit/contract/values';
 
 const reservedNames: readonly string[] = [
   ...Object.values(REGISTRY_TOOLS),

@@ -1,8 +1,3 @@
-/** Object-level script source files editable through the admin API. */
-export const SCRIPT_SOURCE_KINDS = {
-  SERVER: 'server',
-  SHOW_CLIENT: 'show.client',
-  LIST_CLIENT: 'list.client',
-} as const;
-
-export type ScriptSourceKind = typeof SCRIPT_SOURCE_KINDS[keyof typeof SCRIPT_SOURCE_KINDS];
+/** Script source vocabulary — re-exported from `@weave-kit/contract/values`. */
+export { SCRIPT_SOURCE_KINDS } from '@weave-kit/contract/values';
+export type { ScriptSourceKind } from '@weave-kit/contract/values';

@@ -1,92 +1,15 @@
 /**
- * Audit contract — pure interfaces, zero dependencies. The storage
- * implementation lives in `subsystems/audit`; data-access and adapter
- * layers depend on this contract only (keeps "disabled = not imported" and
- * the adapters→subsystems dependency ban intact).
+ * Audit contract — vocabulary + data types re-exported from
+ * `@weave-kit/contract`; the pluggable sink/engine seams stay here (they take a
+ * `pg` client, so they can't live in the zero-dependency contract).
  */
 
 import type { PoolClient } from 'pg';
+import type { AuditEvent, AuditQuery, AuditQueryResult } from '@weave-kit/contract';
 
-/** who initiated the event — single source of truth (as const, see AGENTS.md) */
-export const AUDIT_ACTOR_TYPES = {
-  AGENT: 'agent',
-  USER: 'user',
-  SYSTEM: 'system',
-  ANONYMOUS: 'anonymous',
-} as const;
-export type AuditActorType = typeof AUDIT_ACTOR_TYPES[keyof typeof AUDIT_ACTOR_TYPES];
-
-/**
- * Audit durability mode (single source of truth). `best-effort` (default) =
- * fire-and-forget process buffer; `transactional` = the audit row is written in
- * the business transaction; `durable` = a transactional-outbox row is written in
- * the business transaction and a relay delivers it (crash-safe, at-least-once).
- */
-export const AUDIT_MODES = {
-  BEST_EFFORT: 'best-effort',
-  TRANSACTIONAL: 'transactional',
-  DURABLE: 'durable',
-} as const;
-export type AuditMode = typeof AUDIT_MODES[keyof typeof AUDIT_MODES];
-
-/**
- * Engine data-access actions — closed set (as const single source of truth).
- * Writes (create/update/delete) plus read: read denials are audited too.
- */
-export const DATA_ACTIONS = {
-  CREATE: 'create',
-  UPDATE: 'update',
-  DELETE: 'delete',
-  READ: 'read',
-  /** a workflow transition (fires the state change via `dataAccess.transition`) */
-  TRANSITION: 'transition',
-} as const;
-export type DataAction = typeof DATA_ACTIONS[keyof typeof DATA_ACTIONS];
-
-/**
- * Interface-layer action namespace prefixes (open names; prefix is the
- * contract). Consumers compose full actions as `<prefix>.<detail>`, e.g.
- * `mcp.tool.search_lead`.
- */
-export const ACTION_PREFIXES = {
-  MCP_TOOL: 'mcp.tool',
-  REST: 'rest',
-  SCHEMA: 'schema',
-} as const;
-export type ActionPrefix = typeof ACTION_PREFIXES[keyof typeof ACTION_PREFIXES];
-
-/** immutable audit event */
-export interface AuditEvent {
-  actorType: AuditActorType;
-  /** subject.id / agent credential id / 'system' */
-  actorId: string;
-  /** 'create' | 'update' | 'delete' | 'mcp.tool.search' | ... */
-  action: string;
-  /** object name */
-  objectName?: string;
-  /** record id */
-  objectId?: string;
-  /** write payload / change summary; tool-call argument summary for operations */
-  changes?: unknown;
-  /** row snapshot before the write (audit replay; `subsystems.audit.replay: true` only) */
-  before?: unknown;
-  /** row snapshot after the write (update only; audit replay) */
-  after?: unknown;
-  isError?: boolean;
-  /** engine SchemaError code, e.g. 'rbac.denied.update' */
-  errorCode?: string;
-  /** request correlation id (HTTP request id / inbound x-request-id) */
-  requestId?: string;
-  /** distributed trace id (inbound W3C traceparent), when present */
-  traceId?: string;
-  /** tenant the event belongs to (multi-tenancy); absent = single-tenant */
-  tenantId?: string;
-  /** generic row-scope the event belongs to (canonical; `scopeId ?? tenantId`) */
-  scopeId?: string;
-  /** extension: onBehalfOf/agentLabel/tool/latency etc. */
-  meta?: Record<string, unknown>;
-  timestamp: Date;
-}
+export { AUDIT_ACTOR_TYPES, AUDIT_MODES, DATA_ACTIONS, ACTION_PREFIXES } from '@weave-kit/contract/values';
+export type { AuditActorType, AuditMode, DataAction, ActionPrefix } from '@weave-kit/contract/values';
+export type { AuditEvent, AuditFilter, AuditQuery, AuditQueryResult } from '@weave-kit/contract';
 
 /**
  * audit write contract — replaceable implementation (PG / object store / log
@@ -114,51 +37,6 @@ export const NOOP_AUDIT_SINK: AuditSink = {
   record: async () => {},
   recordBatch: async () => {},
 };
-
-/**
- * Generic audit filter — structural, mirrors the object `Filter`: plain field
- * conditions AND'd with an optional `$or` group. Field names are raw
- * `weavekit_audit` columns (`ts`, `actor_id`, `action`, `object`,
- * `object_id`, `is_error`, `error_code`, `actor_type`) and operator values
- * follow the single-source `FILTER_OPS` (gt/gte/lt/lte/eq/ne/in/like).
- * Kept standalone + protocol-neutral so `core/audit` stays independent of the
- * object data-access layer; the store validates columns against its whitelist.
- */
-export type AuditFilter = {
-  [column: string]: unknown;
-  $or?: Array<{ [column: string]: unknown }>;
-};
-
-/** audit query filter (protocol-neutral — REST/ops/adapter layer maps wire params onto it) */
-export interface AuditQuery {
-  actorId?: string;
-  action?: string;
-  object?: string;
-  from?: Date;
-  to?: Date;
-  /** scope to one tenant (multi-tenancy); absent = all tenants (admin) */
-  tenantId?: string;
-  /** scope to one row-scope value (canonical; `scopeId ?? tenantId`); absent = all (admin) */
-  scopeId?: string;
-  /** generic `weavekit_audit` column filter; OR'd/AND'd with the typed fields above */
-  filter?: AuditFilter;
-  limit?: number;
-  offset?: number;
-  /**
-   * opaque keyset cursor (from a previous `AuditQueryResult.nextCursor`). When
-   * set, pagination is stable over the `(ts DESC, id DESC)` order and `offset`
-   * is ignored. An invalid/foreign cursor is a `http.param.invalid` (400).
-   */
-  cursor?: string;
-}
-
-/** paginated audit query result (rows newest-first: ORDER BY ts DESC, id DESC) */
-export interface AuditQueryResult {
-  rows: AuditEvent[];
-  total: number;
-  /** present when a full page was returned — pass back as `cursor` for the next page */
-  nextCursor?: string;
-}
 
 /**
  * Audit query capability — protocol adapters depend on this core contract only

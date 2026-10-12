@@ -1,5 +1,6 @@
 import type { FieldType } from './values.js';
 import type { RegisteredField } from './fields.js';
+import type { AttrKind } from '@weave-kit/contract/values';
 
 /**
  * Field-type registration contract (open registration).
@@ -26,16 +27,9 @@ export interface FieldTypeUiHints {
   visual?: string;
 }
 
-/** value kinds a declared extra attribute (`AttrSpec.type`) may take */
-export const ATTR_KINDS = {
-  STRING: 'string',
-  NUMBER: 'number',
-  INTEGER: 'integer',
-  BOOLEAN: 'boolean',
-  JSON: 'json',
-  ENUM: 'enum',
-} as const;
-export type AttrKind = typeof ATTR_KINDS[keyof typeof ATTR_KINDS];
+// attribute value kinds live in @weave-kit/contract (single source of truth)
+export { ATTR_KINDS } from '@weave-kit/contract/values';
+export type { AttrKind } from '@weave-kit/contract/values';
 
 /** typed spec for one extra attribute a registered type accepts */
 export interface AttrSpec {

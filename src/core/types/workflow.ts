@@ -1,94 +1,27 @@
 /**
- * Declarative single-line node-chain workflow (`objects/<name>/workflow.json`).
- * Pure types — zero runtime dependencies (core contract layer).
+ * Workflow schema + durable timer contract.
  *
- * Format v2 replaces the v1 state-marker machine (`stateField` + `states[]` +
- * `transitions[]`) with an ordered `nodes[]` chain driven by an implicit start
- * node. Instance/step/workitem state lives in engine tables, never in the
- * customer's columns (see the C-phase plan).
+ * The `workflow.json` schema vocabulary (format version, node kinds, and the
+ * node/assign/timeout/definition shapes) lives in `@weave-kit/contract` and is
+ * re-exported here; this module keeps the engine-side timer/backend seams.
  */
 
-/** on-disk `workflow.json` format version (single source of truth) */
-export const WORKFLOW_FORMAT_VERSION = 2 as const;
-
-/** synthetic node id of the implicit start (发起) node — never authored */
-export const WORKFLOW_START_NODE = '__start__';
-
-/** node kinds (single source of truth) */
-export const WORKFLOW_NODE_KINDS = {
-  APPROVE: 'approve',
-  NOTIFY: 'notify',
-} as const;
-export type WorkflowNodeKind = (typeof WORKFLOW_NODE_KINDS)[keyof typeof WORKFLOW_NODE_KINDS];
-
-/** how a node's assignees complete it (single source of truth) */
-export const WORKFLOW_ASSIGN_MODES = {
-  /** 或签: the first decision settles the node */
-  ANY: 'any',
-  /** 会签: every assignee must approve */
-  ALL: 'all',
-} as const;
-export type WorkflowAssignMode = (typeof WORKFLOW_ASSIGN_MODES)[keyof typeof WORKFLOW_ASSIGN_MODES];
-
-/** the actions a node timeout may auto-fire (single source of truth) */
-export const WORKFLOW_TIMEOUT_ACTIONS = {
-  APPROVE: 'approve',
-  REJECT: 'reject',
-} as const;
-export type WorkflowTimeoutAction =
-  (typeof WORKFLOW_TIMEOUT_ACTIONS)[keyof typeof WORKFLOW_TIMEOUT_ACTIONS];
-
-/** how long a node may be held before its timeout fires, and what to do then */
-export interface WorkflowTimeout {
-  /** duration string: `<n>` with optional unit `ms|s|m|h|d|w` (bare number = ms) */
-  after: string;
-  /** action auto-fired on expiry; absent = only dispatch the `onTimeout` hook */
-  action?: WorkflowTimeoutAction;
-}
-
-/** who acts at a node and how the node completes */
-export interface WorkflowAssign {
-  /** roles whose members resolve to the node's assignees (required, non-empty) */
-  roles: string[];
-  /** 或签 (`any`, default) | 会签 (`all`); `notify` nodes keep `any` */
-  mode?: WorkflowAssignMode;
-}
-
-/** one node in the single-line chain */
-export interface WorkflowNode {
-  /** snake_case node id, unique within the chain */
-  id: string;
-  /** `approve` (default) | `notify` (抄送: no quorum, advances immediately) */
-  kind?: WorkflowNodeKind;
-  /** display names keyed by locale, e.g. { en: 'Finance', zh: '财务审批' } */
-  name?: Record<string, string>;
-  description?: string;
-  /** roles that resolve to the node's assignees (required) */
-  assign: WorkflowAssign;
-  /** on reject, roll back to this earlier node id; absent = the start node */
-  onReject?: string;
-  /** on withdraw, roll back to this earlier node id; absent = the start node */
-  onWithdraw?: string;
-  /** when true, the action at this node must be approved through the approval queue before it fires */
-  requiresApproval?: boolean;
-  /** node-level timeout (approve nodes only) */
-  onTimeout?: WorkflowTimeout;
-}
-
-/** validated workflow definition attached to an object */
-export interface WorkflowDefinition {
-  /** on-disk `workflow.json` format version */
-  schemaVersion?: number;
-  /**
-   * author-managed definition revision (an arbitrary positive integer, distinct
-   * from the on-disk `schemaVersion`). Surfaced in the descriptor / transition
-   * events + audit so history stays interpretable after a definition changes.
-   * See `workflowHash` for the exact content identity (instance pinning).
-   */
-  version?: number;
-  /** the ordered single-line node chain (the start node is implicit) */
-  nodes: WorkflowNode[];
-}
+export {
+  WORKFLOW_FORMAT_VERSION,
+  WORKFLOW_START_NODE,
+  WORKFLOW_NODE_KINDS,
+  WORKFLOW_ASSIGN_MODES,
+  WORKFLOW_TIMEOUT_ACTIONS,
+} from '@weave-kit/contract/values';
+export type {
+  WorkflowNodeKind,
+  WorkflowAssignMode,
+  WorkflowTimeoutAction,
+  WorkflowTimeout,
+  WorkflowAssign,
+  WorkflowNode,
+  WorkflowDefinition,
+} from '@weave-kit/contract';
 
 /** `weavekit.config.ts -> subsystems.workflow` */
 export interface EngineWorkflowConfig {
