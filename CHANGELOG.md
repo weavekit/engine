@@ -5,6 +5,48 @@ the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-10-12
+
+Additive (no `CONTRACT_VERSION` bump): P0 security/governance fixes.
+
+### Added
+
+- **Object-path RLS (`rls.enforce`, default off).** `EngineConfig.rls = { enforce?, role? }`: the
+  engine runs user-principal customer-table reads / updates / deletes under a restricted role
+  (`weavekit_object`) with the subject in `weavekit.*` GUCs, so PostgreSQL re-checks the RBAC row
+  scope. Policies (`weavekit_obj_select|update|delete`, `TO <role>`) are generated from the same
+  row-scope builder as the application layer (department subtree, external ids, details through the
+  parent, `scope`/`tenant` boundary). `weave migrate` / `weave deploy` / `migrate.auto` provision the
+  role, policies and grants (`MigrateOptions.objectRls`); existing tables only with `"alter": true` and
+  ownership. Fail-closed startup (`engine.rls.notProvisioned`) and a `weave doctor` `object-rls` check.
+  Inserts and system principals still run as the owner. New exports: `buildObjectRlsPolicies`,
+  `planObjectRls`, `diffObjectRls`, `diffGrants`, `rlsPolicyComment`, `OBJECT_RLS_POLICIES`,
+  `OBJECT_RLS_ROLE_DEFAULT`, `resolveObjectRlsRole`, `assertObjectRlsProvisioned`.
+- **Protocol parity e2e.** REST / GraphQL / MCP return the same rows, excluded fields, error codes and
+  messages, audit trail and evidence for the same identity (with and without `rls.enforce`).
+
+### Changed
+
+- **Evidence covers every write.** With `evidence.enabled`, every data-access create / update / delete,
+  workflow transition and tool call records one row **after** execution with its real outcome
+  (`execute: error` + code on failure) — previously only policy-gated writes, recorded before
+  execution with plan/guardrail stages only. Data-access writes now run through `runPipeline`;
+  without policies, approvals or evidence the write path is unchanged. Evidence stays best-effort.
+- The script read policy carries a definition digest (`COMMENT ON POLICY`): a changed permission
+  matrix now recreates it on migrate (previously only a missing policy name was detected). The first
+  migrate after upgrading recreates existing script policies once.
+- Restricted-SQL GUCs are set with one parameterized `set_config` statement (shared with the object
+  path); absent values are set to `''` (still fail-closed).
+
+### Fixed
+
+- **`submit` ignored the row scope**: any identity with update permission could submit another
+  user's record into its workflow. `submit` now requires the record inside the caller's manage scope;
+  approve / reject / forward / withdraw / cancel keep workitem / originator authorization.
+- **Workflow status / history ignored the row scope**: they now require the record in the caller's
+  read scope or participation (originator / any workitem).
+- An `UPDATE` that matches no row (e.g. blocked by a policy) now fails with `data.recordNotFound`.
+
 ### Removed
 
 - Internal dead field `CompiledTool.objectName` — always `undefined` since the fixed-registry MCP
