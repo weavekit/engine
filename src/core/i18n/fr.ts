@@ -180,6 +180,7 @@ export const fr: Record<MessageKey, string> = {
   'auth.invalidKey': 'clé API invalide',
   'auth.notConfigured': "auth n'est pas configuré — refus de démarrer",
   'engine.databaseUrl.missing': "databaseUrl est requis (définissez config.databaseUrl ou la variable d'environnement DATABASE_URL)",
+  'engine.rls.notProvisioned': 'la RLS du chemin objet (rls.enforce) est activée mais non provisionnée : {detail} — exécutez « weave migrate » avec rls.enforce (les tables existantes exigent « alter »: true et la propriété du rôle de migration)',
   'engine.runtimeAccount.ddlAllowed': "le compte de base de données d'exécution « {user} » peut créer des objets dans le schéma courant — pointez databaseUrl vers un rôle à privilèges minimaux (sans DDL) et exécutez les migrations avec migrationDatabaseUrl (définissez runtime.requireRestrictedAccount=false pour autoriser)",
   'git.notRepo': '"{dir}" n’est pas un dépôt git',
   'git.command.failed': 'git {command} a échoué : {detail}',

@@ -180,6 +180,7 @@ export const ko: Record<MessageKey, string> = {
   'auth.invalidKey': 'API 키가 유효하지 않습니다',
   'auth.notConfigured': '인증(auth)이 설정되지 않았습니다 — 시작 거부',
   'engine.databaseUrl.missing': 'databaseUrl이 필요합니다 (config.databaseUrl 또는 DATABASE_URL 환경 변수를 설정하세요)',
+  'engine.rls.notProvisioned': '객체 경로 RLS(rls.enforce)가 활성화되었지만 준비되지 않았습니다: {detail}——rls.enforce를 켜 상태로 "weave migrate"를 실행하세요 (기존 테이블은 "alter": true와 소유권 필요)',
   'engine.runtimeAccount.ddlAllowed': '런타임 데이터베이스 계정 "{user}"이(가) 현재 스키마에서 객체를 생성할 수 있습니다——databaseUrl을 최소 권한 역할(DDL 불가)로 지정하고 migrationDatabaseUrl로 마이그레이션을 실행하세요 (runtime.requireRestrictedAccount=false로 허용)',
   'git.notRepo': '"{dir}"은(는) git 저장소가 아닙니다',
   'git.command.failed': 'git {command} 실패: {detail}',

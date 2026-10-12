@@ -73,8 +73,11 @@ The stable surface exists so you can extend the engine without patching internal
   orchestrates Plan→Validate→Authorize→Guardrail→Approval→Execute→Commit→Evidence;
   `validateToolArgs` (`core/tools/validate-args.ts`)
   validates tool arguments against the declared `ToolJsonSchema` (MCP + custom tools). Config
-  `EngineConfig.evidence.enabled` records one `weavekit_evidence` row per gated execution
-  (`subsystems/evidence`).
+  `EngineConfig.evidence.enabled` records one `weavekit_evidence` row per execution — every
+  data-access write / workflow transition / tool call, with its real outcome (`subsystems/evidence`).
+- **Object-path RLS** — `EngineConfig.rls = { enforce?, role? }` (default off);
+  `resolveObjectRlsRole`, `assertObjectRlsProvisioned`, `buildObjectRlsPolicies`, `planObjectRls`,
+  `OBJECT_RLS_POLICIES` / `OBJECT_RLS_ROLE_DEFAULT`; `MigrateOptions.objectRls` provisions it.
 - **QueryBudget** — `QueryBudget` / `QUERY_BUDGET_DEFAULTS` / `resolveQueryBudget` /
   `assertQueryBudget` (`runtime/data-access/query-budget.ts`); config `EngineConfig.queryBudget`.
   Bounds rows/filters/sorts (data-access), joins / SQL length / statement timeout (restricted SQL)

@@ -180,6 +180,7 @@ export const ru: Record<MessageKey, string> = {
   'auth.invalidKey': 'недействительный API ключ',
   'auth.notConfigured': 'auth не настроен — отказ запуска',
   'engine.databaseUrl.missing': 'требуется databaseUrl (задайте config.databaseUrl или переменную окружения DATABASE_URL)',
+  'engine.rls.notProvisioned': 'RLS объектного пути (rls.enforce) включена, но не подготовлена: {detail} — выполните "weave migrate" с rls.enforce (существующим таблицам нужны "alter": true и владение ролью миграции)',
   'engine.runtimeAccount.ddlAllowed': 'учётная запись БД времени выполнения "{user}" может создавать объекты в текущей схеме — направьте databaseUrl на роль с минимальными правами (без DDL) и выполняйте миграции через migrationDatabaseUrl (задайте runtime.requireRestrictedAccount=false для разрешения)',
   'git.notRepo': '"{dir}" не является git-репозиторием',
   'git.command.failed': 'git {command} не удался: {detail}',

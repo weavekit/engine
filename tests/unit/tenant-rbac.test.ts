@@ -56,10 +56,10 @@ describe('buildRlsPolicy — tenant predicate', () => {
 });
 
 describe('restricted SQL sets the tenant GUC', () => {
-  it('SET LOCAL weavekit.tenant_id when the subject has a tenant', async () => {
-    const calls: string[] = [];
+  it('sets weavekit.tenant_id (and scope_id) when the subject has a tenant', async () => {
+    const calls: { sql: string; params?: unknown[] }[] = [];
     const client = {
-      query: async (sql: string) => { calls.push(sql); return { rows: [] }; },
+      query: async (sql: string, params?: unknown[]) => { calls.push({ sql, params }); return { rows: [] }; },
       release: () => {},
     };
     const pool = { connect: async () => client };
@@ -67,7 +67,8 @@ describe('restricted SQL sets the tenant GUC', () => {
       rls: { role: 'weavekit_query', subject: { id: 'u1', roles: [], tenantId: 't1' } },
       analyzer: { ensureLoaded: async () => {}, analyzeSelect: async () => ({ tables: [], resolvers: {}, columnRefs: [], joinCount: 0 }) } as never,
     });
-    expect(calls.some((s) => s.includes("SET LOCAL weavekit.tenant_id = 't1'"))).toBe(true);
+    const gucs = calls.find((c) => c.sql.includes("set_config('weavekit.tenant_id', $4, true)"));
+    expect(gucs?.params?.[3]).toBe('t1');
   });
 });
 

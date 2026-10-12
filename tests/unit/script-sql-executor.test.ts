@@ -77,7 +77,7 @@ describe('executeRestrictedSql — restricted SQL gate', () => {
     expect(seq[seq.length - 1]).toBe('COMMIT');
   });
 
-  it('rls: SET LOCAL ROLE + weavekit GUC carries subject (with departmentId), single quotes escaped', async () => {
+  it('rls: SET LOCAL ROLE + weavekit GUCs carry the subject as bound parameters (no SQL quoting)', async () => {
     const { pool, calls } = mockPool();
     await executeRestrictedSql(pool, 'SELECT * FROM lead', [], {
       timeoutMs: 1500,
@@ -87,9 +87,8 @@ describe('executeRestrictedSql — restricted SQL gate', () => {
     expect(seq[0]).toBe('BEGIN');
     expect(seq[1]).toContain('SET LOCAL statement_timeout = 1500');
     expect(seq[2]).toBe('SET LOCAL ROLE "weavekit_query"');
-    expect(seq[3]).toBe("SET LOCAL weavekit.actor_id = 'u''1'");
-    expect(seq[4]).toBe("SET LOCAL weavekit.roles = 'sales,admin'");
-    expect(seq[5]).toBe("SET LOCAL weavekit.department_id = 't1'");
+    expect(seq[3]).toContain("set_config('weavekit.actor_id', $1, true)");
+    expect(calls[3]!.params).toEqual(["u'1", 'sales,admin', 't1', '']);
     expect(seq[seq.length - 1]).toBe('COMMIT');
   });
 

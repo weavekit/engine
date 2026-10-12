@@ -6,9 +6,11 @@ import {
   createPool,
   diffAll,
   inspectSchema,
+  planObjectRls,
   type ActualTable,
 } from '../../core/index.js';
 import { loadSchemaDir } from '../../runtime/git/index.js';
+import { resolveObjectRlsRole } from '../../runtime/engine.js';
 import { loadConfig } from '../load-config.js';
 import { resolveProjectFieldTypes } from '../resolve-field-types.js';
 import { DOCTOR_STATUSES, type DoctorCheck, type DoctorOptions, type DoctorReport } from '../types/index.js';
@@ -139,6 +141,32 @@ export async function runDoctor(cwd: string): Promise<DoctorReport> {
     } else {
       add('rls-role', DOCTOR_STATUSES.SKIP, 'script subsystem disabled');
       add('sandbox', DOCTOR_STATUSES.SKIP, 'script subsystem disabled');
+    }
+
+    // object-path RLS (rls.enforce): role + per-table policies/privileges provisioned
+    const objectRlsRole = resolveObjectRlsRole(config);
+    if (objectRlsRole === undefined) {
+      add('object-rls', DOCTOR_STATUSES.SKIP, 'rls.enforce is off');
+    } else {
+      try {
+        const { registry } = await loadSchemaDir(config.schemaDir ?? cwd, {
+          locale: config.locale,
+          allowedFieldTypes: config.features?.fieldTypes,
+          fieldTypes: await resolveProjectFieldTypes(cwd, config),
+        });
+        registry.buildGraph({ locale: config.locale });
+        const role = await pool.query('SELECT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = $1) AS present', [objectRlsRole]);
+        const plan = planObjectRls(registry, actual, objectRlsRole);
+        if ((role.rows[0] as { present: boolean }).present !== true) {
+          add('object-rls', DOCTOR_STATUSES.FAIL, `role "${objectRlsRole}" is missing — run "weave migrate"`);
+        } else if (plan.statements.length > 0) {
+          add('object-rls', DOCTOR_STATUSES.FAIL, `${plan.statements.length} policy/grant statement(s) pending — run "weave migrate"`);
+        } else {
+          add('object-rls', DOCTOR_STATUSES.PASS, `role "${objectRlsRole}" + policies provisioned`);
+        }
+      } catch (error) {
+        add('object-rls', DOCTOR_STATUSES.FAIL, message(error));
+      }
     }
   } finally {
     await pool.end();

@@ -43,8 +43,12 @@ export interface ActualTable {
   rlsEnabled?: boolean;
   /** policy names on the table */
   rlsPolicies?: string[];
+  /** policy name → COMMENT (the engine's definition digest; null when uncommented) */
+  rlsPolicyComments?: Record<string, string | null>;
   /** roles granted SELECT (for the restricted-SQL role grant) */
   selectGrantedTo?: string[];
+  /** role → granted table privileges (`SELECT`, `UPDATE`, …) */
+  grants?: Record<string, string[]>;
   /** table comment (detail only) */
   comment?: string;
   /** single-column unique (non-primary) columns (detail only) */
@@ -182,27 +186,35 @@ export async function inspectSchema(pool: Pool, options: InspectOptions = {}): P
   }
 
   const policyRows = await pool.query(
-    `SELECT tablename, policyname FROM pg_policies WHERE schemaname = current_schema()`,
+    `SELECT c.relname AS tablename, p.polname AS policyname, d.description
+       FROM pg_policy p
+       JOIN pg_class c ON c.oid = p.polrelid
+       LEFT JOIN pg_description d ON d.objoid = p.oid AND d.classoid = 'pg_policy'::regclass
+      WHERE c.relnamespace = current_schema()::regnamespace`,
   );
-  for (const row of policyRows.rows as { tablename: string; policyname: string }[]) {
+  for (const row of policyRows.rows as { tablename: string; policyname: string; description: string | null }[]) {
     const t = tables.get(row.tablename);
-    if (t !== undefined) (t.rlsPolicies ??= []).push(row.policyname);
+    if (t !== undefined) {
+      (t.rlsPolicies ??= []).push(row.policyname);
+      (t.rlsPolicyComments ??= {})[row.policyname] = row.description;
+    }
   }
 
-  // roles granted SELECT (for the restricted-SQL role grant; PUBLIC grants are
-  // ignored — if PUBLIC has SELECT the role inherits it, and a redundant GRANT
-  // would just be emitted)
+  // per-role table privileges (PUBLIC grants are ignored — if PUBLIC holds a
+  // privilege the role inherits it, and a redundant GRANT would just be emitted)
   const grantRows = await pool.query(
-    `SELECT c.relname AS table_name, r.rolname AS role
+    `SELECT c.relname AS table_name, r.rolname AS role, acl.privilege_type AS privilege
        FROM pg_class c
        JOIN pg_namespace n ON c.relnamespace = n.oid
        CROSS JOIN LATERAL aclexplode(COALESCE(c.relacl, acldefault('r', c.relowner))) acl
        JOIN pg_roles r ON r.oid = acl.grantee
-      WHERE n.nspname = current_schema() AND acl.privilege_type = 'SELECT'`,
+      WHERE n.nspname = current_schema()`,
   );
-  for (const row of grantRows.rows as { table_name: string; role: string }[]) {
+  for (const row of grantRows.rows as { table_name: string; role: string; privilege: string }[]) {
     const t = tables.get(row.table_name);
-    if (t !== undefined) (t.selectGrantedTo ??= []).push(row.role);
+    if (t === undefined) continue;
+    ((t.grants ??= {})[row.role] ??= []).push(row.privilege);
+    if (row.privilege === 'SELECT') (t.selectGrantedTo ??= []).push(row.role);
   }
 
   if (options.detail === true) {

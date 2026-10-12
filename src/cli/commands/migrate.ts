@@ -11,6 +11,7 @@ import {
 import { loadConfig } from '../load-config.js';
 import { resolveProjectFieldTypes } from '../resolve-field-types.js';
 import { runDoctor } from './doctor.js';
+import { resolveObjectRlsRole } from '../../runtime/engine.js';
 import type { MigrateOptions } from '../types/index.js';
 
 /** `weave migrate` — Git → PG one-way sync, then auto-commit the metadata tree */
@@ -35,12 +36,14 @@ export async function migrate(cwd: string, options: MigrateOptions): Promise<voi
   const rlsRole = config.subsystems?.script?.enabled
     ? config.subsystems.script.sandbox?.rls?.role ?? 'weavekit_query'
     : undefined;
+  const objectRlsRole = resolveObjectRlsRole(config);
 
   const result = await syncSchema({
     dir: schemaDir,
     databaseUrl: config.migrationDatabaseUrl ?? config.databaseUrl,
     dryRun: options.dryRun,
     rls: rlsRole !== undefined ? { role: rlsRole } : undefined,
+    objectRls: objectRlsRole !== undefined ? { role: objectRlsRole } : undefined,
     allowedFieldTypes: config.features?.fieldTypes,
     fieldTypes,
   });

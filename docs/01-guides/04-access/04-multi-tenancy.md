@@ -44,8 +44,9 @@ The `"tenant": true` marker is engine-recognized (not a name convention). You ch
   nothing.
 - **Native PostgreSQL RLS** — the policy adds
   `current_setting('weavekit.tenant_id', true) = "<col>"`. The restricted-SQL role (`this.db.query`)
-  sets `SET LOCAL weavekit.tenant_id`, so a GUC-less query **fails closed** (reads zero rows, never
-  over-exposes).
+  sets the `weavekit.tenant_id` GUC, so a GUC-less query **fails closed** (reads zero rows, never
+  over-exposes). With [`rls.enforce`](02-rbac.md#database-enforced-row-scope-rlsenforce) the
+  engine's own object queries are bounded by the same tenant predicate in PostgreSQL as well.
 - **Audit** — every event carries `tenant_id`; the audit query and SSE stream filter by the subject's
   tenant, so an ordinary identity only sees its own tenant's trail.
 

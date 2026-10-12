@@ -180,6 +180,7 @@ export const hi: Record<MessageKey, string> = {
   'auth.invalidKey': 'अमान्य API कुंजी',
   'auth.notConfigured': 'auth कॉन्फ़िगर नहीं है — प्रारंभ अस्वीकृत',
   'engine.databaseUrl.missing': 'databaseUrl आवश्यक है (config.databaseUrl या DATABASE_URL पर्यावरण चर सेट करें)',
+  'engine.rls.notProvisioned': 'ऑब्जेक्ट-पथ RLS (rls.enforce) सक्षम है पर प्रावधानित नहीं: {detail} — rls.enforce के साथ "weave migrate" चलाएँ (मौजूदा तालिकाओं को "alter": true और माइग्रेशन भूमिका का स्वामित्व चाहिए)',
   'engine.runtimeAccount.ddlAllowed': 'रनटाइम डेटाबेस खाता "{user}" वर्तमान schema में ऑब्जेक्ट बना सकता है — databaseUrl को न्यूनतम-विशेषाधिकार वाली भूमिका (DDL रहित) पर सेट करें और migrationDatabaseUrl से माइग्रेशन चलाएँ (अनुमति हेतु runtime.requireRestrictedAccount=false सेट करें)',
   'git.notRepo': '"{dir}" एक git रिपॉज़िटरी नहीं है',
   'git.command.failed': 'git {command} विफल: {detail}',

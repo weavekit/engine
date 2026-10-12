@@ -180,6 +180,7 @@ export const ar: Record<MessageKey, string> = {
   'auth.invalidKey': 'مفتاح API غير صالح',
   'auth.notConfigured': 'لم يتم تكوين المصادقة (auth) — رفض بدء التشغيل',
   'engine.databaseUrl.missing': 'databaseUrl مطلوب (عيّن config.databaseUrl أو متغير البيئة DATABASE_URL)',
+  'engine.rls.notProvisioned': 'تم تفعيل RLS لمسار الكائنات (rls.enforce) لكنها غير مهيأة: {detail} — نفّذ "weave migrate" مع rls.enforce (الجداول الموجودة تتطلب "alter": true وملكية دور الترحيل)',
   'engine.runtimeAccount.ddlAllowed': 'حساب قاعدة البيانات وقت التشغيل "{user}" يمكنه إنشاء كائنات في المخطط الحالي — وجّه databaseUrl إلى دور بأقل صلاحيات (بدون DDL) ونفّذ الترحيلات عبر migrationDatabaseUrl (عيّن runtime.requireRestrictedAccount=false للسماح)',
   'git.notRepo': '"{dir}" ليس مستودع git',
   'git.command.failed': 'فشل تنفيذ git {command}: {detail}',

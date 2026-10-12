@@ -16,6 +16,8 @@ import { buildRecordMetaTable } from './record-meta.js';
 import { sqlIdent, sqlLiteral } from './sql-literals.js';
 import { SYSTEM_TABLES, buildSystemTables, systemHardeningStatements } from './system-tables.js';
 import { isSafeRlsRole } from '../rbac/index.js';
+import { planObjectRls } from './object-rls.js';
+import type { ActualTable } from './inspect.js';
 
 /**
  * Advisory-lock key serializing `migrate`/`deploy apply` writes across
@@ -37,6 +39,12 @@ export interface MigrateOptions {
    * CREATEROLE; failure degrades to a warning and RLS DDL is skipped).
    */
   rls?: { role: string };
+  /**
+   * object-path RLS (`EngineConfig.rls.enforce`): provision `role` and the
+   * per-table `TO <role>` policies + privileges the engine's own data access
+   * runs under. Same table gating as `rls` (new tables, or `alter` + owned).
+   */
+  objectRls?: { role: string };
   /**
    * Run additional writes in the SAME transaction as the DDL (after DDL +
    * `schema.applied.*` meta + workflow-definition registration, before COMMIT).
@@ -136,6 +144,25 @@ async function provisionRlsRole(pool: import('pg').Pool, role: string, warnings:
   return true;
 }
 
+/** object-path RLS DDL (role provisioned first; skipped tables become warnings) */
+async function objectRlsStatements(
+  pool: import('pg').Pool,
+  registry: ObjectRegistry,
+  actual: Map<string, ActualTable>,
+  objectRls: { role: string } | undefined,
+  warnings: string[],
+): Promise<string[]> {
+  if (objectRls === undefined) return [];
+  if (!(await provisionRlsRole(pool, objectRls.role, warnings))) return [];
+  const { rows } = await pool.query('SELECT current_user AS u');
+  const owner = String((rows[0] as { u: string }).u);
+  const plan = planObjectRls(registry, actual, objectRls.role, { owner });
+  for (const name of plan.skipped) {
+    warnings.push(`skip object RLS on "${name}": existing table needs "alter": true and ownership by ${owner}`);
+  }
+  return plan.statements;
+}
+
 /**
  * True when `PUBLIC` still holds `TRUNCATE` on `table`, i.e. the append-only
  * hardening `REVOKE` is worth emitting. New tables grant nothing to `PUBLIC`
@@ -179,6 +206,9 @@ export async function migrate(registry: ObjectRegistry, options: MigrateOptions 
 
     if (options.rls !== undefined && !isSafeRlsRole(options.rls.role)) {
       throw new Error(`invalid RLS role name "${options.rls.role}"`);
+    }
+    if (options.objectRls !== undefined && !isSafeRlsRole(options.objectRls.role)) {
+      throw new Error(`invalid RLS role name "${options.objectRls.role}"`);
     }
 
     // new objects (no live table by that name) are diffed and created; objects
@@ -289,6 +319,7 @@ export async function migrate(registry: ObjectRegistry, options: MigrateOptions 
       ...linkStatements,
       ...systemStatements,
       ...rlsStatements,
+      ...(await objectRlsStatements(pool, registry, actual, options.objectRls, warnings)),
       ...hardening,
     ];
 

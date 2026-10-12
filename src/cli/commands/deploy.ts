@@ -1,5 +1,6 @@
 import { analyzeImpact, createPool, type ObjectDefinition, type SchemaImpact } from '../../core/index.js';
 import { syncSchema } from '../../runtime/git/index.js';
+import { resolveObjectRlsRole } from '../../runtime/engine.js';
 import { latestSchemaRevision, type SchemaRevision } from '../../runtime/metadata/index.js';
 import { loadConfig } from '../load-config.js';
 import { resolveProjectFieldTypes } from '../resolve-field-types.js';
@@ -55,11 +56,13 @@ async function loadSyncOptions(cwd: string, dryRun: boolean) {
   const rlsRole = config.subsystems?.script?.enabled
     ? config.subsystems.script.sandbox?.rls?.role ?? 'weavekit_query'
     : undefined;
+  const objectRlsRole = resolveObjectRlsRole(config);
   return {
     dir: schemaDir,
     databaseUrl: config.migrationDatabaseUrl ?? config.databaseUrl,
     dryRun,
     rls: rlsRole !== undefined ? { role: rlsRole } : undefined,
+    objectRls: objectRlsRole !== undefined ? { role: objectRlsRole } : undefined,
     allowedFieldTypes: config.features?.fieldTypes,
     fieldTypes,
   } as const;

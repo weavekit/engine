@@ -10,7 +10,7 @@ import {
   syncSchema,
 } from './runtime/git/index.js';
 import { resolveFieldTypeRegistry } from './runtime/fieldtypes/index.js';
-import { buildEngineFromRegistry, resolveLocale } from './runtime/engine.js';
+import { buildEngineFromRegistry, resolveLocale, resolveObjectRlsRole } from './runtime/engine.js';
 import type { EngineConfig, WeaveKitEngine } from './runtime/engine.js';
 import { resolve } from 'node:path';
 
@@ -83,10 +83,12 @@ export async function createEngine(config: EngineConfig): Promise<WeaveKitEngine
 
   let registry: ObjectRegistry;
   if (config.migrate?.auto === true) {
+    const objectRlsRole = resolveObjectRlsRole(config);
     const sync = await syncSchema({
       dir,
       databaseUrl: config.migrationDatabaseUrl ?? config.databaseUrl,
       locale,
+      ...(objectRlsRole === undefined ? {} : { objectRls: { role: objectRlsRole } }),
       allowedFieldTypes: config.features?.fieldTypes,
       fieldTypes,
     });

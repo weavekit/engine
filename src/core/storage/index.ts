@@ -8,7 +8,8 @@ export type {
   IntrospectReport,
   IntrospectSkip,
 } from './introspect.js';
-export { buildExpectedTable, diffTable, diffAll, diffRls } from './diff.js';
+export { buildExpectedTable, diffTable, diffAll, diffRls, diffObjectRls, diffGrants } from './diff.js';
+export { planObjectRls, type ObjectRlsPlan } from './object-rls.js';
 export type {
   ExpectedColumn,
   ExpectedFk,

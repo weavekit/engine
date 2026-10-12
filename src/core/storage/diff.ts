@@ -3,7 +3,8 @@ import { CONSTRAINT_TYPES, DEFAULT_FIELD_TYPE_REGISTRY, DETAILS_COLUMNS, FIELD_T
 import type { FieldTypeRegistry } from '../types/index.js';
 import { SchemaError } from '../types/index.js';
 import type { Locale } from '../i18n/index.js';
-import { buildRlsGrantDdl, buildRlsPolicy, policyName } from '../rbac/index.js';
+import { buildRlsGrantDdl, buildRlsPolicy, policyName, rlsPolicyComment, type ObjectRlsPolicy } from '../rbac/index.js';
+import { sqlIdent } from './sql-literals.js';
 import { defaultExpr, onDeleteClause, pgType } from './map.js';
 import type { ActualTable } from './inspect.js';
 
@@ -280,6 +281,7 @@ export function diffRls(def: ObjectDefinition, actual: ActualTable | undefined, 
   const policy = policyName(def);
   const rlsEnabled = actual?.rlsEnabled ?? false;
   const policies = actual?.rlsPolicies ?? [];
+  const comments = actual?.rlsPolicyComments ?? {};
   const grants = actual?.selectGrantedTo ?? [];
 
   if (!rlsEnabled) {
@@ -287,14 +289,63 @@ export function diffRls(def: ObjectDefinition, actual: ActualTable | undefined, 
   }
   const expectedPolicy = buildRlsPolicy(def);
   const hasPolicy = policies.includes(policy);
-  if (expectedPolicy !== undefined && !hasPolicy) {
-    stmts.push(`DROP POLICY IF EXISTS ${policy} ON ${name};`);
-    stmts.push(`CREATE POLICY ${policy} ON ${name} FOR SELECT USING (${expectedPolicy});`);
-  } else if (expectedPolicy === undefined && hasPolicy) {
+  if (expectedPolicy !== undefined) {
+    // the comment digest catches a changed predicate, not just a missing policy
+    const comment = rlsPolicyComment(expectedPolicy);
+    if (!hasPolicy || comments[policy] !== comment) {
+      stmts.push(`DROP POLICY IF EXISTS ${policy} ON ${name};`);
+      stmts.push(`CREATE POLICY ${policy} ON ${name} FOR SELECT USING (${expectedPolicy});`);
+      stmts.push(`COMMENT ON POLICY ${policy} ON ${name} IS '${comment}';`);
+    }
+  } else if (hasPolicy) {
     stmts.push(`DROP POLICY IF EXISTS ${policy} ON ${name};`);
   }
   if (actual === undefined || !grants.includes(role)) {
     stmts.push(buildRlsGrantDdl(def, role));
   }
   return stmts;
+}
+
+/** object-path policy name prefix (stale ones are dropped) */
+const OBJECT_POLICY_PREFIX = 'weavekit_obj_';
+
+/**
+ * Statements to bring one table's object-path RLS in line (idempotent): enable
+ * RLS, (re)create each expected `TO <role>` policy whose definition digest
+ * differs, drop stale object policies, and grant the missing privileges.
+ */
+export function diffObjectRls(
+  table: string,
+  actual: ActualTable | undefined,
+  role: string,
+  policies: readonly ObjectRlsPolicy[],
+  privileges: readonly string[],
+): string[] {
+  const stmts: string[] = [];
+  const name = q(table);
+  if (actual?.rlsEnabled !== true) stmts.push(`ALTER TABLE ${name} ENABLE ROW LEVEL SECURITY;`);
+  const expected = new Set<string>(policies.map((p) => p.name));
+  for (const existing of actual?.rlsPolicies ?? []) {
+    if (existing.startsWith(OBJECT_POLICY_PREFIX) && !expected.has(existing)) {
+      stmts.push(`DROP POLICY IF EXISTS ${existing} ON ${name};`);
+    }
+  }
+  const comments = actual?.rlsPolicyComments ?? {};
+  for (const p of policies) {
+    const comment = rlsPolicyComment(`${p.command}|${role}|${p.using}|${p.check ?? ''}`);
+    if (comments[p.name] === comment) continue;
+    stmts.push(`DROP POLICY IF EXISTS ${p.name} ON ${name};`);
+    stmts.push(
+      `CREATE POLICY ${p.name} ON ${name} FOR ${p.command} TO ${sqlIdent(role)} USING (${p.using})${p.check === undefined ? '' : ` WITH CHECK (${p.check})`};`,
+    );
+    stmts.push(`COMMENT ON POLICY ${p.name} ON ${name} IS '${comment}';`);
+  }
+  return [...stmts, ...diffGrants(table, actual, role, privileges)];
+}
+
+/** `GRANT` the privileges `role` is missing on `table` (all of them when the table is new) */
+export function diffGrants(table: string, actual: ActualTable | undefined, role: string, privileges: readonly string[]): string[] {
+  const have = new Set(actual?.grants?.[role] ?? []);
+  const missing = privileges.filter((p) => !have.has(p));
+  return missing.length === 0 ? [] : [`GRANT ${missing.join(', ')} ON ${q(table)} TO ${sqlIdent(role)};`];
 }

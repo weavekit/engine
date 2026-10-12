@@ -1,6 +1,6 @@
-import type { PoolClient } from 'pg';
+import type { Pool, PoolClient } from 'pg';
 import type { ObjectDefinition, ObjectRegistry } from '../../core/index.js';
-import { SchemaError, METRIC_NAMES, primaryFieldsOf, encodeRecordKey, decodeRecordKey, canonicalizePrimaryValue, principalActorId, type Locale, type MetricsSink } from '../../core/index.js';
+import { SchemaError, METRIC_NAMES, isSafeRlsRole, primaryFieldsOf, encodeRecordKey, decodeRecordKey, canonicalizePrimaryValue, principalActorId, type Locale, type MetricsSink } from '../../core/index.js';
 import { DETAILS_COLUMNS, FIELD_TYPES, isSideTableVirtualField, RECORD_META_ID_FIELD, recordKeySql, recordMetaTableName, scopeFieldName } from '../../core/index.js';
 import type { AuditEvent, AuditSink } from '../../core/audit/index.js';
 import { AUDIT_ACTOR_TYPES, DATA_ACTIONS } from '../../core/audit/index.js';
@@ -11,6 +11,7 @@ import { buildCountSql, buildFindSql, resolvePagination, scopeSuffix, type Build
 import { deleteDetailsChildren, insertDetails } from './details.js';
 import { insertLinks, replaceLinks } from './link.js';
 import {
+  WORKFLOW_ACTIONS,
   runWorkflowTransition,
   getWorkflowStatus,
   acquireWorkflowLock,
@@ -30,8 +31,11 @@ import { validateRecord } from './validate.js';
 import { FILTER_OPS, SORT_DIRS, WRITE_MODES } from './values.js';
 import { decodeCursor, encodeCursor } from './cursor.js';
 import { QUERY_BUDGET_DEFAULTS, assertQueryBudget, type QueryBudget } from './query-budget.js';
-import { EXECUTION_OUTCOMES, EXECUTION_STAGES, type EvidenceSink, type ExecutionStageRecord } from '../../core/index.js';
+import { EXECUTION_OUTCOMES, type EvidenceSink, type ExecutionPlan, type MessageKey } from '../../core/index.js';
+import { runPipeline, type PipelineContext, type PipelineGate } from '../execution/index.js';
 import { upsertRecordMeta, deleteRecordMeta } from '../record-meta/index.js';
+import { SYSTEM_TABLES } from '../../core/storage/system-tables.js';
+import { asRlsRole } from './rls-session.js';
 
 const q = (id: string) => `"${id}"`;
 
@@ -218,6 +222,11 @@ function pkValuesOf(def: ObjectDefinition, id: string, ctx: DataAccessContext): 
   return values;
 }
 
+/** reject a malformed external id up front (keyed objects only; key-less objects 404 later) */
+function validateId(def: ObjectDefinition, id: string, ctx: DataAccessContext): void {
+  if (primaryNames(def).length > 0) pkValuesOf(def, id, ctx);
+}
+
 /** primary-key filter object for `find` (declared names zipped with values) */
 function pkFilter(def: ObjectDefinition, values: readonly string[]): Record<string, unknown> {
   const filter: Record<string, unknown> = {};
@@ -324,6 +333,8 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
   private readonly schemaRevision?: string;
   /** optional metrics sink (query-budget rejections); absent = zero overhead */
   private readonly metrics?: MetricsSink;
+  /** object-path RLS role (`rls.enforce`); user-principal customer-table reads/updates/deletes run under it */
+  private readonly rlsRole?: string;
 
   constructor(
     options: {
@@ -338,6 +349,7 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
       evidence?: EvidenceSink;
       schemaRevision?: string;
       metrics?: MetricsSink;
+      rls?: { role: string };
     } = {},
   ) {
     this.audit = options.audit;
@@ -351,6 +363,40 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
     this.evidence = options.evidence;
     this.schemaRevision = options.schemaRevision;
     this.metrics = options.metrics;
+    if (options.rls !== undefined && !isSafeRlsRole(options.rls.role)) {
+      throw new Error(`invalid RLS role name "${options.rls.role}"`);
+    }
+    this.rlsRole = options.rls?.role;
+  }
+
+  /**
+   * Run customer-table statements under the object RLS role for a user
+   * principal (a pool request gets its own short transaction); system
+   * principals and enforcement-off run as the owner.
+   */
+  private async readScoped<R>(ctx: DataAccessContext, fn: (db: Pool | PoolClient) => Promise<R>): Promise<R> {
+    const subject = this.rlsRole === undefined ? undefined : subjectOf(ctx);
+    if (subject === undefined) return fn(ctx.client ?? ctx.pool);
+    const role = this.rlsRole!;
+    if (ctx.client !== undefined) return asRlsRole(ctx.client, role, subject, () => fn(ctx.client!));
+    const client = await ctx.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const result = await asRlsRole(client, role, subject, () => fn(client));
+      await client.query('COMMIT');
+      return result;
+    } catch (error) {
+      await client.query('ROLLBACK').catch(() => {});
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  /** {@link readScoped} for a client already inside the write transaction */
+  private underRls<R>(client: PoolClient, ctx: DataAccessContext, fn: () => Promise<R>): Promise<R> {
+    const subject = this.rlsRole === undefined ? undefined : subjectOf(ctx);
+    return subject === undefined ? fn() : asRlsRole(client, this.rlsRole!, subject, fn);
   }
 
   /**
@@ -455,7 +501,6 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
     ctx: DataAccessContext,
   ): Promise<FindResult<T>> {
     const def = requireDef(ctx, objectName);
-    const q = ctx.client ?? ctx.pool;
     const pks = primaryFieldsOf(def);
     const budget = ctx.budget ?? this.budget;
     try {
@@ -487,13 +532,15 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
       const meta = needsSideTable(pageOpts) ? { table: recordMetaTableName(def.name) } : undefined;
       const buildCtx = { ...bctx(ctx, objectName), ...(meta === undefined ? {} : { meta }) };
       const { sql, params } = buildFindSql(def, pageOpts, buildCtx, ctx.rowScope, pageOpts.exclude, undefined, budget.maxRows + 1);
-      const { rows } = await runTableQuery(q, objectName, sql, params, ctx.locale);
+      const { sql: countSql, params: countParams } = buildCountSql(def, opts, buildCtx, ctx.rowScope);
+      const [{ rows }, { rows: countRows }] = await this.readScoped(ctx, async (db) => [
+        await runTableQuery(db, objectName, sql, params, ctx.locale),
+        await runTableQuery(db, objectName, countSql, countParams, ctx.locale),
+      ]);
       const hasMore = rows.length > limit;
       const pageRows = hasMore ? rows.slice(0, limit) : rows;
       const last = pageRows[pageRows.length - 1] as Record<string, unknown> | undefined;
       const nextCursor = hasMore && last !== undefined ? encodeCursor([last[pkName]]) : undefined;
-      const { sql: countSql, params: countParams } = buildCountSql(def, opts, buildCtx, ctx.rowScope);
-      const { rows: countRows } = await runTableQuery(q, objectName, countSql, countParams, ctx.locale);
       const loaded = await this.runOnLoad(objectName, pageRows as Record<string, unknown>[], ctx);
       return {
         rows: loaded as T[],
@@ -509,9 +556,11 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
     const buildCtx = { ...bctx(ctx, objectName), ...(meta === undefined ? {} : { meta }) };
 
     const { sql, params } = buildFindSql(def, opts, buildCtx, ctx.rowScope, opts.exclude, undefined, budget.maxRows);
-    const { rows } = await runTableQuery(q, objectName, sql, params, ctx.locale);
     const { sql: countSql, params: countParams } = buildCountSql(def, opts, buildCtx, ctx.rowScope);
-    const { rows: countRows } = await runTableQuery(q, objectName, countSql, countParams, ctx.locale);
+    const [{ rows }, { rows: countRows }] = await this.readScoped(ctx, async (db) => [
+      await runTableQuery(db, objectName, sql, params, ctx.locale),
+      await runTableQuery(db, objectName, countSql, countParams, ctx.locale),
+    ]);
     const total = (countRows[0] as { total: number }).total;
     const loaded = await this.runOnLoad(objectName, rows as Record<string, unknown>[], ctx);
     return { rows: loaded as T[], total, hasMore: (opts.offset ?? 0) + rows.length < total };
@@ -538,26 +587,32 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
     return result.rows[0] ?? null;
   }
 
-  /**
-   * Guardrail/approval gate for a data-access write (create/update/delete).
-   * Runs only when policies are configured (`policies=[]` → zero overhead) and
-   * is protocol-agnostic (action `object.<object>.<op>`), so REST / MCP /
-   * GraphQL / script writes are all covered from this single choke point.
-   * Deny throws; a `requiresApproval` policy throws with the approval key.
-   */
-  private async guardWrite(
-    op: string,
-    objectName: string,
-    ctx: DataAccessContext,
-    args: Record<string, unknown>,
-  ): Promise<void> {
-    if (this.policies.length === 0) return;
-    const action = `object.${objectName}.${op}`;
+  /** pipeline context (actor/subject/correlation) for a governed write */
+  private pipelineCtx(ctx: DataAccessContext): PipelineContext {
     const subject = subjectOf(ctx);
     const actorId = principalActorId(ctx.principal);
-    const guardrailCtx: GuardrailContext = {
+    const schemaRevision = ctx.schemaRevision ?? this.schemaRevision;
+    return {
       actor: { key: actorId, label: subject?.id ?? 'system', onBehalfOf: subject?.id ?? actorId },
       subject: subject ?? { id: 'system', roles: [] },
+      ...(ctx.requestId === undefined ? {} : { requestId: ctx.requestId }),
+      ...(ctx.traceId === undefined ? {} : { traceId: ctx.traceId }),
+      ...(schemaRevision === undefined ? {} : { schemaRevision }),
+      ...(ctx.locale === undefined ? {} : { locale: ctx.locale }),
+    };
+  }
+
+  /** guardrail + approval decision for `action` (shared by writes and transitions) */
+  private async decide(
+    action: string,
+    args: Record<string, unknown>,
+    ctx: DataAccessContext,
+    pctx: PipelineContext,
+    requireApproval: boolean,
+  ): Promise<PipelineGate> {
+    const guardrailCtx: GuardrailContext = {
+      actor: pctx.actor,
+      subject: pctx.subject,
       action,
       args,
       dataAccess: toolDataAccessOver(this, {
@@ -568,52 +623,104 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
         ...(ctx.client === undefined ? {} : { client: ctx.client }),
       }),
     };
-    const gate = await evaluateTransition(this.policies, this.approvals, guardrailCtx, false);
-    if (this.evidence !== undefined) {
-      const now = new Date();
-      const schemaRevision = ctx.schemaRevision ?? this.schemaRevision;
-      const outcome =
-        gate.kind === 'deny'
-          ? EXECUTION_OUTCOMES.DENY
-          : gate.kind === 'pending'
-            ? EXECUTION_OUTCOMES.PENDING
-            : EXECUTION_OUTCOMES.OK;
-      const stages: ExecutionStageRecord[] = [
-        { stage: EXECUTION_STAGES.PLAN, outcome: EXECUTION_OUTCOMES.OK, at: now },
-        { stage: EXECUTION_STAGES.GUARDRAIL, outcome, at: now },
-        ...(gate.kind === 'pending'
-          ? [{ stage: EXECUTION_STAGES.APPROVAL, outcome: EXECUTION_OUTCOMES.PENDING, at: now } as ExecutionStageRecord]
-          : []),
-      ];
-      void this.evidence
-        .record({
-          ...(ctx.requestId === undefined ? {} : { requestId: ctx.requestId }),
-          ...(ctx.traceId === undefined ? {} : { traceId: ctx.traceId }),
-          ...(schemaRevision === undefined ? {} : { schemaRevision }),
-          actor: guardrailCtx.actor,
-          ...(subject === undefined ? {} : { subjectId: subject.id }),
-          plan: { action, objectName, args },
-          stages,
-          ...(gate.kind === 'pending' ? { approvalKey: gate.approvalKey } : {}),
-          isError: gate.kind !== 'allow',
-          ...(gate.kind === 'deny'
-            ? { errorCode: gate.code }
-            : gate.kind === 'pending'
-              ? { errorCode: 'mcp.approval.pending' }
-              : {}),
-          timestamp: now,
-        })
-        .catch(() => {});
+    const gate = await evaluateTransition(this.policies, this.approvals, guardrailCtx, requireApproval);
+    if (gate.kind === 'deny') return { kind: 'deny', reason: gate.reason ?? '', errorCode: gate.code };
+    return gate;
+  }
+
+  /**
+   * Run a write (create/update/delete/transition) through the execution
+   * pipeline: guardrail/approval gate (when policies or `requireApproval` apply)
+   * → execute → one evidence row (when evidence is enabled). Protocol-agnostic
+   * (action `object.<object>.<op>` / `workflow.transition.<object>.<action>`),
+   * so REST / MCP / GraphQL / script writes share this single choke point.
+   * Without policies, approval or evidence the write runs directly.
+   */
+  private async governed<T>(
+    plan: ExecutionPlan,
+    ctx: DataAccessContext,
+    opts: {
+      pendingCode: MessageKey;
+      /** `action` message param (defaults to the plan action) */
+      actionParam?: string;
+      requireApproval?: () => Promise<boolean>;
+      preflight?: () => Promise<void>;
+      /** called with a preflight/deny/pending error before it is thrown */
+      onReject?: (error: unknown) => Promise<void>;
+    },
+    execute: () => Promise<T>,
+  ): Promise<T> {
+    const gated = this.policies.length > 0 || opts.requireApproval !== undefined;
+    if (!gated && this.evidence === undefined) return execute();
+    const reject = async (error: unknown): Promise<never> => {
+      await opts.onReject?.(error);
+      throw error;
+    };
+    if (opts.preflight !== undefined) await opts.preflight().catch(reject);
+    const pctx = this.pipelineCtx(ctx);
+    const result = await runPipeline(plan, pctx, {
+      ...(gated
+        ? {
+            gate: async () =>
+              this.decide(plan.action, plan.args, ctx, pctx, (await opts.requireApproval?.()) ?? false),
+          }
+        : {}),
+      execute,
+      ...(this.evidence === undefined ? {} : { evidence: this.evidence }),
+    });
+    const params = { object: plan.objectName ?? '', action: opts.actionParam ?? plan.action };
+    if (result.outcome === EXECUTION_OUTCOMES.OK) return result.result as T;
+    if (result.outcome === EXECUTION_OUTCOMES.PENDING) {
+      return reject(new SchemaError(opts.pendingCode, { ...params, approvalKey: result.approvalKey ?? '' }, ctx.locale));
     }
-    if (gate.kind === 'deny') {
-      throw new SchemaError(gate.code, { object: objectName, action, reason: gate.reason ?? '' }, ctx.locale);
+    if (result.outcome === EXECUTION_OUTCOMES.DENY) {
+      return reject(
+        new SchemaError((result.errorCode ?? 'mcp.policy.denied') as MessageKey, { ...params, reason: result.reason ?? '' }, ctx.locale),
+      );
     }
-    if (gate.kind === 'pending') {
-      throw new SchemaError('object.action.pending', { object: objectName, action, approvalKey: gate.approvalKey }, ctx.locale);
-    }
+    throw result.error;
   }
 
   async create<T = Record<string, unknown>>(
+    objectName: string,
+    data: Record<string, unknown>,
+    ctx: DataAccessContext,
+  ): Promise<T> {
+    requireDef(ctx, objectName);
+    return this.governed(
+      { action: `object.${objectName}.create`, objectName, args: data },
+      ctx,
+      { pendingCode: 'object.action.pending' },
+      () => this.doCreate<T>(objectName, data, ctx),
+    );
+  }
+
+  async update<T = Record<string, unknown>>(
+    objectName: string,
+    id: string,
+    changes: Record<string, unknown>,
+    ctx: DataAccessContext,
+  ): Promise<T> {
+    validateId(requireDef(ctx, objectName), id, ctx);
+    return this.governed(
+      { action: `object.${objectName}.update`, objectName, objectId: id, args: changes },
+      ctx,
+      { pendingCode: 'object.action.pending' },
+      () => this.doUpdate<T>(objectName, id, changes, ctx),
+    );
+  }
+
+  async delete(objectName: string, id: string, ctx: DataAccessContext): Promise<void> {
+    validateId(requireDef(ctx, objectName), id, ctx);
+    return this.governed(
+      { action: `object.${objectName}.delete`, objectName, objectId: id, args: {} },
+      ctx,
+      { pendingCode: 'object.action.pending' },
+      () => this.doDelete(objectName, id, ctx),
+    );
+  }
+
+  private async doCreate<T = Record<string, unknown>>(
     objectName: string,
     data: Record<string, unknown>,
     ctx: DataAccessContext,
@@ -622,7 +729,6 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
     if (primaryNames(def).length === 0) {
       throw new SchemaError('data.recordNotFound', { object: objectName }, ctx.locale);
     }
-    await this.guardWrite('create', objectName, ctx, data);
     let client: PoolClient;
     let owned = false;
     if (ctx.client !== undefined) {
@@ -759,7 +865,7 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
     }
   }
 
-  async update<T = Record<string, unknown>>(
+  private async doUpdate<T = Record<string, unknown>>(
     objectName: string,
     id: string,
     changes: Record<string, unknown>,
@@ -770,7 +876,6 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
       throw new SchemaError('data.recordNotFound', { object: objectName, id }, ctx.locale);
     }
     const pkValues = pkValuesOf(def, id, ctx);
-    await this.guardWrite('update', objectName, ctx, changes);
     let client: PoolClient;
     let owned = false;
     if (ctx.client !== undefined) {
@@ -785,7 +890,7 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
       await validateRecord(def, changes, WRITE_MODES.UPDATE, { pool: client, registry: ctx.registry, locale: ctx.locale });
 
       const { sql, params } = buildFindSql(def, { filter: pkFilter(def, pkValues), limit: 1 }, bctx(ctx, objectName), ctx.rowScope, undefined, [recordKeySelect(def)]);
-      const { rows } = await runTableQuery(client, objectName, sql, params, ctx.locale);
+      const { rows } = await this.underRls(client, ctx, () => runTableQuery(client, objectName, sql, params, ctx.locale));
       const raw = rows[0] as Record<string, unknown> | undefined;
       if (raw === undefined) {
         throw new SchemaError('data.recordNotFound', { object: objectName, id }, ctx.locale);
@@ -846,13 +951,16 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
         const setSql = cols.map((c, i) => `${q(c)} = $${i + 1}`).join(', ');
         const scope = ctx.rowScope !== undefined ? scopeSuffix(ctx.rowScope, cols.length + pkValues.length) : undefined;
         const values = cols.map((c) => dbJsonValue(def.fields.find((f) => f.name === c), record[c] ?? null));
-        await runTableQuery(
-          client,
-          objectName,
-          `UPDATE ${q(def.name)} SET ${setSql} WHERE ${pkWhereSql(def, cols.length + 1)}${scope !== undefined ? ` AND (${scope.sql})` : ''}`,
-          [...values, ...pkValues, ...(scope?.params ?? [])],
-          ctx.locale,
+        const res = await this.underRls(client, ctx, () =>
+          runTableQuery(
+            client,
+            objectName,
+            `UPDATE ${q(def.name)} SET ${setSql} WHERE ${pkWhereSql(def, cols.length + 1)}${scope !== undefined ? ` AND (${scope.sql})` : ''}`,
+            [...values, ...pkValues, ...(scope?.params ?? [])],
+            ctx.locale,
+          ),
         );
+        if (res.rowCount === 0) throw new SchemaError('data.recordNotFound', { object: objectName, id }, ctx.locale);
       }
 
       await this.writeRecordMeta(client, def, metaKey, ctx, now, false);
@@ -893,13 +1001,77 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
     payload?: Record<string, unknown>,
   ): Promise<T> {
     const def = requireDef(ctx, objectName);
-    if (def.workflow === undefined) {
+    const workflow = def.workflow;
+    if (workflow === undefined) {
       throw new SchemaError('workflow.transition.unknown', { object: objectName, action }, ctx.locale);
     }
     if (primaryNames(def).length === 0) {
       throw new SchemaError('data.recordNotFound', { object: objectName, id }, ctx.locale);
     }
     const pkValues = pkValuesOf(def, id, ctx);
+    // a policy self-filters on `workflow.transition.<object>.<action>`; a node may
+    // also declare `requiresApproval` (deny → error; requireApproval → pending)
+    const approvalNodes = workflow.nodes.some((n) => n.requiresApproval === true);
+    return this.governed(
+      { action: `workflow.transition.${def.name}.${action}`, objectName, objectId: id, args: { object: def.name, id, action } },
+      ctx,
+      {
+        pendingCode: 'workflow.transition.pending',
+        actionParam: action,
+        preflight: async () => {
+          const [sql, params] = this.transitionTargetSql(def, pkValues, action, ctx);
+          const { rows } =
+            action === WORKFLOW_ACTIONS.SUBMIT
+              ? await this.readScoped(ctx, (db) => runTableQuery(db, objectName, sql, params, ctx.locale))
+              : await runTableQuery(ctx.client ?? ctx.pool, objectName, sql, params, ctx.locale);
+          if (rows[0] === undefined) throw new SchemaError('data.recordNotFound', { object: objectName, id }, ctx.locale);
+        },
+        onReject: (error) => auditWrite(this.audit, ctx, DATA_ACTIONS.TRANSITION, objectName, id, { action }, error),
+        ...(approvalNodes
+          ? {
+              requireApproval: async () => {
+                const status = await getWorkflowStatus(ctx.client ?? ctx.pool, def, id, subjectOf(ctx));
+                return workflow.nodes.find((n) => n.id === status.node)?.requiresApproval === true;
+              },
+            }
+          : {}),
+      },
+      () => this.doTransition<T>(def, id, pkValues, action, ctx, payload),
+    );
+  }
+
+  /**
+   * Existence check for a transition target. Submit is an owner action → the
+   * caller's manage scope; the other actions are authorized by workitem
+   * assignment / originator, not by row scope.
+   */
+  private transitionTargetSql(
+    def: ObjectDefinition,
+    pkValues: readonly string[],
+    action: string,
+    ctx: DataAccessContext,
+  ): [string, unknown[]] {
+    const { sql, params } = buildFindSql(
+      def,
+      { filter: pkFilter(def, pkValues), limit: 1 },
+      bctx(ctx, def.name),
+      action === WORKFLOW_ACTIONS.SUBMIT ? ctx.rowScope : undefined,
+      undefined,
+      [recordKeySelect(def)],
+    );
+    return [sql, params];
+  }
+
+  private async doTransition<T>(
+    def: ObjectDefinition,
+    id: string,
+    pkValues: readonly string[],
+    action: string,
+    ctx: DataAccessContext,
+    payload?: Record<string, unknown>,
+  ): Promise<T> {
+    const objectName = def.name;
+    const workflow = def.workflow!;
     let client: PoolClient;
     let owned = false;
     if (ctx.client !== undefined) {
@@ -911,48 +1083,11 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
     try {
       if (owned) await client.query('BEGIN');
       // the customer record must exist (transitions never create records)
-      const { sql, params } = buildFindSql(
-        def,
-        { filter: pkFilter(def, pkValues), limit: 1 },
-        bctx(ctx, objectName),
-        undefined,
-        undefined,
-        [recordKeySelect(def)],
-      );
-      const found = await runTableQuery(client, objectName, sql, params, ctx.locale);
+      const [sql, params] = this.transitionTargetSql(def, pkValues, action, ctx);
+      const lookup = () => runTableQuery(client, objectName, sql, params, ctx.locale);
+      const found = action === WORKFLOW_ACTIONS.SUBMIT ? await this.underRls(client, ctx, lookup) : await lookup();
       if (found.rows[0] === undefined) {
         throw new SchemaError('data.recordNotFound', { object: objectName, id }, ctx.locale);
-      }
-
-      // guardrail policy + approval gate (shared policy set with the open contract):
-      // a policy self-filters on `workflow.transition.<object>.<action>`; a node may
-      // also declare `requiresApproval`. deny → error; requireApproval → pending.
-      const currentNode = await getWorkflowStatus(client, def, id, subjectOf(ctx));
-      const nodeDef = currentNode.node === undefined ? undefined : def.workflow.nodes.find((n) => n.id === currentNode.node);
-      const requireApproval = nodeDef?.requiresApproval === true;
-      if (this.policies.length > 0 || requireApproval) {
-        const subject = subjectOf(ctx);
-        const actorId = subject?.id ?? principalActorId(ctx.principal);
-        const guardrailCtx: GuardrailContext = {
-          actor: { key: actorId, label: actorId, onBehalfOf: actorId },
-          subject: subject ?? { id: 'system', roles: [] },
-          action: `workflow.transition.${def.name}.${action}`,
-          args: { object: def.name, id, action },
-          dataAccess: toolDataAccessOver(this, {
-            pool: ctx.pool,
-            registry: ctx.registry,
-            principal: ctx.principal,
-            ...(ctx.locale === undefined ? {} : { locale: ctx.locale }),
-            ...(ctx.client === undefined ? {} : { client: ctx.client }),
-          }),
-        };
-        const gate = await evaluateTransition(this.policies, this.approvals, guardrailCtx, requireApproval);
-        if (gate.kind === 'deny') {
-          throw new SchemaError(gate.code, { object: objectName, action, reason: gate.reason ?? '' }, ctx.locale);
-        }
-        if (gate.kind === 'pending') {
-          throw new SchemaError('workflow.transition.pending', { object: objectName, action, approvalKey: gate.approvalKey }, ctx.locale);
-        }
       }
 
       const outcome = await runWorkflowTransition(client, def, id, action, subjectOf(ctx), payload, ctx.locale);
@@ -977,7 +1112,7 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
         outcome.fromNodeId ?? '',
         outcome.toNodeId ?? '',
         action,
-        def.workflow.version,
+        workflow.version,
         def.workflowHash,
       );
       if (outcome.nodeId !== undefined) {
@@ -1013,7 +1148,34 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
     if (def.workflow === undefined) {
       throw new SchemaError('workflow.transition.unknown', { object: objectName, action: 'status' }, ctx.locale);
     }
+    await this.assertWorkflowVisible(def, id, ctx);
     return getWorkflowStatus(ctx.client ?? ctx.pool, def, id, subjectOf(ctx));
+  }
+
+  /**
+   * A record's workflow is visible when the record is inside the caller's read
+   * scope, or the caller participates (originator / any workitem) — an assigned
+   * approver may sit outside the record's row scope.
+   */
+  private async assertWorkflowVisible(def: ObjectDefinition, id: string, ctx: DataAccessContext): Promise<void> {
+    if (ctx.rowScope === undefined) return;
+    const db = ctx.client ?? ctx.pool;
+    const pkValues = pkValuesOf(def, id, ctx);
+    const { sql, params } = buildFindSql(def, { filter: pkFilter(def, pkValues), limit: 1 }, bctx(ctx, def.name), ctx.rowScope);
+    const { rows } = await this.readScoped(ctx, (scoped) => runTableQuery(scoped, def.name, sql, params, ctx.locale));
+    if (rows.length > 0) return;
+    const subject = subjectOf(ctx);
+    if (subject !== undefined) {
+      const res = await db.query(
+        `SELECT 1 FROM ${q(SYSTEM_TABLES.WORKFLOW_INSTANCES)} WHERE object = $1 AND record_key = $2 AND originator = $3
+         UNION ALL
+         SELECT 1 FROM ${q(SYSTEM_TABLES.WORKFLOW_WORKITEMS)} WHERE object = $1 AND record_key = $2 AND participant = $3
+         LIMIT 1`,
+        [def.name, id, subject.id],
+      );
+      if (res.rows.length > 0) return;
+    }
+    throw new SchemaError('data.recordNotFound', { object: def.name, id }, ctx.locale);
   }
 
   /** Acquire/renew the caller's presence lock on the current step (TTL lease). */
@@ -1034,6 +1196,7 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
     if (def.workflow === undefined) {
       throw new SchemaError('workflow.transition.unknown', { object: objectName, action: 'history' }, ctx.locale);
     }
+    await this.assertWorkflowVisible(def, id, ctx);
     return getWorkflowHistory(ctx.client ?? ctx.pool, def, id);
   }
 
@@ -1102,13 +1265,12 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
     );
   }
 
-  async delete(objectName: string, id: string, ctx: DataAccessContext): Promise<void> {
+  private async doDelete(objectName: string, id: string, ctx: DataAccessContext): Promise<void> {
     const def = requireDef(ctx, objectName);
     if (primaryNames(def).length === 0) {
       throw new SchemaError('data.recordNotFound', { object: objectName, id }, ctx.locale);
     }
     const pkValues = pkValuesOf(def, id, ctx);
-    await this.guardWrite('delete', objectName, ctx, {});
     let client: PoolClient;
     let owned = false;
     if (ctx.client !== undefined) {
@@ -1121,7 +1283,7 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
     try {
       if (owned) await client.query('BEGIN');
       const { sql, params } = buildFindSql(def, { filter: pkFilter(def, pkValues), limit: 1 }, bctx(ctx, objectName), ctx.rowScope, undefined, [recordKeySelect(def)]);
-      const { rows } = await runTableQuery(client, objectName, sql, params, ctx.locale);
+      const { rows } = await this.underRls(client, ctx, () => runTableQuery(client, objectName, sql, params, ctx.locale));
       const raw = rows[0] as Record<string, unknown> | undefined;
       if (raw === undefined) {
         throw new SchemaError('data.recordNotFound', { object: objectName, id }, ctx.locale);
@@ -1133,12 +1295,14 @@ export class DefaultObjectDataAccess implements ObjectDataAccess {
       await this.runBeforeHook(SCRIPT_HOOKS.BEFORE_DELETE, objectName, existing, {}, ctx);
       await deleteDetailsChildren(client, def, id, ctx.registry);
       const scope = ctx.rowScope !== undefined ? scopeSuffix(ctx.rowScope, pkValues.length) : undefined;
-      const res = await runTableQuery(
-        client,
-        objectName,
-        `DELETE FROM ${q(def.name)} WHERE ${pkWhereSql(def, 1)}${scope !== undefined ? ` AND (${scope.sql})` : ''}`,
-        [...pkValues, ...(scope?.params ?? [])],
-        ctx.locale,
+      const res = await this.underRls(client, ctx, () =>
+        runTableQuery(
+          client,
+          objectName,
+          `DELETE FROM ${q(def.name)} WHERE ${pkWhereSql(def, 1)}${scope !== undefined ? ` AND (${scope.sql})` : ''}`,
+          [...pkValues, ...(scope?.params ?? [])],
+          ctx.locale,
+        ),
       );
       if (res.rowCount === 0) throw new SchemaError('data.recordNotFound', { object: objectName, id }, ctx.locale);
       await deleteRecordMeta(client, def.name, metaKey);
@@ -1177,6 +1341,7 @@ export function createDataAccess(
     evidence?: EvidenceSink;
     schemaRevision?: string;
     metrics?: MetricsSink;
+    rls?: { role: string };
   } = {},
 ): ObjectDataAccess {
   return new DefaultObjectDataAccess(options);

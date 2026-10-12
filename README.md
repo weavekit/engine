@@ -7,7 +7,7 @@ stays in your database.
 
 ```
 objects/leads/schema.json   →   Git commit (source of truth)
-                                PostgreSQL tables + indexes + RLS
+                                PostgreSQL tables + indexes (+ RLS policies)
                                 REST + GraphQL APIs (CRUD + RBAC)
                                 MCP surface (per-identity tools + resources + prompts + approvals)
                                 Immutable audit log + execution evidence
@@ -17,13 +17,15 @@ objects/leads/schema.json   →   Git commit (source of truth)
 ## Why WeaveKit
 
 - **Safe by construction** — every agent action is authorized by row- and field-level RBAC and
-  native PostgreSQL RLS, and recorded in an immutable audit log. Guardrails (and optional
-  approvals) sit in front.
+  recorded in an audit log. Turn on `rls.enforce` and PostgreSQL row-level security re-checks the
+  same row scope in the database, so a missing application filter still cannot expose rows.
+  Guardrails (and optional approvals) sit in front.
 - **Your model is a Git repository** — schema, hooks and policies are files you review, diff and
   revert; the engine commits every change for you, and PostgreSQL is a derived cache.
 - **One agent, many users** — each MCP call carries the acting user's identity (on-behalf-of), and
   the engine compiles a per-identity tool surface: a salesperson's agent sees only their own leads,
-  a finance agent cannot read sales notes. Prompt injection cannot bypass RBAC/RLS.
+  a finance agent cannot read sales notes. Prompt injection cannot widen what the acting user may
+  read or write.
 - **Bring your existing PostgreSQL** — point the engine at a live database and declare the tables
   you want to expose; existing tables stay read-only unless you explicitly allow additive DDL, and
   `weave introspect` can reverse-model them into `schema.json`.
@@ -62,14 +64,19 @@ write.
 - **Schema revisions & atomic deploys** — `weave deploy plan` previews the diff; `weave deploy apply`
   commits the DDL, the metadata cache and a global **schema revision** in one transaction (no
   half-applied deploys).
-- **Agent execution pipeline** — every write and tool call runs through one
+- **Agent execution pipeline** — every write, workflow transition and tool call runs through one
   Plan → Validate → Authorize → Guardrail → Approval → Execute → Commit → Evidence pipeline, so
-  guardrails and approvals cover REST, MCP and GraphQL alike; enable `evidence` to record a
-  `weavekit_evidence` row per execution (correlated by request / trace / schema revision).
+  guardrails and approvals cover REST, MCP and GraphQL alike; enable `evidence` to record one
+  `weavekit_evidence` row per execution with its real outcome (correlated by request / trace /
+  schema revision).
+- **Database-enforced row scope** — `rls.enforce` provisions PostgreSQL RLS policies generated from
+  the same permission matrix and runs user reads/updates/deletes under a restricted role; the engine
+  refuses to start until the policies are in place.
 - **Query budget** — bound a read/query across the engine: rows, filters and sorts in data-access,
   joins / SQL length / statement timeout in restricted SQL, and GraphQL depth.
 - **Multi-tenancy (row)** — mark a field `"tenant": true` and every read/write is scoped to the
-  subject's tenant (RBAC row scope + PostgreSQL RLS + audit); single-tenant by default.
+  subject's tenant (RBAC row scope + audit, plus PostgreSQL RLS for scripts and with `rls.enforce`);
+  single-tenant by default.
 - **Audit log** — an immutable event log for data mutations, with durability modes
   (`best-effort` / `transactional` / `durable`) and a keyset-cursor query.
 - **Observability** — a low-level metrics/trace seam (`MetricsSink` / `TraceSink`, `METRIC_NAMES`)

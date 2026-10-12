@@ -26,18 +26,28 @@ records every stage outcome; a `deny`/`pending` short-circuits `execute`.
 - **Evidence** — the recorded record (below).
 
 The pipeline drives two choke points: the **data-access write path** (`create`/`update`/`delete` /
-workflow transition, action `object.<obj>.<op>`) and the **custom-tool executor** (action
-`mcp.tool.<name>`). Because every protocol ends at data-access, guardrails/approvals/evidence cover
-all of them from one place.
+workflow transition, action `object.<obj>.<op>` / `workflow.transition.<obj>.<action>`) and the
+**custom-tool executor** (action `mcp.tool.<name>`). Because every protocol ends at data-access,
+guardrails/approvals/evidence cover all of them from one place.
 
 ## Evidence
 
-Enable it to record one `weavekit_evidence` row per gated execution:
+Enable it to record one `weavekit_evidence` row per execution — every data-access
+`create`/`update`/`delete`, every workflow transition and every custom-tool call, whether or not a
+guardrail policy is configured:
 
 ```ts
 // weavekit.config.ts
 export default { /* ... */ evidence: { enabled: true } };
 ```
+
+The row is written **after** the execution, with its real outcome: a successful write records
+`plan → [guardrail → approval →] execute → commit → evidence`; a write that fails (validation, a
+unique violation, a missing record) records `execute: error` with the error code; a deny/pending gate
+stops at `guardrail`/`approval`. RBAC denials are rejected before the pipeline and stay in the audit
+trail. Evidence is best-effort: a failed evidence write never blocks the execution (a transactional
+mode is planned separately). When the caller supplies its own transaction, `commit` means the step
+completed inside that transaction.
 
 An `Evidence` (`core/tools/pipeline.ts`) carries the correlation ids (`requestId`, `traceId`,
 `schemaRevision`), the `actor`, `subjectId`, the `plan`, the per-stage `stages` timeline, plus

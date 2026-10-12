@@ -17,6 +17,8 @@ export interface SyncSchemaOptions {
   dryRun?: boolean;
   /** enable row-level security for the restricted-SQL role (`this.db.query`) */
   rls?: { role: string };
+  /** provision object-path RLS (`EngineConfig.rls.enforce`) for this role */
+  objectRls?: { role: string };
   locale?: Locale;
   allowedFieldTypes?: readonly string[];
   /** effective field-type registry (built-ins + user registrations) */
@@ -70,6 +72,7 @@ export async function syncSchema(options: SyncSchemaOptions): Promise<SyncResult
     databaseUrl: url,
     dryRun: options.dryRun,
     rls: options.rls,
+    objectRls: options.objectRls,
     onCommit:
       options.dryRun === true
         ? undefined

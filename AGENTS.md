@@ -47,8 +47,8 @@ tests/              unit + e2e (node --test)
 - Sandbox script hooks receive context via `this` (`record/changes/records/user/db/services`), with
   no parameters; the sandbox backend is a worker + `isolated-vm`, hidden behind the pluggable
   `SandboxBackend` interface (`isolated-vm` is an optional dependency)
-- Data-access layers: object query (automatic RLS + RBAC) and restricted SQL (SELECT-only +
-  parameterized + LIMIT + timeout)
+- Data-access layers: object query (RBAC SQL scope; PG RLS only with `rls.enforce`) and restricted
+  SQL (SELECT-only + parameterized + LIMIT + timeout + RLS)
 - Public surface is tiered: `.` (stable), `./experimental` (unstable internals), `./values`
   (browser-safe, zero runtime imports); the `exports` map blocks unlisted subpaths (`./layout` was
   removed in 2026-10).
@@ -57,8 +57,8 @@ tests/              unit + e2e (node --test)
 - **Multi-tenancy (row)**: a `tenant: true` field (alias `"scope": true`) scopes reads/writes to the subject
   scope (RBAC row scope + RLS GUC `weavekit.scope_id`/`weavekit.tenant_id` + audit); immutable; absent = single-scope
 - **Control-plane seams**: REST `principalFor`; `POST {prefix}/identity/sync`; `GET {prefix}/capabilities`
-- **Execution**: `runtime/execution` `runPipeline` drives writes (gate `object.<obj>.<op>`) and tool
-  calls (Plan→…→Evidence); `evidence.enabled` records `weavekit_evidence`. `CONTRACT_VERSION` freezes
+- **Execution**: `runPipeline` drives every data-access write/transition and tool call
+  (Plan→…→Evidence; one post-execution evidence row each). `CONTRACT_VERSION` freezes
   the public contract — post-1.0 evolution is additive only
 
 ## Schema relation model (summary)
@@ -82,7 +82,7 @@ Audit (log/modes/outbox) ✅ · Script sandbox ✅ · MCP adapter (tools/resourc
 Tools + guardrails + approvals (REST + MCP) ✅ · SSE ✅ · Proxy ✅ · Quotas ✅ · Ingress ✅ · Tunnel ✅ ·
 Named enums (schema v6) ✅ · Schema revision + `weave deploy` ✅ · QueryBudget ✅ ·
 Agent Execution + Evidence ✅ · Multi-tenancy (row) ✅ · Contract freeze ✅ ·
-Observability seam (metrics/trace) ✅
+Observability seam (metrics/trace) ✅ · Object-path RLS ✅
 
 ## Maintenance rules
 

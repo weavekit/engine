@@ -113,6 +113,7 @@ to migrate/serve and prints a `check / status / detail` table (`pass` / `warn` /
 - **schema-drift** — whether `objects/*/schema.json` matches the live database (`warn` = run `weave migrate`).
 - **system-tables** — engine system tables present and shaped as the current engine expects.
 - **rls-role** / **sandbox** — when the script subsystem is enabled: the restricted-SQL role exists and is grantable, and `isolated-vm` resolves (otherwise `skip`).
+- **object-rls** — when `rls.enforce` is on: the object-path role exists and every object table carries the current policies and privileges (otherwise `skip`).
 
 Exit code is `1` when any check fails, so it gates CI and deploys. `weave migrate --preflight` runs
 the same checks first and aborts on any failure (convenience for release jobs). `--json` emits the

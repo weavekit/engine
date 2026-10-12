@@ -1,8 +1,11 @@
-import type { ObjectDefinition } from '../types/index.js';
+import { createHash } from 'node:crypto';
+import type { ObjectDefinition, ReadScope } from '../types/index.js';
 import { READ_SCOPES, ROW_SCOPE_MARKERS } from '../types/index.js';
 import type { RowScopeMarker } from '../types/index.js';
 import { sqlIdent } from '../storage/sql-literals.js';
 import { scopeFieldName, scopeMarkerOf } from './scopeMarker.js';
+import { buildRowScopeFor, resolvePermissionFor, type ObjectLookup } from './details.js';
+import type { ResolvedPermission } from './resolve.js';
 
 const q = (id: string) => `"${id}"`;
 
@@ -103,6 +106,133 @@ export function buildRlsPolicyDdl(def: ObjectDefinition): string[] {
 /** GRANT the restricted-SQL role read access to one object */
 export function buildRlsGrantDdl(def: ObjectDefinition, role: string): string {
   return `GRANT SELECT ON ${q(def.name)} TO ${sqlIdent(role)};`;
+}
+
+/**
+ * Marker stored as the policy COMMENT: a digest of the policy definition, so
+ * `migrate` detects a changed predicate (permission matrix edit), not just a
+ * missing policy name.
+ */
+export function rlsPolicyComment(definition: string): string {
+  return `weavekit:${createHash('sha256').update(definition).digest('hex').slice(0, 16)}`;
+}
+
+/**
+ * Object-path RLS (`EngineConfig.rls.enforce`): the engine's own data access
+ * runs customer-table reads/updates/deletes under this role, so PostgreSQL
+ * re-checks the RBAC row scope (defense in depth). Engine-internal — it never
+ * executes user-supplied SQL (that is the restricted-SQL role's job).
+ */
+export const OBJECT_RLS_ROLE_DEFAULT = 'weavekit_object';
+
+/** per-table object-path policy names (scoped `TO <object role>`) */
+export const OBJECT_RLS_POLICIES = {
+  SELECT: 'weavekit_obj_select',
+  UPDATE: 'weavekit_obj_update',
+  DELETE: 'weavekit_obj_delete',
+} as const;
+
+export interface ObjectRlsPolicy {
+  name: (typeof OBJECT_RLS_POLICIES)[keyof typeof OBJECT_RLS_POLICIES];
+  command: 'SELECT' | 'UPDATE' | 'DELETE';
+  using: string;
+  check?: string;
+}
+
+/** a subject GUC as a nullable value ('' — a GUC reset by an earlier transaction — counts as unset) */
+const gucValue = (name: string): string => `NULLIF(current_setting('${name}', true), '')`;
+const ACTOR_GUC = gucValue('weavekit.actor_id');
+const DEPARTMENT_GUC = gucValue('weavekit.department_id');
+const SCOPE_GUC = gucValue('weavekit.scope_id');
+const SCOPE_TOKEN = '__weavekit_scope__';
+/** placeholder subject: its attributes are mapped back onto the GUCs */
+const TEMPLATE_SUBJECT = { id: '\u0001actor', roles: [] as string[], departmentId: '\u0001department', scopeId: '\u0001scope' };
+
+/**
+ * The application row-scope predicate (`buildRowScopeFor`) for one scope,
+ * re-expressed over the subject GUCs — one source of truth for both layers.
+ */
+function scopeTemplate(lookup: ObjectLookup, def: ObjectDefinition, scope: ReadScope): string | undefined {
+  const fragment = buildRowScopeFor(lookup, def, scope, TEMPLATE_SUBJECT, []);
+  if (fragment === undefined) return undefined;
+  let sql = fragment.sql;
+  for (let i = fragment.params.length; i >= 1; i -= 1) {
+    const value = fragment.params[i - 1];
+    const expr =
+      value === TEMPLATE_SUBJECT.id
+        ? ACTOR_GUC
+        : value === TEMPLATE_SUBJECT.departmentId
+          ? DEPARTMENT_GUC
+          : value === TEMPLATE_SUBJECT.scopeId
+            ? SCOPE_TOKEN
+            : undefined;
+    if (expr === undefined) throw new Error(`object "${def.name}": unexpected row-scope parameter`);
+    sql = sql.replace(new RegExp(`\\$${i}(?!\\d)`, 'g'), expr);
+  }
+  // a scope-less subject is not bounded by the scope column (mirrors buildRowScope)
+  return sql.replace(
+    new RegExp(`((?:\\w+\\.)?"[^"]+") = ${SCOPE_TOKEN}`, 'g'),
+    `(${SCOPE_GUC} IS NULL OR $1 = ${SCOPE_GUC})`,
+  );
+}
+
+function rolesOf(lookup: ObjectLookup, def: ObjectDefinition): string[] {
+  const parent = def.detailsParent === undefined ? undefined : lookup.get(def.detailsParent);
+  return [...new Set([...Object.keys(def.permissions ?? {}), ...Object.keys(parent?.permissions ?? {})])].sort();
+}
+
+function orJoin(clauses: string[]): string | undefined {
+  const unique = [...new Set(clauses)];
+  if (unique.length === 0) return undefined;
+  return unique.length === 1 ? unique[0]! : `(${unique.join(' OR ')})`;
+}
+
+/**
+ * Union over the roles of each role's scope predicate (`roleIn AND scope`).
+ * The app resolves multi-role subjects to the most permissive scope, so the
+ * union is never narrower than the application layer.
+ */
+function scopePredicate(
+  lookup: ObjectLookup,
+  def: ObjectDefinition,
+  pick: (p: ResolvedPermission) => Array<ReadScope | undefined>,
+): string | undefined {
+  // open mode (no permissions bind any role): no role gate
+  const open = resolvePermissionFor(lookup, def, ['\u0001probe']);
+  if (open !== undefined) {
+    return orJoin(pick(open).filter((s): s is ReadScope => s !== undefined).map((s) => scopeTemplate(lookup, def, s) ?? 'true'));
+  }
+  const clauses: string[] = [];
+  for (const role of rolesOf(lookup, def)) {
+    const p = resolvePermissionFor(lookup, def, [role]);
+    if (p === undefined) continue;
+    for (const scope of new Set(pick(p).filter((s): s is ReadScope => s !== undefined))) {
+      const template = scopeTemplate(lookup, def, scope);
+      clauses.push(template === undefined ? roleIn(role) : `(${roleIn(role)} AND (${template}))`);
+    }
+  }
+  return orJoin(clauses);
+}
+
+/**
+ * Object-path policies for one object. SELECT covers read ∪ manage (PostgreSQL
+ * also applies the SELECT policy to the rows an UPDATE/DELETE reads); UPDATE /
+ * DELETE use the manage scope. UPDATE's WITH CHECK only bounds the scope
+ * column (the application keeps it immutable). INSERT is not policed here: the
+ * engine inserts as the owner and stamps the scope column itself.
+ */
+export function buildObjectRlsPolicies(lookup: ObjectLookup, def: ObjectDefinition): ObjectRlsPolicy[] {
+  const policies: ObjectRlsPolicy[] = [];
+  const select = scopePredicate(lookup, def, (p) => [p.read, p.manage]);
+  if (select !== undefined) policies.push({ name: OBJECT_RLS_POLICIES.SELECT, command: 'SELECT', using: select });
+  const manage = scopePredicate(lookup, def, (p) => [p.manage]);
+  if (manage !== undefined) {
+    const field = scopeFieldName(def);
+    const check = field === undefined ? 'true' : `(${SCOPE_GUC} IS NULL OR ${q(field)} = ${SCOPE_GUC})`;
+    policies.push({ name: OBJECT_RLS_POLICIES.UPDATE, command: 'UPDATE', using: manage, check });
+    policies.push({ name: OBJECT_RLS_POLICIES.DELETE, command: 'DELETE', using: manage });
+  }
+  return policies;
 }
 
 /** the restricted-SQL role name shape (`weavekit_query`, …) */

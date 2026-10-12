@@ -180,6 +180,7 @@ export const zhHant: Record<MessageKey, string> = {
   'auth.invalidKey': 'API Key 無效',
   'auth.notConfigured': '未設定認證（auth）— 拒絕啟動',
   'engine.databaseUrl.missing': 'databaseUrl 必填（請設定 config.databaseUrl 或 DATABASE_URL 環境變數）',
+  'engine.rls.notProvisioned': '已啟用物件路徑 RLS（rls.enforce）但尚未就緒：{detail}——請在開啟 rls.enforce 的設定下執行 "weave migrate"（既有表需 "alter": true 且歸遷移帳號所有）',
   'engine.runtimeAccount.ddlAllowed': '執行階段資料庫帳號 "{user}" 可在目前 schema 建立物件——請將 databaseUrl 指向最小權限角色（無 DDL），並用 migrationDatabaseUrl 執行遷移（設 runtime.requireRestrictedAccount=false 可放行）',
   'git.notRepo': '「{dir}」不是 git 儲存庫',
   'git.command.failed': 'git {command} 失敗：{detail}',

@@ -4,6 +4,7 @@ import type { Locale } from '../../core/index.js';
 import { createSqlAnalyzer } from '../sql-analyzer/index.js';
 import type { SqlAnalyzer } from '../sql-analyzer/index.js';
 import type { QueryBudget } from './query-budget.js';
+import { setRlsSubject } from './rls-session.js';
 
 export interface RestrictedSqlSubject {
   id: string;
@@ -47,10 +48,6 @@ export interface RestrictedSqlResult {
 
 const MAX_ROWS_DEFAULT = 1000;
 const TIMEOUT_DEFAULT = 2000;
-
-function gucLiteral(value: string): string {
-  return `'${value.replace(/'/g, "''")}'`;
-}
 
 /** shared analyzer for callers that don't inject one (WASM is initialized once) */
 let sharedAnalyzer: SqlAnalyzer | undefined;
@@ -113,19 +110,7 @@ export async function executeRestrictedSql(
     if (options.rls !== undefined) {
       const { role, subject } = options.rls;
       await client.query(`SET LOCAL ROLE ${sqlIdent(role)}`);
-      await client.query(`SET LOCAL weavekit.actor_id = ${gucLiteral(subject.id)}`);
-      await client.query(`SET LOCAL weavekit.roles = ${gucLiteral(subject.roles.join(','))}`);
-      if (subject.departmentId !== undefined) {
-        await client.query(`SET LOCAL weavekit.department_id = ${gucLiteral(subject.departmentId)}`);
-      }
-      // row-scope key: set BOTH GUCs (generic `weavekit.scope_id` + the retained
-      // `weavekit.tenant_id` alias) from the resolved scope value, so policies
-      // generated for either marker name match.
-      const scopeValue = subject.scopeId ?? subject.tenantId;
-      if (scopeValue !== undefined) {
-        await client.query(`SET LOCAL weavekit.scope_id = ${gucLiteral(scopeValue)}`);
-        await client.query(`SET LOCAL weavekit.tenant_id = ${gucLiteral(scopeValue)}`);
-      }
+      await setRlsSubject(client, subject);
     }
     const result = await client.query(
       `SELECT * FROM (${trimmed}) AS __restricted__ LIMIT $${params.length + 1}`,

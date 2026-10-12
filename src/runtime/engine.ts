@@ -17,6 +17,10 @@ import {
   createPool,
   createSlidingWindow,
   parseTraceparent,
+  inspectSchema,
+  isSafeRlsRole,
+  planObjectRls,
+  OBJECT_RLS_ROLE_DEFAULT,
   type AuditMode,
   type AuditSink,
   type CounterStore,
@@ -312,10 +316,20 @@ export interface EngineConfig {
    */
   queryBudget?: Partial<QueryBudget>;
   /**
+   * Object-path row-level security (defense in depth; default off in 1.x).
+   * With `enforce`, the engine runs user-principal customer-table reads /
+   * updates / deletes under `role` (default `weavekit_object`), so PostgreSQL
+   * policies generated from the same permission matrix re-check the RBAC row
+   * scope. `weave migrate` provisions the role/policies; the engine refuses to
+   * start when they are missing. Inserts and system principals run as the owner.
+   */
+  rls?: { enforce?: boolean; role?: string };
+  /**
    * Execution evidence capture (optional; disabled when absent). When enabled,
-   * gated writes / tool calls record one `weavekit_evidence` row correlating the
-   * request with the execution stage timeline. Capture only — export/retention
-   * belong to the enterprise E2 layer.
+   * every data-access write / workflow transition / tool call records one
+   * `weavekit_evidence` row with its full stage timeline and real outcome
+   * (best-effort: a failed evidence write never blocks the execution). Capture
+   * only — export/retention belong to the enterprise E2 layer.
    */
   evidence?: { enabled?: boolean };
   /**
@@ -436,6 +450,40 @@ export function resolveRequireRestrictedAccount(config: EngineConfig): boolean {
   return true;
 }
 
+/** the object-path RLS role when `rls.enforce` is on, else undefined */
+export function resolveObjectRlsRole(config: Pick<EngineConfig, 'rls'>): string | undefined {
+  return config.rls?.enforce === true ? (config.rls.role ?? OBJECT_RLS_ROLE_DEFAULT) : undefined;
+}
+
+/**
+ * Fail-closed guard for `rls.enforce`: the role must exist and be grantable to
+ * the runtime account, and every object table must carry the current policies
+ * and privileges (i.e. `weave migrate` ran with enforcement on).
+ */
+export async function assertObjectRlsProvisioned(
+  pool: Pool,
+  registry: ObjectRegistry,
+  role: string,
+  locale: Locale,
+): Promise<void> {
+  if (!isSafeRlsRole(role)) throw new SchemaError('engine.rls.notProvisioned', { detail: `invalid role "${role}"` }, locale);
+  const { rows } = await pool.query<{ present: boolean; member: boolean }>(
+    `SELECT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = $1) AS present,
+            CASE WHEN EXISTS (SELECT 1 FROM pg_roles WHERE rolname = $1)
+                 THEN pg_has_role(current_user, $1, 'MEMBER') ELSE false END AS member`,
+    [role],
+  );
+  if (rows[0]?.member !== true) {
+    const detail = rows[0]?.present === true ? `role "${role}" is not granted to the runtime account` : `role "${role}" is missing`;
+    throw new SchemaError('engine.rls.notProvisioned', { detail }, locale);
+  }
+  const plan = planObjectRls(registry, await inspectSchema(pool), role);
+  if (plan.statements.length > 0) {
+    const tables = [...new Set(plan.statements.map((s) => /"([^"]+)"/.exec(s)?.[1]).filter((t): t is string => t !== undefined))];
+    throw new SchemaError('engine.rls.notProvisioned', { detail: `missing policies/privileges on ${tables.join(', ')}` }, locale);
+  }
+}
+
 /**
  * Fail-closed guard: refuse to start when the runtime account can create
  * objects in the current schema. WeaveKit runs DDL only via `weave migrate`
@@ -476,8 +524,10 @@ export async function buildEngineFromRegistry(
   }
 
   const pool = createPool(databaseUrl);
+  const objectRlsRole = resolveObjectRlsRole(config);
   try {
     await assertRestrictedRuntimeAccount(pool, config, locale);
+    if (objectRlsRole !== undefined) await assertObjectRlsProvisioned(pool, registry, objectRlsRole, locale);
   } catch (error) {
     await pool.end();
     throw error;
@@ -618,7 +668,7 @@ export async function buildEngineFromRegistry(
     const { createEvidenceSink } = await import('../subsystems/evidence/index.js');
     evidenceSink = createEvidenceSink(pool);
   }
-  const baseDataAccess = createDataAccess({ audit: auditSink, metrics, replay, events: eventPublisher, policies, approvals, workflowTimers, budget, evidence: evidenceSink, schemaRevision });
+  const baseDataAccess = createDataAccess({ audit: auditSink, metrics, replay, events: eventPublisher, policies, approvals, workflowTimers, budget, evidence: evidenceSink, schemaRevision, ...(objectRlsRole === undefined ? {} : { rls: { role: objectRlsRole } }) });
 
   let script: ScriptDispatcher | undefined;
   let dataAccess: ObjectDataAccess;
@@ -635,7 +685,7 @@ export async function buildEngineFromRegistry(
       budget,
       locale,
     });
-    dataAccess = withRbac(createDataAccess({ audit: auditSink, metrics, script, replay, events: eventPublisher, policies, approvals, workflowTimers, budget, evidence: evidenceSink, schemaRevision }), { audit: auditSink, metrics });
+    dataAccess = withRbac(createDataAccess({ audit: auditSink, metrics, script, replay, events: eventPublisher, policies, approvals, workflowTimers, budget, evidence: evidenceSink, schemaRevision, ...(objectRlsRole === undefined ? {} : { rls: { role: objectRlsRole } }) }), { audit: auditSink, metrics });
   } else {
     dataAccess = withRbac(baseDataAccess, { audit: auditSink, metrics });
   }

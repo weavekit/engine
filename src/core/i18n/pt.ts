@@ -180,6 +180,7 @@ export const pt: Record<MessageKey, string> = {
   'auth.invalidKey': 'chave de API inválida',
   'auth.notConfigured': 'auth não configurado — recusa-se a iniciar',
   'engine.databaseUrl.missing': 'databaseUrl é obrigatório (defina config.databaseUrl ou a variável de ambiente DATABASE_URL)',
+  'engine.rls.notProvisioned': 'a RLS do caminho de objetos (rls.enforce) está ativada mas não provisionada: {detail} — execute "weave migrate" com rls.enforce (tabelas existentes exigem "alter": true e propriedade da função de migração)',
   'engine.runtimeAccount.ddlAllowed': 'a conta de banco de dados em tempo de execução "{user}" pode criar objetos no schema atual — aponte databaseUrl para uma função de privilégio mínimo (sem DDL) e execute as migrações com migrationDatabaseUrl (defina runtime.requireRestrictedAccount=false para permitir)',
   'git.notRepo': '"{dir}" não é um repositório git',
   'git.command.failed': 'git {command} falhou: {detail}',

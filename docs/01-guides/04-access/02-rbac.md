@@ -110,12 +110,48 @@ a credential into an identity, the directory resolves it to the internal subject
 - `findOne()` / `update()` on another user's row → 404.
 - `sales_mgr` with `read: department` sees the whole `d-east` subtree; `manage` scopes writes the same way.
 
+## Database-enforced row scope (`rls.enforce`)
+
+By default the row scope is enforced by the application layer (the generated `WHERE` clauses); the
+engine's own queries run as the table owner, which PostgreSQL RLS does not restrict. Turn on
+**object-path RLS** to have PostgreSQL re-check the same matrix as a second line of defense:
+
+```ts
+// weavekit.config.ts
+export default { /* ... */ rls: { enforce: true /* , role: 'weavekit_object' */ } };
+```
+
+- `weave migrate` provisions the role (`weavekit_object` by default, granted to the migrating
+  account) and, per object table, `TO <role>` policies generated from the **same row-scope builder**
+  as the application layer: `SELECT` covers read ∪ manage, `UPDATE`/`DELETE` the manage scope,
+  `UPDATE … WITH CHECK` only the scope column. Department subtrees, external-id ownership, details
+  children (through the parent) and the `scope`/`tenant` boundary are all covered.
+- At runtime, user-principal reads/updates/deletes run under `SET LOCAL ROLE <role>` with the
+  subject in `weavekit.*` session GUCs. A missing application filter therefore cannot expose rows:
+  the database returns only what the policies allow. System principals and **inserts** still run as
+  the owner (the engine stamps the scope column itself).
+- **Fail-closed startup**: with `enforce` on, the engine refuses to start (`engine.rls.notProvisioned`)
+  until the role, policies and privileges exist; `weave doctor` reports the same as `object-rls`.
+- Existing (brownfield) tables are only touched when the object opts into `"alter": true` and the
+  migrating account owns the table — enabling RLS on a shared table also hides its rows from other
+  non-owner roles, so this stays explicit.
+- Default off in 1.x. Policies carry a definition digest (`COMMENT ON POLICY`), so editing the
+  permission matrix updates them on the next migrate.
+
 ## Script SQL (RLS)
 
 Inside `*.server.js`, `this.db.query` runs under a restricted PG role with row-level security derived
 from the same matrix. Its `own`/`department` predicates are **flat equality on internal ids** (they do
 not expand the department subtree or translate external ids) — use `this.db.objects` for those. Flat
 equality is strictly narrower, so RLS never over-exposes.
+
+## Workflow actions and row scope
+
+`submit` is an owner action: the record must be inside the caller's **manage** scope (otherwise
+`data.recordNotFound`). `approve` / `reject` / `forward` are authorized by the assigned workitem and
+`withdraw` / `cancel` by originator-or-workitem, so an approver outside the record's row scope can still
+act. Workflow status and history are visible inside the read scope or to participants (originator /
+any workitem holder).
 
 ## Details children inherit their parent
 
