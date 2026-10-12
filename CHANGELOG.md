@@ -5,6 +5,26 @@ the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-10-12
+
+Additive + internal (no `CONTRACT_VERSION` bump).
+
+### Added
+
+- **Optional stateless Streamable HTTP for MCP** (`adapters.mcp.stateless`, default off). Each request
+  is self-contained (no server-side session), so the engine scales horizontally **without sticky
+  routing**; the `X-Weavekit-On-Behalf-Of` header must accompany every request. The default stays
+  stateful (needs sticky routing). See the MCP overview.
+
+### Changed
+
+- **Internal maintainability refactor (no behavior change).** The object data-access pure helpers
+  moved to `runtime/data-access/query-helpers.ts` (`query.ts` 1293 → 1049 lines); the engine assembly
+  config types, start-up guards and HTTP route registration moved to `runtime/config-types.ts`,
+  `runtime/guards.ts` and `runtime/register-http-routes.ts` (`engine.ts` ~1130 → ~480 lines). The
+  public export surface is unchanged.
+- Removed residual duplicate `scopeId` keys/spreads left by the 2.0 `tenant`→`scope` rename.
+
 ## [2.0.0] - 2026-10-12
 
 **Breaking** — `CONTRACT_VERSION` 1 → 2.
