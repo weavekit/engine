@@ -3,67 +3,16 @@ import type { Locale } from "../../core/index.js";
 import type { ObjectRegistry } from "../../core/index.js";
 import type { AccessPrincipal, IdentitySubject } from "../../core/index.js";
 import { principalSubject, principalScopeId, principalTenantId } from "../../core/index.js";
-import type { FilterOp, SortDir, TotalMode } from "./values.js";
 import type { QueryBudget } from "./query-budget.js";
 import type { WorkflowStatus, WorkflowHistory, WorkflowTodo, WorkflowOverride } from "./workflow.js";
+import type { FindOptions, FindResult } from "@weave-kit/contract";
+
+// the neutral query contract lives in `@weave-kit/contract`; re-export it so
+// existing `runtime/data-access` importers keep working unchanged
+export type { Filter, FilterGroup, FilterValue, Sort, FindOptions, FindResult } from "@weave-kit/contract";
 
 /** pool or pooled client — anything that can run parameterized queries */
 export type Queryable = Pool | PoolClient;
-
-export type FilterValue = { [op in FilterOp]?: unknown };
-
-/** a single equality/operator object filter — conditions across fields are AND'd */
-export type FilterGroup = { [field: string]: unknown | FilterValue };
-
-/**
- * Filter contract (REST `filter` JSON):
- * - plain object form (AND across fields), e.g. `{ status: 'open', amount: { gte: 100 } }`
- * - OR across groups via the reserved top-level `$or` key:
- *   `{ $or: [ { status: 'open' }, { amount: { gte: 100 } } ] }` → `(status = 'open' OR amount >= 100)`
- * `$or` groups AND with any top-level field conditions and with the RBAC row scope.
- */
-export type Filter = FilterGroup & { $or?: FilterGroup[] };
-
-export interface Sort {
-  field: string;
-  dir: SortDir;
-}
-
-export interface FindOptions {
-  filter?: Filter;
-  sort?: Sort[];
-  /** rows per page; defaults to PAGINATION.DEFAULT_LIMIT, capped at PAGINATION.MAX_LIMIT */
-  limit?: number;
-  /** rows to skip; defaults to PAGINATION.DEFAULT_OFFSET */
-  offset?: number;
-  /** column projection whitelist */
-  fields?: string[];
-  /** columns always excluded from the projection (RBAC fields.exclude) */
-  exclude?: string[];
-  /**
-   * Opaque keyset cursor (see `cursor.ts`). When set on an object with a single
-   * primary key, the page is fetched with `pk > cursor` ordered by `pk` (a
-   * caller-provided `sort` is ignored); REST keeps using `offset`.
-   */
-  cursor?: string;
-  /**
-   * How `total` is computed (default: the instance/config default, itself
-   * `exact`). `exact` runs `COUNT(*)`; `estimate` reads `pg_class.reltuples`
-   * (table-level, ignores filter/scope — approximate); `none` skips counting
-   * and omits `total` from the result.
-   */
-  total?: TotalMode;
-}
-
-export interface FindResult<T = Record<string, unknown>> {
-  rows: T[];
-  /** row count for the query (exact or estimated); omitted when `total: 'none'` */
-  total?: number;
-  /** next-page keyset cursor (present only when a cursor was used and more remain) */
-  nextCursor?: string;
-  /** whether more rows exist beyond this page (offset or cursor mode) */
-  hasMore?: boolean;
-}
 
 /**
  * Execution context for data-access operations. `rowScope` is the RBAC
@@ -152,7 +101,7 @@ export interface ObjectDataAccess {
    * next step/workitems and update the side-table status mirror atomically. The
    * object must declare a workflow; unknown/disallowed actions throw
    * (`workflow.transition.unknown` / `workflow.transition.notAllowed`).
-   * `payload` carries action extras (`{ to: { userId } }` for `forward`,
+   * `payload` carries action extras (`{ to: { userId }` for `forward`,
    * `{ comment }`).
    */
   transition<T = Record<string, unknown>>(

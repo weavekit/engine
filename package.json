@@ -86,6 +86,7 @@
     "@fastify/cors": "^11.3.0",
     "@modelcontextprotocol/sdk": "^1.30.0",
     "@pgsql/traverse": "^18.7.7",
+    "@weave-kit/contract": "^1.0.0",
     "cli-table3": "^0.6.5",
     "commander": "^14.0.0",
     "esbuild": "^0.25.0",
