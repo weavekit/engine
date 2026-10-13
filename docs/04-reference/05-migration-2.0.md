@@ -32,6 +32,7 @@ The `tenant` alias is gone. Use `scope`:
 | `withDefaultTenant(auth, t)` | `withDefaultScope(auth, s)` |
 | `principalTenantId(p)` / `tenantOf(ctx)` | `principalScopeId(p)` / `scopeOf(ctx)` |
 | `subject.tenantId` / event `tenantId` | `subject.scopeId` / event `scopeId` |
+| `auth.oidc.tenantClaim` / `claims.tenantId` | `auth.oidc.scopeClaim` / `claims.scopeId` |
 | GUC `weavekit.tenant_id` | `weavekit.scope_id` |
 | audit column `weavekit_audit.tenant_id` (+ `_tenant_idx`) | `scope_id` (+ `weavekit_audit_scope_idx`) |
 | error code `object.tenant.immutable` | `object.scope.immutable` |

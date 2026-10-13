@@ -59,9 +59,10 @@ it. When set:
 
 - `weave migrate` creates the schema and qualifies every engine table into it; your object tables stay
   in the object schema.
-- the runtime appends the schema to `search_path` (`$user,public,<systemSchema>`), so its unqualified
-  engine-table references resolve to the dedicated schema while your tables still resolve to the object
-  schema first.
+- the runtime **appends** the schema to the connection's existing `search_path`, so its unqualified
+  engine-table references resolve to the dedicated schema while your tables keep resolving through the
+  object schema (a non-`public` object schema set on the connection — URL `options`, role default or
+  `PGOPTIONS` — is preserved).
 
 This applies to **new** databases. For an existing install, move the engine tables yourself
 (`ALTER TABLE <name> SET SCHEMA <systemSchema>`) — the engine does not migrate their location.

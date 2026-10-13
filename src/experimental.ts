@@ -11,3 +11,8 @@ export * from './runtime/metadata/index.js';
 export * from './runtime/tunnel/index.js';
 export * from './adapters/ops/index.js';
 export * from './infrastructure/index.js';
+export {
+  buildDeploymentReport,
+  type DeploymentReport,
+  type DeploymentReportInput,
+} from './cli/commands/doctor.js';

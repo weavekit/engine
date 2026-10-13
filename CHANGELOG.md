@@ -5,6 +5,33 @@ the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.1.1] - 2026-10-13
+
+Patch: `systemSchema` search-path handling, an experimental export, and doc corrections.
+
+### Added
+
+- **`buildDeploymentReport`** (and its `DeploymentReport` / `DeploymentReportInput` types) is now
+  exported from `@weave-kit/engine/experimental`, matching the `weave doctor --report` note.
+
+### Fixed
+
+- **`systemSchema` no longer clobbers the connection's `search_path`.** The runtime now **appends**
+  the system schema to the effective path per connection (pg-pool `onConnect`) instead of replacing
+  `options`. Previously a URL `options` silently dropped the system schema (engine tables then
+  unresolved) and, without one, the role's object schema was overwritten — so a non-`public` object
+  schema (e.g. `app`) could not be used together with `systemSchema`.
+- `weave doctor`'s missing-role hand-off SQL now quotes identifiers and adds
+  `GRANT <role> TO <current_user>` (required for `SET LOCAL ROLE`).
+
+### Docs
+
+- `schema-scope` / `rls` comments: the runtime resolves engine tables via `search_path`, and the
+  `rls.enforce` object-path exception is called out.
+- 2.0 migration guide + changelog record the `auth.oidc.tenantClaim` → `scopeClaim` /
+  `claims.tenantId` → `claims.scopeId` rename.
+- Contract-freeze: new externally-visible capabilities land in `./experimental` first.
+
 ## [2.1.0] - 2026-10-12
 
 Additive + internal (no `CONTRACT_VERSION` bump).
@@ -40,7 +67,9 @@ Additive + internal (no `CONTRACT_VERSION` bump).
   `withDefaultTenant`, `principalTenantId`, `tenantOf`, the `.tenantId` property on
   `IdentitySubject`/`AuditEvent`/`DataAccessContext`, and the `weavekit_audit.tenant_id` column/index
   (now `scope_id` / `weavekit_audit_scope_idx`). Use `scope` / `scopeId` / `EngineConfig.scope` /
-  `weavekit.scope_id`. The `object.tenant.immutable` error code is now `object.scope.immutable`.
+  `weavekit.scope_id`. The `object.tenant.immutable` error code is now `object.scope.immutable`. The
+  OIDC options `auth.oidc.tenantClaim` and the surfaced `claims.tenantId` are now
+  `auth.oidc.scopeClaim` / `claims.scopeId`.
 
 ### Removed
 

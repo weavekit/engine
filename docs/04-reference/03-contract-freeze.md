@@ -38,7 +38,9 @@ them fails the build until it is a deliberate, version-bumping change.
 - **Deprecation.** A surface to be removed is first marked deprecated and kept for **at least one
   minor release**; removal happens only at a **major** release and bumps `CONTRACT_VERSION`.
 - **Experimental.** Unstable surfaces live under the `@weave-kit/engine/experimental` subpath and are
-  **not** covered by the freeze; they may change in any release.
+  **not** covered by the freeze; they may change in any release. New externally-visible capabilities
+  land here first and graduate to the stable `.` surface (an additive minor) once their shape has
+  proven out.
 - **Formats self-migrate.** `schema.json` / `workflow.json` older versions are migrated on read
   (`weave schema:upgrade` / `weave workflow:upgrade` stamp the current version), so a format bump is
   additive in practice.

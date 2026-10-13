@@ -11,8 +11,10 @@ const q = (id: string) => `"${id}"`;
 
 /**
  * Row-level security policy generation for the script sandbox's restricted SQL
- * (`this.db.query`). The engine's own data access runs as the table owner, which
- * bypasses RLS (no `FORCE`), so row scoping stays in the application layer there.
+ * (`this.db.query`). The engine's own data access normally runs as the table
+ * owner, which bypasses RLS (no `FORCE`), so row scoping stays in the application
+ * layer there — **except** under `EngineConfig.rls.enforce`, where the engine's
+ * customer-table access runs under the object role (see object-path RLS below).
  * `db.query` switches to a dedicated non-owner role (`SET LOCAL ROLE`) that IS
  * subject to RLS, and the subject is carried in session GUCs:
  *

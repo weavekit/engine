@@ -10,6 +10,7 @@ import {
   diffAll,
   inspectSchema,
   planObjectRls,
+  sqlIdent,
   type ActualTable,
 } from '../../core/index.js';
 import { loadSchemaDir } from '../../runtime/git/index.js';
@@ -299,9 +300,12 @@ export async function runDoctor(cwd: string): Promise<DoctorReport> {
       if (missing.length === 0) {
         add('role-createrole', DOCTOR_STATUSES.PASS, `RLS role(s) present: ${roles.join(', ')}`);
       } else {
-        const priv = await pool.query('SELECT rolsuper OR rolcreaterole AS can_create FROM pg_roles WHERE rolname = current_user');
-        const canCreate = (priv.rows[0] as { can_create: boolean } | undefined)?.can_create === true;
-        const sql = missing.map((role) => `CREATE ROLE ${role};`).join(' ');
+        const priv = await pool.query('SELECT rolsuper OR rolcreaterole AS can_create, current_user::text AS me FROM pg_roles WHERE rolname = current_user');
+        const row = priv.rows[0] as { can_create: boolean; me: string } | undefined;
+        const canCreate = row?.can_create === true;
+        // a DBA-created role still needs membership for `SET LOCAL ROLE`, so the hand-off SQL grants it
+        const me = row?.me ?? 'current_user';
+        const sql = missing.map((role) => `CREATE ROLE ${sqlIdent(role)}; GRANT ${sqlIdent(role)} TO ${sqlIdent(me)};`).join(' ');
         if (canCreate) {
           add(
             'role-createrole',

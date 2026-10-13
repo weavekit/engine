@@ -7,10 +7,13 @@
  * tables. `EngineConfig.systemSchema` moves them into a dedicated schema so a
  * DBA reviewing the customer schema does not see engine plumbing.
  *
- * The mechanism is **explicit qualification** (not `search_path`): every emitted
- * identifier for an engine table is qualified with the configured schema, and
- * identifiers left unqualified (customer + identity object tables) resolve to
- * the object schema. `undefined` reproduces the legacy behaviour exactly.
+ * Migration DDL and the metadata cache use **explicit qualification**: every
+ * emitted identifier for an engine table is qualified with the configured
+ * schema. The runtime data-access path instead references engine tables
+ * unqualified and resolves them via `search_path` — `searchPathOptions` appends
+ * the system schema to the effective path (see `pool.ts`). Identifiers left
+ * unqualified (customer + identity object tables) resolve to the object schema.
+ * `undefined` reproduces the legacy behaviour exactly.
  */
 
 /** a validated lowercase PostgreSQL identifier */
