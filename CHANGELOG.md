@@ -5,6 +5,8 @@ the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-10-13
+
 ### Added
 
 - **`weave expose`** — `weave connect` plus a **metadata-only** health/version heartbeat
