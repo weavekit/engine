@@ -26,6 +26,7 @@ export const WEAVE_COMMANDS = {
   WORKFLOW_SWITCH: 'workflow:switch',
   WORKFLOW_UPGRADE: 'workflow:upgrade',
   CONNECT: 'connect',
+  EXPOSE: 'expose',
   INTROSPECT: 'introspect',
   MCP_CONFIG: 'mcp:config',
   SCHEMA_MAP: 'schema:map',

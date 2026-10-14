@@ -20,6 +20,7 @@ accepts `--json` for machine-readable output.
 | `weave introspect` | Reverse-model an existing Postgres DB into `objects/*/schema.json` |
 | `weave mcp:config` | Print ready-to-paste config connecting an MCP host |
 | `weave connect` | Dial a self-hosted engine out to a governance tunnel endpoint |
+| `weave expose` | `weave connect` + a metadata-only health/version heartbeat |
 | `weave schema:map [object]` | Report the schema field ↔ PostgreSQL column mapping |
 | `weave schema:upgrade [--dry-run]` | Upgrade `objects/*/schema.json` to the current format version |
 | `weave openapi [--out <file>] [--generic] [--server <url>]` | Emit an OpenAPI 3.1 document for the REST API |
@@ -205,6 +206,15 @@ requests over it (a proxy target with `transport: "tunnel"`); responses, includi
 events, stream back. This is the customer-side half of the tunnel transport — the primitives
 (`connectTunnel`, `createTunnelServer`) are exported from the stable API
 (see [public API](../../04-reference/01-api/02-public-api.md)).
+
+## `weave expose --endpoint <url> --tunnel <id> --token <token> --engine <url> --api-key <key> [--heartbeat <url>] [--interval <sec>] [--insecure]`
+
+`weave connect` plus a **metadata-only** health heartbeat. It dials the same reverse tunnel, then
+periodically `POST`s `{ install_id, version, hostname, status }` to `{heartbeat}/console/heartbeat`
+(authenticated by `tunnel_id` + `pairing_token`), so the governance Console reflects the instance as
+online and can show its engine version. **No schema or business data is sent.** Omit `--heartbeat`
+for a plain tunnel. Register the connection first (Console → *Connect engine*), which yields the
+`--tunnel`/`--token`/`--endpoint` values.
 
 ## `weave schema:map [object] [--drift]`
 

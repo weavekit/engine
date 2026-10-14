@@ -5,6 +5,7 @@ import { version } from '../index.js';
 import { loadEnvFile } from './env.js';
 import { build } from './commands/build.js';
 import { connect } from './commands/connect.js';
+import { expose } from './commands/expose.js';
 import { deployApply, deployPlan } from './commands/deploy.js';
 import { doctor } from './commands/doctor.js';
 import { dev } from './commands/dev.js';
@@ -390,6 +391,32 @@ program
         token: opts.token,
         engine: opts.engine,
         apiKey: opts.apiKey,
+        insecure: opts.insecure,
+      }),
+    );
+  });
+
+program
+  .command(WEAVE_COMMANDS.EXPOSE)
+  .description('expose a local engine through a governance reverse tunnel and report health/version')
+  .requiredOption('--endpoint <url>', 'governance tunnel endpoint (http/https)')
+  .requiredOption('--tunnel <id>', 'connections.tunnel_id')
+  .requiredOption('--token <token>', 'connections.pairing_token')
+  .requiredOption('--engine <url>', 'local customer engine base url')
+  .requiredOption('--api-key <key>', 'customer engine api key')
+  .option('--heartbeat <url>', 'console base url for the metadata heartbeat')
+  .option('--interval <sec>', 'heartbeat interval seconds (default 60)')
+  .option('--insecure', 'skip TLS certificate verification (dev/self-hosted)')
+  .action(async (opts: { endpoint: string; tunnel: string; token: string; engine: string; apiKey?: string; heartbeat?: string; interval?: string; insecure?: boolean }) => {
+    await runAction(() =>
+      expose(process.cwd(), {
+        endpoint: opts.endpoint,
+        tunnel: opts.tunnel,
+        token: opts.token,
+        engine: opts.engine,
+        apiKey: opts.apiKey,
+        heartbeat: opts.heartbeat,
+        interval: opts.interval === undefined ? undefined : Number(opts.interval),
         insecure: opts.insecure,
       }),
     );

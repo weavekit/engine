@@ -5,6 +5,12 @@ the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **`weave expose`** — `weave connect` plus a **metadata-only** health/version heartbeat
+  (`POST {heartbeat}/console/heartbeat` with `install_id`/`version`/`hostname`/status); authenticates
+  by the connection's `tunnel_id` + `pairing_token`. No schema or business data is sent.
+
 ## [2.1.1] - 2026-10-13
 
 Patch: `systemSchema` search-path handling, an experimental export, and doc corrections.

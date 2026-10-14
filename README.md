@@ -171,6 +171,7 @@ await engine.app.listen({ port: 3000 });
 | `weave graphql:schema [--out]` | Emit the GraphQL SDL for this project |
 | `weave mcp:config [--host]` | Print MCP client config for this project's `/mcp` endpoint |
 | `weave connect` | Connect a self-hosted engine out to a governance tunnel endpoint |
+| `weave expose` | `weave connect` + a metadata-only health/version heartbeat |
 | `weave object:create <name>` | Scaffold `objects/<name>/schema.json` + `server.js` hooks |
 | `weave field:add <object>` | Add a validated field to a schema |
 | `weave field-type:list` | List built-in + registered field types |
