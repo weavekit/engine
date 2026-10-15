@@ -57,7 +57,7 @@ export interface ProxyTarget {
   id: string;
   /** customer-engine base URL (used for `direct`; opaque for `tunnel`/`cloud`). */
   url: string;
-  /** how the target is reached: `direct` (url) | `tunnel` (HTTP/2 connector) | `cloud` (in-cloud app instance). Forwarder uses `url` today; transport-aware routing is not implemented yet. */
+  /** how the target is reached: `direct` (url) | `tunnel` (HTTP/2 connector) | `cloud` (managed engine run by WeaveKit). The base forwarder uses `url`; tunnel routing is composed by the app (see `runtime/tunnel`). */
   transport?: string;
   /** read/admin key (the application layer reads it from the connection). */
   apiKey: string;
