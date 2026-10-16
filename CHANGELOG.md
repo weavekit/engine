@@ -5,6 +5,16 @@ the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.4.0] - 2026-10-17
+
+### Added
+
+- **`subsystems.audit.wrap?: (inner: AuditSink) => AuditSink`** — wrap the mode-built inner audit
+  sink (tee) so a host can mirror every persisted event to an export target (enterprise E2) without
+  replacing the engine's persistence. Applied before the events dual-emit wrapper; a wrapper must
+  preserve `recordInTx` to keep `transactional`/`durable` durability. The `sink` field (full
+  replacement) is unchanged.
+
 ## [2.3.0] - 2026-10-17
 
 ### Added

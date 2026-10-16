@@ -92,6 +92,13 @@ export interface EngineAuditConfig {
    * (`assertAuditSinkCapability`) and the events dual-emit wrapper still apply.
    */
   sink?: AuditSink;
+  /**
+   * Wrap the mode-built inner sink (tee) — e.g. enterprise E2 mirroring every
+   * event to an export target while the engine still persists it. Applied before
+   * the events dual-emit wrapper; the wrapper must preserve `recordInTx` to keep
+   * `transactional`/`durable` durability.
+   */
+  wrap?: (inner: AuditSink) => AuditSink;
 }
 
 /**

@@ -43,6 +43,7 @@ Every seam above is injected through config — the engine never imports enterpr
 | approvals | `tools.approvals.backend` | `'pg'` \| `'memory'` \| **`ApprovalsBackend`** (E3) |
 | workflow timers | `subsystems.workflow.backend` | `WorkflowBackend` (→ `WorkflowTimerStore`) |
 | **audit sink** | `subsystems.audit.sink` | `AuditSink` (E2 — replace the mode-built inner sink) |
+| **audit tee** | `subsystems.audit.wrap` | `(inner: AuditSink) => AuditSink` (E2 — mirror events while persisting) |
 | **counters** | `quotas.store` | `CounterStore` (E3/E6) |
 | **evidence** | `evidence.sink` | `EvidenceSink` (E2) |
 | proxy targets | `proxy.resolver` / `proxy.forwarder` | `ProxyTargetResolver` / `ProxyForwarder` |

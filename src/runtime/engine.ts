@@ -147,6 +147,10 @@ export async function buildEngineFromRegistry(
       bufferedSink = auditMod.createBufferedAuditSink(audit, subsystems.audit.batch);
       auditSink = bufferedSink;
     }
+    // wrap the resolved inner sink (tee: e.g. enterprise E2 export) before the
+    // events dual-emit so exports see every persisted event.
+    const wrapSink = subsystems.audit.wrap;
+    if (wrapSink !== undefined) auditSink = wrapSink(auditSink);
     if (eventPublisher !== undefined && mode !== AUDIT_MODES.DURABLE) {
       // dual-emit to live subscribers (durable publishes from the relay instead)
       const inner = auditSink;

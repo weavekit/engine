@@ -140,3 +140,86 @@ maybe('Enterprise seams E2E: injected audit/approvals/quota/evidence are used', 
     expect(approvalsCalls).toContain('list');
   });
 });
+
+const WRAP_ITEM: ObjectDefinition = {
+  name: 'ent_wrap_item',
+  fields: [
+    { name: 'id', type: 'string', primary: true },
+    { name: 'title', type: 'string' },
+  ],
+  permissions: { editor: { read: 'all', create: true, update: true, delete: true } },
+};
+
+maybe('Enterprise seams E2E: audit.wrap tees the built-in sink while persisting', () => {
+  let pool: Pool;
+  let engine: WeaveKitEngine;
+  const wrapped: string[] = [];
+
+  before(async () => {
+    pool = createPool(url!);
+    await pool.query(`DROP TABLE IF EXISTS ent_wrap_item, weavekit_record__ent_wrap_item CASCADE`);
+    const registry = new ObjectRegistry();
+    registry.register(WRAP_ITEM);
+    registry.buildGraph();
+    await migrate(registry, { databaseUrl: url! });
+    await pool.query(`DELETE FROM weavekit_audit WHERE object = 'ent_wrap_item'`);
+    await pool.query(`DELETE FROM weavekit_user WHERE id::text = $1`, [editor.id]);
+    await pool.query(`INSERT INTO weavekit_user (id, roles, enabled) VALUES ($1, $2::jsonb, true)`, [
+      editor.id,
+      JSON.stringify(editor.roles),
+    ]);
+    engine = await buildEngineFromRegistry(registry, {
+      databaseUrl: url!,
+      auth: { source: { 'key-editor': editor } },
+      subsystems: {
+        audit: {
+          enabled: true,
+          mode: AUDIT_MODES.TRANSACTIONAL,
+          wrap: (inner: AuditSink): AuditSink => ({
+            async record(event) {
+              wrapped.push(event.action);
+              await inner.record(event);
+            },
+            async recordBatch(events) {
+              for (const e of events) wrapped.push(e.action);
+              if (inner.recordBatch !== undefined) await inner.recordBatch(events);
+              else await Promise.all(events.map((e) => inner.record(e)));
+            },
+            ...(inner.recordInTx === undefined
+              ? {}
+              : {
+                  async recordInTx(event, client) {
+                    wrapped.push(event.action);
+                    await inner.recordInTx!(event, client);
+                  },
+                }),
+          }),
+        },
+      },
+    });
+  });
+
+  after(async () => {
+    await engine?.close();
+    await pool?.end();
+  });
+
+  const dctx = {
+    get pool() {
+      return engine.pool;
+    },
+    get registry() {
+      return engine.registry;
+    },
+    principal: { kind: 'user' as const, subject: editor },
+  };
+
+  it('tees events to the wrapper while the engine still persists them', async () => {
+    await engine.dataAccess.create('ent_wrap_item', { id: 'W1' }, dctx);
+    expect(wrapped).toContain('create');
+    const { rows } = await pool.query(
+      `SELECT count(*)::int AS n FROM weavekit_audit WHERE object = 'ent_wrap_item'`,
+    );
+    expect((rows[0] as { n: number }).n > 0).toBe(true);
+  });
+});
