@@ -5,6 +5,20 @@ the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-10-17
+
+### Added
+
+- **Enterprise seam injection points (E2/E3).** The seams were already stable; four are now
+  **instance-injectable** via `EngineConfig` so the closed-source enterprise layer can plug in
+  without forking `core`. All additive — `CONTRACT_VERSION` stays `2`.
+  - `subsystems.audit.sink?: AuditSink` — replace the mode-built inner sink (audit export /
+    retention); the durability guard (`assertAuditSinkCapability`) and events dual-emit still apply.
+  - `tools.approvals.backend` now also accepts an `ApprovalsBackend` **instance** (Redis / HA),
+    not just `'pg' | 'memory'`.
+  - `quotas.store?: CounterStore` — inject a counter store (Redis / metered counters).
+  - `evidence.sink?: EvidenceSink` — inject an evidence sink (evidence export / compliance).
+
 ## [2.2.0] - 2026-10-13
 
 ### Added

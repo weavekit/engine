@@ -30,6 +30,28 @@ plug in without depending on engine internals.
 | `ProxyTargetResolver` | `core/proxy/types.ts` | app-supplied resolver | target governance / Cloud control plane |
 | `MetricsSink` / `TraceSink` | `core/observability/index.ts` | no-op | telemetry backend / Cloud metering (**E6**) |
 
+### Injection points (`EngineConfig`)
+
+Every seam above is injected through config — the engine never imports enterprise:
+
+| Capability | Config field | Accepts |
+| --- | --- | --- |
+| entitlement / features | `capabilities.provider` | `CapabilitiesProvider` |
+| credential verification | `identity.verifier` / `auth.source` / `auth.oidc` | `AuthVerifier` / `AuthSource` / `OidcConfig` |
+| identity provisioning | `identity.source` / `identity.store` | `IdentitySource` / `IdentityStore` |
+| guardrails | `tools.guardrails.policies` | `GuardrailPolicy[]` or a directory path |
+| approvals | `tools.approvals.backend` | `'pg'` \| `'memory'` \| **`ApprovalsBackend`** (E3) |
+| workflow timers | `subsystems.workflow.backend` | `WorkflowBackend` (→ `WorkflowTimerStore`) |
+| **audit sink** | `subsystems.audit.sink` | `AuditSink` (E2 — replace the mode-built inner sink) |
+| **counters** | `quotas.store` | `CounterStore` (E3/E6) |
+| **evidence** | `evidence.sink` | `EvidenceSink` (E2) |
+| proxy targets | `proxy.resolver` / `proxy.forwarder` | `ProxyTargetResolver` / `ProxyForwarder` |
+| observability | `observability.metrics` / `observability.trace` | `MetricsSink` / `TraceSink` |
+| background work | `services` | `EngineService[]` |
+
+Injected `audit.sink` / `approvals.backend` / `quotas.store` / `evidence.sink` **replace** the
+built-in PG implementations (additive, optional); the default path is unchanged when absent.
+
 Every seam except the observability sinks is marked `@enterprise-reserved` in
 source — with one MIT carry-over: the engine ships a **built-in OIDC/JWT
 verifier** (`auth.oidc`), and the `AuthVerifier` seam stays open for SAML and

@@ -6,11 +6,14 @@
 import type { FastifyInstance } from 'fastify';
 import type { Pool } from 'pg';
 import type {
+  ApprovalsBackend,
   AuditMode,
+  AuditSink,
   CounterStore,
   EngineScriptConfig,
   EngineWorkflowConfig,
   EventPublisher,
+  EvidenceSink,
   FieldTypeRegistration,
   GuardrailPolicy,
   Locale,
@@ -83,6 +86,12 @@ export interface EngineAuditConfig {
   replay?: boolean;
   /** L1 buffered-sink parameters */
   batch?: { batchSize?: number; flushMs?: number };
+  /**
+   * Replace the built-in audit sink (enterprise E2: export/retention/WORM). The
+   * provided sink replaces the mode-built inner sink; the durability guard
+   * (`assertAuditSinkCapability`) and the events dual-emit wrapper still apply.
+   */
+  sink?: AuditSink;
 }
 
 /**
@@ -102,7 +111,7 @@ export interface EngineToolsConfig {
    * in-memory queue (tests). No Redis backend is implemented.
    */
   approvals?: {
-    backend?: 'pg' | 'memory';
+    backend?: 'pg' | 'memory' | ApprovalsBackend;
   };
 }
 
@@ -264,7 +273,7 @@ export interface EngineConfig {
    * `engine.quotas`; the host consumes it around its own integration calls via
    * `core/limiter` `consumeQuota` / `assertQuota`.
    */
-  quotas?: { backend?: 'pg' };
+  quotas?: { backend?: 'pg'; store?: CounterStore };
   /**
    * Agent-native query budget: caps rows/filters/sorts (data-access), joins /
    * SQL length / statement timeout (restricted SQL) and GraphQL depth. Absent =
@@ -304,7 +313,7 @@ export interface EngineConfig {
    * (best-effort: a failed evidence write never blocks the execution). Capture
    * only — export/retention belong to the enterprise E2 layer.
    */
-  evidence?: { enabled?: boolean };
+  evidence?: { enabled?: boolean; sink?: EvidenceSink };
   /**
    * Row-scope / multi-tenancy (row mode). When enabled, a subject without a
    * scope is stamped with `defaultScope`, and objects declaring a `scope` field

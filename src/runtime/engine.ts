@@ -89,7 +89,10 @@ export async function buildEngineFromRegistry(
 
   // optional durable counter store (quotas/budgets); absent = zero overhead
   let quotas: CounterStore | undefined;
-  if (config.quotas !== undefined) {
+  if (config.quotas?.store !== undefined) {
+    // host-injected store (enterprise E3/E6: Redis / metered counters)
+    quotas = config.quotas.store;
+  } else if (config.quotas !== undefined) {
     const { createPgCounterStore } = await import('../subsystems/quota/index.js');
     quotas = await createPgCounterStore(pool);
   }
@@ -127,7 +130,12 @@ export async function buildEngineFromRegistry(
     const mode = subsystems.audit.mode ?? AUDIT_MODES.BEST_EFFORT;
     const auditMod = await import('../subsystems/audit/index.js');
     audit = await auditMod.createAudit(pool);
-    if (mode === AUDIT_MODES.TRANSACTIONAL) {
+    // a host-injected sink replaces the mode-built inner sink (enterprise E2:
+    // export/retention/WORM); the durability guard + events wrapper still apply.
+    const injectedAuditSink = subsystems.audit.sink;
+    if (injectedAuditSink !== undefined) {
+      auditSink = injectedAuditSink;
+    } else if (mode === AUDIT_MODES.TRANSACTIONAL) {
       auditSink = auditMod.createTransactionalAuditSink(audit);
     } else if (mode === AUDIT_MODES.DURABLE) {
       auditSink = auditMod.createOutboxAuditSink(pool);
@@ -176,10 +184,14 @@ export async function buildEngineFromRegistry(
       policies.length > 0;
     if (needsApprovals) {
       // persisted approvals by default (PG — the engine's mandated DB); opt out
-      // with `approvals.backend: 'memory'`. The approval queue must be durable /
+      // with `approvals.backend: 'memory'`, or inject an external backend
+      // instance (enterprise E3: Redis / HA). The approval queue must be durable /
       // multi-instance consistent, so it is never left single-process in-memory
       // for a release engine.
-      if (config.tools.approvals?.backend !== 'memory') {
+      const approvalsBackend = config.tools.approvals?.backend;
+      if (approvalsBackend !== undefined && typeof approvalsBackend === 'object') {
+        approvals = createApprovals({ audit: auditSink, backend: approvalsBackend });
+      } else if (approvalsBackend !== 'memory') {
         const { createApprovalsBackend } = await import('../subsystems/approvals/index.js');
         const backend = await createApprovalsBackend(pool);
         approvals = createApprovals({ audit: auditSink, backend });
@@ -219,7 +231,10 @@ export async function buildEngineFromRegistry(
     )
     .digest('hex');
   let evidenceSink: EvidenceSink | undefined;
-  if (config.evidence?.enabled === true) {
+  if (config.evidence?.sink !== undefined) {
+    // host-injected sink (enterprise E2: evidence export / compliance reports)
+    evidenceSink = config.evidence.sink;
+  } else if (config.evidence?.enabled === true) {
     const { createEvidenceSink } = await import('../subsystems/evidence/index.js');
     evidenceSink = createEvidenceSink(pool);
   }
