@@ -14,10 +14,22 @@ import type { ProxyTarget, ProxyRequest, ProxyResponse } from '../../core/proxy/
  */
 
 export interface ProxyForwarder {
-  /** buffered forward → `{status, body}` (reads a bounded body; JSON for json responses). */
+  /** buffered forward �� `{status, body}` (reads a bounded body; JSON for json responses). */
   forward(target: ProxyTarget, req: ProxyRequest): Promise<ProxyResponse>;
-  /** streaming forward → the raw upstream `Response` (for SSE): caller pipes the body and calls `abort()` on teardown. */
-  forwardStream(target: ProxyTarget, req: ProxyRequest): Promise<ProxyStream>;
+  /**
+   * streaming forward �� the raw upstream `Response`. Caller pipes the body and
+   * calls `abort()` on teardown. `timeoutMs` only bounds the response headers
+   * (downloads/SSE bodies are long-lived); omit it for SSE.
+   */
+  forwardStream(
+    target: ProxyTarget,
+    req: ProxyRequest,
+    options?: { timeoutMs?: number },
+  ): Promise<ProxyStream>;
+  /** configured header timeout (used by the generic proxy route). */
+  readonly timeoutMs?: number;
+  /** configured buffered-body cap. */
+  readonly maxBodyBytes?: number;
 }
 
 /** a streaming forward handle: the upstream response + how to cancel it. */
@@ -113,6 +125,8 @@ export function createProxyForwarder(opts: ProxyForwarderOptions = {}): ProxyFor
   }
 
   return {
+    timeoutMs,
+    maxBodyBytes,
     async forward(target, req): Promise<ProxyResponse> {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -142,19 +156,25 @@ export function createProxyForwarder(opts: ProxyForwarderOptions = {}): ProxyFor
       return { status: resp.status, body: parsed };
     },
 
-    async forwardStream(target, req): Promise<ProxyStream> {
-      // long-lived SSE: no timeout (heartbeats keep it alive); teardown is via abort()
+    async forwardStream(target, req, options = {}): Promise<ProxyStream> {
+      // SSE omits the timeout; downloads pass one for the response headers only.
       const controller = new AbortController();
+      const timer =
+        options.timeoutMs === undefined
+          ? undefined
+          : setTimeout(() => controller.abort(), options.timeoutMs);
       let resp: Response;
       try {
         resp = await open(target, req, controller);
       } catch (error) {
+        if (timer !== undefined) clearTimeout(timer);
         if (error instanceof SchemaError) throw error; // e.g. proxy.denied from path validation
         if (controller.signal.aborted) {
-          throw new SchemaError('proxy.timeout', { instance: req.instance, timeout: timeoutMs }, locale);
+          throw new SchemaError('proxy.timeout', { instance: req.instance, timeout: options.timeoutMs ?? timeoutMs }, locale);
         }
         throw new SchemaError('proxy.unreachable', { instance: req.instance, target: target.id }, locale);
       }
+      if (timer !== undefined) clearTimeout(timer);
       if (resp.body === null) {
         throw new SchemaError('proxy.unreachable', { instance: req.instance, target: target.id }, locale);
       }

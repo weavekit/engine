@@ -62,6 +62,36 @@ function passthroughHeaders(request: FastifyRequest): Record<string, string> | u
   return v === undefined ? undefined : { 'last-event-id': v };
 }
 
+/** preserve the upstream download headers and pipe the body (no buffering). */
+async function streamDownload(reply: FastifyReply, stream: ProxyStream): Promise<void> {
+  reply.hijack();
+  const raw = reply.raw;
+  const headers: Record<string, string> = {};
+  stream.response.headers.forEach((value, key) => {
+    if (key !== 'connection' && key !== 'keep-alive' && key !== 'transfer-encoding') headers[key] = value;
+  });
+  headers['x-accel-buffering'] = 'no';
+  raw.writeHead(stream.response.status, headers);
+  raw.flushHeaders?.();
+  raw.setTimeout(0);
+  const body = Readable.fromWeb(stream.response.body as unknown as ReadableStream<Uint8Array>);
+  const abort = (): void => stream.abort();
+  raw.on('close', abort);
+  body.on('error', abort);
+  try {
+    await pipeline(body, raw);
+  } catch {
+    abort();
+  }
+}
+
+function isDownload(contentType: string, disposition: string | null): boolean {
+  if (disposition !== null) return true;
+  return /^(text\/csv|application\/x-ndjson|application\/octet-stream|application\/zip|application\/pdf)\b/i.test(
+    contentType,
+  );
+}
+
 /** hijack the reply and pipe the upstream SSE body through to the client. */
 async function streamSse(reply: FastifyReply, stream: ProxyStream): Promise<void> {
   reply.hijack();
@@ -183,13 +213,44 @@ export function registerProxyRoutes(
     }
     const sse = wantsSse(request);
     const req = proxyRequest(request, 'GET', instance, path);
-    if (sse && deps.forwarder.forwardStream !== undefined) {
+    if (sse) {
       const stream = await deps.forwarder.forwardStream(target, req);
       await streamSse(reply, stream);
       return;
     }
-    const res = await deps.forwarder.forward(target, req);
-    reply.status(res.status).send(res.body);
+
+    // Open the response before deciding: downloads (content-disposition / CSV /
+    // NDJSON / octet-stream) must be piped, not buffered. Normal JSON replies keep
+    // the bounded-body behavior and the configured header timeout.
+    const stream = await deps.forwarder.forwardStream(target, req, {
+      timeoutMs: deps.forwarder.timeoutMs ?? 10_000,
+    });
+    const response = stream.response;
+    const contentType = response.headers.get('content-type') ?? '';
+    if (isDownload(contentType, response.headers.get('content-disposition'))) {
+      await streamDownload(reply, stream);
+      return;
+    }
+
+    const max = deps.forwarder.maxBodyBytes ?? 1_048_576;
+    const contentLength = Number(response.headers.get('content-length') ?? '0');
+    if (contentLength > max) {
+      stream.abort();
+      throw new SchemaError('proxy.responseTooLarge', { instance, target: target.id, max }, locale);
+    }
+    const text = await response.text();
+    if (Buffer.byteLength(text) > max) {
+      throw new SchemaError('proxy.responseTooLarge', { instance, target: target.id, max }, locale);
+    }
+    let parsed: unknown = text;
+    if (contentType.includes('json')) {
+      try {
+        parsed = text ? JSON.parse(text) : undefined;
+      } catch {
+        parsed = text;
+      }
+    }
+    reply.status(response.status).header('content-type', contentType).send(parsed);
   });
   app.post(proxyPath, async (request, reply) => {
     await forwardWrite(request, reply, 'POST');

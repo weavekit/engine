@@ -61,6 +61,8 @@ export function createTunnelForwarder(options: TunnelForwarderOptions): ProxyFor
   const loc = locale ?? 'en';
 
   return {
+    timeoutMs: base.timeoutMs,
+    maxBodyBytes: base.maxBodyBytes,
     async forward(target: ProxyTarget, req: ProxyRequest): Promise<ProxyResponse> {
       if (target.transport !== 'tunnel') return base.forward(target, req);
       const res = await registry.request(target.id, toRequestFrame(req));
@@ -70,8 +72,12 @@ export function createTunnelForwarder(options: TunnelForwarderOptions): ProxyFor
       return { status: res.status, body: parseBody(res) };
     },
 
-    async forwardStream(target: ProxyTarget, req: ProxyRequest): Promise<ProxyStream> {
-      if (target.transport !== 'tunnel') return base.forwardStream(target, req);
+    async forwardStream(
+      target: ProxyTarget,
+      req: ProxyRequest,
+      options?: { timeoutMs?: number },
+    ): Promise<ProxyStream> {
+      if (target.transport !== 'tunnel') return base.forwardStream(target, req, options);
       const { response, abort } = await registry.openStream(target.id, toRequestFrame(req));
       return { response, abort };
     },
