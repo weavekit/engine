@@ -65,12 +65,20 @@ A `ProxyTarget` is:
 
 The runtime forwarder issues the outbound call and re-validates the path as defense in depth (only
 `[A-Za-z0-9_/.-]`). The target's `apiKey` is set as the upstream `Authorization: Bearer` and is never
-replayed to the browser. A buffered forward has a **10s timeout** and a **1 MiB response cap**.
+replayed to the browser. A buffered forward has a **10s header timeout** and a **1 MiB response cap**.
 
-Streaming is supported: when the request asks for `text/event-stream`, the upstream body is piped
-through (no timeout) and the client's `last-event-id` is passed upstream so the target can replay.
-With a `tunnel` transport the request is multiplexed over the live connector session instead of a
-`fetch` — see [Tunnel transport](05-tunnel.md).
+Streaming is supported in two cases:
+
+- **SSE** (`Accept: text/event-stream`): the body is piped without a timeout; the client's
+  `last-event-id` is passed upstream so the target can replay.
+- **Downloads** (`content-disposition`, `text/csv`, `application/x-ndjson`,
+  `application/octet-stream`, zip/pdf): status and headers are preserved (`content-type`,
+  `content-disposition`, export ids), the body is piped with no buffered-body cap, and
+  `x-accel-buffering: no` is set. Use this for audit exports or generated files through the proxy.
+
+Normal JSON responses still use the bounded buffered path. With a `tunnel` transport the request is
+multiplexed over the live connector session instead of a `fetch` — see
+[Tunnel transport](05-tunnel.md).
 
 ## Security model
 
@@ -82,7 +90,8 @@ With a `tunnel` transport the request is multiplexed over the live connector ses
 - Only low-cardinality routing data crosses the boundary — no tenant data, SQL or secrets.
 
 These invariants (protocol fidelity, concurrency, timeout, body cap, unreachable mapping and the key
-isolation) are pinned by `tests/e2e/proxy.e2e.test.ts` against a real local upstream.
+isolation) are pinned by `tests/e2e/proxy.e2e.test.ts` against a real local upstream;
+`tests/e2e/proxy-download.e2e.test.ts` pins streamed downloads + `content-disposition`.
 
 ## Errors
 

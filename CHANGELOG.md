@@ -5,6 +5,21 @@ the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.4.1] - 2026-10-19
+
+### Fixed
+
+- **Generic proxy now streams downloads instead of buffering them.** Responses with a
+  `content-disposition` header or a download media type (`text/csv`, `application/x-ndjson`,
+  `application/octet-stream`, zip/pdf) are piped to the client with upstream headers preserved.
+  Normal JSON replies keep the bounded-body cap and header timeout.
+- Download responses no longer hit the buffered-body 1 MiB cap (audit exports, generated files).
+
+### Changed
+
+- `ProxyForwarder.forwardStream` accepts an optional `{ timeoutMs }` (headers only); the fetch and
+  tunnel forwarders expose `timeoutMs` / `maxBodyBytes` for the generic proxy route.
+
 ## [2.4.0] - 2026-10-17
 
 ### Added

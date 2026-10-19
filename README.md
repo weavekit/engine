@@ -85,6 +85,8 @@ write.
 - **Sandboxed hooks** — `*.server.js` lifecycle hooks running in isolated workers.
 - **Type generation** — object-level TypeScript types derived from the schema.
 - **Live events** — an SSE stream with replay.
+- **Generic proxy** — a path-gated gateway to other engine instances; normal JSON replies keep the
+  bounded-body cap, while downloads and SSE streams are piped through with upstream headers intact.
 - **Operations** — `weave doctor` preflight, health / readiness / version endpoints, request rate
   limiting, CORS and structured logging.
 
