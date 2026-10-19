@@ -78,6 +78,37 @@ maybe('Approvals subsystem PG E2E (local database)', () => {
     expect(within.map((e) => e.approvalKey)).not.toContain('ap-pg-2');
   });
 
+  it('Single-use consumption and expiry', async () => {
+    const backend = await createApprovalsBackend(pool);
+    await backend.upsert({
+      approvalKey: 'ap-consume',
+      action: 'mcp.tool.z',
+      args: {},
+      status: 'pending',
+      createdAt: new Date('2026-09-02T10:00:00Z'),
+      actorKey: 'agent-1',
+      requestedBy: 'u1',
+      expiresAt: new Date(Date.now() + 60_000),
+    });
+    expect(await backend.resolve('ap-consume', 'mgr', 'approved', 'ok')).toBe(true);
+    expect(await backend.consume?.('ap-consume', 'u1')).toBe(true);
+    expect(await backend.consume?.('ap-consume', 'u1')).toBe(false);
+    const consumed = await backend.get('ap-consume');
+    expect(consumed?.comment).toBe('ok');
+    expect(consumed?.consumedAt).toBeInstanceOf(Date);
+
+    await backend.upsert({
+      approvalKey: 'ap-expired',
+      action: 'mcp.tool.z',
+      args: {},
+      status: 'pending',
+      createdAt: new Date('2026-09-02T10:00:00Z'),
+      actorKey: 'agent-1',
+      expiresAt: new Date('2020-01-01T00:00:00Z'),
+    });
+    expect(await backend.resolve('ap-expired', 'mgr', 'approved')).toBe(false);
+  });
+
   after(async () => {
     await pool.query('DROP TABLE IF EXISTS weavekit_approvals CASCADE');
     await pool.end();

@@ -2,7 +2,7 @@ import { readdir, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { evaluatePolicies } from '../../core/index.js';
-import type { ApprovalStatus, GuardrailContext, GuardrailDecision, GuardrailPolicy, MessageKey, ToolResult } from '../../core/index.js';
+import type { ApprovalRequestContext, GuardrailContext, GuardrailDecision, GuardrailPolicy, MessageKey, PendingApproval, ToolResult } from '../../core/index.js';
 
 /**
  * Guardrail policy pipeline on top of the pure `evaluatePolicies` core:
@@ -15,16 +15,28 @@ import type { ApprovalStatus, GuardrailContext, GuardrailDecision, GuardrailPoli
 export type PolicyGateResult =
   | { kind: 'allow'; mask?: Record<string, string> }
   | { kind: 'deny'; reason: string; errorCode: string }
-  | { kind: 'pending'; approvalKey: string };
+  | { kind: 'pending'; approvalKey: string; reason?: string; ruleId?: string };
 
 export interface PolicyApprovals {
-  query(): Promise<Array<{ approvalKey: string; status: ApprovalStatus; action: string; args: Record<string, unknown> }>>;
-  pending(action: string, args: Record<string, unknown>, actor: { key: string }, key?: string): Promise<void>;
+  query(): Promise<PendingApproval[]>;
+  pending(
+    action: string,
+    args: Record<string, unknown>,
+    actor: { key: string },
+    key?: string,
+    context?: ApprovalRequestContext,
+  ): Promise<void>;
+  consume?(approvalKey: string, by: string): Promise<boolean>;
 }
 
 /** deterministic approval key (repeat calls don't duplicate) — mirror of the executor helper */
-export function policyApprovalKey(actorKey: string, action: string, args: Record<string, unknown>): string {
-  const raw = JSON.stringify([actorKey, action, args]);
+export function policyApprovalKey(
+  actorKey: string,
+  action: string,
+  args: Record<string, unknown>,
+  requestId?: string,
+): string {
+  const raw = JSON.stringify(requestId === undefined ? [actorKey, action, args] : [actorKey, action, args, requestId]);
   let hash = 0;
   for (let i = 0; i < raw.length; i += 1) {
     hash = (hash << 5) - hash + raw.charCodeAt(i);
@@ -49,7 +61,17 @@ export async function evaluateCall(
   const decision = await evaluatePolicies(policies, ctx);
   if (decision.allow === false) {
     if ('requireApproval' in decision) {
-      return resolveApproval(approvals, decision.approvalKey ?? policyApprovalKey(ctx.actor.key, ctx.action, ctx.args), ctx);
+      return resolveApproval(
+        approvals,
+        decision.approvalKey ?? policyApprovalKey(ctx.actor.key, ctx.action, ctx.args, ctx.requestId),
+        ctx,
+        decision.reason === undefined && decision.ruleId === undefined
+          ? undefined
+          : {
+              ...(decision.reason === undefined ? {} : { reason: decision.reason }),
+              ...(decision.ruleId === undefined ? {} : { ruleId: decision.ruleId }),
+            },
+      );
     }
     return { kind: 'deny', reason: decision.reason, errorCode: decision.errorCode ?? 'mcp.policy.denied' };
   }
@@ -61,24 +83,48 @@ async function resolveApproval(
   approvals: PolicyApprovals,
   approvalKey: string,
   ctx: GuardrailContext,
+  policy?: { reason?: string; ruleId?: string },
 ): Promise<PolicyGateResult> {
-  const key = approvalKey === '' ? policyApprovalKey(ctx.actor.key, ctx.action, ctx.args) : approvalKey;
+  const key =
+    approvalKey === ''
+      ? policyApprovalKey(ctx.actor.key, ctx.action, ctx.args, ctx.requestId)
+      : approvalKey;
   const existing = (await approvals.query()).find((a) => a.approvalKey === key);
-  if (existing?.status === 'approved') return { kind: 'allow' };
+  if (existing?.status === 'approved') {
+    if (existing.consumedAt !== undefined) {
+      return { kind: 'deny', reason: 'approval was already consumed', errorCode: 'mcp.approval.consumed' };
+    }
+    if (existing.expiresAt !== undefined && existing.expiresAt.getTime() <= Date.now()) {
+      return { kind: 'deny', reason: 'approval expired', errorCode: 'mcp.approval.expired' };
+    }
+    if (approvals.consume !== undefined) {
+      const consumed = await approvals.consume(key, ctx.subject.id);
+      if (!consumed) {
+        return { kind: 'deny', reason: 'approval was already consumed', errorCode: 'mcp.approval.consumed' };
+      }
+    }
+    return { kind: 'allow' };
+  }
   if (existing?.status === 'rejected') {
     return { kind: 'deny', reason: 'approval was rejected', errorCode: 'mcp.approval.notFound' };
   }
   if (existing === undefined) {
-    await approvals.pending(ctx.action, ctx.args, ctx.actor, key);
+    await approvals.pending(ctx.action, ctx.args, ctx.actor, key, {
+      requestedBy: ctx.subject.id,
+      onBehalfOf: ctx.actor.onBehalfOf,
+      actorLabel: ctx.actor.label,
+      ...(ctx.requestId === undefined ? {} : { requestId: ctx.requestId }),
+      ...(policy === undefined ? {} : { policy }),
+    });
   }
-  return { kind: 'pending', approvalKey: key };
+  return { kind: 'pending', approvalKey: key, ...(policy ?? {}) };
 }
 
 /** transition-guard result with typed message keys (the caller throws the SchemaError) */
 export type TransitionGateResult =
   | { kind: 'allow' }
   | { kind: 'deny'; code: MessageKey; reason?: string }
-  | { kind: 'pending'; approvalKey: string };
+  | { kind: 'pending'; approvalKey: string; reason?: string; ruleId?: string };
 
 /**
  * Guardrail gate for a workflow transition. Runs the shared policy set (a policy
@@ -95,13 +141,31 @@ export async function evaluateTransition(
   if (policies.length > 0) decision = await evaluatePolicies(policies, ctx);
   if (decision.allow === true) {
     if (!requireApproval) return { kind: 'allow' };
-    decision = { allow: false, requireApproval: true, approvalKey: policyApprovalKey(ctx.actor.key, ctx.action, ctx.args) };
+    decision = {
+      allow: false,
+      requireApproval: true,
+      approvalKey: policyApprovalKey(ctx.actor.key, ctx.action, ctx.args, ctx.requestId),
+    };
   }
   if ('requireApproval' in decision) {
     if (approvals === undefined) return { kind: 'deny', code: 'workflow.approval.unavailable' };
-    const result = await resolveApproval(approvals, decision.approvalKey, ctx);
+    const policy =
+      decision.reason === undefined && decision.ruleId === undefined
+        ? undefined
+        : {
+            ...(decision.reason === undefined ? {} : { reason: decision.reason }),
+            ...(decision.ruleId === undefined ? {} : { ruleId: decision.ruleId }),
+          };
+    const result = await resolveApproval(approvals, decision.approvalKey, ctx, policy);
     if (result.kind === 'allow') return { kind: 'allow' };
-    if (result.kind === 'pending') return { kind: 'pending', approvalKey: result.approvalKey };
+    if (result.kind === 'pending') {
+      return {
+        kind: 'pending',
+        approvalKey: result.approvalKey,
+        ...(result.reason === undefined ? {} : { reason: result.reason }),
+        ...(result.ruleId === undefined ? {} : { ruleId: result.ruleId }),
+      };
+    }
     return { kind: 'deny', code: 'mcp.policy.denied', reason: result.reason };
   }
   return { kind: 'deny', code: 'mcp.policy.denied', reason: decision.reason };

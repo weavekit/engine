@@ -1,7 +1,7 @@
 import { describe, it, expect } from '../helpers/test.js';
 import { evaluatePolicies } from '../../src/core/index.js';
 import { applyMask, evaluateCall, evaluateTransition } from '../../src/runtime/tools/policies.js';
-import type { ApprovalStatus, GuardrailContext, GuardrailDecision, GuardrailPolicy, ToolResult } from '../../src/core/index.js';
+import type { GuardrailContext, GuardrailDecision, GuardrailPolicy, PendingApproval, ToolResult } from '../../src/core/index.js';
 import type { IdentitySubject, ToolActor } from '../../src/core/index.js';
 
 const subject: IdentitySubject = { id: 'u1', roles: ['agent'] };
@@ -66,11 +66,18 @@ describe('evaluatePolicies — decision matrix + fail-closed', () => {
 
 describe('evaluateCall — approval lifecycle', () => {
   const approvals = () => {
-    const queue = new Map<string, { approvalKey: string; status: ApprovalStatus; action: string; args: Record<string, unknown> }>();
+    const queue = new Map<string, PendingApproval>();
     return {
       query: async () => [...queue.values()],
       pending: async (action: string, args: Record<string, unknown>, a: { key: string }, key?: string) => {
-        queue.set(key ?? 'k', { approvalKey: key ?? 'k', status: 'pending', action, args });
+        queue.set(key ?? 'k', {
+          approvalKey: key ?? 'k',
+          status: 'pending',
+          action,
+          args,
+          createdAt: new Date(),
+          actorKey: a.key,
+        });
       },
       queue,
     };
@@ -85,14 +92,14 @@ describe('evaluateCall — approval lifecycle', () => {
 
   it('already approved → allow (client retry allowed)', async () => {
     const ap = approvals();
-    ap.queue.set('ap-x', { approvalKey: 'ap-x', status: 'approved', action: ctx.action, args: ctx.args });
+    ap.queue.set('ap-x', { approvalKey: 'ap-x', status: 'approved', action: ctx.action, args: ctx.args, createdAt: new Date(), actorKey: actor.key });
     const result = await evaluateCall([policy('ap', { allow: false, requireApproval: true, approvalKey: 'ap-x' })], ap, ctx);
     expect(result).toMatchObject({ kind: 'allow' });
   });
 
   it('already rejected → deny', async () => {
     const ap = approvals();
-    ap.queue.set('ap-x', { approvalKey: 'ap-x', status: 'rejected', action: ctx.action, args: ctx.args });
+    ap.queue.set('ap-x', { approvalKey: 'ap-x', status: 'rejected', action: ctx.action, args: ctx.args, createdAt: new Date(), actorKey: actor.key });
     const result = await evaluateCall([policy('ap', { allow: false, requireApproval: true, approvalKey: 'ap-x' })], ap, ctx);
     expect(result).toMatchObject({ kind: 'deny', errorCode: 'mcp.approval.notFound' });
   });
@@ -111,11 +118,18 @@ describe('evaluateCall — approval lifecycle', () => {
 
 describe('evaluateTransition — workflow transition guard', () => {
   const approvals = () => {
-    const queue = new Map<string, { approvalKey: string; status: ApprovalStatus; action: string; args: Record<string, unknown> }>();
+    const queue = new Map<string, PendingApproval>();
     return {
       query: async () => [...queue.values()],
       pending: async (action: string, args: Record<string, unknown>, a: { key: string }, key?: string) => {
-        queue.set(key ?? 'k', { approvalKey: key ?? 'k', status: 'pending', action, args });
+        queue.set(key ?? 'k', {
+          approvalKey: key ?? 'k',
+          status: 'pending',
+          action,
+          args,
+          createdAt: new Date(),
+          actorKey: a.key,
+        });
       },
       queue,
     };

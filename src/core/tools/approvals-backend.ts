@@ -13,6 +13,8 @@ export function createMemoryApprovalsBackend(): ApprovalsBackend {
     if (filter.status !== undefined && entry.status !== filter.status) return false;
     if (filter.action !== undefined && entry.action !== filter.action) return false;
     if (filter.actorKey !== undefined && entry.actorKey !== filter.actorKey) return false;
+    if (filter.requestedBy !== undefined && entry.requestedBy !== filter.requestedBy) return false;
+    if (filter.approvalKey !== undefined && entry.approvalKey !== filter.approvalKey) return false;
     if (filter.from !== undefined && entry.createdAt < filter.from) return false;
     if (filter.to !== undefined && entry.createdAt > filter.to) return false;
     return true;
@@ -38,12 +40,31 @@ export function createMemoryApprovalsBackend(): ApprovalsBackend {
       return store.get(approvalKey);
     },
     async upsert(entry: PendingApproval): Promise<void> {
-      store.set(entry.approvalKey, entry);
+      if (!store.has(entry.approvalKey)) store.set(entry.approvalKey, entry);
     },
-    async resolve(approvalKey: string, by: string, status: 'approved' | 'rejected'): Promise<boolean> {
+    async resolve(
+      approvalKey: string,
+      by: string,
+      status: 'approved' | 'rejected',
+      comment?: string,
+    ): Promise<boolean> {
       const entry = store.get(approvalKey);
       if (entry === undefined || entry.status !== 'pending') return false;
-      store.set(approvalKey, { ...entry, status, approvedBy: by });
+      if (entry.expiresAt !== undefined && entry.expiresAt.getTime() <= Date.now()) return false;
+      store.set(approvalKey, {
+        ...entry,
+        status,
+        approvedBy: by,
+        resolvedAt: new Date(),
+        ...(comment === undefined ? {} : { comment }),
+      });
+      return true;
+    },
+    async consume(approvalKey: string, by: string): Promise<boolean> {
+      const entry = store.get(approvalKey);
+      if (entry === undefined || entry.status !== 'approved' || entry.consumedAt !== undefined) return false;
+      store.set(approvalKey, { ...entry, consumedAt: new Date() });
+      void by;
       return true;
     },
     async count(filter = {}): Promise<number> {

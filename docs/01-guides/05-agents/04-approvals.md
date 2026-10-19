@@ -21,8 +21,9 @@ and the outcome decides whether the call proceeds. For the wider policy pipeline
 2. The call is suspended; the caller gets `isError` with `mcp.approval.pending` and the `approvalKey`.
    The pending entry is stored in the **approval queue**.
 3. An admin approves or rejects it (REST or MCP below). Resolution is recorded against the approver.
-4. On the next call with the same `approvalKey`, the policy can read the queue through `ctx.approvals`
-   and allow it.
+4. On the next call with the same `approvalKey`, the policy reads the queue through `ctx.approvals`;
+   an approved, unexpired entry is **consumed** once and the call proceeds. Repeating the same call
+   after consumption is denied (`mcp.approval.consumed`) and needs a new request/request id.
 
 The queue carries request **arguments**, so every endpoint is gated to the admin roles — REST uses
 `adapters.rest.adminRoles`, MCP uses `adapters.mcp.adminRoles` (both default to none). Reading it is a
@@ -33,11 +34,18 @@ write-authority boundary, not a read anyone gets.
 A `PendingApproval` is:
 
 ```ts
-{ approvalKey, action, args, status, createdAt, actorKey, approvedBy? }
+{
+  approvalKey, action, args, status, createdAt, actorKey, approvedBy?,
+  requestedBy?, onBehalfOf?, actorLabel?, requestHash?, requestId?,
+  policy?: { ruleId?, reason?, version? },
+  expiresAt?, consumedAt?, resolvedAt?, comment?,
+}
 ```
 
-with `status` ∈ `pending` / `approved` / `rejected`. The `approvalKey` is a deterministic hash of
-actor + action + args, so repeated calls don't create duplicate pending entries.
+with `status` — `pending` / `approved` / `rejected`. The `approvalKey` is a deterministic hash of
+actor + action + args (+ optional request id), so repeated calls don't create duplicate pending
+entries. New entries expire after 72h by default (`tools.approvals.ttlMs`); an expired entry cannot
+be approved or consumed. `comment` is required for rejection in the Console contract.
 
 Backends implement `ApprovalsBackend`:
 
@@ -46,19 +54,21 @@ Backends implement `ApprovalsBackend`:
   restarts. The store never audits; the queue facade does.
 
 Tool handlers reach it through `ctx.approvals` (`list`, `count`, `query`, `approve`, `reject`).
+The queue writes standard audit events: `approval.requested`, `approval.approved`,
+`approval.rejected`, `approval.expired` and `approval.consumed`.
 
 ## REST
 
 ```
 GET  {prefix}/approvals                      paged list
-POST {prefix}/approvals/:key/approve         resolve → approved   (admin)
-POST {prefix}/approvals/:key/reject          resolve → rejected   (admin)
+POST {prefix}/approvals/:key/approve         resolve → approved   (admin; body { comment? })
+POST {prefix}/approvals/:key/reject          resolve → rejected   (admin; body { comment } required)
 ```
 
-`GET` supports `status`, `action`, `actorKey`, `from`, `to` (createdAt window), `limit`, `offset` and
-`sort`/`order` (default `createdAt` DESC). It returns `{ rows, total, limit, offset }`. Approve/reject
-return `{ approvalKey, status, approver }` and answer `approval.notFound` when the key is unknown or
-already resolved.
+`GET` supports `status`, `action`, `actorKey`, `requestedBy`, `approvalKey`, `from`, `to` (createdAt
+window), `limit`, `offset` and `sort`/`order` (default `createdAt` DESC). It returns
+`{ rows, total, limit, offset }`. Approve/reject return `{ approvalKey, status, approver, comment? }`
+and answer `approval.notFound` when the key is unknown, already resolved, expired or consumed.
 
 ## MCP
 
@@ -76,7 +86,7 @@ an in-process queue:
 export default {
   tools: {
     toolsDir: 'tools',
-    approvals: { backend: 'memory' }, // default is the persisted PG backend
+    approvals: { backend: 'memory', ttlMs: 72 * 3_600_000 }, // default is the persisted PG backend
   },
 };
 ```

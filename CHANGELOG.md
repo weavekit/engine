@@ -5,6 +5,30 @@ the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.5.0] - 2026-10-19
+
+### Added
+
+- **Approval context + lifecycle**: `PendingApproval` now carries optional `requestedBy`,
+  `onBehalfOf`, `actorLabel`, `requestHash`, `requestId`, `policy`, `expiresAt`,
+  `consumedAt`, `resolvedAt` and `comment` (contract 2.1.0).
+- **Single-use approvals**: `ApprovalsBackend.consume` / `ApprovalsQueue.consume`; a
+  guardrail-approved call consumes the entry before execution, so it cannot be replayed.
+- **Approval TTL**: new approvals expire (default 72h; `tools.approvals.ttlMs` override);
+  expired entries cannot be resolved or consumed.
+- **Approver comments**: `approve` / `reject` accept an optional comment; REST rejects
+  without a comment.
+- **Standard approval audit events**: `approval.requested` / `approved` / `rejected` /
+  `expired` / `consumed`.
+- **Approval export fields**: PG store exposes request context and lifecycle timestamps.
+
+### Changed
+
+- Memory approvals `upsert` is create-only (matches PG/Redis; a resolved entry is never
+  resurrected).
+- `approvalKeyFor` / `policyApprovalKey` accept an optional `requestId` for re-requests
+  after consumption.
+
 ## [2.4.1] - 2026-10-19
 
 ### Fixed

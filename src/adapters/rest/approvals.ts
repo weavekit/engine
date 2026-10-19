@@ -28,6 +28,10 @@ function parseFilter(query: Record<string, unknown>, locale: Locale): ApprovalLi
   if (action !== undefined) filter.action = action;
   const actorKey = readString(query, 'actorKey', locale);
   if (actorKey !== undefined) filter.actorKey = actorKey;
+  const requestedBy = readString(query, 'requestedBy', locale);
+  if (requestedBy !== undefined) filter.requestedBy = requestedBy;
+  const approvalKey = readString(query, 'approvalKey', locale);
+  if (approvalKey !== undefined) filter.approvalKey = approvalKey;
   const from = readDate(query, 'from', locale);
   if (from !== undefined) filter.from = from;
   const to = readDate(query, 'to', locale);
@@ -83,12 +87,25 @@ export function registerApprovalsRoutes(app: FastifyInstance, deps: RestDeps, op
       const subject = await authenticateRequest(authenticator, request, locale);
       requireAdminRoles(subject.roles);
       const { key } = request.params as { key: string };
+      const body = (request.body ?? {}) as { comment?: unknown };
+      const comment =
+        typeof body.comment === 'string' && body.comment.trim() !== '' ? body.comment.trim() : undefined;
+      if (decision === 'rejected' && comment === undefined) {
+        throw new SchemaError('http.param.invalid', { param: 'comment' }, locale);
+      }
       const ok =
-        decision === 'approved' ? await approvals.approve(key, subject.id) : await approvals.reject(key, subject.id);
+        decision === 'approved'
+          ? await approvals.approve(key, subject.id, comment)
+          : await approvals.reject(key, subject.id, comment);
       if (!ok) {
         throw new SchemaError('approval.notFound', { approvalKey: key }, locale);
       }
-      return { approvalKey: key, status: decision, approver: subject.id };
+      return {
+        approvalKey: key,
+        status: decision,
+        approver: subject.id,
+        ...(comment === undefined ? {} : { comment }),
+      };
     };
 
   app.post(`${prefix}/approvals/:key/approve`, resolveRoute('approved'));

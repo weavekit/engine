@@ -119,6 +119,8 @@ export interface EngineToolsConfig {
    */
   approvals?: {
     backend?: 'pg' | 'memory' | ApprovalsBackend;
+    /** approval TTL in ms (default 72h; legacy rows without expiresAt never expire) */
+    ttlMs?: number;
   };
 }
 

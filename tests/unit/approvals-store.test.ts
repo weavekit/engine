@@ -92,8 +92,9 @@ describe('createApprovalsPgStore', () => {
     const store = createApprovalsPgStore(pool);
 
     await expect(store.resolve('ap-1', 'manager', 'approved')).resolves.toBe(true);
-    expect(calls[0]!.text).toContain("WHERE approval_key = $1 AND status = 'pending'");
-    expect(calls[0]!.values).toEqual(['ap-1', 'approved', 'manager']);
+    expect(calls[0]!.text).toContain("WHERE approval_key = $1");
+    expect(calls[0]!.text).toContain("status = 'pending'");
+    expect(calls[0]!.values).toEqual(['ap-1', 'approved', 'manager', null]);
   });
 
   it('count returns the aggregate n', async () => {

@@ -1,7 +1,8 @@
+import { createHash } from 'node:crypto';
 import type { Pool } from 'pg';
 import { NOOP_AUDIT_SINK, createMemoryApprovalsBackend, userPrincipal, SchemaError, validateToolArgs, DEFAULT_LOCALE } from '../../core/index.js';
 import { AUDIT_ACTOR_TYPES } from '../../core/index.js';
-import type { AuditSink, IdentitySubject, Locale, ObjectRegistry, ToolActor, ToolApprovals, ApprovalsBackend, ApprovalListFilter, ToolCallContext, ToolDataAccess, ToolDefinition, ToolGuardrails, ToolJsonSchema, ToolResult, ApprovalStatus, PendingApproval, GuardrailContext, GuardrailPolicy, EvidenceSink } from '../../core/index.js';
+import type { AuditSink, IdentitySubject, Locale, ObjectRegistry, ToolActor, ToolApprovals, ApprovalsBackend, ApprovalListFilter, ToolCallContext, ToolDataAccess, ToolDefinition, ToolGuardrails, ToolJsonSchema, ToolResult, ApprovalStatus, PendingApproval, ApprovalRequestContext, GuardrailContext, GuardrailPolicy, EvidenceSink } from '../../core/index.js';
 import type { ObjectDataAccess, DataAccessContext, FindOptions } from '../data-access/index.js';
 import { withTx as dataAccessWithTx } from '../data-access/index.js';
 import { applyMask, evaluateCall } from './policies.js';
@@ -19,8 +20,13 @@ import { runPipeline } from '../execution/pipeline.js';
  */
 
 /** deterministic approval key for a pending decision (repeat calls don't duplicate) */
-export function approvalKeyFor(actor: ToolActor, action: string, args: Record<string, unknown>): string {
-  const raw = JSON.stringify([actor.key, action, args]);
+export function approvalKeyFor(
+  actor: ToolActor,
+  action: string,
+  args: Record<string, unknown>,
+  requestId?: string,
+): string {
+  const raw = JSON.stringify(requestId === undefined ? [actor.key, action, args] : [actor.key, action, args, requestId]);
   let hash = 0;
   for (let i = 0; i < raw.length; i += 1) {
     hash = (hash << 5) - hash + raw.charCodeAt(i);
@@ -29,10 +35,30 @@ export function approvalKeyFor(actor: ToolActor, action: string, args: Record<st
   return `ap-${Math.abs(hash).toString(36)}`;
 }
 
-/** full approval queue handle (query/approve/reject + enqueue for the policy gate; async — persisted backend) */
+function requestHashFor(
+  actor: ToolActor,
+  action: string,
+  args: Record<string, unknown>,
+  requestId?: string,
+): string {
+  return createHash('sha256')
+    .update(JSON.stringify(requestId === undefined ? [actor.key, action, args] : [actor.key, action, args, requestId]))
+    .digest('hex');
+}
+
+/** full approval queue handle (query/approve/reject + enqueue for the policy gate; async - persisted backend) */
 export type ApprovalsQueue = ToolApprovals & {
-  pending(action: string, args: Record<string, unknown>, actor: ToolActor, key?: string): Promise<void>;
+  pending(
+    action: string,
+    args: Record<string, unknown>,
+    actor: ToolActor,
+    key?: string,
+    context?: ApprovalRequestContext,
+  ): Promise<void>;
+  consume(approvalKey: string, by: string): Promise<boolean>;
 };
+
+const DEFAULT_APPROVAL_TTL_MS = 72 * 3_600_000;
 
 /**
  * Approval queue (release-grade): thin facade over a pluggable
@@ -41,28 +67,59 @@ export type ApprovalsQueue = ToolApprovals & {
  * is audited here, never by the store. Async because the backend performs I/O.
  */
 export function createApprovals(
-  options: { audit?: AuditSink; backend?: ApprovalsBackend } = {},
+  options: { audit?: AuditSink; backend?: ApprovalsBackend; ttlMs?: number } = {},
 ): ApprovalsQueue {
   const backend = options.backend ?? createMemoryApprovalsBackend();
   const audit = options.audit ?? NOOP_AUDIT_SINK;
+  const ttlMs = options.ttlMs ?? DEFAULT_APPROVAL_TTL_MS;
 
-  const resolve = async (approvalKey: string, by: string, status: 'approved' | 'rejected'): Promise<boolean> => {
-    const ok = await backend.resolve(approvalKey, by, status);
+  const auditApproval = (
+    action: string,
+    actorType: (typeof AUDIT_ACTOR_TYPES)[keyof typeof AUDIT_ACTOR_TYPES],
+    actorId: string,
+    entry: PendingApproval | undefined,
+    meta: Record<string, unknown>,
+  ): void => {
+    void audit
+      .record({
+        actorType,
+        actorId,
+        action,
+        ...(entry === undefined ? {} : { changes: { action: entry.action, args: entry.args } }),
+        isError: false,
+        meta: {
+          ...(entry === undefined ? {} : { approvalKey: entry.approvalKey, requestHash: entry.requestHash }),
+          ...meta,
+        },
+        timestamp: new Date(),
+      })
+      .catch(() => {});
+  };
+
+  const resolve = async (
+    approvalKey: string,
+    by: string,
+    status: 'approved' | 'rejected',
+    comment?: string,
+  ): Promise<boolean> => {
+    const current = await backend.get(approvalKey);
+    if (current === undefined) return false;
+    if (current.expiresAt !== undefined && current.expiresAt.getTime() <= Date.now()) {
+      auditApproval('approval.expired', AUDIT_ACTOR_TYPES.SYSTEM, 'system', current, {
+        expiresAt: current.expiresAt.toISOString(),
+      });
+      return false;
+    }
+    const ok = await backend.resolve(approvalKey, by, status, comment);
     if (ok) {
       const entry = await backend.get(approvalKey);
-      // approval/rejection actions are audited against the same action
-      void audit
-        .record({
-          actorType: AUDIT_ACTOR_TYPES.USER,
-          actorId: by,
-          action: entry?.action ?? '',
-          objectName: undefined,
-          changes: entry?.args,
-          isError: false,
-          meta: { approvalKey, approver: by, status },
-          timestamp: new Date(),
-        })
-        .catch(() => {});
+      auditApproval(
+        status === 'approved' ? 'approval.approved' : 'approval.rejected',
+        AUDIT_ACTOR_TYPES.USER,
+        by,
+        entry,
+        { approver: by, status, ...(comment === undefined ? {} : { comment }) },
+      );
     }
     return ok;
   };
@@ -77,22 +134,64 @@ export function createApprovals(
     async query(status?: ApprovalStatus): Promise<PendingApproval[]> {
       return backend.list(status === undefined ? {} : { status });
     },
-    approve(approvalKey: string, by: string): Promise<boolean> {
-      return resolve(approvalKey, by, 'approved');
+    approve(approvalKey: string, by: string, comment?: string): Promise<boolean> {
+      return resolve(approvalKey, by, 'approved', comment);
     },
-    reject(approvalKey: string, by: string): Promise<boolean> {
-      return resolve(approvalKey, by, 'rejected');
+    reject(approvalKey: string, by: string, comment?: string): Promise<boolean> {
+      return resolve(approvalKey, by, 'rejected', comment);
     },
-    async pending(action: string, args: Record<string, unknown>, actor: ToolActor, key?: string): Promise<void> {
+    async consume(approvalKey: string, by: string): Promise<boolean> {
+      if (backend.consume === undefined) return false;
+      const entry = await backend.get(approvalKey);
+      if (entry === undefined) return false;
+      if (entry.expiresAt !== undefined && entry.expiresAt.getTime() <= Date.now()) {
+        auditApproval('approval.expired', AUDIT_ACTOR_TYPES.SYSTEM, 'system', entry, {
+          expiresAt: entry.expiresAt.toISOString(),
+        });
+        return false;
+      }
+      const ok = await backend.consume(approvalKey, by);
+      if (ok) {
+        auditApproval('approval.consumed', AUDIT_ACTOR_TYPES.USER, by, entry, {
+          ...(entry.requestId === undefined ? {} : { requestId: entry.requestId }),
+        });
+      }
+      return ok;
+    },
+    async pending(
+      action: string,
+      args: Record<string, unknown>,
+      actor: ToolActor,
+      key?: string,
+      context: ApprovalRequestContext = {},
+    ): Promise<void> {
+      const approvalKey = key ?? approvalKeyFor(actor, action, args, context.requestId);
+      if ((await backend.get(approvalKey)) !== undefined) return;
+      const now = new Date();
+      const requestedBy = context.requestedBy ?? actor.onBehalfOf ?? actor.key;
       const entry: PendingApproval = {
-        approvalKey: key ?? approvalKeyFor(actor, action, args),
+        approvalKey,
         action,
         args,
         status: 'pending',
-        createdAt: new Date(),
+        createdAt: now,
         actorKey: actor.key,
+        requestedBy,
+        ...(actor.onBehalfOf === '' ? {} : { onBehalfOf: actor.onBehalfOf }),
+        actorLabel: actor.label,
+        requestHash: requestHashFor(actor, action, args, context.requestId),
+        ...(context.requestId === undefined ? {} : { requestId: context.requestId }),
+        ...(context.policy === undefined ? {} : { policy: context.policy }),
+        expiresAt: context.expiresAt ?? new Date(now.getTime() + ttlMs),
       };
       await backend.upsert(entry);
+      auditApproval('approval.requested', AUDIT_ACTOR_TYPES.USER, requestedBy, entry, {
+        actorKey: actor.key,
+        onBehalfOf: actor.onBehalfOf,
+        ...(context.policy === undefined ? {} : { policy: context.policy }),
+        ...(context.requestId === undefined ? {} : { requestId: context.requestId }),
+        expiresAt: entry.expiresAt?.toISOString(),
+      });
     },
   };
 }
@@ -288,6 +387,7 @@ export function createToolExecutor(options: ToolExecutorOptions): ToolExecutor {
               subject: req.subject,
               action: req.action,
               args,
+              ...(req.requestId === undefined ? {} : { requestId: req.requestId }),
               dataAccess: toolDataAccess(base),
             };
             const gate = await evaluateCall(options.policies ?? [], approvals, guardrailCtx);
@@ -311,7 +411,6 @@ export function createToolExecutor(options: ToolExecutorOptions): ToolExecutor {
         return result;
       }
       if (outcome.outcome === 'pending') {
-        void audit.record(event(true, 'mcp.approval.pending', { approvalKey: outcome.approvalKey })).catch(() => {});
         return {
           content: [{ type: 'text', text: JSON.stringify({ approvalKey: outcome.approvalKey, status: 'pending' }) }],
           isError: true,

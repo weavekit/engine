@@ -193,14 +193,26 @@ export async function buildEngineFromRegistry(
       // multi-instance consistent, so it is never left single-process in-memory
       // for a release engine.
       const approvalsBackend = config.tools.approvals?.backend;
+      const approvalTtlMs = config.tools.approvals?.ttlMs;
       if (approvalsBackend !== undefined && typeof approvalsBackend === 'object') {
-        approvals = createApprovals({ audit: auditSink, backend: approvalsBackend });
+        approvals = createApprovals({
+          audit: auditSink,
+          backend: approvalsBackend,
+          ...(approvalTtlMs === undefined ? {} : { ttlMs: approvalTtlMs }),
+        });
       } else if (approvalsBackend !== 'memory') {
         const { createApprovalsBackend } = await import('../subsystems/approvals/index.js');
         const backend = await createApprovalsBackend(pool);
-        approvals = createApprovals({ audit: auditSink, backend });
+        approvals = createApprovals({
+          audit: auditSink,
+          backend,
+          ...(approvalTtlMs === undefined ? {} : { ttlMs: approvalTtlMs }),
+        });
       } else {
-        approvals = createApprovals({ audit: auditSink });
+        approvals = createApprovals({
+          audit: auditSink,
+          ...(approvalTtlMs === undefined ? {} : { ttlMs: approvalTtlMs }),
+        });
       }
     }
   }

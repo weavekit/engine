@@ -20,10 +20,13 @@ const entry = (over: Partial<PendingApproval> = {}): PendingApproval => ({
 });
 
 describe('ApprovalsBackend seam contract', () => {
-  it('upsert/get round-trips and replaces by key', async () => {
+  it('upsert/get round-trips and is create-only by key', async () => {
     const backend = createMemoryApprovalsBackend();
     await backend.upsert(entry({ approvalKey: 'a', status: 'pending' }));
     await backend.upsert(entry({ approvalKey: 'a', status: 'approved', approvedBy: 'admin' }));
+    const pending = await backend.get('a');
+    expect(pending?.status).toBe('pending');
+    expect(await backend.resolve('a', 'admin', 'approved')).toBe(true);
     const got = await backend.get('a');
     expect(got?.status).toBe('approved');
     expect(got?.approvedBy).toBe('admin');
@@ -66,8 +69,52 @@ describe('approval queue facade contract (audits resolution)', () => {
     await approvals.pending('act.del', { id: 'X' }, { key: 'agent-1', label: 'agent', onBehalfOf: 'u1' }, 'ap-x');
     expect(await approvals.approve('ap-x', 'admin')).toBe(true);
     expect(await approvals.approve('ap-x', 'admin')).toBe(false); // not pending anymore
-    expect(events.length).toBe(1);
-    expect(events[0]?.actorId).toBe('admin');
-    expect((events[0]?.meta as { status?: string }).status).toBe('approved');
+    expect(events.length).toBe(2);
+    expect(events[0]?.action).toBe('approval.requested');
+    expect(events[1]?.action).toBe('approval.approved');
+    expect(events[1]?.actorId).toBe('admin');
+    expect((events[1]?.meta as { status?: string }).status).toBe('approved');
+  });
+});
+describe('approval single-use, expiry and context', () => {
+  const capture = (): { sink: AuditSink; events: AuditEvent[] } => {
+    const events: AuditEvent[] = [];
+    return { events, sink: { record: async (e) => void events.push(e), recordBatch: async () => {} } };
+  };
+
+  it('consume is single-use and audits requested/approved/consumed', async () => {
+    const { sink, events } = capture();
+    const approvals = createApprovals({ audit: sink, ttlMs: 60_000 });
+    await approvals.pending(
+      'mcp.tool.delete_record',
+      { id: 'X' },
+      { key: 'agent-1', label: 'agent', onBehalfOf: 'u1' },
+      'ap-consume',
+      { requestedBy: 'u1', requestId: 'req-1', policy: { ruleId: 'r1', reason: 'demo' } },
+    );
+    const [pending] = await approvals.query('pending');
+    expect(pending?.requestedBy).toBe('u1');
+    expect(pending?.onBehalfOf).toBe('u1');
+    expect(pending?.policy?.ruleId).toBe('r1');
+    expect(pending?.requestHash).toBeTruthy();
+    expect(pending?.expiresAt).toBeInstanceOf(Date);
+
+    expect(await approvals.approve('ap-consume', 'mgr', 'looks good')).toBe(true);
+    expect(await approvals.consume('ap-consume', 'u1')).toBe(true);
+    expect(await approvals.consume('ap-consume', 'u1')).toBe(false);
+    expect((await approvals.query('approved'))[0]?.comment).toBe('looks good');
+    expect(events.map((event) => event.action)).toEqual([
+      'approval.requested',
+      'approval.approved',
+      'approval.consumed',
+    ]);
+  });
+
+  it('expired approvals cannot be resolved or consumed', async () => {
+    const approvals = createApprovals({ ttlMs: 1 });
+    await approvals.pending('mcp.tool.x', {}, { key: 'agent-1', label: 'agent', onBehalfOf: 'u1' }, 'ap-exp');
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    expect(await approvals.approve('ap-exp', 'mgr')).toBe(false);
+    expect(await approvals.consume('ap-exp', 'u1')).toBe(false);
   });
 });
