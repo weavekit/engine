@@ -34,6 +34,8 @@ export const de: Record<MessageKey, string> = {
   'mcp.policy.denied': 'Anfrage von der Schutzrichtlinie abgelehnt: {reason}',
   'mcp.approval.pending': 'Genehmigung erforderlich — ausstehender Genehmigungsschlüssel: {approvalKey}',
   'mcp.approval.notFound': 'Genehmigung "{approvalKey}" nicht gefunden oder bereits erledigt',
+  'mcp.approval.consumed': 'Genehmigung "{approvalKey}" wurde bereits verwendet; fordern Sie eine neue Genehmigung an',
+  'mcp.approval.expired': 'Genehmigung "{approvalKey}" ist abgelaufen; fordern Sie eine neue Genehmigung an',
   'object.notObject': 'die Objektdefinition muss ein JSON-Objekt sein',
   'object.name.required': 'Objekt "{object}": Name ist erforderlich',
   'object.name.reserved': 'der objektname "{name}" ist vom engine reserviert (präfix "weavekit_")',

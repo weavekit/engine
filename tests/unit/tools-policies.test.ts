@@ -79,6 +79,12 @@ describe('evaluateCall — approval lifecycle', () => {
           actorKey: a.key,
         });
       },
+      consume: async (key: string) => {
+        const entry = queue.get(key);
+        if (entry === undefined || entry.status !== 'approved' || entry.consumedAt !== undefined) return false;
+        entry.consumedAt = new Date();
+        return true;
+      },
       queue,
     };
   };
@@ -95,6 +101,47 @@ describe('evaluateCall — approval lifecycle', () => {
     ap.queue.set('ap-x', { approvalKey: 'ap-x', status: 'approved', action: ctx.action, args: ctx.args, createdAt: new Date(), actorKey: actor.key });
     const result = await evaluateCall([policy('ap', { allow: false, requireApproval: true, approvalKey: 'ap-x' })], ap, ctx);
     expect(result).toMatchObject({ kind: 'allow' });
+  });
+
+  it('consumed deterministic key mints a fresh pending approval key', async () => {
+    const ap = approvals();
+    ap.queue.set('ap-x', {
+      approvalKey: 'ap-x',
+      status: 'approved',
+      action: ctx.action,
+      args: ctx.args,
+      createdAt: new Date(),
+      actorKey: actor.key,
+      consumedAt: new Date(),
+    });
+    const result = await evaluateCall(
+      [policy('ap', { allow: false, requireApproval: true, approvalKey: 'ap-x' })],
+      ap,
+      ctx,
+    );
+    expect(result.kind).toBe('pending');
+    if (result.kind !== 'pending') return;
+    expect(result.approvalKey).not.toBe('ap-x');
+    expect(ap.queue.get(result.approvalKey)?.status).toBe('pending');
+  });
+
+  it('consumed key with a request id stays denied (replay)', async () => {
+    const ap = approvals();
+    ap.queue.set('ap-x', {
+      approvalKey: 'ap-x',
+      status: 'approved',
+      action: ctx.action,
+      args: ctx.args,
+      createdAt: new Date(),
+      actorKey: actor.key,
+      consumedAt: new Date(),
+    });
+    const result = await evaluateCall(
+      [policy('ap', { allow: false, requireApproval: true, approvalKey: 'ap-x' })],
+      ap,
+      { ...ctx, requestId: 'req-1' },
+    );
+    expect(result).toMatchObject({ kind: 'deny', errorCode: 'mcp.approval.consumed' });
   });
 
   it('already rejected → deny', async () => {

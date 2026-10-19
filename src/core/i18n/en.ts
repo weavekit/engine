@@ -11,6 +11,8 @@ export const en = {
   'mcp.policy.denied': 'request denied by guardrail policy: {reason}',
   'mcp.approval.pending': 'approval required — pending approval key: {approvalKey}',
   'mcp.approval.notFound': 'approval "{approvalKey}" not found or already resolved',
+  'mcp.approval.consumed': 'approval "{approvalKey}" was already used; request a new approval',
+  'mcp.approval.expired': 'approval "{approvalKey}" expired; request a new approval',
   'object.notObject': 'object definition must be a JSON object',
   'object.name.required': 'object "{object}": name is required',
   'object.name.snake': 'object "{object}": name must be snake_case',

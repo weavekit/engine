@@ -88,6 +88,7 @@ function buildWhere(filter: ApprovalListFilter): Where {
   if (filter.approvalKey !== undefined) push('approval_key = ?', filter.approvalKey);
   if (filter.from !== undefined) push('created_at >= ?', filter.from);
   if (filter.to !== undefined) push('created_at <= ?', filter.to);
+  if (filter.expiresBefore !== undefined) push('expires_at < ?', filter.expiresBefore);
   return { sql: clauses.length === 0 ? '' : ` WHERE ${clauses.join(' AND ')}`, params };
 }
 

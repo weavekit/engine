@@ -34,6 +34,8 @@ export const ja: Record<MessageKey, string> = {
   'mcp.policy.denied': 'ガードレールポリシーによりリクエストが拒否されました: {reason}',
   'mcp.approval.pending': '承認が必要です — 保留中の承認キー: {approvalKey}',
   'mcp.approval.notFound': '承認 "{approvalKey}" が見つからないか、すでに解決されています',
+  'mcp.approval.consumed': '承認 "{approvalKey}" は既に使用済みです。新しい承認をリクエストしてください',
+  'mcp.approval.expired': '承認 "{approvalKey}" の有効期限が切れました。新しい承認をリクエストしてください',
   'object.notObject': 'オブジェクト定義は JSON オブジェクトでなければなりません',
   'object.name.required': 'オブジェクト「{object}」：name は必須です',
   'object.name.reserved': 'オブジェクト名 "{name}" はエンジンによって予約されています（"weavekit_" プレフィックス）',

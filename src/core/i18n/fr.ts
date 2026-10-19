@@ -34,6 +34,8 @@ export const fr: Record<MessageKey, string> = {
   'mcp.policy.denied': 'demande refusée par la politique de garde-fou : {reason}',
   'mcp.approval.pending': 'approbation requise — clé d\'approbation en attente : {approvalKey}',
   'mcp.approval.notFound': 'l\'approbation "{approvalKey}" est introuvable ou déjà résolue',
+  'mcp.approval.consumed': 'approbation "{approvalKey}" déjà utilisée ; demandez une nouvelle approbation',
+  'mcp.approval.expired': 'approbation "{approvalKey}" expirée ; demandez une nouvelle approbation',
   'object.notObject': 'la définition d\'objet doit être un objet JSON',
   'object.name.required': 'objet "{object}" : le nom est requis',
   'object.name.reserved': 'le nom d\'objet "{name}" est réservé par le moteur (préfixe "weavekit_")',

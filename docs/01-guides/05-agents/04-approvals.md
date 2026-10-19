@@ -23,7 +23,9 @@ and the outcome decides whether the call proceeds. For the wider policy pipeline
 3. An admin approves or rejects it (REST or MCP below). Resolution is recorded against the approver.
 4. On the next call with the same `approvalKey`, the policy reads the queue through `ctx.approvals`;
    an approved, unexpired entry is **consumed** once and the call proceeds. Repeating the same call
-   after consumption is denied (`mcp.approval.consumed`) and needs a new request/request id.
+   after consumption is denied (`mcp.approval.consumed`); when no `requestId` is supplied the engine
+   mints a fresh nonce key so the caller can request approval again. A supplied `requestId` is the
+   nonce: replaying it stays denied.
 
 The queue carries request **arguments**, so every endpoint is gated to the admin roles — REST uses
 `adapters.rest.adminRoles`, MCP uses `adapters.mcp.adminRoles` (both default to none). Reading it is a
@@ -70,7 +72,7 @@ POST {prefix}/approvals/:key/reject          resolve → rejected   (admin; body
 ```
 
 `GET` supports `status`, `action`, `actorKey`, `requestedBy`, `approvalKey`, `from`, `to` (createdAt
-window), `limit`, `offset` and `sort`/`order` (default `createdAt` DESC). It returns
+window), `expiresBefore`, `limit`, `offset` and `sort`/`order` (default `createdAt` DESC). It returns
 `{ rows, total, limit, offset }`. Approve/reject return `{ approvalKey, status, approver, comment? }`
 and answer `approval.notFound` when the key is unknown, already resolved, expired or consumed.
 

@@ -34,6 +34,8 @@ export const hi: Record<MessageKey, string> = {
   'mcp.policy.denied': 'गार्ड्रेल नीति द्वारा अनुरोध अस्वीकृत: {reason}',
   'mcp.approval.pending': 'अनुमोदन आवश्यक — लंबित अनुमोदन कुंजी: {approvalKey}',
   'mcp.approval.notFound': 'अनुमोदन "{approvalKey}" नहीं मिला या पहले ही हल हो चुका है',
+  'mcp.approval.consumed': 'अनुमोदन "{approvalKey}" पहले ही उपयोग हो चुका है; नया अनुमोदन अनुरोध करें',
+  'mcp.approval.expired': 'अनुमोदन "{approvalKey}" समाप्त हो गया; नया अनुमोदन अनुरोध करें',
   'object.notObject': 'ऑब्जेक्ट परिभाषा एक JSON ऑब्जेक्ट होनी चाहिए',
   'object.name.required': 'ऑब्जेक्ट "{object}": नाम आवश्यक है',
   'object.name.reserved': 'ऑब्जेक्ट नाम "{name}" इंजन द्वारा आरक्षित है ("weavekit_" उपसर्ग)',

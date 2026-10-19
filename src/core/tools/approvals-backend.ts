@@ -4,7 +4,7 @@ import type { ApprovalListFilter, ApprovalsBackend, PendingApproval } from './ty
  * In-memory `ApprovalsBackend` (tests / single-process default). Pure core —
  * no I/O, keeps "disabled = not imported = zero overhead" for the persisted
  * route. Honors the full `ApprovalListFilter` (status/action/actorKey/from/to/
- * limit/offset/sort) so it behaves like the PG store for unit tests.
+ * expiresBefore/limit/offset/sort) so it behaves like the PG store for unit tests.
  */
 export function createMemoryApprovalsBackend(): ApprovalsBackend {
   const store = new Map<string, PendingApproval>();
@@ -17,6 +17,9 @@ export function createMemoryApprovalsBackend(): ApprovalsBackend {
     if (filter.approvalKey !== undefined && entry.approvalKey !== filter.approvalKey) return false;
     if (filter.from !== undefined && entry.createdAt < filter.from) return false;
     if (filter.to !== undefined && entry.createdAt > filter.to) return false;
+    if (filter.expiresBefore !== undefined) {
+      if (entry.expiresAt === undefined || entry.expiresAt >= filter.expiresBefore) return false;
+    }
     return true;
   };
 

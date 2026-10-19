@@ -34,6 +34,8 @@ export const ru: Record<MessageKey, string> = {
   'mcp.policy.denied': 'запрос отклонён политикой безопасности: {reason}',
   'mcp.approval.pending': 'требуется одобрение — ожидающий ключ: {approvalKey}',
   'mcp.approval.notFound': 'одобрение "{approvalKey}" не найдено или уже обработано',
+  'mcp.approval.consumed': 'согласование "{approvalKey}" уже использовано; запросите новое согласование',
+  'mcp.approval.expired': 'срок действия согласования "{approvalKey}" истёк; запросите новое согласование',
   'object.notObject': 'определение объекта должно быть JSON-объектом',
   'object.name.required': 'объект "{object}": имя обязательно',
   'object.name.reserved': 'имя объекта "{name}" зарезервировано движком (префикс "weavekit_")',

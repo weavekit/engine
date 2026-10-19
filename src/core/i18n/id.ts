@@ -34,6 +34,8 @@ export const id: Record<MessageKey, string> = {
   'mcp.policy.denied': 'permintaan ditolak oleh kebijakan pengaman: {reason}',
   'mcp.approval.pending': 'persetujuan diperlukan — kunci persetujuan tertunda: {approvalKey}',
   'mcp.approval.notFound': 'persetujuan "{approvalKey}" tidak ditemukan atau sudah diselesaikan',
+  'mcp.approval.consumed': 'persetujuan "{approvalKey}" sudah digunakan; minta persetujuan baru',
+  'mcp.approval.expired': 'persetujuan "{approvalKey}" kedaluwarsa; minta persetujuan baru',
   'object.notObject': 'definisi objek harus berupa objek JSON',
   'object.name.required': 'objek "{object}": nama wajib diisi',
   'object.name.reserved': 'nama objek "{name}" dicadangkan oleh mesin (awalan "weavekit_")',

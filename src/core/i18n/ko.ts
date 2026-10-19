@@ -34,6 +34,8 @@ export const ko: Record<MessageKey, string> = {
   'mcp.policy.denied': '가드레일 정책에 의해 요청이 거부되었습니다: {reason}',
   'mcp.approval.pending': '승인이 필요합니다 — 보류 중인 승인 키: {approvalKey}',
   'mcp.approval.notFound': '승인 "{approvalKey}"을(를) 찾을 수 없거나 이미 처리되었습니다',
+  'mcp.approval.consumed': '승인 "{approvalKey}"은(는) 이미 사용되었습니다. 새 승인을 요청하세요',
+  'mcp.approval.expired': '승인 "{approvalKey}"이(가) 만료되었습니다. 새 승인을 요청하세요',
   'object.notObject': '객체 정의는 JSON 객체여야 합니다',
   'object.name.required': '객체 "{object}": 이름은 필수입니다',
   'object.name.reserved': '객체 이름 "{name}"은(는) 엔진에서 예약되어 있습니다 ("weavekit_" 접두사)',

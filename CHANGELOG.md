@@ -5,6 +5,19 @@ the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.5.2] - 2026-10-19
+
+### Added
+
+- `ApprovalListFilter.expiresBefore` (contract 2.1.1) and localized messages for
+  `mcp.approval.consumed` / `mcp.approval.expired`.
+
+### Fixed
+
+- A consumed deterministic approval key no longer locks the caller out: the policy gate mints a
+  fresh nonce key for the next request when no `requestId` is supplied. Supplied request ids stay
+  replay-denied.
+
 ## [2.5.1] - 2026-10-19
 
 ### Added

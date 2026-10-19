@@ -34,6 +34,8 @@ export const vi: Record<MessageKey, string> = {
   'mcp.policy.denied': 'yêu cầu bị từ chối bởi chính sách bảo vệ: {reason}',
   'mcp.approval.pending': 'cần phê duyệt — khóa phê duyệt đang chờ: {approvalKey}',
   'mcp.approval.notFound': 'phê duyệt "{approvalKey}" không tồn tại hoặc đã được xử lý',
+  'mcp.approval.consumed': 'phê duyệt "{approvalKey}" đã được sử dụng; hãy yêu cầu phê duyệt mới',
+  'mcp.approval.expired': 'phê duyệt "{approvalKey}" đã hết hạn; hãy yêu cầu phê duyệt mới',
   'object.notObject': 'định nghĩa đối tượng phải là một đối tượng JSON',
   'object.name.required': 'đối tượng "{object}": tên là bắt buộc',
   'object.name.reserved': 'tên đối tượng "{name}" được dành riêng cho engine (tiền tố "weavekit_")',

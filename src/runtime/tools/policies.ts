@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { readdir, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -85,11 +86,17 @@ async function resolveApproval(
   ctx: GuardrailContext,
   policy?: { reason?: string; ruleId?: string },
 ): Promise<PolicyGateResult> {
-  const key =
+  let key =
     approvalKey === ''
       ? policyApprovalKey(ctx.actor.key, ctx.action, ctx.args, ctx.requestId)
       : approvalKey;
-  const existing = (await approvals.query()).find((a) => a.approvalKey === key);
+  let existing = (await approvals.query()).find((a) => a.approvalKey === key);
+  if (existing?.status === 'approved' && existing.consumedAt !== undefined && ctx.requestId === undefined) {
+    // A consumed deterministic key must not lock the caller out: mint a fresh
+    // nonce key so the next attempt can request approval again.
+    key = `${key}-${randomUUID().replace(/-/g, '').slice(0, 8)}`;
+    existing = undefined;
+  }
   if (existing?.status === 'approved') {
     if (existing.consumedAt !== undefined) {
       return { kind: 'deny', reason: 'approval was already consumed', errorCode: 'mcp.approval.consumed' };

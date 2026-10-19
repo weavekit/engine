@@ -67,6 +67,15 @@ function forwarding(status = 200): ForwarderCapture {
     },
     forwardStream: async (target, req) => {
       replies.push({ target, req });
+      if ((req as { path?: string }).path === 'audit') {
+        return {
+          response: new Response(JSON.stringify({ ok: true }), {
+            status,
+            headers: { 'content-type': 'application/json' },
+          }),
+          abort: () => {},
+        };
+      }
       return {
         response: new Response('data: {"type":"x","payload":{}}\n\n', {
           status,

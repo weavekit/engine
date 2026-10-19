@@ -34,6 +34,8 @@ export const zhHant: Record<MessageKey, string> = {
   'mcp.policy.denied': '請求被護欄策略拒絕：{reason}',
   'mcp.approval.pending': '需要審批——待批鍵：{approvalKey}',
   'mcp.approval.notFound': '審批 "{approvalKey}" 不存在或已處理',
+  'mcp.approval.consumed': '審批 "{approvalKey}" 已被使用；請重新發起審批',
+  'mcp.approval.expired': '審批 "{approvalKey}" 已過期；請重新發起審批',
   'object.notObject': '物件定義必須是 JSON 物件',
   'object.name.required': '物件「{object}」：name 必填',
   'object.name.reserved': '物件名稱 "{name}" 為引擎保留（"weavekit_" 前置字元）',

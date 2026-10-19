@@ -34,6 +34,8 @@ export const ar: Record<MessageKey, string> = {
   'mcp.policy.denied': 'تم رفض الطلب بواسطة سياسة الحماية: {reason}',
   'mcp.approval.pending': 'مطلوب موافقة — مفتاح موافقة معلق: {approvalKey}',
   'mcp.approval.notFound': 'الموافقة "{approvalKey}" غير موجودة أو تمت معالجتها بالفعل',
+  'mcp.approval.consumed': 'تم استخدام الموافقة "{approvalKey}" بالفعل؛ اطلب موافقة جديدة',
+  'mcp.approval.expired': 'انتهت صلاحية الموافقة "{approvalKey}"؛ اطلب موافقة جديدة',
   'object.notObject': 'يجب أن يكون تعريف الكائن كائن JSON',
   'object.name.required': 'الكائن "{object}": الاسم مطلوب',
   'object.name.reserved': 'اسم الكائن "{name}" محجوز بواسطة المحرك (البادئة "weavekit_")',
