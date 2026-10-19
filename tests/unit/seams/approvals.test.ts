@@ -118,3 +118,16 @@ describe('approval single-use, expiry and context', () => {
     expect(await approvals.consume('ap-exp', 'u1')).toBe(false);
   });
 });
+  it('enforces segregation of duties (requester cannot decide)', async () => {
+    const approvals = createApprovals();
+    await approvals.pending(
+      'mcp.tool.x',
+      {},
+      { key: 'agent-1', label: 'agent', onBehalfOf: 'u1' },
+      'ap-sod',
+      { requestedBy: 'u1' },
+    );
+    expect(await approvals.approve('ap-sod', 'u1')).toBe(false);
+    expect(await approvals.reject('ap-sod', 'u1', 'self')).toBe(false);
+    expect(await approvals.approve('ap-sod', 'mgr')).toBe(true);
+  });

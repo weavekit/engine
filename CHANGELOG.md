@@ -5,6 +5,14 @@ the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.5.1] - 2026-10-19
+
+### Added
+
+- **Segregation of duties**: a requester cannot approve/reject their own pending approval.
+  The queue denies the decision (and audits `approval.denied`); REST returns `409 http.conflict`
+  with an explanatory detail.
+
 ## [2.5.0] - 2026-10-19
 
 ### Added

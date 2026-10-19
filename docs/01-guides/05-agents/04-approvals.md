@@ -47,6 +47,10 @@ actor + action + args (+ optional request id), so repeated calls don't create du
 entries. New entries expire after 72h by default (`tools.approvals.ttlMs`); an expired entry cannot
 be approved or consumed. `comment` is required for rejection in the Console contract.
 
+**Segregation of duties**: when `requestedBy` is present, the requester cannot approve or reject
+their own request. The queue denies the decision (audits `approval.denied`); REST returns
+`409 http.conflict` with a detail.
+
 Backends implement `ApprovalsBackend`:
 
 - **In-memory** (`core/tools`) — the default and the test double.

@@ -104,6 +104,13 @@ export function createApprovals(
   ): Promise<boolean> => {
     const current = await backend.get(approvalKey);
     if (current === undefined) return false;
+    if (current.requestedBy !== undefined && current.requestedBy === by) {
+      auditApproval('approval.denied', AUDIT_ACTOR_TYPES.USER, by, current, {
+        reason: 'segregation-of-duties',
+        approver: by,
+      });
+      return false;
+    }
     if (current.expiresAt !== undefined && current.expiresAt.getTime() <= Date.now()) {
       auditApproval('approval.expired', AUDIT_ACTOR_TYPES.SYSTEM, 'system', current, {
         expiresAt: current.expiresAt.toISOString(),

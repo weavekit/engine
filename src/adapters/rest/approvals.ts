@@ -93,6 +93,14 @@ export function registerApprovalsRoutes(app: FastifyInstance, deps: RestDeps, op
       if (decision === 'rejected' && comment === undefined) {
         throw new SchemaError('http.param.invalid', { param: 'comment' }, locale);
       }
+      const [current] = await approvals.list({ approvalKey: key, limit: 1 });
+      if (current?.requestedBy !== undefined && current.requestedBy === subject.id) {
+        throw new SchemaError(
+          'http.conflict',
+          { detail: 'segregation of duties: the requester cannot decide their own approval' },
+          locale,
+        );
+      }
       const ok =
         decision === 'approved'
           ? await approvals.approve(key, subject.id, comment)
