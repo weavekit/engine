@@ -29,6 +29,7 @@ export const SYSTEM_TABLES = {
   APPROVAL_DELEGATIONS: 'weavekit_approval_delegations',
   LEGAL_HOLDS: 'weavekit_legal_holds',
   EXPORT_JOBS: 'weavekit_export_jobs',
+  AUDIT_DELIVERY: 'weavekit_audit_delivery',
   WORKFLOW_DEFINITIONS: 'weavekit_workflow_definitions',
   WORKFLOW_INSTANCES: 'weavekit_workflow_instances',
   WORKFLOW_STEPS: 'weavekit_workflow_steps',
@@ -316,6 +317,28 @@ const exportJobs = (): ExpectedTable => ({
   uniques: [],
 });
 
+const auditDelivery = (): ExpectedTable => ({
+  name: SYSTEM_TABLES.AUDIT_DELIVERY,
+  columns: [
+    col('id', 'BIGSERIAL', { notNull: true, primary: true }),
+    col('exporter', 'TEXT', { notNull: true }),
+    col('event_id', 'BIGINT', { notNull: true }),
+    col('payload', 'JSONB', { notNull: true }),
+    col('attempts', 'INTEGER', { notNull: true, default: '0' }),
+    col('next_attempt_at', 'TIMESTAMPTZ', { notNull: true, default: 'now()' }),
+    col('claimed_at', 'TIMESTAMPTZ'),
+    col('last_error', 'TEXT'),
+    col('delivered_at', 'TIMESTAMPTZ'),
+    col('dead_letter_at', 'TIMESTAMPTZ'),
+  ],
+  fks: [],
+  indexes: [
+    { name: 'weavekit_audit_delivery_pending_idx', method: 'btree', columns: ['exporter', 'next_attempt_at'] },
+    { name: 'weavekit_audit_delivery_status_idx', method: 'btree', columns: ['delivered_at', 'dead_letter_at'] },
+  ],
+  uniques: [{ name: 'weavekit_audit_delivery_exporter_event_uq', columns: ['exporter', 'event_id'] }],
+});
+
 const workflowDefinitions = (): ExpectedTable => ({
   name: SYSTEM_TABLES.WORKFLOW_DEFINITIONS,
   columns: [
@@ -466,6 +489,7 @@ export function buildSystemTables(scope?: SchemaScope): ExpectedTable[] {
     approvalDelegations(),
     legalHolds(),
     exportJobs(),
+    auditDelivery(),
     workflowDefinitions(),
     workflowInstances(),
     workflowSteps(),

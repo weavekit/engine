@@ -5,6 +5,12 @@ the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.8.3] - 2026-10-20
+
+### Added
+
+- `weavekit_audit_delivery` system table (enterprise-reserved) for durable SIEM delivery outboxes.
+
 ## [2.8.2] - 2026-10-20
 
 ### Added
