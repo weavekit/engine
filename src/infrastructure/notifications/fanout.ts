@@ -20,6 +20,7 @@ export function createFanoutNotifier(
   if (entries.length === 0) throw new Error('notification fanout requires at least one channel');
 
   return {
+    channels: entries.map(([channel]) => channel),
     async send(message: NotificationMessage): Promise<void> {
       const channel = message.channel ?? defaultChannel;
       const targets = channel === undefined ? entries : entries.filter(([name]) => name === channel);

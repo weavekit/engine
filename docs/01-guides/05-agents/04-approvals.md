@@ -61,7 +61,9 @@ Backends implement `ApprovalsBackend`:
 
 Tool handlers reach it through `ctx.approvals` (`list`, `count`, `query`, `approve`, `reject`).
 The queue writes standard audit events: `approval.requested`, `approval.approved`,
-`approval.rejected`, `approval.expired` and `approval.consumed`.
+`approval.rejected`, `approval.expired` and `approval.consumed`. It can also emit the same
+lifecycle to an optional `ApprovalEventSink` (`tools.approvals.events`) for enterprise notifications;
+delivery is best-effort and never blocks the approval path.
 
 ## REST
 

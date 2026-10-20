@@ -6,6 +6,7 @@
 import type { FastifyInstance } from 'fastify';
 import type { Pool } from 'pg';
 import type {
+  ApprovalEventSink,
   ApprovalsBackend,
   AuditMode,
   AuditSink,
@@ -121,6 +122,8 @@ export interface EngineToolsConfig {
     backend?: 'pg' | 'memory' | ApprovalsBackend;
     /** approval TTL in ms (default 72h; legacy rows without expiresAt never expire) */
     ttlMs?: number;
+    /** optional lifecycle sink (enterprise notifications / audit fan-out) */
+    events?: ApprovalEventSink;
   };
 }
 

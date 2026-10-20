@@ -1,5 +1,6 @@
 export * from './values.js';
 export * from './types.js';
+export * from './approval-events.js';
 export * from './policies.js';
 export * from './pipeline.js';
 export { validateToolArgs, type ValidationResult } from './validate-args.js';

@@ -1,6 +1,7 @@
 import { describe, it, expect } from '../../helpers/test.js';
 import { createMemoryApprovalsBackend, type ApprovalsBackend, type PendingApproval } from '../../../src/core/index.js';
 import { createApprovals } from '../../../src/runtime/tools/index.js';
+import type { ApprovalEvent } from '../../../src/core/index.js';
 import type { AuditEvent, AuditSink } from '../../../src/core/audit/index.js';
 
 /**
@@ -131,3 +132,34 @@ describe('approval single-use, expiry and context', () => {
     expect(await approvals.reject('ap-sod', 'u1', 'self')).toBe(false);
     expect(await approvals.approve('ap-sod', 'mgr')).toBe(true);
   });
+describe('approval lifecycle event sink', () => {
+  it('emits requested/approved/consumed without blocking', async () => {
+    const emitted: ApprovalEvent[] = [];
+    const approvals = createApprovals({
+      ttlMs: 60_000,
+      events: { emit: (event) => void emitted.push(event) },
+    });
+    await approvals.pending(
+      'mcp.tool.delete_record',
+      { id: 'X' },
+      { key: 'agent-1', label: 'agent', onBehalfOf: 'u1' },
+      'ap-events',
+      { requestedBy: 'u1', requestId: 'req-1', policy: { ruleId: 'r1' } },
+    );
+    expect(await approvals.approve('ap-events', 'mgr', 'ok')).toBe(true);
+    expect(await approvals.consume('ap-events', 'u1')).toBe(true);
+    expect(emitted.map((event) => event.type)).toEqual([
+      'approval.requested',
+      'approval.approved',
+      'approval.consumed',
+    ]);
+    expect(emitted[0]).toMatchObject({
+      approvalKey: 'ap-events',
+      requestedBy: 'u1',
+      onBehalfOf: 'u1',
+      policy: { ruleId: 'r1' },
+    });
+    expect(emitted[1]).toMatchObject({ approver: 'mgr', comment: 'ok' });
+    expect(emitted[2]).toMatchObject({ approver: 'u1' });
+  });
+});

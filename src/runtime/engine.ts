@@ -237,11 +237,13 @@ export async function buildEngineFromRegistry(
       // for a release engine.
       const approvalsBackend = config.tools.approvals?.backend;
       const approvalTtlMs = config.tools.approvals?.ttlMs;
+      const approvalEvents = config.tools.approvals?.events;
       if (approvalsBackend !== undefined && typeof approvalsBackend === 'object') {
         approvals = createApprovals({
           audit: auditSink,
           backend: approvalsBackend,
           ...(approvalTtlMs === undefined ? {} : { ttlMs: approvalTtlMs }),
+          ...(approvalEvents === undefined ? {} : { events: approvalEvents }),
         });
       } else if (approvalsBackend !== 'memory') {
         const { createApprovalsBackend } = await import('../subsystems/approvals/index.js');
@@ -250,11 +252,13 @@ export async function buildEngineFromRegistry(
           audit: auditSink,
           backend,
           ...(approvalTtlMs === undefined ? {} : { ttlMs: approvalTtlMs }),
+          ...(approvalEvents === undefined ? {} : { events: approvalEvents }),
         });
       } else {
         approvals = createApprovals({
           audit: auditSink,
           ...(approvalTtlMs === undefined ? {} : { ttlMs: approvalTtlMs }),
+          ...(approvalEvents === undefined ? {} : { events: approvalEvents }),
         });
       }
     }

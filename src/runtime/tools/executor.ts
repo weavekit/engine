@@ -1,8 +1,8 @@
 import { createHash } from 'node:crypto';
 import type { Pool } from 'pg';
-import { NOOP_AUDIT_SINK, createMemoryApprovalsBackend, userPrincipal, SchemaError, validateToolArgs, DEFAULT_LOCALE } from '../../core/index.js';
+import { APPROVAL_EVENT_TYPES, NOOP_AUDIT_SINK, createMemoryApprovalsBackend, userPrincipal, SchemaError, validateToolArgs, DEFAULT_LOCALE } from '../../core/index.js';
 import { AUDIT_ACTOR_TYPES } from '../../core/index.js';
-import type { AuditSink, IdentitySubject, Locale, ObjectRegistry, ToolActor, ToolApprovals, ApprovalsBackend, ApprovalListFilter, ToolCallContext, ToolDataAccess, ToolDefinition, ToolGuardrails, ToolJsonSchema, ToolResult, ApprovalStatus, PendingApproval, ApprovalRequestContext, GuardrailContext, GuardrailPolicy, EvidenceSink } from '../../core/index.js';
+import type { ApprovalEvent, ApprovalEventSink, ApprovalEventType, AuditSink, IdentitySubject, Locale, ObjectRegistry, ToolActor, ToolApprovals, ApprovalsBackend, ApprovalListFilter, ToolCallContext, ToolDataAccess, ToolDefinition, ToolGuardrails, ToolJsonSchema, ToolResult, ApprovalStatus, PendingApproval, ApprovalRequestContext, GuardrailContext, GuardrailPolicy, EvidenceSink } from '../../core/index.js';
 import type { ObjectDataAccess, DataAccessContext, FindOptions } from '../data-access/index.js';
 import { withTx as dataAccessWithTx } from '../data-access/index.js';
 import { applyMask, evaluateCall } from './policies.js';
@@ -67,11 +67,12 @@ const DEFAULT_APPROVAL_TTL_MS = 72 * 3_600_000;
  * is audited here, never by the store. Async because the backend performs I/O.
  */
 export function createApprovals(
-  options: { audit?: AuditSink; backend?: ApprovalsBackend; ttlMs?: number } = {},
+  options: { audit?: AuditSink; backend?: ApprovalsBackend; ttlMs?: number; events?: ApprovalEventSink } = {},
 ): ApprovalsQueue {
   const backend = options.backend ?? createMemoryApprovalsBackend();
   const audit = options.audit ?? NOOP_AUDIT_SINK;
   const ttlMs = options.ttlMs ?? DEFAULT_APPROVAL_TTL_MS;
+  const events = options.events;
 
   const auditApproval = (
     action: string,
@@ -96,6 +97,32 @@ export function createApprovals(
       .catch(() => {});
   };
 
+  const emitApproval = (
+    type: ApprovalEventType,
+    entry: PendingApproval | undefined,
+    extra: Partial<ApprovalEvent> = {},
+  ): void => {
+    if (events === undefined || entry === undefined) return;
+    const event: ApprovalEvent = {
+      type,
+      approvalKey: entry.approvalKey,
+      action: entry.action,
+      actorKey: entry.actorKey,
+      ...(entry.requestedBy === undefined ? {} : { requestedBy: entry.requestedBy }),
+      ...(entry.onBehalfOf === undefined ? {} : { onBehalfOf: entry.onBehalfOf }),
+      ...(entry.actorLabel === undefined ? {} : { actorLabel: entry.actorLabel }),
+      ...(entry.requestId === undefined ? {} : { requestId: entry.requestId }),
+      ...(entry.policy === undefined ? {} : { policy: entry.policy }),
+      ...(entry.expiresAt === undefined ? {} : { expiresAt: entry.expiresAt }),
+      ...(entry.consumedAt === undefined ? {} : { consumedAt: entry.consumedAt }),
+      ...(entry.resolvedAt === undefined ? {} : { resolvedAt: entry.resolvedAt }),
+      ...(entry.comment === undefined ? {} : { comment: entry.comment }),
+      occurredAt: new Date(),
+      ...extra,
+    };
+    void Promise.resolve(events.emit(event)).catch(() => {});
+  };
+
   const resolve = async (
     approvalKey: string,
     by: string,
@@ -109,12 +136,17 @@ export function createApprovals(
         reason: 'segregation-of-duties',
         approver: by,
       });
+      emitApproval(APPROVAL_EVENT_TYPES.DENIED, current, {
+        approver: by,
+        reason: 'segregation-of-duties',
+      });
       return false;
     }
     if (current.expiresAt !== undefined && current.expiresAt.getTime() <= Date.now()) {
       auditApproval('approval.expired', AUDIT_ACTOR_TYPES.SYSTEM, 'system', current, {
         expiresAt: current.expiresAt.toISOString(),
       });
+      emitApproval(APPROVAL_EVENT_TYPES.EXPIRED, current, { reason: 'expired' });
       return false;
     }
     const ok = await backend.resolve(approvalKey, by, status, comment);
@@ -126,6 +158,11 @@ export function createApprovals(
         by,
         entry,
         { approver: by, status, ...(comment === undefined ? {} : { comment }) },
+      );
+      emitApproval(
+        status === 'approved' ? APPROVAL_EVENT_TYPES.APPROVED : APPROVAL_EVENT_TYPES.REJECTED,
+        entry,
+        { approver: by, ...(comment === undefined ? {} : { comment }) },
       );
     }
     return ok;
@@ -155,6 +192,7 @@ export function createApprovals(
         auditApproval('approval.expired', AUDIT_ACTOR_TYPES.SYSTEM, 'system', entry, {
           expiresAt: entry.expiresAt.toISOString(),
         });
+        emitApproval(APPROVAL_EVENT_TYPES.EXPIRED, entry, { reason: 'expired' });
         return false;
       }
       const ok = await backend.consume(approvalKey, by);
@@ -162,6 +200,7 @@ export function createApprovals(
         auditApproval('approval.consumed', AUDIT_ACTOR_TYPES.USER, by, entry, {
           ...(entry.requestId === undefined ? {} : { requestId: entry.requestId }),
         });
+        emitApproval(APPROVAL_EVENT_TYPES.CONSUMED, entry, { approver: by });
       }
       return ok;
     },
@@ -199,6 +238,7 @@ export function createApprovals(
         ...(context.requestId === undefined ? {} : { requestId: context.requestId }),
         expiresAt: entry.expiresAt?.toISOString(),
       });
+      emitApproval(APPROVAL_EVENT_TYPES.REQUESTED, entry);
     },
   };
 }

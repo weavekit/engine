@@ -5,6 +5,15 @@ the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.6.1] - 2026-10-20
+
+### Added
+
+- `ApprovalEventSink` / `ApprovalEvent` lifecycle contract (`approval.requested`,
+  `approved`, `rejected`, `expired`, `consumed`, `denied`) and
+  `tools.approvals.events` injection. Events are best-effort and never block the
+  approval path; used by enterprise approval notifications.
+
 ## [2.6.0] - 2026-10-19
 
 ### Added

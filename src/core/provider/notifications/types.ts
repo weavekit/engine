@@ -44,6 +44,8 @@ export interface NotificationMessage {
  * the producer's state.
  */
 export interface NotificationSink {
+  /** channels this sink can deliver (fan-out); absent = single/default transport */
+  readonly channels?: NotificationChannel[];
   send(message: NotificationMessage): Promise<void>;
 }
 
