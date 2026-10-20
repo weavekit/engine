@@ -46,9 +46,9 @@ export async function insertAudit(db: SqlQueryable, event: AuditEvent): Promise<
   );
 }
 
-/** batch append-only insert (single multi-row statement, one transaction) */
-export async function insertAuditBatch(db: SqlQueryable, events: AuditEvent[]): Promise<void> {
-  if (events.length === 0) return;
+/** batch append-only insert (single multi-row statement, one transaction); returns the inserted ids in event order */
+export async function insertAuditBatch(db: SqlQueryable, events: AuditEvent[]): Promise<string[]> {
+  if (events.length === 0) return [];
   const values: string[] = [];
   const params: unknown[] = [];
   for (const event of events) {
@@ -66,11 +66,13 @@ export async function insertAuditBatch(db: SqlQueryable, events: AuditEvent[]): 
       `($${i + 1}, $${i + 2}, $${i + 3}, $${i + 4}, $${i + 5}, $${i + 6}, $${i + 7}, $${i + 8}, $${i + 9}, $${i + 10}, $${i + 11}, $${i + 12}, $${i + 13}, $${i + 14}, $${i + 15})`,
     );
   }
-  await db.query(
+  const { rows } = await db.query<{ id: string }>(
     `INSERT INTO ${TABLE} (actor_type, actor_id, action, object, object_id, changes, before, after, is_error, error_code, request_id, trace_id, scope_id, meta, ts)
-     VALUES ${values.join(', ')}`,
+     VALUES ${values.join(', ')}
+     RETURNING id`,
     params,
   );
+  return rows.map((row) => String(row.id));
 }
 
 /**

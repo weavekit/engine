@@ -1,6 +1,11 @@
 import { describe, it, expect } from '../helpers/test.js';
 import type { Pool, PoolClient } from 'pg';
-import { AUDIT_ACTOR_TYPES, createOutboxAuditSink, createTransactionalAuditSink } from '../../src/subsystems/audit/index.js';
+import {
+  AUDIT_ACTOR_TYPES,
+  createOutboxAuditSink,
+  createTransactionalAuditSink,
+  startAuditOutboxRelay,
+} from '../../src/subsystems/audit/index.js';
 import type { AuditEngine } from '../../src/subsystems/audit/index.js';
 import type { AuditEvent } from '../../src/core/audit/index.js';
 
@@ -67,5 +72,69 @@ describe('audit outbox / transactional sinks', () => {
     expect(client.calls[0]!.params[0]).toBe('user');
     await sink.record(EVENT);
     expect(recorded).toHaveLength(1);
+  });
+
+  it('relay calls onPersisted inside the transaction with the inserted audit id', async () => {
+    const calls: Call[] = [];
+    let selected = false;
+    const client = {
+      query: async (sql: string, params: unknown[] = []) => {
+        calls.push({ sql, params });
+        if (sql.startsWith('SELECT id, event')) {
+          if (selected) return { rows: [] };
+          selected = true;
+          return { rows: [{ id: '1', event: EVENT }] };
+        }
+        if (sql.includes('INSERT INTO weavekit_audit')) return { rows: [{ id: '42' }] };
+        return { rows: [] };
+      },
+      release: () => {},
+    };
+    const pool = {
+      connect: async () => client,
+    } as unknown as Pool;
+    const persisted: { id: string; event: AuditEvent }[] = [];
+    const relay = startAuditOutboxRelay({
+      pool,
+      onPersisted: async (event, id) => {
+        persisted.push({ id, event });
+      },
+    });
+    await relay.drain();
+    await relay.close();
+    expect(persisted).toHaveLength(1);
+    expect(persisted[0]!.id).toBe('42');
+    expect(persisted[0]!.event).toBe(EVENT);
+    expect(calls.some((c) => c.sql === 'COMMIT')).toBe(true);
+    expect(calls.some((c) => c.sql.startsWith('DELETE FROM weavekit_audit_outbox'))).toBe(true);
+  });
+
+  it('relay rolls back and keeps the outbox row when onPersisted throws', async () => {
+    const calls: Call[] = [];
+    let selected = false;
+    const client = {
+      query: async (sql: string, params: unknown[] = []) => {
+        calls.push({ sql, params });
+        if (sql.startsWith('SELECT id, event')) {
+          if (selected) return { rows: [] };
+          selected = true;
+          return { rows: [{ id: '1', event: EVENT }] };
+        }
+        if (sql.includes('INSERT INTO weavekit_audit')) return { rows: [{ id: '42' }] };
+        return { rows: [] };
+      },
+      release: () => {},
+    };
+    const pool = { connect: async () => client } as unknown as Pool;
+    const relay = startAuditOutboxRelay({
+      pool,
+      onPersisted: async () => {
+        throw new Error('delivery enqueue failed');
+      },
+    });
+    await expect(relay.drain()).rejects.toThrow(/delivery enqueue failed/);
+    await relay.close();
+    expect(calls.some((c) => c.sql === 'ROLLBACK')).toBe(true);
+    expect(calls.some((c) => c.sql.startsWith('DELETE FROM weavekit_audit_outbox'))).toBe(false);
   });
 });

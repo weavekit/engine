@@ -13,6 +13,7 @@ import {
   createSchemaScope,
   parseTraceparent,
   searchPathOptions,
+  type AuditEvent,
   type AuditSink,
   type CounterStore,
   type EventPublisher,
@@ -171,6 +172,11 @@ export async function buildEngineFromRegistry(
 
   if (subsystems.audit?.enabled) {
     const mode = subsystems.audit.mode ?? AUDIT_MODES.BEST_EFFORT;
+    if (subsystems.audit.onPersisted !== undefined && mode !== AUDIT_MODES.DURABLE) {
+      throw new Error(
+        'subsystems.audit.onPersisted requires audit mode "durable" (atomic audit + sidecar enqueue)',
+      );
+    }
     const auditMod = await import('../subsystems/audit/index.js');
     audit = await auditMod.createAudit(pool);
     // a host-injected sink replaces the mode-built inner sink (enterprise E2:
@@ -184,7 +190,12 @@ export async function buildEngineFromRegistry(
       auditSink = auditMod.createOutboxAuditSink(pool);
       outboxRelay = auditMod.startAuditOutboxRelay({
         pool,
-        publish: eventPublisher === undefined ? undefined : (event) => eventPublisher!.publishAudit(event),
+        ...(eventPublisher === undefined
+          ? {}
+          : { publish: (event: AuditEvent) => eventPublisher!.publishAudit(event) }),
+        ...(subsystems.audit.onPersisted === undefined
+          ? {}
+          : { onPersisted: subsystems.audit.onPersisted }),
       });
     } else {
       bufferedSink = auditMod.createBufferedAuditSink(audit, subsystems.audit.batch);

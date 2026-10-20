@@ -4,11 +4,12 @@
  * `engine.ts` / `guards.ts`; these are pure declarations (no runtime imports).
  */
 import type { FastifyInstance } from 'fastify';
-import type { Pool } from 'pg';
+import type { Pool, PoolClient } from 'pg';
 import type {
   ApprovalDelegationResolver,
   ApprovalEventSink,
   ApprovalsBackend,
+  AuditEvent,
   AuditMode,
   AuditSink,
   CounterStore,
@@ -101,6 +102,12 @@ export interface EngineAuditConfig {
    * `transactional`/`durable` durability.
    */
   wrap?: (inner: AuditSink) => AuditSink;
+  /**
+   * Durable-mode sidecar hook: called inside the relay transaction with the
+   * persisted audit id (e.g. enterprise SIEM delivery enqueue). Requires
+   * `mode: 'durable'`; a throw rolls the audit insert back.
+   */
+  onPersisted?: (event: AuditEvent, auditId: string, client: PoolClient) => Promise<void>;
 }
 
 /**

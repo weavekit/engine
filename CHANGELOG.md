@@ -5,6 +5,15 @@ the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.9.0] - 2026-10-20
+
+### Added
+
+- `subsystems.audit.onPersisted` hook: runs inside the durable relay transaction with the persisted
+  audit id, so sidecars (e.g. enterprise SIEM delivery) commit atomically with the audit row.
+- `weavekit_audit_delivery` fencing/lease columns (`claimed_by`, `claim_token`, `lease_until`,
+  `created_at`) for safe multi-instance delivery.
+
 ## [2.8.3] - 2026-10-20
 
 ### Added

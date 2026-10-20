@@ -35,6 +35,12 @@ export interface AuditOutboxRelayOptions {
   pool: Pool;
   /** called after each event is durably written (SSE dual-emit) */
   publish?: (event: AuditEvent) => void;
+  /**
+   * Called for each persisted event **inside the relay transaction** with the
+   * assigned audit id. A throw rolls the audit insert + outbox delete back, so
+   * sidecar rows (e.g. delivery outbox) stay consistent with the audit log.
+   */
+  onPersisted?: (event: AuditEvent, auditId: string, client: PoolClient) => Promise<void>;
   pollMs?: number;
   batchSize?: number;
   onError?: (error: Error) => void;
@@ -77,7 +83,13 @@ export function startAuditOutboxRelay(options: AuditOutboxRelayOptions): AuditOu
           break;
         }
         events = rows.map((r) => r.event);
-        await insertAuditBatch(client, events);
+        const auditIds = await insertAuditBatch(client, events);
+        if (options.onPersisted !== undefined) {
+          for (let i = 0; i < events.length; i += 1) {
+            const id = auditIds[i];
+            if (id !== undefined) await options.onPersisted(events[i]!, id, client);
+          }
+        }
         await client.query(`DELETE FROM ${SYSTEM_TABLES.AUDIT_OUTBOX} WHERE id = ANY($1)`, [rows.map((r) => r.id)]);
         await client.query('COMMIT');
       } catch (error) {
