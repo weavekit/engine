@@ -110,7 +110,7 @@ ${projectType}${subsystems}${features}  schemaDir: '.',
       },
       guardrails: {
         rateLimit: { windowMs: 60_000, max: 100 },
-        alerts: { channel: 'console' },
+        notifications: { channels: { console: true } },
       },
       // Business prompts for your agents (MCP prompts: user-invoked templates).
       // The schema-derived built-ins (explore_data / object_guide / build_filter /

@@ -13,6 +13,7 @@ packages (the client SDK) and external integrators code against.
 | Import | Tier | Promise |
 | --- | --- | --- |
 | `@weave-kit/engine` | **stable** | app / integration contract; breaking changes only in a major release |
+| `@weave-kit/engine/notifications` | **stable** | notification transport contract + console/webhook/slack/SMTP/Resend factories |
 | `@weave-kit/engine/values` | **stable** (browser-safe) | pure `as const` constants (field types, filter ops, …); zero imports |
 | `@weave-kit/engine/experimental` | **experimental** | under active development; **may change in a minor release** |
 | any other path | **internal** | not importable — blocked by the `exports` map (even `dist/…` deep paths) |
@@ -31,9 +32,9 @@ registry (`EnumDefinition` / `EnumRegistry` / `buildEnumRegistry` / `validateEnu
 `loadEnumsDir` / `resolveEnumRegistry`), the audit/script
 contract types, and the scaffolder (`scaffoldProject`, `PROJECT_TYPES`).
 
-The experimental entry covers the moving parts that aren't worth freezing yet: the
-`infrastructure/*` provider implementations, the metadata cache, the tunnel transport, and the ops
-(health/ready) routes.
+The experimental entry covers the moving parts that aren't worth freezing yet: the metadata cache,
+the tunnel transport, and the ops (health/ready) routes. Notification transports moved to the stable
+`./notifications` subpath in 2.6.0; the old `infrastructure/alerts` exports are removed.
 
 > The tier boundary is enforced by `tests/unit/public-api.test.ts`: the stable entry must expose the
 > contract names and must **not** leak internals, while the experimental entry must expose them. When
@@ -48,8 +49,29 @@ The stable surface exists so you can extend the engine without patching internal
   contracts (`IdentitySource` / `AuthVerifier` / `IdentityDirectory` / `IdentityStore`) and are
   **config-injected** (no global registry); the engine ships the `pg` and `function` sources (see
   [Identity](../../01-guides/04-access/03-identity.md)).
-- **Providers** — implement the `core/provider/*` contracts (alerts, identity, event) and inject them; implementations live outside `core`.
+- **Providers** — implement the `core/provider/*` contracts (notifications, identity, event) and inject them; notification transports live under `@weave-kit/engine/notifications`. The legacy `AlertSink` contract is deprecated and removed in 3.0.
 - **Subsystems** — enabled through `weavekit.config.ts` and dynamically loaded.
+
+### Notification transports
+
+`@weave-kit/engine/notifications` exports the `NotificationSink` contract and console, webhook,
+Slack, SMTP and Resend transports. SMTP requires the optional `nodemailer` peer; Resend uses
+`fetch` and no SDK.
+
+```ts
+import { createNotificationSink } from '@weave-kit/engine/notifications';
+
+const notifications = createNotificationSink({
+  channels: {
+    slack: { webhookUrl: process.env.SLACK_WEBHOOK! },
+    email: { provider: 'smtp', from: 'noreply@acme.test', smtp: { host: 'smtp.acme.test' } },
+  },
+});
+await notifications.send({ channel: 'email', to: ['ops@acme.test'], subject: 'Hi', text: 'Hello' });
+```
+
+Producers own routing/recipients/templates; transports only deliver. `MCP guardrails.notifications`
+uses the same factory.
 - **Custom tools & guardrail policies** — `core/tools` + `runtime/tools`.
 - **Custom field types** — `loadFieldTypesDir` / `resolveFieldTypeRegistry` + config `fieldTypes`; a
   project-local `field-types/` dir of declarative registrations (see

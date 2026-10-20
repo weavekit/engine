@@ -1,22 +1,23 @@
-import { describe, it, expect } from '../helpers/test.js';import { createGuardrails } from '../../src/adapters/mcp/guardrails.js';
-import { ALERT_LEVELS } from '../../src/core/provider/alerts/index.js';
-import type { AlertSink } from '../../src/core/provider/alerts/index.js';
+import { describe, it, expect } from '../helpers/test.js';
+import { createGuardrails } from '../../src/adapters/mcp/guardrails.js';
+import { NOTIFICATION_SEVERITIES } from '../../src/core/provider/notifications/index.js';
+import type { NotificationMessage, NotificationSink } from '../../src/core/provider/notifications/index.js';
 import type { AuditEvent, AuditSink } from '../../src/core/audit/index.js';
 
 describe('createGuardrails — rate limiting', () => {
   it('passes within window, rejects over limit', () => {
     const alerts: { calls: number } = { calls: 0 };
-    const sink: AlertSink = {
-      alert: async () => {
+    const sink: NotificationSink = {
+      send: async () => {
         alerts.calls += 1;
       },
     };
-    const g = createGuardrails({ rateLimit: { windowMs: 1000, max: 2 }, alerts: sink });
+    const g = createGuardrails({ rateLimit: { windowMs: 1000, max: 2 }, notifications: sink });
     expect(g.checkRateLimit('key-a', undefined, 0)).toBe(true);
     expect(g.checkRateLimit('key-a', undefined, 10)).toBe(true);
     expect(g.checkRateLimit('key-a', undefined, 20)).toBe(false);
     expect(g.checkRateLimit('key-a', undefined, 30)).toBe(false);
-    expect(alerts.calls).toBe(2); // each over-limit fires a warn
+    expect(alerts.calls).toBe(2); // each over-limit sends a warning
     expect(g.checkRateLimit('key-b', undefined, 40)).toBe(true); // independent keys
     g.dispose();
   });
@@ -37,7 +38,7 @@ describe('createGuardrails — rate limiting', () => {
   });
 });
 
-describe('createGuardrails — audit + alerts injection', () => {
+describe('createGuardrails — audit + notifications injection', () => {
   it('audit forwards to injected sink, does not throw on failure', async () => {
     const events: AuditEvent[] = [];
     const audit: AuditSink = {
@@ -49,7 +50,7 @@ describe('createGuardrails — audit + alerts injection', () => {
     const event: AuditEvent = { actorType: 'agent', actorId: 'a1', action: 'mcp.tool.search_lead', timestamp: new Date() };
     await g.audit(event);
     expect(events).toHaveLength(1);
-    await g.audit(event); // sink works
+    await g.audit(event);
     g.dispose();
   });
 
@@ -61,32 +62,32 @@ describe('createGuardrails — audit + alerts injection', () => {
         },
       },
     });
-    // must not reject even though the sink throws
     await g.audit({ actorType: 'agent', actorId: 'a1', action: 'mcp.tool.x', timestamp: new Date() });
     g.dispose();
   });
 
-  it('alert defaults to console (checkRateLimit still works without injection)', () => {
+  it('notifications default to console (checkRateLimit still works without injection)', () => {
     const g = createGuardrails({ rateLimit: { windowMs: 1000, max: 1 } });
     expect(g.checkRateLimit('k')).toBe(true);
-    expect(g.checkRateLimit('k')).toBe(false); // fires console warn, no crash
+    expect(g.checkRateLimit('k')).toBe(false);
     g.dispose();
   });
 
-  it('calls alert(level=warn) on over-limit when alerts injected', async () => {
-    const seen: Array<{ level: string; message: string }> = [];
+  it('sends a warning notification on over-limit', () => {
+    const seen: NotificationMessage[] = [];
     const g = createGuardrails({
       rateLimit: { windowMs: 1000, max: 1 },
-      alerts: {
-        alert: async (level, message) => {
-          seen.push({ level, message });
+      notifications: {
+        send: async (message) => {
+          seen.push(message);
         },
       },
     });
     g.checkRateLimit('k', undefined, 0);
     g.checkRateLimit('k', undefined, 5);
     expect(seen).toHaveLength(1);
-    expect(seen[0]!.level).toBe(ALERT_LEVELS.WARN);
+    expect(seen[0]!.severity).toBe(NOTIFICATION_SEVERITIES.WARN);
+    expect(seen[0]!.meta).toMatchObject({ kind: 'alert', key: 'k', limit: 1, windowMs: 1000 });
     g.dispose();
   });
 });

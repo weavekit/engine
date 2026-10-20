@@ -1,6 +1,6 @@
 {
   "name": "@weave-kit/engine",
-  "version": "2.5.2",
+  "version": "2.6.0",
   "description": "WeaveKit engine — a metadata-driven headless backend runtime with Git-versioned metadata",
   "type": "module",
   "main": "./dist/index.js",
@@ -9,6 +9,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./notifications": {
+      "types": "./dist/notifications.d.ts",
+      "default": "./dist/notifications.js"
     },
     "./experimental": {
       "types": "./dist/experimental.d.ts",
@@ -73,6 +77,14 @@
   },
   "bin": {
     "weave": "./dist/cli/index.js"
+  },
+  "peerDependencies": {
+    "nodemailer": ">=6.0.0"
+  },
+  "peerDependenciesMeta": {
+    "nodemailer": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@testcontainers/postgresql": "^10.28.0",

@@ -5,6 +5,27 @@ the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.6.0] - 2026-10-19
+
+### Added
+
+- **Notification transports**: stable `@weave-kit/engine/notifications` entry with
+  `NotificationSink` / `NotificationMessage` and console, webhook, Slack, SMTP and Resend transports.
+  SMTP uses the optional `nodemailer` peer (lazy-loaded); Resend uses `fetch` (no SDK).
+- `createNotificationSink` / `createFanoutNotifier` for channel routing.
+- MCP guardrails accept `adapters.mcp.guardrails.notifications` (`NotificationSinkConfig`).
+
+### Changed
+
+- MCP rate-limit alerts now send through `NotificationSink` instead of `AlertSink`.
+- Scaffold config uses `guardrails.notifications`.
+
+### Deprecated
+
+- `AlertSink` / `ALERT_LEVELS` are deprecated (removal in 3.0). The experimental
+  `infrastructure/alerts` implementations are removed; use `@weave-kit/engine/notifications`.
+- `adapters.mcp.guardrails.alerts` remains as a 2.x compatibility alias for `notifications`.
+
 ## [2.5.2] - 2026-10-19
 
 ### Added

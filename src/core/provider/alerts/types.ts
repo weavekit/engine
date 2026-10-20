@@ -1,11 +1,13 @@
 /**
- * Alert provider contract — pure interface, zero dependencies. The
- * implementations (console / webhook / slack) live in `infrastructure/alerts`
- * and are injected by the assembly layer; adapter layers depend on this
- * contract only.
+ * Deprecated alert provider contract. The alert transports were folded into
+ * `core/provider/notifications` / `infrastructure/notifications`; this file
+ * remains only for 2.x source compatibility and is removed in engine 3.0.
  */
 
-/** alert severity — single source of truth (as const, see AGENTS.md) */
+/**
+ * @deprecated Use `NOTIFICATION_SEVERITIES` from
+ * `core/provider/notifications`; removed in engine 3.0.
+ */
 export const ALERT_LEVELS = {
   WARN: 'warn',
   ERROR: 'error',
@@ -13,9 +15,9 @@ export const ALERT_LEVELS = {
 export type AlertLevel = typeof ALERT_LEVELS[keyof typeof ALERT_LEVELS];
 
 /**
- * Alert sink contract. Implementations must surface delivery failures as
- * thrown errors so callers (e.g. guardrails) can catch and continue the
- * business path — alerting is best-effort, never blocks the request.
+ * @deprecated Use `NotificationSink` from `core/provider/notifications`.
+ * This contract remains only for 2.x compatibility; it will be removed in
+ * engine 3.0.
  */
 export interface AlertSink {
   alert(level: AlertLevel, message: string, meta?: Record<string, unknown>): Promise<void>;

@@ -35,7 +35,8 @@ import { registerOpsRoutes } from '../adapters/ops/index.js';
 import { registerHttpRoutes } from './register-http-routes.js';
 import { registerMcp, type McpServerHandle } from '../adapters/mcp/index.js';
 import { registerGraphQL, type GraphQLServerHandle } from '../adapters/graphql/index.js';
-import { createAlerts } from '../infrastructure/index.js';
+import { createNotificationSink } from '../infrastructure/notifications/index.js';
+import type { NotificationSinkConfig } from '../core/provider/notifications/index.js';
 import type { AuditEngine } from '../subsystems/audit/index.js';
 import type { EvidenceSink } from '../core/index.js';
 import { resolveQueryBudget } from './data-access/index.js';
@@ -57,6 +58,48 @@ export {
   assertObjectRlsProvisioned,
   assertRestrictedRuntimeAccount,
 } from './guards.js';
+
+interface LegacyAlertsConfig {
+  channel?: 'console' | 'webhook' | 'slack';
+  url?: string;
+  headers?: Record<string, string>;
+  timeoutMs?: number;
+  webhookUrl?: string;
+  slackChannel?: string;
+  slackUsername?: string;
+}
+
+/** Map the deprecated `mcp.guardrails.alerts` shape onto a notification transport. */
+function legacyAlertsConfig(alerts: LegacyAlertsConfig): NotificationSinkConfig {
+  if (alerts.channel === 'webhook') {
+    if (alerts.url === undefined) throw new Error('mcp.guardrails.alerts: webhook requires a url');
+    return {
+      channels: {
+        webhook: {
+          url: alerts.url,
+          ...(alerts.headers === undefined ? {} : { headers: alerts.headers }),
+          ...(alerts.timeoutMs === undefined ? {} : { timeoutMs: alerts.timeoutMs }),
+        },
+      },
+    };
+  }
+  if (alerts.channel === 'slack') {
+    if (alerts.webhookUrl === undefined) {
+      throw new Error('mcp.guardrails.alerts: slack requires a webhookUrl');
+    }
+    return {
+      channels: {
+        slack: {
+          webhookUrl: alerts.webhookUrl,
+          ...(alerts.slackChannel === undefined ? {} : { channel: alerts.slackChannel }),
+          ...(alerts.slackUsername === undefined ? {} : { username: alerts.slackUsername }),
+          ...(alerts.timeoutMs === undefined ? {} : { timeoutMs: alerts.timeoutMs }),
+        },
+      },
+    };
+  }
+  return { channels: { console: true } };
+}
 
 /**
  * Assemble a running engine from an already-built registry (no schema loading).
@@ -407,11 +450,20 @@ export async function buildEngineFromRegistry(
   registerOpsRoutes(app, { pool, version });
 
   // MCP adapter: enabled by default (adapters.mcp undeclared = on). Sinks are
-  // injected: audit (buffered subsystem sink or NOOP), alerts (createAlerts
-  // factory — console default), identity (mcp.identities: static dir or a
-  // customer-provided IdentityResolver).
+  // injected: audit (buffered subsystem sink or NOOP), notifications
+  // (createNotificationSink — console default), identity (mcp.identities:
+  // static dir or a customer-provided IdentityResolver).
   let mcp: McpServerHandle | undefined;
   if (mcpCfg?.enabled ?? true) {
+    const guardrailNotifications = mcpCfg?.guardrails?.notifications;
+    const legacyAlerts = mcpCfg?.guardrails?.alerts;
+    if (guardrailNotifications !== undefined && legacyAlerts !== undefined) {
+      throw new Error('mcp.guardrails: use either `notifications` or deprecated `alerts`, not both');
+    }
+    const notifications = createNotificationSink(
+      guardrailNotifications ??
+        (legacyAlerts === undefined ? { channels: { console: true } } : legacyAlertsConfig(legacyAlerts)),
+    );
     mcp = registerMcp(app, {
       engine: {
         registry,
@@ -425,7 +477,7 @@ export async function buildEngineFromRegistry(
       mcp: mcpCfg,
       locale,
       audit: auditSink,
-      alerts: createAlerts(mcpCfg?.guardrails?.alerts),
+      notifications,
       tools,
       directory: identityDirectory,
       corsOrigin: config.adapters?.rest?.cors?.origin,

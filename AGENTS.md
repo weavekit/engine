@@ -31,7 +31,7 @@ src/
 │                   api/rbac/audit/script/provider/tools/proxy/limiter
 ├─ subsystems/      Optional, lazily loaded (disabled = not imported = zero overhead):
 │                   approvals/audit/evidence/quota/script/workflow
-├─ infrastructure/  Pluggable providers (alerts/event); depends only on core contracts
+├─ infrastructure/  Pluggable providers (notifications/event); depends only on core contracts
 ├─ adapters/        Protocol bindings: rest/auth/ops/mcp/graphql/openapi (+ events SSE; ingress is a rest route)
 ├─ runtime/         Mechanism: data-access/enums/execution/fieldtypes/git/identity/metadata/
 │                   record-meta/sql-analyzer/tools/proxy/tunnel

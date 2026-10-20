@@ -42,7 +42,7 @@ export default {
       },
       guardrails: {
         rateLimit: { windowMs: 60_000, max: 100 },   // optional; defaults shown
-        alerts: { channel: 'console' },              // console | webhook | slack
+        notifications: { channels: { console: true } }, // console | webhook | slack | email
       },
     },
   },
@@ -53,8 +53,9 @@ export default {
   your deployment; client URLs must match.
 - `identities` — the static **on-behalf-of directory** (`ref → IdentitySubject`). See
   [Identities](03-identities.md).
-- `guardrails.alerts` — any `infrastructure/alerts` factory config (webhook/slack channels reuse
-  `url`/`webhookUrl`, and so on).
+- `guardrails.notifications` — `NotificationSinkConfig` (console/webhook/slack/email; email uses
+  SMTP via the optional `nodemailer` peer or Resend through `fetch`). The deprecated
+  `guardrails.alerts` key is mapped to a single-channel sink in 2.x.
 - `enabled: false` turns the endpoint off entirely.
 
 ## How an agent connects
@@ -118,9 +119,10 @@ await engine.app.listen({ port: 3000 });
 ```
 
 You inject the sinks at assembly: audit (a buffered subsystem sink, or a no-op when audit is disabled),
-alerts (`createAlerts`), and identity (`mcp.identities` — a static directory, your own
-`IdentityResolver`, or the engine directory by default). The MCP adapter depends only on core
-contracts; adapters never import subsystems or infrastructure.
+notifications (`createNotificationSink` from `@weave-kit/engine/notifications`), and identity
+(`mcp.identities` — a static directory, your own `IdentityResolver`, or the engine directory by
+default). The MCP adapter depends only on core contracts; adapters never import subsystems or
+infrastructure.
 
 The engine is a **bridge to your database, not a DDL runner**. `createEngine` loads the schema and
 never touches your tables. Build or alter tables explicitly with `weave migrate` — see

@@ -1,17 +1,18 @@
 ---
 title: Guardrails
-description: "Rate limiting, alerts and the audit trail for MCP tool calls."
+description: "Rate limiting, notifications and the audit trail for MCP tool calls."
 ---
 
 # Guardrails
 
-The MCP adapter wraps every tool call with rate limiting, alerting and audit. The point is that an
+The MCP adapter wraps every tool call with rate limiting, notification and audit. The point is that an
 agent can't quietly hammer your data or slip past RBAC.
 
 - **Rate limiting** — a per-agent-key sliding window (default 100 / 60s). Over-limit calls return an
-  `isError` result and fire a `warn` alert.
-- **Alerts** — an injected `AlertSink` (default console; webhook/slack via config under
-  `adapters.mcp.guardrails.alerts`).
+  `isError` result and send a `warn` notification.
+- **Notifications** — an injected `NotificationSink` (default console; webhook/slack/email via
+  `adapters.mcp.guardrails.notifications`). The deprecated `alerts` key is still mapped for 2.x
+  compatibility.
 - **Audit** — every tool attempt writes `mcp.tool.<name>` to the unified `weavekit_audit` table (action
   prefix `ACTION_PREFIXES.MCP_TOOL`), including RBAC denials and failures. `actorId` is the agent key;
   `meta` carries `{ onBehalfOf, subjectId, roles, agentLabel, tool }`. Audit is best-effort — a failing

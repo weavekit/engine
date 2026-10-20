@@ -1,5 +1,6 @@
 import * as stable from '../../src/index.js';
 import * as experimental from '../../src/experimental.js';
+import * as notifications from '../../src/notifications.js';
 import { describe, it, expect } from '../helpers/test.js';
 
 /**
@@ -46,7 +47,6 @@ const STABLE_NAMES = [
 const INTERNAL_NAMES = [
   'createEventBus',
   'publisherOf',
-  'createAlerts',
   'createIdentityResolver',
   'createTunnelServer',
   'createTunnelForwarder',
@@ -72,6 +72,18 @@ describe('public API tiers', () => {
   it('experimental entry exposes the internals', () => {
     for (const name of INTERNAL_NAMES) {
       expect(has(experimental as Record<string, unknown>, name)).toBe(true);
+    }
+  });
+
+  it('experimental no longer exposes the deprecated alert providers', () => {
+    for (const name of ['createAlerts', 'createConsoleAlertSink', 'createSlackAlertSink', 'createWebhookAlertSink']) {
+      expect(has(experimental as Record<string, unknown>, name)).toBe(false);
+    }
+  });
+
+  it('stable ./notifications entry exposes the transport surface', () => {
+    for (const name of ['createNotificationSink', 'createWebhookNotifier', 'createSlackNotifier', 'createSmtpNotifier', 'createResendNotifier', 'NOTIFICATION_CHANNELS']) {
+      expect(has(notifications as Record<string, unknown>, name)).toBe(true);
     }
   });
 });

@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import type { Locale, IdentitySubject, PromptsProvider, ToolDefinition } from '../../core/index.js';
 import type { AuditSink } from '../../core/audit/index.js';
-import type { AlertSink } from '../../core/provider/alerts/index.js';
+import type { NotificationSink, NotificationSinkConfig } from '../../core/provider/notifications/index.js';
 import type { IdentityDirectory, IdentityResolver } from '../../core/provider/identity/index.js';
 import type { ToolExecutor } from '../../runtime/tools/index.js';
 import type { Authenticator, OidcConfig } from '../auth/index.js';
@@ -14,8 +14,9 @@ import type { McpPromptsConfig } from './prompts.js';
 /**
  * MCP adapter assembly. `registerMcp` wires the session store + guardrails +
  * per-session transports onto a fastify app under `/mcp`. The assembly layer
- * (createEngine) injects the real sinks: alerts from `infrastructure/alerts`,
- * audit from the audit subsystem (or NOOP), identity from `mcp.identities`.
+ * (createEngine) injects the real sinks: notifications from
+ * `infrastructure/notifications`, audit from the audit subsystem (or NOOP),
+ * identity from `mcp.identities`.
  */
 
 export interface EngineMcpConfig {
@@ -31,7 +32,12 @@ export interface EngineMcpConfig {
   stateless?: boolean;
   guardrails?: {
     rateLimit?: RateLimitConfig;
-    /** alerts sink config (channel/url/...) — consumed by the assembly layer's createAlerts */
+    /** notification transport config (console/webhook/slack/email) */
+    notifications?: NotificationSinkConfig;
+    /**
+     * @deprecated use `notifications`; kept as a 2.x compatibility alias.
+     * The assembly layer maps it to a single-channel NotificationSink.
+     */
     alerts?: {
       channel?: 'console' | 'webhook' | 'slack';
       url?: string;
@@ -80,7 +86,7 @@ export interface McpRegisterDeps {
   mcp: EngineMcpConfig | undefined;
   locale: Locale;
   audit?: AuditSink;
-  alerts?: AlertSink;
+  notifications?: NotificationSink;
   /** custom tools (loaded definitions + protocol-agnostic executor) */
   tools?: { defs: ToolDefinition[]; executor: ToolExecutor };
   /**
@@ -105,11 +111,11 @@ export interface McpServerHandle {
 
 /**
  * Register the MCP endpoint on an existing fastify app. Sinks are injected:
- * `audit` (buffered audit sink or NOOP), `alerts` (defaults to a console sink),
+ * `audit` (buffered audit sink or NOOP), `notifications` (defaults to console),
  * identity (`mcp.identities`: static directory or a customer-provided resolver).
  */
 export function registerMcp(app: FastifyInstance, deps: McpRegisterDeps): McpServerHandle {
-  const { engine, authenticator, mcp, locale, audit, alerts, tools, corsOrigin, directory, schemaRevision, oauth } = deps;
+  const { engine, authenticator, mcp, locale, audit, notifications, tools, corsOrigin, directory, schemaRevision, oauth } = deps;
 
   // on-behalf-of resolver priority: a function `mcp.identities` wins, then a
   // static `mcp.identities` map, then the engine identity directory, else empty
@@ -125,7 +131,7 @@ export function registerMcp(app: FastifyInstance, deps: McpRegisterDeps): McpSer
 
   const guardrails = createGuardrails({
     rateLimit: mcp?.guardrails?.rateLimit,
-    alerts,
+    notifications,
     audit,
   });
 
