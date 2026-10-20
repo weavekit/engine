@@ -5,6 +5,13 @@ the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.9.1] - 2026-10-20
+
+### Fixed
+
+- REST `GET /approvals` now forwards the `expiresBefore` filter to the approval store (contract and
+  client already exposed it).
+
 ## [2.9.0] - 2026-10-20
 
 ### Added

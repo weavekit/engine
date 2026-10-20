@@ -161,4 +161,26 @@ describe('approval decisions + votes', () => {
     expect(JSON.parse(res.body)).toEqual({ approvalKey: 'ap-1', votes: [] });
     await app.close();
   });
+
+  it('forwards the expiresBefore filter to the store', async () => {
+    let seen: { expiresBefore?: Date } | undefined;
+    const approvals: ToolApprovals = {
+      ...mockApprovals(),
+      list: async (filter) => {
+        seen = filter;
+        return [];
+      },
+      count: async () => 0,
+    };
+    const app = await buildApp(approvals);
+    const expiresBefore = '2026-10-21T00:00:00.000Z';
+    const res = await app.inject({
+      method: 'GET',
+      url: `/api/approvals?expiresBefore=${encodeURIComponent(expiresBefore)}`,
+      headers: { authorization: 'Bearer sk-admin' },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(seen?.expiresBefore?.toISOString()).toBe(expiresBefore);
+    await app.close();
+  });
 });

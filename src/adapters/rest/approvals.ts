@@ -36,6 +36,8 @@ function parseFilter(query: Record<string, unknown>, locale: Locale): ApprovalLi
   if (from !== undefined) filter.from = from;
   const to = readDate(query, 'to', locale);
   if (to !== undefined) filter.to = to;
+  const expiresBefore = readDate(query, 'expiresBefore', locale);
+  if (expiresBefore !== undefined) filter.expiresBefore = expiresBefore;
   const sort = readString(query, 'sort', locale);
   if (sort !== undefined) {
     filter.sort = { field: sort, order: readString(query, 'order', locale) === 'ASC' ? 'ASC' : 'DESC' };
