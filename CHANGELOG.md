@@ -5,6 +5,12 @@ the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.8.1] - 2026-10-20
+
+### Added
+
+- `weavekit_legal_holds` system table (enterprise-reserved) for retention legal holds.
+
 ## [2.8.0] - 2026-10-20
 
 ### Added

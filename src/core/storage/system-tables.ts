@@ -27,6 +27,7 @@ export const SYSTEM_TABLES = {
   APPROVALS: 'weavekit_approvals',
   APPROVAL_VOTES: 'weavekit_approval_votes',
   APPROVAL_DELEGATIONS: 'weavekit_approval_delegations',
+  LEGAL_HOLDS: 'weavekit_legal_holds',
   WORKFLOW_DEFINITIONS: 'weavekit_workflow_definitions',
   WORKFLOW_INSTANCES: 'weavekit_workflow_instances',
   WORKFLOW_STEPS: 'weavekit_workflow_steps',
@@ -263,6 +264,26 @@ const approvalDelegations = (): ExpectedTable => ({
   uniques: [],
 });
 
+const legalHolds = (): ExpectedTable => ({
+  name: SYSTEM_TABLES.LEGAL_HOLDS,
+  columns: [
+    col('id', 'TEXT', { notNull: true, primary: true }),
+    col('object', 'TEXT', { notNull: true }),
+    col('object_id', 'TEXT'),
+    col('scope_id', 'TEXT'),
+    col('reason', 'TEXT', { notNull: true }),
+    col('until', 'TIMESTAMPTZ'),
+    col('created_by', 'TEXT', { notNull: true }),
+    col('created_at', 'TIMESTAMPTZ', { notNull: true, default: 'now()' }),
+  ],
+  fks: [],
+  indexes: [
+    { name: 'weavekit_legal_holds_object_idx', method: 'btree', columns: ['object', 'object_id'] },
+    { name: 'weavekit_legal_holds_until_idx', method: 'btree', columns: ['until'] },
+  ],
+  uniques: [],
+});
+
 const workflowDefinitions = (): ExpectedTable => ({
   name: SYSTEM_TABLES.WORKFLOW_DEFINITIONS,
   columns: [
@@ -411,6 +432,7 @@ export function buildSystemTables(scope?: SchemaScope): ExpectedTable[] {
     approvals(),
     approvalVotes(),
     approvalDelegations(),
+    legalHolds(),
     workflowDefinitions(),
     workflowInstances(),
     workflowSteps(),
