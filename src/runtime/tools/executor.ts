@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import type { Pool } from 'pg';
 import { APPROVAL_EVENT_TYPES, NOOP_AUDIT_SINK, createMemoryApprovalsBackend, userPrincipal, SchemaError, validateToolArgs, DEFAULT_LOCALE } from '../../core/index.js';
 import { AUDIT_ACTOR_TYPES } from '../../core/index.js';
-import type { ApprovalEvent, ApprovalEventSink, ApprovalEventType, AuditSink, IdentitySubject, Locale, ObjectRegistry, ToolActor, ToolApprovals, ApprovalsBackend, ApprovalListFilter, ToolCallContext, ToolDataAccess, ToolDefinition, ToolGuardrails, ToolJsonSchema, ToolResult, ApprovalStatus, PendingApproval, ApprovalRequestContext, GuardrailContext, GuardrailPolicy, EvidenceSink } from '../../core/index.js';
+import type { ApprovalEvent, ApprovalEventSink, ApprovalEventType, ApprovalVote, AuditSink, IdentitySubject, Locale, ObjectRegistry, ToolActor, ToolApprovals, ApprovalsBackend, ApprovalListFilter, ToolCallContext, ToolDataAccess, ToolDefinition, ToolGuardrails, ToolJsonSchema, ToolResult, ApprovalStatus, PendingApproval, ApprovalRequestContext, GuardrailContext, GuardrailPolicy, EvidenceSink } from '../../core/index.js';
 import type { ObjectDataAccess, DataAccessContext, FindOptions } from '../data-access/index.js';
 import { withTx as dataAccessWithTx } from '../data-access/index.js';
 import { applyMask, evaluateCall } from './policies.js';
@@ -149,6 +149,54 @@ export function createApprovals(
       emitApproval(APPROVAL_EVENT_TYPES.EXPIRED, current, { reason: 'expired' });
       return false;
     }
+    if (backend.vote !== undefined) {
+      const ok = await backend.vote(approvalKey, {
+        approvalKey,
+        approver: by,
+        decision: status,
+        ...(comment === undefined ? {} : { comment }),
+        stage: 0,
+        createdAt: new Date(),
+      });
+      if (!ok) return false;
+      const entry = await backend.get(approvalKey);
+      if (entry?.status === 'approved') {
+        auditApproval('approval.approved', AUDIT_ACTOR_TYPES.USER, by, entry, {
+          approver: by,
+          status,
+          ...(comment === undefined ? {} : { comment }),
+          approvedCount: entry.approvedCount,
+        });
+        emitApproval(APPROVAL_EVENT_TYPES.APPROVED, entry, {
+          approver: by,
+          ...(comment === undefined ? {} : { comment }),
+        });
+      } else if (entry?.status === 'rejected') {
+        auditApproval('approval.rejected', AUDIT_ACTOR_TYPES.USER, by, entry, {
+          approver: by,
+          status,
+          ...(comment === undefined ? {} : { comment }),
+        });
+        emitApproval(APPROVAL_EVENT_TYPES.REJECTED, entry, {
+          approver: by,
+          ...(comment === undefined ? {} : { comment }),
+        });
+      } else {
+        auditApproval('approval.vote', AUDIT_ACTOR_TYPES.USER, by, entry, {
+          approver: by,
+          decision: status,
+          approvedCount: entry?.approvedCount,
+          requiredApprovals: entry?.requiredApprovals,
+          ...(comment === undefined ? {} : { comment }),
+        });
+        emitApproval(APPROVAL_EVENT_TYPES.VOTE, entry, {
+          approver: by,
+          ...(comment === undefined ? {} : { comment }),
+        });
+      }
+      return true;
+    }
+
     const ok = await backend.resolve(approvalKey, by, status, comment);
     if (ok) {
       const entry = await backend.get(approvalKey);
@@ -183,6 +231,12 @@ export function createApprovals(
     },
     reject(approvalKey: string, by: string, comment?: string): Promise<boolean> {
       return resolve(approvalKey, by, 'rejected', comment);
+    },
+    vote(approvalKey: string, vote: ApprovalVote): Promise<boolean> {
+      return resolve(approvalKey, vote.approver, vote.decision, vote.comment);
+    },
+    votes(approvalKey: string): Promise<ApprovalVote[]> {
+      return backend.votes === undefined ? Promise.resolve([]) : backend.votes(approvalKey);
     },
     async consume(approvalKey: string, by: string): Promise<boolean> {
       if (backend.consume === undefined) return false;
@@ -228,6 +282,10 @@ export function createApprovals(
         requestHash: requestHashFor(actor, action, args, context.requestId),
         ...(context.requestId === undefined ? {} : { requestId: context.requestId }),
         ...(context.policy === undefined ? {} : { policy: context.policy }),
+        requiredApprovals: context.requiredApprovals ?? 1,
+        ...(context.approverRoles === undefined ? {} : { approverRoles: context.approverRoles }),
+        ...(context.approverGroups === undefined ? {} : { approverGroups: context.approverGroups }),
+        approvedCount: 0,
         expiresAt: context.expiresAt ?? new Date(now.getTime() + ttlMs),
       };
       await backend.upsert(entry);

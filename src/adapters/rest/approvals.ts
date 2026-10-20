@@ -108,14 +108,68 @@ export function registerApprovalsRoutes(app: FastifyInstance, deps: RestDeps, op
       if (!ok) {
         throw new SchemaError('approval.notFound', { approvalKey: key }, locale);
       }
+      const [entry] = await approvals.list({ approvalKey: key, limit: 1 });
       return {
         approvalKey: key,
-        status: decision,
+        status: entry?.status ?? decision,
+        approvedCount: entry?.approvedCount ?? 0,
+        requiredApprovals: entry?.requiredApprovals ?? 1,
         approver: subject.id,
         ...(comment === undefined ? {} : { comment }),
       };
     };
 
+  const decisionRoute = async (request: FastifyRequest) => {
+    checkRateLimit(limiter, request, locale);
+    const subject = await authenticateRequest(authenticator, request, locale);
+    requireAdminRoles(subject.roles);
+    const { key } = request.params as { key: string };
+    const body = (request.body ?? {}) as { decision?: unknown; comment?: unknown };
+    if (body.decision !== 'approved' && body.decision !== 'rejected') {
+      throw new SchemaError('http.param.invalid', { param: 'decision' }, locale);
+    }
+    const comment =
+      typeof body.comment === 'string' && body.comment.trim() !== '' ? body.comment.trim() : undefined;
+    if (body.decision === 'rejected' && comment === undefined) {
+      throw new SchemaError('http.param.invalid', { param: 'comment' }, locale);
+    }
+    const [current] = await approvals.list({ approvalKey: key, limit: 1 });
+    if (current?.requestedBy !== undefined && current.requestedBy === subject.id) {
+      throw new SchemaError(
+        'http.conflict',
+        { detail: 'segregation of duties: the requester cannot decide their own approval' },
+        locale,
+      );
+    }
+    const ok = await approvals.vote(key, {
+      approvalKey: key,
+      approver: subject.id,
+      decision: body.decision,
+      ...(comment === undefined ? {} : { comment }),
+      stage: 0,
+      createdAt: new Date(),
+    });
+    if (!ok) throw new SchemaError('approval.notFound', { approvalKey: key }, locale);
+    const [entry] = await approvals.list({ approvalKey: key, limit: 1 });
+    return {
+      approvalKey: key,
+      status: entry?.status ?? 'pending',
+      approvedCount: entry?.approvedCount ?? 0,
+      requiredApprovals: entry?.requiredApprovals ?? 1,
+      approver: subject.id,
+      ...(comment === undefined ? {} : { comment }),
+    };
+  };
+
   app.post(`${prefix}/approvals/:key/approve`, resolveRoute('approved'));
   app.post(`${prefix}/approvals/:key/reject`, resolveRoute('rejected'));
+  app.post(`${prefix}/approvals/:key/decisions`, decisionRoute);
+
+  app.get(`${prefix}/approvals/:key/votes`, async (request) => {
+    checkRateLimit(limiter, request, locale);
+    const subject = await authenticateRequest(authenticator, request, locale);
+    requireAdminRoles(subject.roles);
+    const { key } = request.params as { key: string };
+    return { approvalKey: key, votes: await approvals.votes(key) };
+  });
 }

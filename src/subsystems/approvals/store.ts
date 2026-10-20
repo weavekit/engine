@@ -1,16 +1,18 @@
-import type { Pool } from 'pg';
+import type { Pool, PoolClient } from 'pg';
 import type {
   ApprovalListFilter,
   ApprovalPolicySnapshot,
   ApprovalStatus,
+  ApprovalVote,
   ApprovalsBackend,
   PendingApproval,
 } from '../../core/tools/index.js';
 
 const TABLE = 'weavekit_approvals';
+const VOTES_TABLE = 'weavekit_approval_votes';
 
 const COLUMNS =
-  'approval_key, action, args, actor_key, status, created_at, approved_by, resolved_at, requested_by, on_behalf_of, actor_label, request_hash, request_id, policy, expires_at, consumed_at, comment';
+  'approval_key, action, args, actor_key, status, created_at, approved_by, resolved_at, requested_by, on_behalf_of, actor_label, request_hash, request_id, policy, expires_at, consumed_at, comment, required_approvals, approver_roles, approver_groups, approved_count, rejected_by';
 
 interface Row {
   approval_key: string;
@@ -30,6 +32,11 @@ interface Row {
   expires_at: string | Date | null;
   consumed_at: string | Date | null;
   comment: string | null;
+  required_approvals: number | null;
+  approver_roles: unknown;
+  approver_groups: unknown;
+  approved_count: number | null;
+  rejected_by: string | null;
 }
 
 function asDate(value: string | Date | null): Date | undefined {
@@ -56,6 +63,11 @@ function toApproval(row: Row): PendingApproval {
     ...(row.consumed_at == null ? {} : { consumedAt: asDate(row.consumed_at) }),
     ...(row.resolved_at == null ? {} : { resolvedAt: asDate(row.resolved_at) }),
     ...(row.comment == null ? {} : { comment: row.comment }),
+    ...(row.required_approvals == null ? {} : { requiredApprovals: row.required_approvals }),
+    ...(row.approver_roles == null ? {} : { approverRoles: row.approver_roles as string[] }),
+    ...(row.approver_groups == null ? {} : { approverGroups: row.approver_groups as string[] }),
+    ...(row.approved_count == null ? {} : { approvedCount: row.approved_count }),
+    ...(row.rejected_by == null ? {} : { rejectedBy: row.rejected_by }),
   };
 }
 
@@ -106,6 +118,21 @@ function buildOrder(filter: ApprovalListFilter): string {
  * `subsystems/audit` conventions (pool-injected, no adapters).
  */
 export function createApprovalsPgStore(pool: Pool): ApprovalsBackend {
+  const inTransaction = async <T>(fn: (db: Pool | PoolClient) => Promise<T>): Promise<T> => {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const result = await fn(client);
+      await client.query('COMMIT');
+      return result;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  };
+
   return {
     async list(filter = {}): Promise<PendingApproval[]> {
       const where = buildWhere(filter);
@@ -128,9 +155,10 @@ export function createApprovalsPgStore(pool: Pool): ApprovalsBackend {
       await pool.query(
         `INSERT INTO ${TABLE} (
            approval_key, action, args, actor_key, status, created_at, requested_by,
-           on_behalf_of, actor_label, request_hash, request_id, policy, expires_at
+           on_behalf_of, actor_label, request_hash, request_id, policy, expires_at,
+           required_approvals, approver_roles, approver_groups, approved_count
          )
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
          ON CONFLICT (approval_key) DO NOTHING`,
         [
           entry.approvalKey,
@@ -146,6 +174,10 @@ export function createApprovalsPgStore(pool: Pool): ApprovalsBackend {
           entry.requestId ?? null,
           entry.policy === undefined ? null : JSON.stringify(entry.policy),
           entry.expiresAt ?? null,
+          entry.requiredApprovals ?? 1,
+          entry.approverRoles === undefined ? null : JSON.stringify(entry.approverRoles),
+          entry.approverGroups === undefined ? null : JSON.stringify(entry.approverGroups),
+          entry.approvedCount ?? 0,
         ],
       );
     },
@@ -164,6 +196,83 @@ export function createApprovalsPgStore(pool: Pool): ApprovalsBackend {
         [approvalKey, status, by, comment ?? null],
       );
       return (result.rowCount ?? 0) > 0;
+    },
+    async vote(approvalKey: string, vote: ApprovalVote): Promise<boolean> {
+      return inTransaction(async (db) => {
+        const locked = await db.query(
+          `SELECT ${COLUMNS} FROM ${TABLE} WHERE approval_key = $1 FOR UPDATE`,
+          [approvalKey],
+        );
+        const row = locked.rows[0];
+        if (row === undefined) return false;
+        const entry = toApproval(row as Row);
+        if (entry.status !== 'pending') return false;
+        if (entry.expiresAt !== undefined && entry.expiresAt.getTime() <= Date.now()) return false;
+        if (entry.requestedBy !== undefined && entry.requestedBy === vote.approver) return false;
+
+        const existing = await db.query<{ decision: string }>(
+          `SELECT decision FROM ${VOTES_TABLE} WHERE approval_key = $1 AND approver = $2`,
+          [approvalKey, vote.approver],
+        );
+        if (existing.rows[0] !== undefined) return existing.rows[0].decision === vote.decision;
+
+        await db.query(
+          `INSERT INTO ${VOTES_TABLE} (approval_key, approver, decision, comment, stage, created_at)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [approvalKey, vote.approver, vote.decision, vote.comment ?? null, vote.stage ?? 0, vote.createdAt],
+        );
+        const count = await db.query<{ n: number }>(
+          `SELECT count(*)::int AS n FROM ${VOTES_TABLE}
+           WHERE approval_key = $1 AND decision = 'approved'`,
+          [approvalKey],
+        );
+        const approvedCount = count.rows[0]?.n ?? 0;
+        if (vote.decision === 'rejected') {
+          await db.query(
+            `UPDATE ${TABLE}
+             SET status = 'rejected', approved_by = $2, rejected_by = $2, resolved_at = $3,
+                 comment = $4, approved_count = $5
+             WHERE approval_key = $1 AND status = 'pending'`,
+            [approvalKey, vote.approver, vote.createdAt, vote.comment ?? null, approvedCount],
+          );
+        } else if (approvedCount >= (entry.requiredApprovals ?? 1)) {
+          await db.query(
+            `UPDATE ${TABLE}
+             SET status = 'approved', approved_by = $2, resolved_at = $3, approved_count = $4,
+                 comment = COALESCE($5, comment)
+             WHERE approval_key = $1 AND status = 'pending'`,
+            [approvalKey, vote.approver, vote.createdAt, approvedCount, vote.comment ?? null],
+          );
+        } else {
+          await db.query(
+            `UPDATE ${TABLE} SET approved_count = $2 WHERE approval_key = $1 AND status = 'pending'`,
+            [approvalKey, approvedCount],
+          );
+        }
+        return true;
+      });
+    },
+    async votes(approvalKey: string): Promise<ApprovalVote[]> {
+      const result = await pool.query<{
+        approval_key: string;
+        approver: string;
+        decision: string;
+        comment: string | null;
+        stage: number;
+        created_at: string | Date;
+      }>(
+        `SELECT approval_key, approver, decision, comment, stage, created_at
+         FROM ${VOTES_TABLE} WHERE approval_key = $1 ORDER BY created_at ASC, approver ASC`,
+        [approvalKey],
+      );
+      return result.rows.map((row) => ({
+        approvalKey: row.approval_key,
+        approver: row.approver,
+        decision: row.decision as 'approved' | 'rejected',
+        ...(row.comment == null ? {} : { comment: row.comment }),
+        stage: row.stage,
+        createdAt: asDate(row.created_at)!,
+      }));
     },
     async consume(approvalKey: string): Promise<boolean> {
       const result = await pool.query(

@@ -5,6 +5,18 @@ the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.7.0] - 2026-10-20
+
+### Added
+
+- Approval quorum votes: `ApprovalVote`, `ApprovalsBackend.vote`/`votes`, per-approver
+  idempotent decisions, terminal rejection, `requiredApprovals` / `approverRoles` /
+  `approverGroups` snapshots, `approvedCount` / `rejectedBy`.
+- `POST /approvals/:key/decisions`, `GET /approvals/:key/votes`; approve/reject now record votes
+  and return the resulting status/quorum.
+- `ApprovalEventSink` exports `approval.vote` and `approval.quorumReached`.
+- `weavekit_approval_votes` table and additive approval columns.
+
 ## [2.6.1] - 2026-10-20
 
 ### Added

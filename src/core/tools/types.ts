@@ -2,7 +2,7 @@ import type { IdentitySubject } from '../rbac/index.js';
 import type { Locale } from '../i18n/index.js';
 import type { AuditSink } from '../audit/index.js';
 import type { ApprovalStatus } from './values.js';
-import type { ApprovalPolicySnapshot, PendingApproval, ApprovalListFilter } from '@weave-kit/contract';
+import type { ApprovalPolicySnapshot, PendingApproval, ApprovalListFilter, ApprovalVote } from '@weave-kit/contract';
 
 /**
  * Tool-surface contracts (open contract). Zero-dependency, no runtime
@@ -68,7 +68,7 @@ export interface ToolGuardrails {
   checkRateLimit(key: string, scope?: string): boolean;
 }
 
-export type { ApprovalPolicySnapshot, PendingApproval, ApprovalListFilter } from '@weave-kit/contract';
+export type { ApprovalPolicySnapshot, PendingApproval, ApprovalListFilter, ApprovalVote } from '@weave-kit/contract';
 
 /** Context captured with a pending approval request. */
 export interface ApprovalRequestContext {
@@ -77,6 +77,9 @@ export interface ApprovalRequestContext {
   actorLabel?: string;
   requestId?: string;
   policy?: ApprovalPolicySnapshot;
+  requiredApprovals?: number;
+  approverRoles?: string[];
+  approverGroups?: string[];
   expiresAt?: Date;
 }
 
@@ -100,6 +103,10 @@ export interface ApprovalsBackend {
     status: 'approved' | 'rejected',
     comment?: string,
   ): Promise<boolean>;
+  /** record one approver decision; false for invalid/duplicate conflicting votes */
+  vote?(key: string, vote: ApprovalVote): Promise<boolean>;
+  /** approver decisions for one request */
+  votes?(key: string): Promise<ApprovalVote[]>;
   /** mark an approved entry as consumed (single-use execution) */
   consume?(approvalKey: string, by: string): Promise<boolean>;
   count(filter?: ApprovalListFilter): Promise<number>;
@@ -118,6 +125,8 @@ export interface ToolApprovals {
   query(status?: ApprovalStatus): Promise<PendingApproval[]>;
   approve(approvalKey: string, by: string, comment?: string): Promise<boolean>;
   reject(approvalKey: string, by: string, comment?: string): Promise<boolean>;
+  vote(approvalKey: string, vote: ApprovalVote): Promise<boolean>;
+  votes(approvalKey: string): Promise<ApprovalVote[]>;
 }
 
 /** tool execution result envelope (protocol-agnostic; adapter maps to MCP content) */
@@ -156,7 +165,16 @@ export interface ToolDefinition {
 export type GuardrailDecision =
   | { allow: true; mask?: Record<string, string> }
   | { allow: false; reason: string; errorCode?: string }
-  | { allow: false; requireApproval: true; approvalKey: string; reason?: string; ruleId?: string };
+  | {
+      allow: false;
+      requireApproval: true;
+      approvalKey: string;
+      reason?: string;
+      ruleId?: string;
+      requiredApprovals?: number;
+      approverRoles?: string[];
+      approverGroups?: string[];
+    };
 
 /** guardrail policy decision context (protocol-agnostic; `action` = tool name or workflow transition) */
 export interface GuardrailContext {

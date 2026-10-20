@@ -66,11 +66,22 @@ export async function evaluateCall(
         approvals,
         decision.approvalKey ?? policyApprovalKey(ctx.actor.key, ctx.action, ctx.args, ctx.requestId),
         ctx,
-        decision.reason === undefined && decision.ruleId === undefined
+        decision.reason === undefined &&
+          decision.ruleId === undefined &&
+          decision.requiredApprovals === undefined &&
+          decision.approverRoles === undefined &&
+          decision.approverGroups === undefined
           ? undefined
           : {
               ...(decision.reason === undefined ? {} : { reason: decision.reason }),
               ...(decision.ruleId === undefined ? {} : { ruleId: decision.ruleId }),
+              ...(decision.requiredApprovals === undefined
+                ? {}
+                : { requiredApprovals: decision.requiredApprovals }),
+              ...(decision.approverRoles === undefined ? {} : { approverRoles: decision.approverRoles }),
+              ...(decision.approverGroups === undefined
+                ? {}
+                : { approverGroups: decision.approverGroups }),
             },
       );
     }
@@ -79,12 +90,21 @@ export async function evaluateCall(
   return { kind: 'allow', mask: decision.mask };
 }
 
+interface ApprovalGatePolicy {
+  reason?: string;
+  ruleId?: string;
+  version?: string;
+  requiredApprovals?: number;
+  approverRoles?: string[];
+  approverGroups?: string[];
+}
+
 /** resolve a `requireApproval` decision: approved → allow; rejected → deny; absent → enqueue pending */
 async function resolveApproval(
   approvals: PolicyApprovals,
   approvalKey: string,
   ctx: GuardrailContext,
-  policy?: { reason?: string; ruleId?: string },
+  policy?: ApprovalGatePolicy,
 ): Promise<PolicyGateResult> {
   let key =
     approvalKey === ''
@@ -116,15 +136,33 @@ async function resolveApproval(
     return { kind: 'deny', reason: 'approval was rejected', errorCode: 'mcp.approval.notFound' };
   }
   if (existing === undefined) {
+    const snapshot =
+      policy?.reason === undefined && policy?.ruleId === undefined && policy?.version === undefined
+        ? undefined
+        : {
+            ...(policy?.ruleId === undefined ? {} : { ruleId: policy.ruleId }),
+            ...(policy?.reason === undefined ? {} : { reason: policy.reason }),
+            ...(policy?.version === undefined ? {} : { version: policy.version }),
+          };
     await approvals.pending(ctx.action, ctx.args, ctx.actor, key, {
       requestedBy: ctx.subject.id,
       onBehalfOf: ctx.actor.onBehalfOf,
       actorLabel: ctx.actor.label,
       ...(ctx.requestId === undefined ? {} : { requestId: ctx.requestId }),
-      ...(policy === undefined ? {} : { policy }),
+      ...(policy?.requiredApprovals === undefined
+        ? {}
+        : { requiredApprovals: policy.requiredApprovals }),
+      ...(policy?.approverRoles === undefined ? {} : { approverRoles: policy.approverRoles }),
+      ...(policy?.approverGroups === undefined ? {} : { approverGroups: policy.approverGroups }),
+      ...(snapshot === undefined ? {} : { policy: snapshot }),
     });
   }
-  return { kind: 'pending', approvalKey: key, ...(policy ?? {}) };
+  return {
+    kind: 'pending',
+    approvalKey: key,
+    ...(policy?.reason === undefined ? {} : { reason: policy.reason }),
+    ...(policy?.ruleId === undefined ? {} : { ruleId: policy.ruleId }),
+  };
 }
 
 /** transition-guard result with typed message keys (the caller throws the SchemaError) */

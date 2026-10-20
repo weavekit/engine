@@ -25,6 +25,7 @@ export const SYSTEM_TABLES = {
   AUDIT_OUTBOX: 'weavekit_audit_outbox',
   EVIDENCE: 'weavekit_evidence',
   APPROVALS: 'weavekit_approvals',
+  APPROVAL_VOTES: 'weavekit_approval_votes',
   WORKFLOW_DEFINITIONS: 'weavekit_workflow_definitions',
   WORKFLOW_INSTANCES: 'weavekit_workflow_instances',
   WORKFLOW_STEPS: 'weavekit_workflow_steps',
@@ -206,12 +207,34 @@ const approvals = (): ExpectedTable => ({
     col('expires_at', 'TIMESTAMPTZ'),
     col('consumed_at', 'TIMESTAMPTZ'),
     col('comment', 'TEXT'),
+    col('required_approvals', 'INTEGER', { notNull: true, default: '1' }),
+    col('approver_roles', 'JSONB'),
+    col('approver_groups', 'JSONB'),
+    col('approved_count', 'INTEGER', { notNull: true, default: '0' }),
+    col('rejected_by', 'TEXT'),
   ],
   fks: [],
   indexes: [
     { name: 'weavekit_approvals_status_created_idx', method: 'btree', columns: ['status', 'created_at'] },
     { name: 'weavekit_approvals_actor_idx', method: 'btree', columns: ['actor_key'] },
     { name: 'weavekit_approvals_expires_idx', method: 'btree', columns: ['expires_at'] },
+  ],
+  uniques: [],
+});
+
+const approvalVotes = (): ExpectedTable => ({
+  name: SYSTEM_TABLES.APPROVAL_VOTES,
+  columns: [
+    col('approval_key', 'TEXT', { notNull: true, primary: true }),
+    col('approver', 'TEXT', { notNull: true, primary: true }),
+    col('decision', 'TEXT', { notNull: true }),
+    col('comment', 'TEXT'),
+    col('stage', 'INTEGER', { notNull: true, default: '0' }),
+    col('created_at', 'TIMESTAMPTZ', { notNull: true, default: 'now()' }),
+  ],
+  fks: [],
+  indexes: [
+    { name: 'weavekit_approval_votes_key_idx', method: 'btree', columns: ['approval_key', 'decision'] },
   ],
   uniques: [],
 });
@@ -362,6 +385,7 @@ export function buildSystemTables(scope?: SchemaScope): ExpectedTable[] {
     auditOutbox(),
     evidence(),
     approvals(),
+    approvalVotes(),
     workflowDefinitions(),
     workflowInstances(),
     workflowSteps(),

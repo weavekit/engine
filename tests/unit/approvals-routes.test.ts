@@ -24,7 +24,7 @@ function mockApprovals(): ToolApprovals {
       approvalKey: 'ap-1',
       action: 'mcp.tool.x',
       args: { a: 1 },
-      status: 'pending' as const,
+      status: 'pending' as 'pending' | 'approved' | 'rejected',
       createdAt: new Date('2026-08-31T10:00:00Z'),
       actorKey: 'agent-1',
     },
@@ -33,8 +33,25 @@ function mockApprovals(): ToolApprovals {
     list: async (filter) => (filter?.status === 'approved' ? [] : rows),
     count: async () => rows.length,
     query: async () => rows,
-    approve: async (key) => key === 'ap-1',
-    reject: async (key) => key === 'ap-1',
+    approve: async (key) => {
+      const row = rows.find((item) => item.approvalKey === key);
+      if (row === undefined) return false;
+      row.status = 'approved';
+      return true;
+    },
+    reject: async (key) => {
+      const row = rows.find((item) => item.approvalKey === key);
+      if (row === undefined) return false;
+      row.status = 'rejected';
+      return true;
+    },
+    vote: async (key) => {
+      const row = rows.find((item) => item.approvalKey === key);
+      if (row === undefined) return false;
+      row.status = 'approved';
+      return true;
+    },
+    votes: async () => [],
   };
 }
 
@@ -107,9 +124,41 @@ describe('registerApprovalsRoutes — /api/approvals', () => {
     const res = await app.inject({
       method: 'POST',
       url: '/api/approvals/missing/reject',
-      headers: { authorization: 'Bearer sk-admin' },
+      headers: { authorization: 'Bearer sk-admin', 'content-type': 'application/json' },
+      payload: { comment: 'not pending' },
     });
     expect(res.statusCode).toBe(404);
+    await app.close();
+  });
+});
+describe('approval decisions + votes', () => {
+  it('records a decision via the quorum endpoint and returns the resulting state', async () => {
+    const app = await buildApp(mockApprovals());
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/approvals/ap-1/decisions',
+      headers: { authorization: 'Bearer sk-admin', 'content-type': 'application/json' },
+      payload: { decision: 'approved', comment: 'ok' },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.body)).toMatchObject({
+      approvalKey: 'ap-1',
+      status: 'approved',
+      approvedCount: 0,
+      requiredApprovals: 1,
+    });
+    await app.close();
+  });
+
+  it('lists votes', async () => {
+    const app = await buildApp(mockApprovals());
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/approvals/ap-1/votes',
+      headers: { authorization: 'Bearer sk-admin' },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.body)).toEqual({ approvalKey: 'ap-1', votes: [] });
     await app.close();
   });
 });

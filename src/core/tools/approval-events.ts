@@ -2,6 +2,8 @@ import type { ApprovalPolicySnapshot } from '@weave-kit/contract';
 
 export const APPROVAL_EVENT_TYPES = {
   REQUESTED: 'approval.requested',
+  VOTE: 'approval.vote',
+  QUORUM_REACHED: 'approval.quorumReached',
   APPROVED: 'approval.approved',
   REJECTED: 'approval.rejected',
   EXPIRED: 'approval.expired',

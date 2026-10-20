@@ -47,6 +47,11 @@ function fakeApprovals(): { approvals: ToolApprovals; calls: string[] } {
         calls.push(`reject:${key}`);
         return key === 'ap-1';
       },
+      vote: async (key) => {
+        calls.push(`vote:${key}`);
+        return key === 'ap-1';
+      },
+      votes: async () => [],
     },
   };
 }

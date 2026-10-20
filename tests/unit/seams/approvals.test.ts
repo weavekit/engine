@@ -163,3 +163,66 @@ describe('approval lifecycle event sink', () => {
     expect(emitted[2]).toMatchObject({ approver: 'u1' });
   });
 });
+describe('quorum voting', () => {
+  it('stays pending until requiredApprovals and is idempotent per approver', async () => {
+    const backend = createMemoryApprovalsBackend();
+    await backend.upsert(entry({ approvalKey: 'q1', requestedBy: 'maya', requiredApprovals: 2, approvedCount: 0 }));
+    expect(
+      await backend.vote!('q1', {
+        approvalKey: 'q1',
+        approver: 'jonas',
+        decision: 'approved',
+        createdAt: new Date(),
+      }),
+    ).toBe(true);
+    expect((await backend.get('q1'))?.status).toBe('pending');
+    expect((await backend.get('q1'))?.approvedCount).toBe(1);
+    // duplicate vote is idempotent
+    expect(
+      await backend.vote!('q1', {
+        approvalKey: 'q1',
+        approver: 'jonas',
+        decision: 'approved',
+        createdAt: new Date(),
+      }),
+    ).toBe(true);
+    expect((await backend.votes!('q1')).length).toBe(1);
+    expect(
+      await backend.vote!('q1', {
+        approvalKey: 'q1',
+        approver: 'ada',
+        decision: 'approved',
+        createdAt: new Date(),
+      }),
+    ).toBe(true);
+    const approved = await backend.get('q1');
+    expect(approved?.status).toBe('approved');
+    expect(approved?.approvedCount).toBe(2);
+  });
+
+  it('rejects immediately and refuses the requester', async () => {
+    const backend = createMemoryApprovalsBackend();
+    await backend.upsert(entry({ approvalKey: 'q2', requestedBy: 'maya', requiredApprovals: 2 }));
+    expect(
+      await backend.vote!('q2', {
+        approvalKey: 'q2',
+        approver: 'maya',
+        decision: 'approved',
+        createdAt: new Date(),
+      }),
+    ).toBe(false);
+    expect(
+      await backend.vote!('q2', {
+        approvalKey: 'q2',
+        approver: 'jonas',
+        decision: 'rejected',
+        comment: 'no',
+        createdAt: new Date(),
+      }),
+    ).toBe(true);
+    const rejected = await backend.get('q2');
+    expect(rejected?.status).toBe('rejected');
+    expect(rejected?.rejectedBy).toBe('jonas');
+    expect(rejected?.comment).toBe('no');
+  });
+});

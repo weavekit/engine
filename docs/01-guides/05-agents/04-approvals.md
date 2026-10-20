@@ -41,6 +41,7 @@ A `PendingApproval` is:
   requestedBy?, onBehalfOf?, actorLabel?, requestHash?, requestId?,
   policy?: { ruleId?, reason?, version? },
   expiresAt?, consumedAt?, resolvedAt?, comment?,
+  requiredApprovals?, approverRoles?, approverGroups?, approvedCount?, rejectedBy?,
 }
 ```
 
@@ -48,6 +49,10 @@ with `status` — `pending` / `approved` / `rejected`. The `approvalKey` is a de
 actor + action + args (+ optional request id), so repeated calls don't create duplicate pending
 entries. New entries expire after 72h by default (`tools.approvals.ttlMs`); an expired entry cannot
 be approved or consumed. `comment` is required for rejection in the Console contract.
+
+**Quorum**: `requiredApprovals` defaults to 1. Each `ApprovalVote` is keyed by approver; duplicate
+votes are idempotent, a rejection is terminal, and the request becomes `approved` only when the
+approved count reaches the quorum. The requester never counts.
 
 **Segregation of duties**: when `requestedBy` is present, the requester cannot approve or reject
 their own request. The queue denies the decision (audits `approval.denied`); REST returns
@@ -59,7 +64,8 @@ Backends implement `ApprovalsBackend`:
 - **PostgreSQL** (`subsystems/approvals`) — the persisted store; enable it in config to survive
   restarts. The store never audits; the queue facade does.
 
-Tool handlers reach it through `ctx.approvals` (`list`, `count`, `query`, `approve`, `reject`).
+Tool handlers reach it through `ctx.approvals` (`list`, `count`, `query`, `approve`, `reject`,
+`vote`, `votes`).
 The queue writes standard audit events: `approval.requested`, `approval.approved`,
 `approval.rejected`, `approval.expired` and `approval.consumed`. It can also emit the same
 lifecycle to an optional `ApprovalEventSink` (`tools.approvals.events`) for enterprise notifications;
@@ -69,12 +75,15 @@ delivery is best-effort and never blocks the approval path.
 
 ```
 GET  {prefix}/approvals                      paged list
-POST {prefix}/approvals/:key/approve         resolve → approved   (admin; body { comment? })
-POST {prefix}/approvals/:key/reject          resolve → rejected   (admin; body { comment } required)
+POST {prefix}/approvals/:key/approve         record an approved vote (admin; body { comment? })
+POST {prefix}/approvals/:key/reject          record a rejected vote (admin; body { comment } required)
+POST {prefix}/approvals/:key/decisions       record a vote (admin; body { decision, comment? })
+GET  {prefix}/approvals/:key/votes           list approver decisions
 ```
 
-`GET` supports `status`, `action`, `actorKey`, `requestedBy`, `approvalKey`, `from`, `to` (createdAt
-window), `expiresBefore`, `limit`, `offset` and `sort`/`order` (default `createdAt` DESC). It returns
+`GET` supports `status`, `action`, `actorKey`, `requestedBy`, `approvalKey`, `pendingFor`, `from`,
+`to` (createdAt window), `expiresBefore`, `limit`, `offset` and `sort`/`order` (default
+`createdAt` DESC). It returns
 `{ rows, total, limit, offset }`. Approve/reject return `{ approvalKey, status, approver, comment? }`
 and answer `approval.notFound` when the key is unknown, already resolved, expired or consumed.
 
