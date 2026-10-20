@@ -238,12 +238,14 @@ export async function buildEngineFromRegistry(
       const approvalsBackend = config.tools.approvals?.backend;
       const approvalTtlMs = config.tools.approvals?.ttlMs;
       const approvalEvents = config.tools.approvals?.events;
+      const approvalDelegation = config.tools.approvals?.delegation;
       if (approvalsBackend !== undefined && typeof approvalsBackend === 'object') {
         approvals = createApprovals({
           audit: auditSink,
           backend: approvalsBackend,
           ...(approvalTtlMs === undefined ? {} : { ttlMs: approvalTtlMs }),
           ...(approvalEvents === undefined ? {} : { events: approvalEvents }),
+          ...(approvalDelegation === undefined ? {} : { delegation: approvalDelegation }),
         });
       } else if (approvalsBackend !== 'memory') {
         const { createApprovalsBackend } = await import('../subsystems/approvals/index.js');
@@ -253,12 +255,14 @@ export async function buildEngineFromRegistry(
           backend,
           ...(approvalTtlMs === undefined ? {} : { ttlMs: approvalTtlMs }),
           ...(approvalEvents === undefined ? {} : { events: approvalEvents }),
+          ...(approvalDelegation === undefined ? {} : { delegation: approvalDelegation }),
         });
       } else {
         approvals = createApprovals({
           audit: auditSink,
           ...(approvalTtlMs === undefined ? {} : { ttlMs: approvalTtlMs }),
           ...(approvalEvents === undefined ? {} : { events: approvalEvents }),
+          ...(approvalDelegation === undefined ? {} : { delegation: approvalDelegation }),
         });
       }
     }

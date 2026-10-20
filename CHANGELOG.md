@@ -5,6 +5,16 @@ the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.8.0] - 2026-10-20
+
+### Added
+
+- Approval delegation: `ApprovalDelegationResolver` + `tools.approvals.delegation`; delegate
+  votes record `delegatedBy` without changing quorum semantics.
+- SLA escalation: `escalateAfterMs`, `escalatedAt`, `escalationApprovers` on `PendingApproval`;
+  `approval.escalated` event type.
+- `weavekit_approval_delegations` table and `delegated_by` on approval votes.
+
 ## [2.7.0] - 2026-10-20
 
 ### Added

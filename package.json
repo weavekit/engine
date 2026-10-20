@@ -1,6 +1,6 @@
 {
   "name": "@weave-kit/engine",
-  "version": "2.7.0",
+  "version": "2.8.0",
   "description": "WeaveKit engine — a metadata-driven headless backend runtime with Git-versioned metadata",
   "type": "module",
   "main": "./dist/index.js",
@@ -98,7 +98,7 @@
     "@fastify/cors": "^11.3.0",
     "@modelcontextprotocol/sdk": "^1.30.0",
     "@pgsql/traverse": "^18.7.7",
-    "@weave-kit/contract": "^2.2.0",
+    "@weave-kit/contract": "^2.2.1",
     "cli-table3": "^0.6.5",
     "commander": "^14.0.0",
     "esbuild": "^0.25.0",

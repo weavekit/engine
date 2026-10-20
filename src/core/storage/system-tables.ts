@@ -26,6 +26,7 @@ export const SYSTEM_TABLES = {
   EVIDENCE: 'weavekit_evidence',
   APPROVALS: 'weavekit_approvals',
   APPROVAL_VOTES: 'weavekit_approval_votes',
+  APPROVAL_DELEGATIONS: 'weavekit_approval_delegations',
   WORKFLOW_DEFINITIONS: 'weavekit_workflow_definitions',
   WORKFLOW_INSTANCES: 'weavekit_workflow_instances',
   WORKFLOW_STEPS: 'weavekit_workflow_steps',
@@ -212,6 +213,9 @@ const approvals = (): ExpectedTable => ({
     col('approver_groups', 'JSONB'),
     col('approved_count', 'INTEGER', { notNull: true, default: '0' }),
     col('rejected_by', 'TEXT'),
+    col('escalate_after_ms', 'BIGINT'),
+    col('escalated_at', 'TIMESTAMPTZ'),
+    col('escalation_approvers', 'JSONB'),
   ],
   fks: [],
   indexes: [
@@ -230,11 +234,31 @@ const approvalVotes = (): ExpectedTable => ({
     col('decision', 'TEXT', { notNull: true }),
     col('comment', 'TEXT'),
     col('stage', 'INTEGER', { notNull: true, default: '0' }),
+    col('delegated_by', 'TEXT'),
     col('created_at', 'TIMESTAMPTZ', { notNull: true, default: 'now()' }),
   ],
   fks: [],
   indexes: [
     { name: 'weavekit_approval_votes_key_idx', method: 'btree', columns: ['approval_key', 'decision'] },
+  ],
+  uniques: [],
+});
+
+const approvalDelegations = (): ExpectedTable => ({
+  name: SYSTEM_TABLES.APPROVAL_DELEGATIONS,
+  columns: [
+    col('id', 'TEXT', { notNull: true, primary: true }),
+    col('from_actor', 'TEXT', { notNull: true }),
+    col('to_actor', 'TEXT', { notNull: true }),
+    col('action_pattern', 'TEXT'),
+    col('starts_at', 'TIMESTAMPTZ', { notNull: true }),
+    col('ends_at', 'TIMESTAMPTZ'),
+    col('created_by', 'TEXT', { notNull: true }),
+    col('created_at', 'TIMESTAMPTZ', { notNull: true, default: 'now()' }),
+  ],
+  fks: [],
+  indexes: [
+    { name: 'weavekit_approval_delegations_to_idx', method: 'btree', columns: ['to_actor', 'ends_at'] },
   ],
   uniques: [],
 });
@@ -386,6 +410,7 @@ export function buildSystemTables(scope?: SchemaScope): ExpectedTable[] {
     evidence(),
     approvals(),
     approvalVotes(),
+    approvalDelegations(),
     workflowDefinitions(),
     workflowInstances(),
     workflowSteps(),

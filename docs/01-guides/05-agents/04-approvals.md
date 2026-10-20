@@ -54,6 +54,13 @@ be approved or consumed. `comment` is required for rejection in the Console cont
 votes are idempotent, a rejection is terminal, and the request becomes `approved` only when the
 approved count reaches the quorum. The requester never counts.
 
+**Delegation**: `tools.approvals.delegation` is an optional `ApprovalDelegationResolver`
+(`resolve(delegate, action) -> original approver`). Delegate votes record `delegatedBy`; quorum still
+counts the delegate as one seat. The enterprise package provides a PG-backed delegation store.
+
+**SLA escalation**: `escalateAfterMs` / `escalationApprovers` are captured with the request. A host
+service (enterprise) marks overdue requests and emits `approval.escalated`; the approval stays pending.
+
 **Segregation of duties**: when `requestedBy` is present, the requester cannot approve or reject
 their own request. The queue denies the decision (audits `approval.denied`); REST returns
 `409 http.conflict` with a detail.

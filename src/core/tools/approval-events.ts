@@ -8,6 +8,7 @@ export const APPROVAL_EVENT_TYPES = {
   REJECTED: 'approval.rejected',
   EXPIRED: 'approval.expired',
   CONSUMED: 'approval.consumed',
+  ESCALATED: 'approval.escalated',
   DENIED: 'approval.denied',
 } as const;
 export type ApprovalEventType = typeof APPROVAL_EVENT_TYPES[keyof typeof APPROVAL_EVENT_TYPES];
@@ -24,13 +25,17 @@ export interface ApprovalEvent {
   actorLabel?: string;
   /** approver/admin that decided or consumed (when applicable) */
   approver?: string;
+  /** original approver when the vote was cast by a delegate */
+  delegatedBy?: string;
   requestId?: string;
   policy?: ApprovalPolicySnapshot;
   requiredApprovals?: number;
   approvedCount?: number;
   approverRoles?: string[];
   approverGroups?: string[];
+  escalationApprovers?: string[];
   expiresAt?: Date;
+  escalatedAt?: Date;
   consumedAt?: Date;
   resolvedAt?: Date;
   comment?: string;

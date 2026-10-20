@@ -70,7 +70,9 @@ export async function evaluateCall(
           decision.ruleId === undefined &&
           decision.requiredApprovals === undefined &&
           decision.approverRoles === undefined &&
-          decision.approverGroups === undefined
+          decision.approverGroups === undefined &&
+          decision.escalateAfterMs === undefined &&
+          decision.escalationApprovers === undefined
           ? undefined
           : {
               ...(decision.reason === undefined ? {} : { reason: decision.reason }),
@@ -82,6 +84,12 @@ export async function evaluateCall(
               ...(decision.approverGroups === undefined
                 ? {}
                 : { approverGroups: decision.approverGroups }),
+              ...(decision.escalateAfterMs === undefined
+                ? {}
+                : { escalateAfterMs: decision.escalateAfterMs }),
+              ...(decision.escalationApprovers === undefined
+                ? {}
+                : { escalationApprovers: decision.escalationApprovers }),
             },
       );
     }
@@ -97,6 +105,8 @@ interface ApprovalGatePolicy {
   requiredApprovals?: number;
   approverRoles?: string[];
   approverGroups?: string[];
+  escalateAfterMs?: number;
+  escalationApprovers?: string[];
 }
 
 /** resolve a `requireApproval` decision: approved → allow; rejected → deny; absent → enqueue pending */
@@ -154,6 +164,12 @@ async function resolveApproval(
         : { requiredApprovals: policy.requiredApprovals }),
       ...(policy?.approverRoles === undefined ? {} : { approverRoles: policy.approverRoles }),
       ...(policy?.approverGroups === undefined ? {} : { approverGroups: policy.approverGroups }),
+      ...(policy?.escalateAfterMs === undefined
+        ? {}
+        : { escalateAfterMs: policy.escalateAfterMs }),
+      ...(policy?.escalationApprovers === undefined
+        ? {}
+        : { escalationApprovers: policy.escalationApprovers }),
       ...(snapshot === undefined ? {} : { policy: snapshot }),
     });
   }

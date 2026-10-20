@@ -80,6 +80,8 @@ export interface ApprovalRequestContext {
   requiredApprovals?: number;
   approverRoles?: string[];
   approverGroups?: string[];
+  escalateAfterMs?: number;
+  escalationApprovers?: string[];
   expiresAt?: Date;
 }
 
@@ -117,6 +119,11 @@ export interface ApprovalsBackend {
  * gate; multi-level flows belong to workflow. Custom tool handlers receive this
  * as `ctx.approvals` and must `await`.
  */
+/** optional delegation resolver: delegate subject -> original approver */
+export interface ApprovalDelegationResolver {
+  resolve(subjectId: string, action: string, at?: Date): Promise<string | undefined> | string | undefined;
+}
+
 export interface ToolApprovals {
   /** list with the full filter model (status/action/actorKey/time + paging/sort) */
   list(filter?: ApprovalListFilter): Promise<PendingApproval[]>;
@@ -174,6 +181,8 @@ export type GuardrailDecision =
       requiredApprovals?: number;
       approverRoles?: string[];
       approverGroups?: string[];
+      escalateAfterMs?: number;
+      escalationApprovers?: string[];
     };
 
 /** guardrail policy decision context (protocol-agnostic; `action` = tool name or workflow transition) */

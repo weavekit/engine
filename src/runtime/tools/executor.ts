@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import type { Pool } from 'pg';
 import { APPROVAL_EVENT_TYPES, NOOP_AUDIT_SINK, createMemoryApprovalsBackend, userPrincipal, SchemaError, validateToolArgs, DEFAULT_LOCALE } from '../../core/index.js';
 import { AUDIT_ACTOR_TYPES } from '../../core/index.js';
-import type { ApprovalEvent, ApprovalEventSink, ApprovalEventType, ApprovalVote, AuditSink, IdentitySubject, Locale, ObjectRegistry, ToolActor, ToolApprovals, ApprovalsBackend, ApprovalListFilter, ToolCallContext, ToolDataAccess, ToolDefinition, ToolGuardrails, ToolJsonSchema, ToolResult, ApprovalStatus, PendingApproval, ApprovalRequestContext, GuardrailContext, GuardrailPolicy, EvidenceSink } from '../../core/index.js';
+import type { ApprovalEvent, ApprovalEventSink, ApprovalEventType, ApprovalVote, ApprovalDelegationResolver, AuditSink, IdentitySubject, Locale, ObjectRegistry, ToolActor, ToolApprovals, ApprovalsBackend, ApprovalListFilter, ToolCallContext, ToolDataAccess, ToolDefinition, ToolGuardrails, ToolJsonSchema, ToolResult, ApprovalStatus, PendingApproval, ApprovalRequestContext, GuardrailContext, GuardrailPolicy, EvidenceSink } from '../../core/index.js';
 import type { ObjectDataAccess, DataAccessContext, FindOptions } from '../data-access/index.js';
 import { withTx as dataAccessWithTx } from '../data-access/index.js';
 import { applyMask, evaluateCall } from './policies.js';
@@ -67,12 +67,19 @@ const DEFAULT_APPROVAL_TTL_MS = 72 * 3_600_000;
  * is audited here, never by the store. Async because the backend performs I/O.
  */
 export function createApprovals(
-  options: { audit?: AuditSink; backend?: ApprovalsBackend; ttlMs?: number; events?: ApprovalEventSink } = {},
+  options: {
+    audit?: AuditSink;
+    backend?: ApprovalsBackend;
+    ttlMs?: number;
+    events?: ApprovalEventSink;
+    delegation?: ApprovalDelegationResolver;
+  } = {},
 ): ApprovalsQueue {
   const backend = options.backend ?? createMemoryApprovalsBackend();
   const audit = options.audit ?? NOOP_AUDIT_SINK;
   const ttlMs = options.ttlMs ?? DEFAULT_APPROVAL_TTL_MS;
   const events = options.events;
+  const delegation = options.delegation;
 
   const auditApproval = (
     action: string,
@@ -150,11 +157,15 @@ export function createApprovals(
       return false;
     }
     if (backend.vote !== undefined) {
+      const delegatedBy =
+        delegation === undefined ? undefined : await delegation.resolve(by, current.action);
+      const delegated = delegatedBy === undefined ? {} : { delegatedBy };
       const ok = await backend.vote(approvalKey, {
         approvalKey,
         approver: by,
         decision: status,
         ...(comment === undefined ? {} : { comment }),
+        ...delegated,
         stage: 0,
         createdAt: new Date(),
       });
@@ -285,6 +296,10 @@ export function createApprovals(
         requiredApprovals: context.requiredApprovals ?? 1,
         ...(context.approverRoles === undefined ? {} : { approverRoles: context.approverRoles }),
         ...(context.approverGroups === undefined ? {} : { approverGroups: context.approverGroups }),
+        ...(context.escalateAfterMs === undefined ? {} : { escalateAfterMs: context.escalateAfterMs }),
+        ...(context.escalationApprovers === undefined
+          ? {}
+          : { escalationApprovers: context.escalationApprovers }),
         approvedCount: 0,
         expiresAt: context.expiresAt ?? new Date(now.getTime() + ttlMs),
       };

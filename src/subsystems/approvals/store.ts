@@ -12,7 +12,7 @@ const TABLE = 'weavekit_approvals';
 const VOTES_TABLE = 'weavekit_approval_votes';
 
 const COLUMNS =
-  'approval_key, action, args, actor_key, status, created_at, approved_by, resolved_at, requested_by, on_behalf_of, actor_label, request_hash, request_id, policy, expires_at, consumed_at, comment, required_approvals, approver_roles, approver_groups, approved_count, rejected_by';
+  'approval_key, action, args, actor_key, status, created_at, approved_by, resolved_at, requested_by, on_behalf_of, actor_label, request_hash, request_id, policy, expires_at, consumed_at, comment, required_approvals, approver_roles, approver_groups, approved_count, rejected_by, escalate_after_ms, escalated_at, escalation_approvers';
 
 interface Row {
   approval_key: string;
@@ -37,6 +37,9 @@ interface Row {
   approver_groups: unknown;
   approved_count: number | null;
   rejected_by: string | null;
+  escalate_after_ms: string | number | null;
+  escalated_at: string | Date | null;
+  escalation_approvers: unknown;
 }
 
 function asDate(value: string | Date | null): Date | undefined {
@@ -68,6 +71,11 @@ function toApproval(row: Row): PendingApproval {
     ...(row.approver_groups == null ? {} : { approverGroups: row.approver_groups as string[] }),
     ...(row.approved_count == null ? {} : { approvedCount: row.approved_count }),
     ...(row.rejected_by == null ? {} : { rejectedBy: row.rejected_by }),
+    ...(row.escalate_after_ms == null ? {} : { escalateAfterMs: Number(row.escalate_after_ms) }),
+    ...(row.escalated_at == null ? {} : { escalatedAt: asDate(row.escalated_at) }),
+    ...(row.escalation_approvers == null
+      ? {}
+      : { escalationApprovers: row.escalation_approvers as string[] }),
   };
 }
 
@@ -156,9 +164,10 @@ export function createApprovalsPgStore(pool: Pool): ApprovalsBackend {
         `INSERT INTO ${TABLE} (
            approval_key, action, args, actor_key, status, created_at, requested_by,
            on_behalf_of, actor_label, request_hash, request_id, policy, expires_at,
-           required_approvals, approver_roles, approver_groups, approved_count
+           required_approvals, approver_roles, approver_groups, approved_count,
+           escalate_after_ms, escalation_approvers
          )
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
          ON CONFLICT (approval_key) DO NOTHING`,
         [
           entry.approvalKey,
@@ -178,6 +187,10 @@ export function createApprovalsPgStore(pool: Pool): ApprovalsBackend {
           entry.approverRoles === undefined ? null : JSON.stringify(entry.approverRoles),
           entry.approverGroups === undefined ? null : JSON.stringify(entry.approverGroups),
           entry.approvedCount ?? 0,
+          entry.escalateAfterMs ?? null,
+          entry.escalationApprovers === undefined
+            ? null
+            : JSON.stringify(entry.escalationApprovers),
         ],
       );
     },
@@ -217,9 +230,17 @@ export function createApprovalsPgStore(pool: Pool): ApprovalsBackend {
         if (existing.rows[0] !== undefined) return existing.rows[0].decision === vote.decision;
 
         await db.query(
-          `INSERT INTO ${VOTES_TABLE} (approval_key, approver, decision, comment, stage, created_at)
-           VALUES ($1, $2, $3, $4, $5, $6)`,
-          [approvalKey, vote.approver, vote.decision, vote.comment ?? null, vote.stage ?? 0, vote.createdAt],
+          `INSERT INTO ${VOTES_TABLE} (approval_key, approver, decision, comment, stage, delegated_by, created_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [
+            approvalKey,
+            vote.approver,
+            vote.decision,
+            vote.comment ?? null,
+            vote.stage ?? 0,
+            vote.delegatedBy ?? null,
+            vote.createdAt,
+          ],
         );
         const count = await db.query<{ n: number }>(
           `SELECT count(*)::int AS n FROM ${VOTES_TABLE}
@@ -259,9 +280,10 @@ export function createApprovalsPgStore(pool: Pool): ApprovalsBackend {
         decision: string;
         comment: string | null;
         stage: number;
+        delegated_by: string | null;
         created_at: string | Date;
       }>(
-        `SELECT approval_key, approver, decision, comment, stage, created_at
+        `SELECT approval_key, approver, decision, comment, stage, delegated_by, created_at
          FROM ${VOTES_TABLE} WHERE approval_key = $1 ORDER BY created_at ASC, approver ASC`,
         [approvalKey],
       );
@@ -271,6 +293,7 @@ export function createApprovalsPgStore(pool: Pool): ApprovalsBackend {
         decision: row.decision as 'approved' | 'rejected',
         ...(row.comment == null ? {} : { comment: row.comment }),
         stage: row.stage,
+        ...(row.delegated_by == null ? {} : { delegatedBy: row.delegated_by }),
         createdAt: asDate(row.created_at)!,
       }));
     },

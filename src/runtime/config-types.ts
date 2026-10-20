@@ -6,6 +6,7 @@
 import type { FastifyInstance } from 'fastify';
 import type { Pool } from 'pg';
 import type {
+  ApprovalDelegationResolver,
   ApprovalEventSink,
   ApprovalsBackend,
   AuditMode,
@@ -124,6 +125,8 @@ export interface EngineToolsConfig {
     ttlMs?: number;
     /** optional lifecycle sink (enterprise notifications / audit fan-out) */
     events?: ApprovalEventSink;
+    /** optional delegation resolver (delegate subject -> original approver) */
+    delegation?: ApprovalDelegationResolver;
   };
 }
 

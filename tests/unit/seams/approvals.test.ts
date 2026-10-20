@@ -226,3 +226,17 @@ describe('quorum voting', () => {
     expect(rejected?.comment).toBe('no');
   });
 });
+describe('delegation', () => {
+  it('records the original approver on a delegate vote', async () => {
+    const approvals = createApprovals({
+      ttlMs: 60_000,
+      delegation: { resolve: (subject) => (subject === 'delegate' ? 'alice' : undefined) },
+    });
+    await approvals.pending('mcp.tool.x', {}, { key: 'agent-1', label: 'agent', onBehalfOf: 'maya' }, 'ap-delegated', {
+      requestedBy: 'maya',
+    });
+    expect(await approvals.approve('ap-delegated', 'delegate')).toBe(true);
+    const [vote] = await approvals.votes('ap-delegated');
+    expect(vote).toMatchObject({ approver: 'delegate', delegatedBy: 'alice', decision: 'approved' });
+  });
+});
