@@ -5,6 +5,12 @@ the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.8.2] - 2026-10-20
+
+### Added
+
+- `weavekit_export_jobs` system table (enterprise-reserved) for async evidence exports.
+
 ## [2.8.1] - 2026-10-20
 
 ### Added

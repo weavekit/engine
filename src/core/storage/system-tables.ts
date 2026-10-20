@@ -28,6 +28,7 @@ export const SYSTEM_TABLES = {
   APPROVAL_VOTES: 'weavekit_approval_votes',
   APPROVAL_DELEGATIONS: 'weavekit_approval_delegations',
   LEGAL_HOLDS: 'weavekit_legal_holds',
+  EXPORT_JOBS: 'weavekit_export_jobs',
   WORKFLOW_DEFINITIONS: 'weavekit_workflow_definitions',
   WORKFLOW_INSTANCES: 'weavekit_workflow_instances',
   WORKFLOW_STEPS: 'weavekit_workflow_steps',
@@ -284,6 +285,37 @@ const legalHolds = (): ExpectedTable => ({
   uniques: [],
 });
 
+const exportJobs = (): ExpectedTable => ({
+  name: SYSTEM_TABLES.EXPORT_JOBS,
+  columns: [
+    col('id', 'TEXT', { notNull: true, primary: true }),
+    col('site_id', 'TEXT'),
+    col('dataset', 'TEXT', { notNull: true }),
+    col('format', 'TEXT', { notNull: true }),
+    col('filters', 'JSONB'),
+    col('include_payload', 'BOOLEAN', { notNull: true, default: 'false' }),
+    col('reason', 'TEXT'),
+    col('ticket_ref', 'TEXT'),
+    col('requester', 'TEXT', { notNull: true }),
+    col('approval_key', 'TEXT'),
+    col('status', 'TEXT', { notNull: true }),
+    col('artifact_path', 'TEXT'),
+    col('artifact_sha256', 'TEXT'),
+    col('artifact_bytes', 'BIGINT'),
+    col('error', 'TEXT'),
+    col('created_at', 'TIMESTAMPTZ', { notNull: true, default: 'now()' }),
+    col('started_at', 'TIMESTAMPTZ'),
+    col('completed_at', 'TIMESTAMPTZ'),
+    col('expires_at', 'TIMESTAMPTZ'),
+  ],
+  fks: [],
+  indexes: [
+    { name: 'weavekit_export_jobs_status_idx', method: 'btree', columns: ['status', 'created_at'] },
+    { name: 'weavekit_export_jobs_requester_idx', method: 'btree', columns: ['requester'] },
+  ],
+  uniques: [],
+});
+
 const workflowDefinitions = (): ExpectedTable => ({
   name: SYSTEM_TABLES.WORKFLOW_DEFINITIONS,
   columns: [
@@ -433,6 +465,7 @@ export function buildSystemTables(scope?: SchemaScope): ExpectedTable[] {
     approvalVotes(),
     approvalDelegations(),
     legalHolds(),
+    exportJobs(),
     workflowDefinitions(),
     workflowInstances(),
     workflowSteps(),
