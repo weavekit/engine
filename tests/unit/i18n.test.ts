@@ -10,6 +10,7 @@ import { describe, it, expect } from '../helpers/test.js';import {
   ja,
   ko,
   LOCALES,
+  negotiateLocale,
   ObjectRegistry,
   pt,
   resolveLabel,
@@ -60,6 +61,28 @@ describe('i18n — one file per language structure', () => {
   it('default locale is English', () => {
     expect(DEFAULT_LOCALE).toBe('en');
   });
+
+  it('negotiates Accept-Language tags with fallbacks', () => {
+    expect(negotiateLocale(undefined, 'en')).toBe('en');
+    expect(negotiateLocale('zh', 'en')).toBe('zh');
+    expect(negotiateLocale('zh-CN', 'en')).toBe('zh');
+    expect(negotiateLocale('zh-SG', 'en')).toBe('zh');
+    expect(negotiateLocale('zh-TW', 'en')).toBe('zh-Hant');
+    expect(negotiateLocale('zh-HK', 'en')).toBe('zh-Hant');
+    expect(negotiateLocale('zh-Hant-TW', 'en')).toBe('zh-Hant');
+    expect(negotiateLocale('zh-Hans-CN', 'en')).toBe('zh');
+    expect(negotiateLocale('pt-BR', 'en')).toBe('pt');
+    expect(negotiateLocale('en-US', 'zh')).toBe('en');
+    expect(negotiateLocale('xx-YY', 'zh')).toBe('zh');
+  });
+
+  it('orders Accept-Language entries by q-value', () => {
+    expect(negotiateLocale('fr;q=0.4, zh;q=0.9', 'en')).toBe('zh');
+    expect(negotiateLocale('fr;q=0.9, zh;q=0.8', 'en')).toBe('fr');
+    expect(negotiateLocale('zh;q=0, fr;q=0.5', 'en')).toBe('fr');
+    expect(negotiateLocale('*', 'zh')).toBe('zh');
+  });
+
 
   it('zh catalog keys cover all English keys (enforced at compile time)', () => {
     for (const key of Object.keys(en)) {

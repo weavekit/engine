@@ -66,6 +66,57 @@ export const SUPPORTED_LOCALES: readonly Locale[] = Object.freeze(
 
 export type { MessageKey } from './en.js';
 
+const canonicalByLower = new Map<string, Locale>(
+  SUPPORTED_LOCALES.map((tag) => [tag.toLowerCase(), tag]),
+);
+
+function matchLocaleTag(raw: string): Locale | undefined {
+  const tag = raw.trim().toLowerCase();
+  if (tag === '' || tag === '*') return undefined;
+  const exact = canonicalByLower.get(tag);
+  if (exact !== undefined) return exact;
+  if (tag.startsWith('zh-')) {
+    if (/(?:^|-)hant(?:-|$)/.test(tag) || /-(?:tw|hk|mo)(?:-|$)/.test(tag)) return LOCALES.ZH_HANT;
+    if (/(?:^|-)hans(?:-|$)/.test(tag) || /-(?:cn|sg|my)(?:-|$)/.test(tag)) return LOCALES.ZH;
+  }
+  const base = tag.split('-')[0];
+  return base === undefined ? undefined : canonicalByLower.get(base);
+}
+
+/**
+ * Resolve a request locale from an `Accept-Language` header. Entries are ordered
+ * by q-value, then exact tags win over base-language matches (`pt-BR` → `pt`).
+ * `zh-CN`/`zh-SG` map to `zh`; `zh-TW`/`zh-HK`/`zh-MO`/`zh-Hant-*` map to
+ * `zh-Hant`. Unknown tags and `*` are ignored.
+ */
+export function negotiateLocale(
+  header: string | readonly string[] | undefined,
+  fallback: Locale = DEFAULT_LOCALE,
+): Locale {
+  const raw = typeof header === 'string' ? header : Array.isArray(header) ? header.join(',') : '';
+  if (raw.trim() === '') return fallback;
+  const entries = raw
+    .split(',')
+    .map((entry, index) => {
+      const [tag = '', ...params] = entry.trim().split(';');
+      let q = 1;
+      for (const param of params) {
+        const [name, value] = param.trim().split('=');
+        if (name?.toLowerCase() !== 'q') continue;
+        const parsed = Number(value);
+        q = Number.isFinite(parsed) ? Math.min(1, Math.max(0, parsed)) : 0;
+      }
+      return { tag: tag.trim(), q, index };
+    })
+    .filter((entry) => entry.tag !== '' && entry.q > 0)
+    .sort((a, b) => b.q - a.q || a.index - b.index);
+  for (const entry of entries) {
+    const matched = matchLocaleTag(entry.tag);
+    if (matched !== undefined) return matched;
+  }
+  return fallback;
+}
+
 /**
  * Resolve a message catalog entry for the given locale and interpolate params.
  * Falls back to English when the locale or a specific key is missing. Unknown

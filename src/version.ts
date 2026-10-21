@@ -1,5 +1,5 @@
 /** engine version — single source of truth for CLI, ops routes and MCP metadata */
-export const version = '2.9.2';
+export const version = '2.10.0';
 
 /**
  * Frozen public-contract version (G1). Bump only on a **breaking** change to the

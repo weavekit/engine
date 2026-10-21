@@ -5,6 +5,15 @@ the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.10.0] - 2026-10-21
+
+### Added
+
+- Request-level locale negotiation for REST error responses. `Accept-Language` now selects the
+  message language per request (with q-values, base-language fallback, and `zh`/`zh-Hant` mapping);
+  `config.locale` remains the fallback and continues to drive CLI/log output.
+- Localized error responses include `Vary: Accept-Language`.
+
 ## [2.9.2] - 2026-10-20
 
 ### Added
