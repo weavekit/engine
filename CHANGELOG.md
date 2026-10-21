@@ -5,6 +5,14 @@ the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.11.0] - 2026-10-21
+
+### Added
+
+- GraphQL and MCP now honour request-level Accept-Language for auth/security/session/tool messages.
+  GraphQL resolver and MCP tool execution contexts use the negotiated locale, with config.locale as
+  the fallback.
+
 ## [2.10.0] - 2026-10-21
 
 ### Added

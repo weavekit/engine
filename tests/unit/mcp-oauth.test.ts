@@ -1,6 +1,6 @@
 import Fastify from 'fastify';
 import { describe, it, expect } from '../helpers/test.js';
-import { ObjectRegistry, LOCALES } from '../../src/core/index.js';
+import { ObjectRegistry, LOCALES, translate } from '../../src/core/index.js';
 import { registerMcpRoutes, McpSessionStore } from '../../src/adapters/mcp/index.js';
 import { createGuardrails } from '../../src/adapters/mcp/guardrails.js';
 import {
@@ -63,6 +63,15 @@ describe('OAuth protected-resource metadata', () => {
       expect(unauth.statusCode).toBe(401);
       expect(unauth.headers['www-authenticate']).toContain(`resource_metadata=`);
       expect(unauth.headers['www-authenticate']).toContain(OAUTH_PROTECTED_RESOURCE_PATH);
+
+      const localized = await app.inject({
+        method: 'POST',
+        url: '/mcp',
+        headers: { 'accept-language': 'zh-CN' },
+        payload: {},
+      });
+      expect(localized.statusCode).toBe(401);
+      expect(localized.json().error.message).toBe(translate('auth.missingKey', {}, 'zh'));
     } finally {
       await app.close();
     }

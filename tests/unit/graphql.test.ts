@@ -1,6 +1,6 @@
 import Fastify from 'fastify';
 import { describe, it, expect } from '../helpers/test.js';
-import { ObjectRegistry } from '../../src/core/index.js';
+import { ObjectRegistry, translate } from '../../src/core/index.js';
 import { buildAuthenticator } from '../../src/adapters/auth/index.js';
 import { registerGraphQL, type EngineGraphQLConfig, type GraphQLEngine } from '../../src/adapters/graphql/index.js';
 
@@ -23,6 +23,24 @@ describe('GraphQL adapter — Phase 0 skeleton (/graphql)', () => {
       const res = await app.inject({ method: 'POST', url: '/graphql', payload: { query: '{ _objectCount }' } });
       expect(res.statusCode).toBe(401);
       expect((JSON.parse(res.body) as { error: { code: string } }).error.code).toBe('auth.missingKey');
+    } finally {
+      await app.close();
+    }
+  });
+
+  it('localizes auth errors from Accept-Language', async () => {
+    const app = makeApp();
+    try {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/graphql',
+        headers: { 'accept-language': 'zh-CN' },
+        payload: { query: '{ _objectCount }' },
+      });
+      expect(res.statusCode).toBe(401);
+      expect((JSON.parse(res.body) as { error: { message: string } }).error.message).toBe(
+        translate('auth.missingKey', {}, 'zh'),
+      );
     } finally {
       await app.close();
     }

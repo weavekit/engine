@@ -17,7 +17,7 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import type { CallToolResult, GetPromptResult } from '@modelcontextprotocol/sdk/types.js';
 import type { Locale, ToolDefinition, ToolJsonSchema } from '../../core/index.js';
-import { SchemaError, traceIdOf, validateToolArgs } from '../../core/index.js';
+import { negotiateLocale, SchemaError, traceIdOf, validateToolArgs } from '../../core/index.js';
 import type { ToolExecutor } from '../../runtime/tools/index.js';
 import type { Authenticator } from '../auth/index.js';
 import { authenticate, OAUTH_PROTECTED_RESOURCE_PATH, oauthProtectedResourceMetadata, type OidcConfig } from '../auth/index.js';
@@ -56,6 +56,7 @@ const ON_BEHALF_OF_HEADER = 'x-weavekit-on-behalf-of';
  * within the awaited `handleRequest`).
  */
 const requestTrace = new AsyncLocalStorage<string>();
+const requestLocale = new AsyncLocalStorage<Locale>();
 
 /** resolve the Access-Control-Allow-Origin value (cors origin semantics, mirrors events/stream) */
 function allowOrigin(cors: string | string[] | boolean | undefined, requestOrigin: string | undefined): string | undefined {
@@ -191,10 +192,11 @@ export function registerMcpRoutes(app: FastifyInstance, deps: McpHttpDeps): void
       { name: 'weavekit', version },
       { capabilities: { tools: {}, resources: {}, prompts: {} } },
     );
+    const localeForRequest = (): Locale => requestLocale.getStore() ?? locale;
 
     server.setRequestHandler(ListToolsRequestSchema, async () => {
       const session = getSession();
-      if (session === undefined) throw new SchemaError('mcp.session.notFound', { session: '(none)' }, locale);
+      if (session === undefined) throw new SchemaError('mcp.session.notFound', { session: '(none)' }, localeForRequest());
       const toolsList = surfaceFor(session).map((t) => ({
         name: t.spec.name,
         description: t.spec.description,
@@ -205,53 +207,53 @@ export function registerMcpRoutes(app: FastifyInstance, deps: McpHttpDeps): void
 
     server.setRequestHandler(ListResourcesRequestSchema, async () => {
       const session = getSession();
-      if (session === undefined) throw new SchemaError('mcp.session.notFound', { session: '(none)' }, locale);
+      if (session === undefined) throw new SchemaError('mcp.session.notFound', { session: '(none)' }, localeForRequest());
       return { resources: listResources(engine, session) };
     });
 
     server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
       const session = getSession();
-      if (session === undefined) throw new SchemaError('mcp.session.notFound', { session: '(none)' }, locale);
+      if (session === undefined) throw new SchemaError('mcp.session.notFound', { session: '(none)' }, localeForRequest());
       try {
-        return { contents: [readResource(engine, session, request.params.uri, locale)] };
+        return { contents: [readResource(engine, session, request.params.uri, localeForRequest())] };
       } catch (error) {
         // resource read failures are protocol errors (not tool results): surface
         // a localized message without leaking internals
-        const message = error instanceof SchemaError ? error.localize(locale) : new SchemaError('http.internal', {}, locale).message;
+        const message = error instanceof SchemaError ? error.localize(localeForRequest()) : new SchemaError('http.internal', {}, localeForRequest()).message;
         throw new McpError(ErrorCode.InvalidParams, message);
       }
     });
 
     server.setRequestHandler(ListPromptsRequestSchema, async () => {
       const session = getSession();
-      if (session === undefined) throw new SchemaError('mcp.session.notFound', { session: '(none)' }, locale);
+      if (session === undefined) throw new SchemaError('mcp.session.notFound', { session: '(none)' }, localeForRequest());
       return { prompts: await listPrompts(engine, session, deps.prompts) };
     });
 
     server.setRequestHandler(GetPromptRequestSchema, async (request) => {
       const session = getSession();
-      if (session === undefined) throw new SchemaError('mcp.session.notFound', { session: '(none)' }, locale);
+      if (session === undefined) throw new SchemaError('mcp.session.notFound', { session: '(none)' }, localeForRequest());
       try {
         const args = (request.params.arguments ?? {}) as Record<string, string>;
-        const result = await getPrompt(engine, session, request.params.name, args, locale, deps.prompts);
+        const result = await getPrompt(engine, session, request.params.name, args, localeForRequest(), deps.prompts);
         return result as unknown as GetPromptResult;
       } catch (error) {
         // prompt failures are protocol errors (not tool results): surface a
         // localized message without leaking internals
-        const message = error instanceof SchemaError ? error.localize(locale) : new SchemaError('http.internal', {}, locale).message;
+        const message = error instanceof SchemaError ? error.localize(localeForRequest()) : new SchemaError('http.internal', {}, localeForRequest()).message;
         throw new McpError(ErrorCode.InvalidParams, message);
       }
     });
 
     server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const session = getSession();
-      if (session === undefined) throw new SchemaError('mcp.session.notFound', { session: '(none)' }, locale);
+      if (session === undefined) throw new SchemaError('mcp.session.notFound', { session: '(none)' }, localeForRequest());
       const name = request.params.name;
       const tool = surfaceFor(session).find((t) => t.spec.name === name);
       if (tool === undefined) {
         // a tool outside the session's surface: audit the attempt (call-layer deny)
         auditDeniedTool(guardrails, session, name, request.params.arguments);
-        throw new SchemaError('mcp.tool.notFound', { tool: name }, locale);
+        throw new SchemaError('mcp.tool.notFound', { tool: name }, localeForRequest());
       }
       const args = (request.params.arguments ?? {}) as Record<string, unknown>;
       // validate the arguments against the tool's declared input schema before
@@ -259,10 +261,12 @@ export function registerMcpRoutes(app: FastifyInstance, deps: McpHttpDeps): void
       const check = validateToolArgs(args, tool.spec.inputSchema as ToolJsonSchema);
       if (!check.ok) {
         auditDeniedTool(guardrails, session, name, args, 'tool.args.invalid');
-        const message = new SchemaError('tool.args.invalid', { tool: name, detail: check.detail }, locale).localize(locale);
+        const message = new SchemaError('tool.args.invalid', { tool: name, detail: check.detail }, localeForRequest()).localize(localeForRequest());
         return { content: [{ type: 'text', text: message }], isError: true } as unknown as CallToolResult;
       }
-      const ctx = { engine, session, guardrails, resolveIdentity: identityResolver, allowImpersonation: deps.allowImpersonation === true, requestId: randomUUID(), ...(requestTrace.getStore() === undefined ? {} : { traceId: requestTrace.getStore() }), ...(deps.schemaRevision === undefined ? {} : { schemaRevision: deps.schemaRevision }) };
+      const activeLocale = localeForRequest();
+      const requestEngine = activeLocale === engine.locale ? engine : { ...engine, locale: activeLocale };
+      const ctx = { engine: requestEngine, session, guardrails, resolveIdentity: identityResolver, allowImpersonation: deps.allowImpersonation === true, requestId: randomUUID(), ...(requestTrace.getStore() === undefined ? {} : { traceId: requestTrace.getStore() }), ...(deps.schemaRevision === undefined ? {} : { schemaRevision: deps.schemaRevision }) };
       const result: McpToolResult = await tool.spec.handler(args, ctx);
       return result as unknown as CallToolResult;
     });
@@ -298,6 +302,7 @@ export function registerMcpRoutes(app: FastifyInstance, deps: McpHttpDeps): void
   }
 
   async function handle(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    const locale = negotiateLocale(request.headers['accept-language'], deps.locale);
     // authenticate before entering the transport (401 stays a plain HTTP error)
     const agentSubject = await authenticate(authenticator, request.headers.authorization, locale);
     const agentCredentialId = credentialIdOf(request.headers.authorization);
@@ -337,7 +342,9 @@ export function registerMcpRoutes(app: FastifyInstance, deps: McpHttpDeps): void
       const traceHeader = request.headers.traceparent;
       const traceId = traceIdOf(Array.isArray(traceHeader) ? traceHeader[0] : traceHeader);
       const dispatch: () => Promise<void> = () => transport.handleRequest(request.raw, reply.raw, request.body);
-      await (traceId === undefined ? dispatch() : requestTrace.run(traceId, dispatch));
+      await requestLocale.run(locale, () =>
+        traceId === undefined ? dispatch() : requestTrace.run(traceId, dispatch),
+      );
       return;
     }
 
@@ -401,7 +408,9 @@ export function registerMcpRoutes(app: FastifyInstance, deps: McpHttpDeps): void
     const activeEntry = entryResolved;
     reply.hijack();
     const dispatch = (): Promise<void> => activeEntry.transport.handleRequest(request.raw, reply.raw, request.body);
-    await (traceId === undefined ? dispatch() : requestTrace.run(traceId, dispatch));
+    await requestLocale.run(locale, () =>
+      traceId === undefined ? dispatch() : requestTrace.run(traceId, dispatch),
+    );
   }
 
   app.post(path, handle);

@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { execute, GraphQLError, parse, validate, type GraphQLSchema } from 'graphql';
-import { createSlidingWindow, SchemaError, traceIdOf, type IdentitySubject, type Locale } from '../../core/index.js';
+import { createSlidingWindow, negotiateLocale, SchemaError, traceIdOf, translate, type IdentitySubject, type Locale } from '../../core/index.js';
 import { mapSchemaError } from '../../core/api/index.js';
 import { authenticate, type Authenticator } from '../auth/index.js';
 import { createRecordLoader } from './loader.js';
@@ -106,12 +106,13 @@ export function registerGraphQLRoutes(app: FastifyInstance, deps: GraphQLRouteDe
     method: ['POST', 'GET'],
     url: path,
     handler: async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
+      const locale = negotiateLocale(request.headers['accept-language'], deps.locale);
       // authenticate before executing (401 stays a plain HTTP error)
       let subject: IdentitySubject;
       try {
-        subject = await authenticate(deps.authenticator, request.headers.authorization, deps.locale);
+        subject = await authenticate(deps.authenticator, request.headers.authorization, locale);
       } catch (error) {
-        const spec = mapSchemaError(error, deps.locale);
+        const spec = mapSchemaError(error, locale);
         reply.status(spec.status).send(spec.body);
         return;
       }
@@ -120,7 +121,7 @@ export function registerGraphQLRoutes(app: FastifyInstance, deps: GraphQLRouteDe
         const auth = request.headers.authorization;
         const key = typeof auth === 'string' ? auth.replace(/^Bearer\s+/i, '') : subject.id;
         if (!limiter.check(key)) {
-          reply.status(429).send(errorBody('http.rateLimited', 'rate limit exceeded'));
+          reply.status(429).send(errorBody('http.rateLimited', translate('http.rateLimited', {}, locale)));
           return;
         }
       }
@@ -147,13 +148,13 @@ export function registerGraphQLRoutes(app: FastifyInstance, deps: GraphQLRouteDe
       }
 
       try {
-        validateQuery(document, security, deps.locale);
+        validateQuery(document, security, locale);
       } catch (error) {
         if (error instanceof SchemaError) {
           reply.status(200).send({
             errors: [
               {
-                message: error.localize(deps.locale),
+                message: error.localize(locale),
                 extensions: { code: error.code, ...(Object.keys(error.params).length === 0 ? {} : { params: error.params }) },
               },
             ],
@@ -165,12 +166,13 @@ export function registerGraphQLRoutes(app: FastifyInstance, deps: GraphQLRouteDe
 
       const traceHeader = request.headers.traceparent;
       const traceId = traceIdOf(Array.isArray(traceHeader) ? traceHeader[0] : traceHeader);
+      const requestEngine = locale === deps.engine.locale ? deps.engine : { ...deps.engine, locale };
       const result = await execute({
         schema: deps.schema,
         document,
         ...(parsed.variables === undefined ? {} : { variableValues: parsed.variables }),
         ...(parsed.operationName === undefined ? {} : { operationName: parsed.operationName }),
-        contextValue: { subject, engine: deps.engine, loader: createRecordLoader(deps.engine, subject), requestId: request.id, ...(traceId === undefined ? {} : { traceId }) },
+        contextValue: { subject, engine: requestEngine, loader: createRecordLoader(requestEngine, subject), requestId: request.id, ...(traceId === undefined ? {} : { traceId }) },
       });
 
       const body: Record<string, unknown> = {};
