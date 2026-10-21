@@ -111,6 +111,13 @@ function buildWhere(filter: EligibilityFilter): Where {
   if (filter.actorKey !== undefined) push('actor_key = ?', filter.actorKey);
   if (filter.requestedBy !== undefined) push('requested_by = ?', filter.requestedBy);
   if (filter.approvalKey !== undefined) push('approval_key = ?', filter.approvalKey);
+  if (filter.q !== undefined && filter.q.trim() !== '') {
+    params.push(`%${filter.q.trim()}%`);
+    const placeholder = `$${params.length}`;
+    clauses.push(
+      `(action ILIKE ${placeholder} OR actor_key ILIKE ${placeholder} OR requested_by ILIKE ${placeholder} OR approval_key ILIKE ${placeholder} OR actor_label ILIKE ${placeholder} OR on_behalf_of ILIKE ${placeholder})`,
+    );
+  }
   if (filter.from !== undefined) push('created_at >= ?', filter.from);
   if (filter.to !== undefined) push('created_at <= ?', filter.to);
   if (filter.expiresBefore !== undefined) push('expires_at < ?', filter.expiresBefore);

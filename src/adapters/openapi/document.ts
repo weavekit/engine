@@ -86,6 +86,7 @@ const P = {
   status: { name: 'status', in: 'query', schema: { type: 'string' } },
   action: { name: 'action', in: 'query', schema: { type: 'string' } },
   actorKey: { name: 'actorKey', in: 'query', schema: { type: 'string' } },
+  q: { name: 'q', in: 'query', schema: { type: 'string' }, description: 'Free-text search across action / actor / requester / approval key.' },
   from: { name: 'from', in: 'query', schema: { type: 'string', format: 'date-time' } },
   to: { name: 'to', in: 'query', schema: { type: 'string', format: 'date-time' } },
 } as const;
@@ -270,7 +271,7 @@ route('get', (c) => `${c.prefix}/audit`, op(OPENAPI_TAGS.AUDIT, 'queryAudit', 'Q
 // ---- Approvals (tool executor) ----
 route('get', (c) => `${c.prefix}/approvals`, op(OPENAPI_TAGS.APPROVALS, 'listApprovals', 'List pending approvals (admin)', {
   description: 'Paged approval queue; gated to `adminRoles` because the queue carries request arguments.',
-  parameters: [P.status, P.action, P.actorKey, P.from, P.to, P.limit, P.offset],
+  parameters: [P.status, P.action, P.actorKey, P.q, P.from, P.to, P.limit, P.offset],
   responses: { 200: ok('A page of approvals.', LIST_REF), ...errors('403') },
 }), (c) => c.approvals);
 route('post', (c) => `${c.prefix}/approvals/{key}/approve`, op(OPENAPI_TAGS.APPROVALS, 'approveApproval', 'Approve a pending call (admin)', {

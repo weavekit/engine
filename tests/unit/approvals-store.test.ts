@@ -69,6 +69,19 @@ describe('createApprovalsPgStore', () => {
     expect(entries).toHaveLength(2);
   });
 
+  it('list supports free-text q across action, actor, requester and approval key', async () => {
+    const { pool, calls } = fakePool(() => ({ rows: [] }));
+    const store = createApprovalsPgStore(pool);
+
+    await store.list({ q: 'maya', status: 'pending', limit: 10 });
+    expect(calls[0]!.text).toContain('action ILIKE $2');
+    expect(calls[0]!.text).toContain('actor_key ILIKE $2');
+    expect(calls[0]!.text).toContain('requested_by ILIKE $2');
+    expect(calls[0]!.text).toContain('approval_key ILIKE $2');
+    expect(calls[0]!.values[1]).toBe('%maya%');
+    expect(calls[0]!.text).toContain('status = $1');
+  });
+
   it('upsert JSON-stringifies args with ON CONFLICT DO NOTHING (deterministic dedup)', async () => {
     const { pool, calls } = fakePool(() => ({ rows: [] }));
     const store = createApprovalsPgStore(pool);

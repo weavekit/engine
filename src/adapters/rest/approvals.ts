@@ -36,6 +36,8 @@ function parseFilter(query: Record<string, unknown>, locale: Locale): Eligibilit
   if (requestedBy !== undefined) filter.requestedBy = requestedBy;
   const approvalKey = readString(query, 'approvalKey', locale);
   if (approvalKey !== undefined) filter.approvalKey = approvalKey;
+  const q = readString(query, 'q', locale);
+  if (q !== undefined) filter.q = q;
   const pendingFor = readString(query, 'pendingFor', locale);
   if (pendingFor !== undefined) filter.pendingFor = pendingFor;
   const from = readDate(query, 'from', locale);

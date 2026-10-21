@@ -5,6 +5,13 @@ the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.12.0] - 2026-10-21
+
+### Added
+
+- GET /api/approvals accepts q for free-text search across action, actor, requester and
+  approval key (additive; OpenAPI updated).
+
 ## [2.11.0] - 2026-10-21
 
 ### Added

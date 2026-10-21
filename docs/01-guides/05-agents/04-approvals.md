@@ -88,9 +88,9 @@ POST {prefix}/approvals/:key/decisions       record a vote (admin; body { decisi
 GET  {prefix}/approvals/:key/votes           list approver decisions
 ```
 
-`GET` supports `status`, `action`, `actorKey`, `requestedBy`, `approvalKey`, `pendingFor`, `from`,
-`to` (createdAt window), `expiresBefore`, `limit`, `offset` and `sort`/`order` (default
-`createdAt` DESC). It returns
+`GET` supports `status`, `action`, `actorKey`, `requestedBy`, `approvalKey`, `q` (free-text search
+across action / actor / requester / approval key), `pendingFor`, `from`, `to` (createdAt window),
+`expiresBefore`, `limit`, `offset` and `sort`/`order` (default `createdAt` DESC). It returns
 `{ rows, total, limit, offset }`. Approve/reject return `{ approvalKey, status, approver, comment? }`
 and answer `approval.notFound` when the key is unknown, already resolved, expired or consumed.
 
