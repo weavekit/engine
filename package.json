@@ -1,6 +1,6 @@
 {
   "name": "@weave-kit/engine",
-  "version": "2.9.1",
+  "version": "2.9.2",
   "description": "WeaveKit engine — a metadata-driven headless backend runtime with Git-versioned metadata",
   "type": "module",
   "main": "./dist/index.js",

@@ -20,7 +20,11 @@ function parseStatus(raw: string | undefined, locale: Locale): ApprovalStatus | 
   return raw as ApprovalStatus;
 }
 
-function parseFilter(query: Record<string, unknown>, locale: Locale): ApprovalListFilter {
+type EligibilityFilter = ApprovalListFilter & {
+  pendingForRoles?: string[];
+};
+
+function parseFilter(query: Record<string, unknown>, locale: Locale): EligibilityFilter {
   const filter: ApprovalListFilter = {};
   const status = parseStatus(readString(query, 'status', locale), locale);
   if (status !== undefined) filter.status = status;
@@ -32,6 +36,8 @@ function parseFilter(query: Record<string, unknown>, locale: Locale): ApprovalLi
   if (requestedBy !== undefined) filter.requestedBy = requestedBy;
   const approvalKey = readString(query, 'approvalKey', locale);
   if (approvalKey !== undefined) filter.approvalKey = approvalKey;
+  const pendingFor = readString(query, 'pendingFor', locale);
+  if (pendingFor !== undefined) filter.pendingFor = pendingFor;
   const from = readDate(query, 'from', locale);
   if (from !== undefined) filter.from = from;
   const to = readDate(query, 'to', locale);
@@ -72,6 +78,10 @@ export function registerApprovalsRoutes(app: FastifyInstance, deps: RestDeps, op
     requireAdminRoles(subject.roles);
     const query = request.query as Record<string, unknown>;
     const filter = parseFilter(query, locale);
+    if (filter.pendingFor !== undefined) {
+      filter.pendingFor = subject.id;
+      filter.pendingForRoles = subject.roles;
+    }
     const { limit, offset } = resolvePagination({
       limit: readInt(query, 'limit', locale),
       offset: readInt(query, 'offset', locale),

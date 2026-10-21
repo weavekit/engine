@@ -1,5 +1,10 @@
 import type { ApprovalListFilter, ApprovalVote, ApprovalsBackend, PendingApproval } from './types.js';
 
+type EligibilityFilter = ApprovalListFilter & {
+  pendingForRoles?: string[];
+  pendingForGroups?: string[];
+};
+
 /**
  * In-memory `ApprovalsBackend` (tests / single-process default). Pure core —
  * no I/O, keeps "disabled = not imported = zero overhead" for the persisted
@@ -9,7 +14,7 @@ export function createMemoryApprovalsBackend(): ApprovalsBackend {
   const store = new Map<string, PendingApproval>();
   const votes = new Map<string, ApprovalVote[]>();
 
-  const matches = (entry: PendingApproval, filter: ApprovalListFilter): boolean => {
+  const matches = (entry: PendingApproval, filter: EligibilityFilter): boolean => {
     if (filter.status !== undefined && entry.status !== filter.status) return false;
     if (filter.action !== undefined && entry.action !== filter.action) return false;
     if (filter.actorKey !== undefined && entry.actorKey !== filter.actorKey) return false;
@@ -17,6 +22,18 @@ export function createMemoryApprovalsBackend(): ApprovalsBackend {
     if (filter.approvalKey !== undefined && entry.approvalKey !== filter.approvalKey) return false;
     if (filter.pendingFor !== undefined) {
       if (entry.status !== 'pending' || entry.requestedBy === filter.pendingFor) return false;
+      if (filter.pendingForRoles !== undefined || filter.pendingForGroups !== undefined) {
+        const roles = filter.pendingForRoles ?? [];
+        const groups = filter.pendingForGroups ?? [];
+        const roleMatch = (entry.approverRoles ?? []).some((role) => roles.includes(role));
+        const groupMatch = (entry.approverGroups ?? []).some((group) => groups.includes(group));
+        const unrestricted =
+          (entry.approverRoles ?? []).length === 0 && (entry.approverGroups ?? []).length === 0;
+        const escalated =
+          entry.escalatedAt !== undefined &&
+          (entry.escalationApprovers ?? []).includes(filter.pendingFor);
+        if (!roleMatch && !groupMatch && !unrestricted && !escalated) return false;
+      }
     }
     if (filter.from !== undefined && entry.createdAt < filter.from) return false;
     if (filter.to !== undefined && entry.createdAt > filter.to) return false;

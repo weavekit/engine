@@ -94,7 +94,12 @@ interface Where {
   params: unknown[];
 }
 
-function buildWhere(filter: ApprovalListFilter): Where {
+type EligibilityFilter = ApprovalListFilter & {
+  pendingForRoles?: string[];
+  pendingForGroups?: string[];
+};
+
+function buildWhere(filter: EligibilityFilter): Where {
   const clauses: string[] = [];
   const params: unknown[] = [];
   const push = (clause: string, value: unknown): void => {
@@ -109,6 +114,26 @@ function buildWhere(filter: ApprovalListFilter): Where {
   if (filter.from !== undefined) push('created_at >= ?', filter.from);
   if (filter.to !== undefined) push('created_at <= ?', filter.to);
   if (filter.expiresBefore !== undefined) push('expires_at < ?', filter.expiresBefore);
+  if (filter.pendingFor !== undefined) {
+    push('status = ?', 'pending');
+    push('requested_by IS DISTINCT FROM ?', filter.pendingFor);
+    if (filter.pendingForRoles !== undefined || filter.pendingForGroups !== undefined) {
+      const eligible: string[] = [
+        '(COALESCE(jsonb_array_length(approver_roles), 0) = 0 AND COALESCE(jsonb_array_length(approver_groups), 0) = 0)',
+      ];
+      if ((filter.pendingForRoles ?? []).length > 0) {
+        params.push(filter.pendingForRoles);
+        eligible.push(`approver_roles ?| $${params.length}::text[]`);
+      }
+      if ((filter.pendingForGroups ?? []).length > 0) {
+        params.push(filter.pendingForGroups);
+        eligible.push(`approver_groups ?| $${params.length}::text[]`);
+      }
+      params.push(filter.pendingFor);
+      eligible.push(`(escalated_at IS NOT NULL AND escalation_approvers ? $${params.length})`);
+      clauses.push(`(${eligible.join(' OR ')})`);
+    }
+  }
   return { sql: clauses.length === 0 ? '' : ` WHERE ${clauses.join(' AND ')}`, params };
 }
 

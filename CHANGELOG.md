@@ -5,6 +5,14 @@ the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.9.2] - 2026-10-20
+
+### Added
+
+- Approval `pendingFor` eligibility filtering: the REST route resolves the authenticated subject and
+  its roles, and both memory/PG stores match approver roles/groups or escalated approvers. The
+  requester is excluded.
+
 ## [2.9.1] - 2026-10-20
 
 ### Fixed

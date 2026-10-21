@@ -183,4 +183,28 @@ describe('approval decisions + votes', () => {
     expect(seen?.expiresBefore?.toISOString()).toBe(expiresBefore);
     await app.close();
   });
+
+  it('resolves pendingFor to the authenticated subject and its roles', async () => {
+    let seen:
+      | { pendingFor?: string; pendingForRoles?: string[] }
+      | undefined;
+    const approvals: ToolApprovals = {
+      ...mockApprovals(),
+      list: async (filter) => {
+        seen = filter;
+        return [];
+      },
+      count: async () => 0,
+    };
+    const app = await buildApp(approvals);
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/approvals?pendingFor=someone-else',
+      headers: { authorization: 'Bearer sk-admin' },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(seen?.pendingFor).toBe('u-admin');
+    expect(seen?.pendingForRoles).toEqual(['admin']);
+    await app.close();
+  });
 });
